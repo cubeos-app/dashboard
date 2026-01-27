@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- CubeOS Icon Only - for favicon, app icon, etc. -->
+  <!-- Colors: Navy #1a2e3f, Teal #14b8a6 -->
+  
+  <g transform="translate(50, 55)">
+    <!-- Back layer cubes first -->
+    <!-- Back-left-bottom (0,0,0) -->
+    <polygon fill="#3a5570" points="0,0 -20,12 -20,-12 0,-24"/>
+    <polygon fill="#1a2e3f" points="20,12 0,24 0,0 20,-12"/>
+    <polygon fill="#2a4258" points="0,-24 20,-12 0,0 -20,-12"/>
+    
+    <!-- Back-right-bottom (1,0,0) -->
+    <polygon fill="#1a2e3f" points="40,24 20,36 20,12 40,0"/>
+    <polygon fill="#2a4258" points="20,-12 40,0 20,12 0,0"/>
+    
+    <!-- Front-left-bottom (0,1,0) -->
+    <polygon fill="#3a5570" points="-20,12 -40,24 -40,0 -20,-12"/>
+    <polygon fill="#2a4258" points="-20,-12 0,0 -20,12 -40,0"/>
+    
+    <!-- Center-bottom (1,1,0) -->
+    <polygon fill="#3a5570" points="0,24 -20,36 -20,12 0,0"/>
+    <polygon fill="#1a2e3f" points="20,36 0,48 0,24 20,12"/>
+    <polygon fill="#2a4258" points="0,0 20,12 0,24 -20,12"/>
+    
+    <!-- Back-left-top (0,0,1) -->
+    <polygon fill="#3a5570" points="0,-24 -20,-12 -20,-36 0,-48"/>
+    <polygon fill="#1a2e3f" points="20,-12 0,0 0,-24 20,-36"/>
+    <polygon fill="#2a4258" points="0,-48 20,-36 0,-24 -20,-36"/>
+    
+    <!-- Back-right-top (1,0,1) -->
+    <polygon fill="#1a2e3f" points="40,0 20,12 20,-12 40,-24"/>
+    <polygon fill="#2a4258" points="20,-36 40,-24 20,-12 0,-24"/>
+    
+    <!-- Front-left-top (0,1,1) -->
+    <polygon fill="#3a5570" points="-20,-12 -40,0 -40,-24 -20,-36"/>
+    <polygon fill="#2a4258" points="-20,-36 0,-24 -20,-12 -40,-24"/>
+    
+    <!-- Floating teal cube (offset from 1,1,1 position) -->
+    <g transform="translate(-3, -8)">
+      <polygon fill="#14b8a6" points="0,-12 -20,0 -20,-24 0,-36"/>
+      <polygon fill="#0d9488" points="20,0 0,12 0,-12 20,-24"/>
+      <polygon fill="#2dd4bf" points="0,-36 20,-24 0,-12 -20,-24"/>
+    </g>
+  </g>
+</svg>

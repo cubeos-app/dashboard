@@ -1,7 +1,6 @@
 <script setup>
 import { useRoute } from 'vue-router'
 import { useServicesStore } from '@/stores/services'
-import { computed } from 'vue'
 
 const route = useRoute()
 const servicesStore = useServicesStore()
@@ -25,7 +24,7 @@ const icons = {
 </script>
 
 <template>
-  <aside class="hidden lg:block fixed left-0 top-16 bottom-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+  <aside class="hidden lg:block fixed left-0 top-16 bottom-0 w-64 bg-[#0d1117] border-r border-gray-800 overflow-y-auto">
     <nav class="p-4 space-y-1">
       <router-link
         v-for="item in navItems"
@@ -34,15 +33,15 @@ const icons = {
         :class="[
           'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
           isActive(item.path)
-            ? 'bg-cube-50 dark:bg-cube-900/30 text-cube-600 dark:text-cube-400'
-            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            ? 'bg-[#2dd4bf]/10 text-[#2dd4bf]'
+            : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
         ]"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" v-html="icons[item.icon]" />
         <span class="font-medium">{{ item.name }}</span>
         <span 
           v-if="item.badge"
-          class="ml-auto px-2 py-0.5 text-xs font-medium bg-cube-100 dark:bg-cube-900 text-cube-600 dark:text-cube-400 rounded-full"
+          class="ml-auto px-2 py-0.5 text-xs font-medium bg-[#2dd4bf]/20 text-[#2dd4bf] rounded-full"
         >
           {{ item.badge() }}
         </span>
@@ -50,13 +49,13 @@ const icons = {
     </nav>
 
     <!-- Quick links -->
-    <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-      <h3 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Quick Links</h3>
+    <div class="p-4 border-t border-gray-800">
+      <h3 class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Quick Links</h3>
       <div class="space-y-1">
         <a 
           href="http://dockge.mulecube.net" 
           target="_blank"
-          class="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-gray-200 transition-colors text-sm"
         >
           <span>📦</span>
           <span>Dockge</span>
@@ -67,7 +66,7 @@ const icons = {
         <a 
           href="http://uptimekuma.mulecube.net" 
           target="_blank"
-          class="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-gray-200 transition-colors text-sm"
         >
           <span>📊</span>
           <span>Uptime Kuma</span>
@@ -78,7 +77,7 @@ const icons = {
         <a 
           href="http://pihole.mulecube.net/admin" 
           target="_blank"
-          class="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-gray-200 transition-colors text-sm"
         >
           <span>🛡️</span>
           <span>Pi-hole</span>
@@ -86,6 +85,14 @@ const icons = {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
         </a>
+      </div>
+    </div>
+
+    <!-- Version -->
+    <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
+      <div class="flex items-center gap-2 px-4">
+        <img src="/images/cubeos-icon.svg" alt="" class="w-5 h-5 opacity-50" />
+        <span class="text-xs text-gray-500">CubeOS v0.1.0</span>
       </div>
     </div>
   </aside>

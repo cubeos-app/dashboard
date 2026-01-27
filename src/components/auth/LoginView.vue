@@ -21,30 +21,34 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-cube-900 to-gray-900 p-4">
-    <div class="w-full max-w-md">
+  <div class="min-h-screen flex items-center justify-center bg-[#0d1117] p-4">
+    <!-- Subtle gradient overlay -->
+    <div class="absolute inset-0 bg-gradient-to-br from-[#1a2332]/50 via-transparent to-[#0d4949]/30"></div>
+    
+    <div class="w-full max-w-md relative z-10">
       <!-- Logo -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-cube-600 rounded-2xl mb-4">
-          <span class="text-white font-bold text-2xl">C</span>
-        </div>
-        <h1 class="text-2xl font-bold text-white">CubeOS</h1>
-        <p class="text-gray-400 mt-1">Sign in to your dashboard</p>
+        <img 
+          src="/images/cubeos-logo-stacked.svg" 
+          alt="CubeOS" 
+          class="h-32 mx-auto mb-2"
+        />
+        <p class="text-gray-400 mt-4">Sign in to your dashboard</p>
       </div>
 
       <!-- Login form -->
-      <form @submit.prevent="handleSubmit" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+      <form @submit.prevent="handleSubmit" class="bg-[#161b22] rounded-2xl shadow-2xl p-8 border border-gray-800">
         <!-- Error message -->
         <div 
           v-if="authStore.error"
-          class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+          class="mb-6 p-4 bg-red-900/20 border border-red-800 rounded-lg"
         >
-          <p class="text-sm text-red-600 dark:text-red-400">{{ authStore.error }}</p>
+          <p class="text-sm text-red-400">{{ authStore.error }}</p>
         </div>
 
         <!-- Username -->
         <div class="mb-4">
-          <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label for="username" class="block text-sm font-medium text-gray-300 mb-2">
             Username
           </label>
           <input
@@ -53,14 +57,14 @@ async function handleSubmit() {
             type="text"
             required
             autocomplete="username"
-            class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cube-500 focus:border-transparent transition-colors"
+            class="w-full px-4 py-3 rounded-lg border border-gray-700 bg-[#0d1117] text-white placeholder-gray-500 focus:ring-2 focus:ring-[#2dd4bf] focus:border-transparent transition-colors"
             placeholder="admin"
           />
         </div>
 
         <!-- Password -->
         <div class="mb-6">
-          <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label for="password" class="block text-sm font-medium text-gray-300 mb-2">
             Password
           </label>
           <div class="relative">
@@ -70,13 +74,13 @@ async function handleSubmit() {
               :type="showPassword ? 'text' : 'password'"
               required
               autocomplete="current-password"
-              class="w-full px-4 py-3 pr-12 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cube-500 focus:border-transparent transition-colors"
+              class="w-full px-4 py-3 pr-12 rounded-lg border border-gray-700 bg-[#0d1117] text-white placeholder-gray-500 focus:ring-2 focus:ring-[#2dd4bf] focus:border-transparent transition-colors"
               placeholder="••••••••"
             />
             <button
               type="button"
               @click="showPassword = !showPassword"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
             >
               <svg v-if="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
@@ -93,7 +97,7 @@ async function handleSubmit() {
         <button
           type="submit"
           :disabled="authStore.loading"
-          class="w-full py-3 px-4 bg-cube-600 hover:bg-cube-700 disabled:bg-cube-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+          class="w-full py-3 px-4 bg-gradient-to-r from-[#2dd4bf] to-[#22d3ee] hover:from-[#14b8a6] hover:to-[#06b6d4] disabled:opacity-50 text-gray-900 font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
         >
           <svg 
             v-if="authStore.loading" 

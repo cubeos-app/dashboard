@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 160">
+  <!-- CubeOS Logo - Stacked Layout -->
+  <!-- For square contexts: GitHub avatar, app store, etc. -->
+  
+  <g transform="translate(70, 65)">
+    <!-- Back-left-bottom -->
+    <polygon fill="#3a5570" points="0,0 -20,12 -20,-12 0,-24"/>
+    <polygon fill="#1a2e3f" points="20,12 0,24 0,0 20,-12"/>
+    <polygon fill="#2a4258" points="0,-24 20,-12 0,0 -20,-12"/>
+    
+    <!-- Back-right-bottom -->
+    <polygon fill="#1a2e3f" points="40,24 20,36 20,12 40,0"/>
+    <polygon fill="#2a4258" points="20,-12 40,0 20,12 0,0"/>
+    
+    <!-- Front-left-bottom -->
+    <polygon fill="#3a5570" points="-20,12 -40,24 -40,0 -20,-12"/>
+    <polygon fill="#2a4258" points="-20,-12 0,0 -20,12 -40,0"/>
+    
+    <!-- Center-bottom -->
+    <polygon fill="#3a5570" points="0,24 -20,36 -20,12 0,0"/>
+    <polygon fill="#1a2e3f" points="20,36 0,48 0,24 20,12"/>
+    <polygon fill="#2a4258" points="0,0 20,12 0,24 -20,12"/>
+    
+    <!-- Back-left-top -->
+    <polygon fill="#3a5570" points="0,-24 -20,-12 -20,-36 0,-48"/>
+    <polygon fill="#1a2e3f" points="20,-12 0,0 0,-24 20,-36"/>
+    <polygon fill="#2a4258" points="0,-48 20,-36 0,-24 -20,-36"/>
+    
+    <!-- Back-right-top -->
+    <polygon fill="#1a2e3f" points="40,0 20,12 20,-12 40,-24"/>
+    <polygon fill="#2a4258" points="20,-36 40,-24 20,-12 0,-24"/>
+    
+    <!-- Front-left-top -->
+    <polygon fill="#3a5570" points="-20,-12 -40,0 -40,-24 -20,-36"/>
+    <polygon fill="#2a4258" points="-20,-36 0,-24 -20,-12 -40,-24"/>
+    
+    <!-- Floating teal cube -->
+    <g transform="translate(-3, -8)">
+      <polygon fill="#14b8a6" points="0,-12 -20,0 -20,-24 0,-36"/>
+      <polygon fill="#0d9488" points="20,0 0,12 0,-12 20,-24"/>
+      <polygon fill="#2dd4bf" points="0,-36 20,-24 0,-12 -20,-24"/>
+    </g>
+  </g>
+  
+  <!-- Wordmark centered below -->
+  <text x="70" y="145" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="600">
+    <tspan fill="#1a2e3f">Cube</tspan><tspan fill="#14b8a6">OS</tspan>
+  </text>
+</svg>
