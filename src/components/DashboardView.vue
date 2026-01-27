@@ -36,8 +36,8 @@ onMounted(async () => {
   <div class="space-y-8">
     <!-- Page header -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-      <p class="text-gray-500 dark:text-gray-400 mt-1">Welcome to your offline services hub</p>
+      <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+      <p class="text-gray-500 mt-1">Welcome to your offline services hub</p>
     </div>
 
     <!-- System stats row -->
@@ -47,7 +47,7 @@ onMounted(async () => {
         :value="servicesStore.runningCount"
         :subtitle="`of ${servicesStore.serviceCount} running`"
         icon="grid"
-        color="cube"
+        color="teal"
       />
       <SystemStatsCard 
         title="Uptime"
@@ -75,22 +75,22 @@ onMounted(async () => {
     <!-- Featured Services -->
     <section>
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Access</h2>
+        <h2 class="text-lg font-semibold text-white">Quick Access</h2>
         <router-link 
           to="/services" 
-          class="text-sm text-cube-600 dark:text-cube-400 hover:underline"
+          class="text-sm text-[#2dd4bf] hover:underline"
         >
           View all →
         </router-link>
       </div>
 
       <div v-if="servicesStore.loading" class="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <div v-for="i in 6" :key="i" class="bg-white dark:bg-gray-800 rounded-xl p-4 animate-pulse">
+        <div v-for="i in 6" :key="i" class="bg-[#161b22] rounded-xl p-4 animate-pulse border border-gray-800">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            <div class="w-10 h-10 bg-gray-800 rounded-lg"></div>
             <div class="flex-1">
-              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2"></div>
-              <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+              <div class="h-4 bg-gray-800 rounded w-24 mb-2"></div>
+              <div class="h-3 bg-gray-800 rounded w-32"></div>
             </div>
           </div>
         </div>
@@ -105,11 +105,11 @@ onMounted(async () => {
         />
       </div>
 
-      <div v-else class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8 text-center">
-        <p class="text-gray-500 dark:text-gray-400">No services running yet</p>
+      <div v-else class="bg-[#161b22] rounded-xl p-8 text-center border border-gray-800">
+        <p class="text-gray-500">No services running yet</p>
         <router-link 
           to="/services" 
-          class="inline-block mt-4 px-4 py-2 bg-cube-600 text-white rounded-lg hover:bg-cube-700 transition-colors"
+          class="inline-block mt-4 px-4 py-2 bg-[#2dd4bf] text-gray-900 font-medium rounded-lg hover:bg-[#14b8a6] transition-colors"
         >
           Manage Services
         </router-link>
@@ -118,19 +118,27 @@ onMounted(async () => {
 
     <!-- Service Categories Preview -->
     <section>
-      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Service Categories</h2>
+      <h2 class="text-lg font-semibold text-white mb-4">Service Categories</h2>
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <router-link
           v-for="(category, key) in servicesStore.categorizedServices"
           :key="key"
           :to="`/services?category=${key}`"
-          class="bg-white dark:bg-gray-800 rounded-xl p-4 hover:shadow-lg transition-shadow"
+          class="bg-[#161b22] rounded-xl p-4 border border-gray-800 hover:border-[#2dd4bf]/50 transition-all"
         >
           <div class="flex items-center gap-3">
-            <span class="text-2xl">{{ category.icon }}</span>
+            <div class="w-10 h-10 rounded-lg bg-[#0d1117] border border-gray-800 flex items-center justify-center">
+              <svg 
+                class="w-5 h-5 text-gray-400" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                v-html="category.icon"
+              />
+            </div>
             <div>
-              <h3 class="font-medium text-gray-900 dark:text-white">{{ category.title }}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400">
+              <h3 class="font-medium text-white">{{ category.title }}</h3>
+              <p class="text-sm text-gray-500">
                 {{ category.items.length }} service{{ category.items.length !== 1 ? 's' : '' }}
               </p>
             </div>
@@ -141,7 +149,7 @@ onMounted(async () => {
 
     <!-- Recently Started -->
     <section v-if="recentServices.length > 0">
-      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recently Started</h2>
+      <h2 class="text-lg font-semibold text-white mb-4">Recently Started</h2>
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <ServiceCard 
           v-for="service in recentServices" 
