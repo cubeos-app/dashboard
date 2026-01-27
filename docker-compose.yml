@@ -1,0 +1,23 @@
+services:
+  cubeos-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cubeos/dashboard:latest
+    container_name: cubeos-dashboard
+    restart: unless-stopped
+    ports:
+      - "192.168.42.1:3000:80"
+    environment:
+      - TZ=Europe/Amsterdam
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+      - "com.cubeos.service=dashboard"
+      - "com.cubeos.description=CubeOS Dashboard"
+    networks:
+      - cubeos
+
+networks:
+  cubeos:
+    external: true
+    name: api_default

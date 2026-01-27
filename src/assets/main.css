@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Status dot animations */
+@keyframes pulse-online {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.status-dot-online {
+  animation: pulse-online 2s ease-in-out infinite;
+}
+
+@keyframes pulse-checking {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.status-dot-checking {
+  animation: pulse-checking 1s ease-in-out infinite;
+}
+
+/* Smooth transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Service card hover effect */
+.service-card {
+  @apply transition-all duration-200 ease-out;
+}
+
+.service-card:hover {
+  @apply -translate-y-0.5 shadow-lg;
+}
+
+/* Focus styles */
+:focus-visible {
+  @apply outline-none ring-2 ring-cube-500 ring-offset-2 dark:ring-offset-gray-900;
+}
