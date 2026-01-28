@@ -13,24 +13,48 @@ export const useSystemStore = defineStore('system', () => {
   // Getters
   const hostname = computed(() => info.value?.hostname ?? 'CubeOS')
   const uptime = computed(() => stats.value?.uptime_human ?? '—')
-  const cpuUsage = computed(() => stats.value?.cpu?.usage_percent ?? 0)
-  const memoryUsage = computed(() => {
-    if (!stats.value?.memory) return 0
-    const { used, total } = stats.value.memory
-    return total > 0 ? Math.round((used / total) * 100) : 0
+  
+  // CPU - API returns cpu.percent (not usage_percent)
+  const cpuUsage = computed(() => {
+    const cpu = stats.value?.cpu
+    if (!cpu) return 0
+    // Try different field names
+    return Math.round(cpu.percent ?? cpu.usage_percent ?? 0)
   })
-  const temperature = computed(() => stats.value?.temperature?.current ?? null)
+  
+  // Memory - API returns memory.percent directly, or we calculate from used/total
+  const memoryUsage = computed(() => {
+    const mem = stats.value?.memory
+    if (!mem) return 0
+    if (mem.percent !== undefined) return Math.round(mem.percent)
+    if (mem.used && mem.total && mem.total > 0) {
+      return Math.round((mem.used / mem.total) * 100)
+    }
+    return 0
+  })
+  
+  // Temperature - API returns temperature.current or temperature.cpu_temp_c
+  const temperature = computed(() => {
+    const temp = stats.value?.temperature
+    if (!temp) return null
+    return temp.current ?? temp.cpu_temp_c ?? null
+  })
+  
   const diskUsage = computed(() => {
     if (!stats.value?.disk) return 0
-    const { used, total } = stats.value.disk
+    const { used, total, percent } = stats.value.disk
+    if (percent !== undefined) return Math.round(percent)
     return total > 0 ? Math.round((used / total) * 100) : 0
   })
 
   // Formatted values
   const memoryFormatted = computed(() => {
-    if (!stats.value?.memory) return '—'
-    const { used, total } = stats.value.memory
-    const usedGB = (used / 1024 / 1024 / 1024).toFixed(1)
+    const mem = stats.value?.memory
+    if (!mem) return '—'
+    const { used, total, available } = mem
+    if (!total) return '—'
+    const usedVal = used ?? (total - (available ?? 0))
+    const usedGB = (usedVal / 1024 / 1024 / 1024).toFixed(1)
     const totalGB = (total / 1024 / 1024 / 1024).toFixed(1)
     return `${usedGB} / ${totalGB} GB`
   })
@@ -38,6 +62,7 @@ export const useSystemStore = defineStore('system', () => {
   const diskFormatted = computed(() => {
     if (!stats.value?.disk) return '—'
     const { used, total } = stats.value.disk
+    if (!total) return '—'
     const usedGB = (used / 1024 / 1024 / 1024).toFixed(0)
     const totalGB = (total / 1024 / 1024 / 1024).toFixed(0)
     return `${usedGB} / ${totalGB} GB`
@@ -48,15 +73,18 @@ export const useSystemStore = defineStore('system', () => {
     try {
       info.value = await api.getSystemInfo()
     } catch (e) {
+      console.error('Failed to fetch system info:', e)
       error.value = e.message
     }
   }
 
   async function fetchStats() {
     try {
-      stats.value = await api.getSystemStats()
+      const data = await api.getSystemStats()
+      stats.value = data
       lastUpdated.value = new Date()
     } catch (e) {
+      console.error('Failed to fetch system stats:', e)
       error.value = e.message
     }
   }

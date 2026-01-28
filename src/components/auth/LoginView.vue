@@ -1,9 +1,8 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
@@ -14,8 +13,9 @@ const showPassword = ref(false)
 async function handleSubmit() {
   const success = await authStore.login(username.value, password.value)
   if (success) {
+    // Use window.location for reliable redirect (forces full page load)
     const redirect = route.query.redirect || '/'
-    router.push(redirect)
+    window.location.href = redirect
   }
 }
 </script>
@@ -29,11 +29,14 @@ async function handleSubmit() {
       <!-- Logo -->
       <div class="text-center mb-8">
         <img 
-          src="/images/cubeos-logo-stacked.svg" 
+          src="/images/cubeos-icon.svg" 
           alt="CubeOS" 
-          class="h-32 mx-auto mb-2"
+          class="h-20 w-20 mx-auto mb-4"
         />
-        <p class="text-gray-400 mt-4">Sign in to your dashboard</p>
+        <h1 class="text-2xl font-semibold text-white tracking-tight">
+          Cube<span class="text-[#2dd4bf]">OS</span>
+        </h1>
+        <p class="text-gray-400 mt-2">Sign in to your dashboard</p>
       </div>
 
       <!-- Login form -->

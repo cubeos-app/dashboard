@@ -7,22 +7,26 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const loading = ref(false)
   const error = ref(null)
+  // Track authentication state reactively (not via localStorage check)
+  const _isAuthenticated = ref(api.isAuthenticated())
 
   // Getters
-  const isAuthenticated = computed(() => api.isAuthenticated())
+  const isAuthenticated = computed(() => _isAuthenticated.value)
   const isAdmin = computed(() => user.value?.is_admin ?? false)
   const username = computed(() => user.value?.username ?? '')
 
   // Actions
-  async function login(username, password) {
+  async function login(usernameVal, password) {
     loading.value = true
     error.value = null
     try {
-      await api.login(username, password)
+      await api.login(usernameVal, password)
+      _isAuthenticated.value = true  // Update reactive state
       await fetchUser()
       return true
     } catch (e) {
       error.value = e.message
+      _isAuthenticated.value = false
       return false
     } finally {
       loading.value = false
@@ -32,14 +36,20 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     await api.logout()
     user.value = null
+    _isAuthenticated.value = false  // Update reactive state
   }
 
   async function fetchUser() {
-    if (!api.isAuthenticated()) return
+    if (!api.isAuthenticated()) {
+      _isAuthenticated.value = false
+      return
+    }
     try {
       user.value = await api.getMe()
+      _isAuthenticated.value = true
     } catch {
       user.value = null
+      _isAuthenticated.value = false
     }
   }
 
@@ -59,7 +69,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Initialize - check if we have a valid token
   async function init() {
-    if (api.isAuthenticated()) {
+    _isAuthenticated.value = api.isAuthenticated()
+    if (_isAuthenticated.value) {
       await fetchUser()
     }
   }
