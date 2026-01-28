@@ -12,59 +12,123 @@ export const useSystemStore = defineStore('system', () => {
 
   // Getters
   const hostname = computed(() => info.value?.hostname ?? 'CubeOS')
-  const uptime = computed(() => stats.value?.uptime_human ?? '—')
   
-  // CPU - API returns cpu.percent (not usage_percent)
-  const cpuUsage = computed(() => {
-    const cpu = stats.value?.cpu
-    if (!cpu) return 0
-    // Try different field names
-    return Math.round(cpu.percent ?? cpu.usage_percent ?? 0)
+  // Uptime - check both nested and flat formats
+  const uptime = computed(() => {
+    if (!stats.value) return '—'
+    // Flat format from Go API
+    if (stats.value.uptime_human) return stats.value.uptime_human
+    // Calculate from uptime_seconds if available
+    if (stats.value.uptime_seconds) {
+      const secs = stats.value.uptime_seconds
+      const days = Math.floor(secs / 86400)
+      const hours = Math.floor((secs % 86400) / 3600)
+      const mins = Math.floor((secs % 3600) / 60)
+      if (days > 0) return `${days}d ${hours}h`
+      if (hours > 0) return `${hours}h ${mins}m`
+      return `${mins}m`
+    }
+    return '—'
   })
   
-  // Memory - API returns memory.percent directly, or we calculate from used/total
+  // CPU - handle both flat (cpu_percent) and nested (cpu.percent) formats
+  const cpuUsage = computed(() => {
+    if (!stats.value) return 0
+    // Flat format from Go API
+    if (stats.value.cpu_percent !== undefined) {
+      return Math.round(stats.value.cpu_percent)
+    }
+    // Nested format
+    if (stats.value.cpu?.percent !== undefined) {
+      return Math.round(stats.value.cpu.percent)
+    }
+    if (stats.value.cpu?.usage_percent !== undefined) {
+      return Math.round(stats.value.cpu.usage_percent)
+    }
+    return 0
+  })
+  
+  // Memory - handle both flat and nested formats
   const memoryUsage = computed(() => {
-    const mem = stats.value?.memory
-    if (!mem) return 0
-    if (mem.percent !== undefined) return Math.round(mem.percent)
-    if (mem.used && mem.total && mem.total > 0) {
+    if (!stats.value) return 0
+    // Flat format from Go API
+    if (stats.value.memory_percent !== undefined) {
+      return Math.round(stats.value.memory_percent)
+    }
+    // Nested format
+    const mem = stats.value.memory
+    if (mem?.percent !== undefined) return Math.round(mem.percent)
+    if (mem?.used && mem?.total && mem.total > 0) {
       return Math.round((mem.used / mem.total) * 100)
     }
     return 0
   })
   
-  // Temperature - API returns temperature.current or temperature.cpu_temp_c
+  // Temperature - handle both flat and nested formats
   const temperature = computed(() => {
-    const temp = stats.value?.temperature
-    if (!temp) return null
-    return temp.current ?? temp.cpu_temp_c ?? null
+    if (!stats.value) return null
+    // Flat format from Go API
+    if (stats.value.temperature_cpu !== undefined) {
+      return Math.round(stats.value.temperature_cpu)
+    }
+    // Nested format
+    const temp = stats.value.temperature
+    if (temp?.current !== undefined) return Math.round(temp.current)
+    if (temp?.cpu_temp_c !== undefined) return Math.round(temp.cpu_temp_c)
+    return null
   })
   
+  // Disk - handle both flat and nested formats
   const diskUsage = computed(() => {
-    if (!stats.value?.disk) return 0
-    const { used, total, percent } = stats.value.disk
-    if (percent !== undefined) return Math.round(percent)
-    return total > 0 ? Math.round((used / total) * 100) : 0
+    if (!stats.value) return 0
+    // Flat format from Go API
+    if (stats.value.disk_percent !== undefined) {
+      return Math.round(stats.value.disk_percent)
+    }
+    // Nested format
+    const disk = stats.value.disk
+    if (disk?.percent !== undefined) return Math.round(disk.percent)
+    if (disk?.used && disk?.total && disk.total > 0) {
+      return Math.round((disk.used / disk.total) * 100)
+    }
+    return 0
   })
 
   // Formatted values
   const memoryFormatted = computed(() => {
-    const mem = stats.value?.memory
-    if (!mem) return '—'
-    const { used, total, available } = mem
-    if (!total) return '—'
-    const usedVal = used ?? (total - (available ?? 0))
+    if (!stats.value) return '—'
+    // Flat format
+    const total = stats.value.memory_total
+    const used = stats.value.memory_used
+    if (total && used) {
+      const usedGB = (used / 1024 / 1024 / 1024).toFixed(1)
+      const totalGB = (total / 1024 / 1024 / 1024).toFixed(1)
+      return `${usedGB} / ${totalGB} GB`
+    }
+    // Nested format
+    const mem = stats.value.memory
+    if (!mem?.total) return '—'
+    const usedVal = mem.used ?? (mem.total - (mem.available ?? 0))
     const usedGB = (usedVal / 1024 / 1024 / 1024).toFixed(1)
-    const totalGB = (total / 1024 / 1024 / 1024).toFixed(1)
+    const totalGB = (mem.total / 1024 / 1024 / 1024).toFixed(1)
     return `${usedGB} / ${totalGB} GB`
   })
 
   const diskFormatted = computed(() => {
-    if (!stats.value?.disk) return '—'
-    const { used, total } = stats.value.disk
-    if (!total) return '—'
-    const usedGB = (used / 1024 / 1024 / 1024).toFixed(0)
-    const totalGB = (total / 1024 / 1024 / 1024).toFixed(0)
+    if (!stats.value) return '—'
+    // Flat format
+    const total = stats.value.disk_total
+    const used = stats.value.disk_used
+    if (total && used) {
+      const usedGB = (used / 1024 / 1024 / 1024).toFixed(0)
+      const totalGB = (total / 1024 / 1024 / 1024).toFixed(0)
+      return `${usedGB} / ${totalGB} GB`
+    }
+    // Nested format
+    const disk = stats.value.disk
+    if (!disk?.total) return '—'
+    const usedGB = (disk.used / 1024 / 1024 / 1024).toFixed(0)
+    const totalGB = (disk.total / 1024 / 1024 / 1024).toFixed(0)
     return `${usedGB} / ${totalGB} GB`
   })
 
