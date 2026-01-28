@@ -1,8 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSystemStore } from '@/stores/system'
-import { onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   darkMode: Boolean
@@ -16,14 +15,20 @@ const showUserMenu = ref(false)
 const showMobileMenu = ref(false)
 
 let statsInterval = null
+let infoInterval = null
 
-onMounted(() => {
-  systemStore.fetchStats()
+onMounted(async () => {
+  // Fetch both info (for uptime) and stats on mount
+  await systemStore.fetchAll()
+  // Poll stats every 5 seconds
   statsInterval = setInterval(() => systemStore.fetchStats(), 5000)
+  // Poll info every 60 seconds (for uptime updates)
+  infoInterval = setInterval(() => systemStore.fetchInfo(), 60000)
 })
 
 onUnmounted(() => {
   if (statsInterval) clearInterval(statsInterval)
+  if (infoInterval) clearInterval(infoInterval)
 })
 
 async function handleLogout() {
@@ -62,27 +67,32 @@ async function handleLogout() {
 
       <!-- Center: System stats -->
       <div class="hidden md:flex items-center gap-6 text-sm">
+        <!-- Uptime -->
         <div class="flex items-center gap-2 text-gray-400">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>{{ systemStore.uptime }}</span>
         </div>
+        <!-- CPU -->
         <div class="flex items-center gap-2 text-gray-400">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
           </svg>
           <span>{{ systemStore.cpuUsage }}%</span>
         </div>
+        <!-- Memory -->
         <div class="flex items-center gap-2 text-gray-400">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
           <span>{{ systemStore.memoryUsage }}%</span>
         </div>
+        <!-- Temperature - thermometer icon -->
         <div v-if="systemStore.temperature" class="flex items-center gap-2 text-gray-400">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19c0 1.105.895 2 2 2h2c1.105 0 2-.895 2-2v-1H9v1zm3-16a2 2 0 00-2 2v8.126A4 4 0 1015 17V5a2 2 0 00-2-2z" />
+            <circle cx="12" cy="17" r="2" fill="currentColor" />
           </svg>
           <span>{{ systemStore.temperature }}°C</span>
         </div>

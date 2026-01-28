@@ -13,23 +13,29 @@ export const useSystemStore = defineStore('system', () => {
   // Getters
   const hostname = computed(() => info.value?.hostname ?? 'CubeOS')
   
-  // Uptime - check both nested and flat formats
+  // Uptime comes from /system/info, not /stats
   const uptime = computed(() => {
-    if (!stats.value) return '—'
-    // Flat format from Go API
-    if (stats.value.uptime_human) return stats.value.uptime_human
-    // Calculate from uptime_seconds if available
-    if (stats.value.uptime_seconds) {
-      const secs = stats.value.uptime_seconds
-      const days = Math.floor(secs / 86400)
-      const hours = Math.floor((secs % 86400) / 3600)
-      const mins = Math.floor((secs % 3600) / 60)
-      if (days > 0) return `${days}d ${hours}h`
-      if (hours > 0) return `${hours}h ${mins}m`
-      return `${mins}m`
+    // First check info endpoint (Go API returns uptime_human there)
+    if (info.value?.uptime_human) return info.value.uptime_human
+    if (info.value?.uptime_seconds) {
+      return formatUptime(info.value.uptime_seconds)
+    }
+    // Fallback to stats if present
+    if (stats.value?.uptime_human) return stats.value.uptime_human
+    if (stats.value?.uptime_seconds) {
+      return formatUptime(stats.value.uptime_seconds)
     }
     return '—'
   })
+
+  function formatUptime(secs) {
+    const days = Math.floor(secs / 86400)
+    const hours = Math.floor((secs % 86400) / 3600)
+    const mins = Math.floor((secs % 3600) / 60)
+    if (days > 0) return `${days}d ${hours}h`
+    if (hours > 0) return `${hours}h ${mins}m`
+    return `${mins}m`
+  }
   
   // CPU - handle both flat (cpu_percent) and nested (cpu.percent) formats
   const cpuUsage = computed(() => {
@@ -41,9 +47,6 @@ export const useSystemStore = defineStore('system', () => {
     // Nested format
     if (stats.value.cpu?.percent !== undefined) {
       return Math.round(stats.value.cpu.percent)
-    }
-    if (stats.value.cpu?.usage_percent !== undefined) {
-      return Math.round(stats.value.cpu.usage_percent)
     }
     return 0
   })
@@ -58,9 +61,6 @@ export const useSystemStore = defineStore('system', () => {
     // Nested format
     const mem = stats.value.memory
     if (mem?.percent !== undefined) return Math.round(mem.percent)
-    if (mem?.used && mem?.total && mem.total > 0) {
-      return Math.round((mem.used / mem.total) * 100)
-    }
     return 0
   })
   
@@ -88,9 +88,6 @@ export const useSystemStore = defineStore('system', () => {
     // Nested format
     const disk = stats.value.disk
     if (disk?.percent !== undefined) return Math.round(disk.percent)
-    if (disk?.used && disk?.total && disk.total > 0) {
-      return Math.round((disk.used / disk.total) * 100)
-    }
     return 0
   })
 
