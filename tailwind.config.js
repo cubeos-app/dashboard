@@ -8,30 +8,37 @@ export default {
   theme: {
     extend: {
       colors: {
-        // CubeOS brand colors (from logo)
+        // CubeOS brand colors (from brand guidelines)
         cube: {
           50: '#f0fdfa',
           100: '#ccfbf1',
           200: '#99f6e4',
           300: '#5eead4',
-          400: '#2dd4bf',  // Primary teal
-          500: '#14b8a6',
-          600: '#0d9488',
+          400: '#2dd4bf',  // Teal Light
+          500: '#14b8a6',  // Teal Primary
+          600: '#0d9488',  // Teal Dark  
           700: '#0f766e',
           800: '#115e59',
           900: '#134e4a',
           950: '#042f2e',
         },
-        // Dark background colors
-        dark: {
-          900: '#0d1117',  // Darkest background
-          800: '#161b22',  // Card background
-          700: '#1a2332',  // Cube dark blue from logo
-          600: '#21262d',  // Lighter element
+        // Navy colors for backgrounds
+        navy: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',  // Slate Light
+          500: '#64748b',  // Slate Mid
+          600: '#475569',  // Slate Dark
+          700: '#3a5570',  // Navy Light
+          800: '#2a4258',  // Navy Mid
+          900: '#1a2e3f',  // Navy Dark
+          950: '#0f172a',  // Background
         }
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
       },
     },
   },

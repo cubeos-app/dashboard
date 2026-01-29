@@ -103,9 +103,14 @@ class ApiClient {
    */
   setTokens(accessToken, refreshToken) {
     this.accessToken = accessToken
-    this.refreshToken = refreshToken
-    localStorage.setItem('cubeos_access_token', accessToken)
-    localStorage.setItem('cubeos_refresh_token', refreshToken)
+    if (accessToken) {
+      localStorage.setItem('cubeos_access_token', accessToken)
+    }
+    // Only store refresh token if provided
+    if (refreshToken) {
+      this.refreshToken = refreshToken
+      localStorage.setItem('cubeos_refresh_token', refreshToken)
+    }
   }
 
   /**
@@ -236,6 +241,55 @@ class ApiClient {
   async getServiceStats(name) {
     const response = await this.request(`/services/${encodeURIComponent(name)}/stats`)
     if (!response.ok) throw new Error('Failed to get service stats')
+    return response.json()
+  }
+
+  // ==========================================
+  // Generic GET/POST helpers
+  // ==========================================
+
+  async get(endpoint, params = {}) {
+    const queryString = Object.keys(params).length 
+      ? '?' + new URLSearchParams(params).toString()
+      : ''
+    const response = await this.request(endpoint + queryString)
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }))
+      throw new Error(error.error || error.message || 'Request failed')
+    }
+    return response.json()
+  }
+
+  async post(endpoint, data = {}) {
+    const response = await this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }))
+      throw new Error(error.error || error.message || 'Request failed')
+    }
+    return response.json()
+  }
+
+  async put(endpoint, data = {}) {
+    const response = await this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }))
+      throw new Error(error.error || error.message || 'Request failed')
+    }
+    return response.json()
+  }
+
+  async delete(endpoint) {
+    const response = await this.request(endpoint, { method: 'DELETE' })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }))
+      throw new Error(error.error || error.message || 'Request failed')
+    }
     return response.json()
   }
 }

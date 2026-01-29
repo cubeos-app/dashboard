@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useServicesStore } from '@/stores/services'
 import api from '@/api/client'
@@ -18,7 +18,9 @@ const activeTab = ref('overview')
 
 const serviceName = computed(() => route.params.name)
 const displayName = computed(() => servicesStore.getServiceName(serviceName.value))
+const iconName = computed(() => servicesStore.getServiceIcon(serviceName.value))
 const isRunning = computed(() => service.value?.state === 'running')
+const isCore = computed(() => service.value?.is_core)
 
 async function fetchService() {
   try {
@@ -58,20 +60,42 @@ async function handleAction(action) {
     if (action === 'start') await servicesStore.startService(serviceName.value)
     else if (action === 'stop') await servicesStore.stopService(serviceName.value)
     else if (action === 'restart') await servicesStore.restartService(serviceName.value)
+    else if (action === 'enable') await api.post(`/api/v1/services/${serviceName.value}/enable`)
+    else if (action === 'disable') await api.post(`/api/v1/services/${serviceName.value}/disable`)
     
     await fetchService()
-    await fetchStats()
+    if (isRunning.value) await fetchStats()
   } finally {
     actionLoading.value = false
   }
 }
 
+let refreshInterval = null
 onMounted(async () => {
   await fetchService()
   if (isRunning.value) {
     await Promise.all([fetchLogs(), fetchStats()])
   }
+  // Refresh stats every 10 seconds
+  refreshInterval = setInterval(async () => {
+    if (isRunning.value) await fetchStats()
+  }, 10000)
 })
+
+onUnmounted(() => {
+  if (refreshInterval) clearInterval(refreshInterval)
+})
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let i = 0
+  while (bytes >= 1024 && i < units.length - 1) {
+    bytes /= 1024
+    i++
+  }
+  return `${bytes.toFixed(1)} ${units[i]}`
+}
 </script>
 
 <template>
@@ -86,15 +110,20 @@ onMounted(async () => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ displayName }}</h1>
-        <p class="text-gray-500 dark:text-gray-400">{{ serviceName }}</p>
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+          <span class="text-2xl">{{ iconName }}</span>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ displayName }}</h1>
+          <p class="text-gray-500 dark:text-gray-400">{{ serviceName }}</p>
+        </div>
       </div>
     </div>
 
     <!-- Loading state -->
     <div v-if="loading" class="bg-white dark:bg-gray-800 rounded-xl p-8 text-center">
-      <div class="animate-spin w-8 h-8 border-4 border-cube-600 border-t-transparent rounded-full mx-auto"></div>
+      <div class="animate-spin w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full mx-auto"></div>
       <p class="mt-4 text-gray-500">Loading service...</p>
     </div>
 
@@ -102,22 +131,31 @@ onMounted(async () => {
       <!-- Status & Actions -->
       <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <span 
-              class="w-3 h-3 rounded-full"
-              :class="isRunning ? 'bg-green-400 status-dot-online' : 'bg-gray-400'"
-            ></span>
-            <span class="font-medium text-gray-900 dark:text-white">
-              {{ isRunning ? 'Running' : 'Stopped' }}
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+              <span 
+                class="w-3 h-3 rounded-full"
+                :class="isRunning ? 'bg-green-400 animate-pulse' : 'bg-gray-400'"
+              ></span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ isRunning ? 'Running' : 'Stopped' }}
+              </span>
+            </div>
+            <span v-if="service.health_status" class="text-sm px-2 py-0.5 rounded-full"
+                  :class="service.health_status === 'healthy' 
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'">
+              {{ service.health_status }}
             </span>
-            <span v-if="service.health_status" class="text-sm text-gray-500">
-              ({{ service.health_status }})
+            <span v-if="isCore" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+              Core Service
             </span>
           </div>
 
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
+            <!-- Start/Stop/Restart buttons -->
             <button
-              v-if="!isRunning"
+              v-if="!isRunning && !isCore"
               @click="handleAction('start')"
               :disabled="actionLoading"
               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
@@ -128,7 +166,7 @@ onMounted(async () => {
               Start
             </button>
             <button
-              v-if="isRunning"
+              v-if="isRunning && !isCore"
               @click="handleAction('stop')"
               :disabled="actionLoading"
               class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
@@ -149,6 +187,43 @@ onMounted(async () => {
               </svg>
               Restart
             </button>
+            
+            <!-- Enable/Disable buttons -->
+            <button
+              v-if="!isCore && service.enabled !== false"
+              @click="handleAction('disable')"
+              :disabled="actionLoading"
+              class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+              Disable
+            </button>
+            <button
+              v-if="!isCore && service.enabled === false"
+              @click="handleAction('enable')"
+              :disabled="actionLoading"
+              class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-500 disabled:opacity-50 flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Enable
+            </button>
+            
+            <!-- Open in browser -->
+            <a
+              v-if="isRunning && service.ports?.some(p => p.public_port)"
+              :href="`http://192.168.42.1:${service.ports.find(p => p.public_port)?.public_port}`"
+              target="_blank"
+              class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-500 flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Open
+            </a>
           </div>
         </div>
       </div>
@@ -161,7 +236,7 @@ onMounted(async () => {
             :class="[
               'py-3 px-1 border-b-2 font-medium text-sm transition-colors',
               activeTab === 'overview'
-                ? 'border-cube-600 text-cube-600 dark:text-cube-400'
+                ? 'border-teal-500 text-teal-500 dark:text-teal-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             ]"
           >
@@ -172,7 +247,7 @@ onMounted(async () => {
             :class="[
               'py-3 px-1 border-b-2 font-medium text-sm transition-colors',
               activeTab === 'logs'
-                ? 'border-cube-600 text-cube-600 dark:text-cube-400'
+                ? 'border-teal-500 text-teal-500 dark:text-teal-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             ]"
           >
@@ -189,7 +264,7 @@ onMounted(async () => {
           <dl class="space-y-3 text-sm">
             <div class="flex justify-between">
               <dt class="text-gray-500 dark:text-gray-400">Image</dt>
-              <dd class="font-mono text-gray-900 dark:text-white">{{ service.image }}</dd>
+              <dd class="font-mono text-gray-900 dark:text-white text-right max-w-48 truncate">{{ service.image }}</dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-gray-500 dark:text-gray-400">Container ID</dt>
@@ -207,20 +282,46 @@ onMounted(async () => {
         </div>
 
         <!-- Resource usage -->
-        <div v-if="stats" class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Resource Usage</h3>
-          <dl class="space-y-3 text-sm">
-            <div class="flex justify-between">
-              <dt class="text-gray-500 dark:text-gray-400">CPU</dt>
-              <dd class="text-gray-900 dark:text-white">{{ stats.cpu_percent?.toFixed(2) }}%</dd>
+          <dl v-if="stats" class="space-y-4">
+            <div>
+              <div class="flex justify-between mb-1">
+                <dt class="text-gray-500 dark:text-gray-400 text-sm">CPU</dt>
+                <dd class="text-gray-900 dark:text-white text-sm font-medium">{{ stats.cpu_percent?.toFixed(2) }}%</dd>
+              </div>
+              <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-500 transition-all" :style="{ width: `${Math.min(stats.cpu_percent || 0, 100)}%` }"></div>
+              </div>
             </div>
-            <div class="flex justify-between">
-              <dt class="text-gray-500 dark:text-gray-400">Memory</dt>
-              <dd class="text-gray-900 dark:text-white">
-                {{ (stats.memory_usage / 1024 / 1024).toFixed(1) }} MB
-              </dd>
+            <div>
+              <div class="flex justify-between mb-1">
+                <dt class="text-gray-500 dark:text-gray-400 text-sm">Memory</dt>
+                <dd class="text-gray-900 dark:text-white text-sm font-medium">
+                  {{ formatBytes(stats.memory_usage) }} / {{ formatBytes(stats.memory_limit) }}
+                </dd>
+              </div>
+              <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div class="h-full bg-purple-500 transition-all" :style="{ width: `${stats.memory_percent || 0}%` }"></div>
+              </div>
+            </div>
+            <div v-if="stats.net_rx_bytes || stats.net_tx_bytes">
+              <dt class="text-gray-500 dark:text-gray-400 text-sm mb-2">Network I/O</dt>
+              <div class="flex gap-4 text-sm">
+                <div>
+                  <span class="text-gray-400">↓</span>
+                  <span class="text-gray-900 dark:text-white ml-1">{{ formatBytes(stats.net_rx_bytes) }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">↑</span>
+                  <span class="text-gray-900 dark:text-white ml-1">{{ formatBytes(stats.net_tx_bytes) }}</span>
+                </div>
+              </div>
             </div>
           </dl>
+          <p v-else class="text-gray-500 text-sm">
+            {{ isRunning ? 'Loading stats...' : 'Start service to view stats' }}
+          </p>
         </div>
 
         <!-- Ports -->
@@ -244,19 +345,22 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Labels -->
-        <div v-if="service.labels && Object.keys(service.labels).length > 0" class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Labels</h3>
+        <!-- Environment -->
+        <div v-if="service.env?.length > 0" class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Environment Variables</h3>
           <div class="space-y-2 max-h-48 overflow-y-auto">
             <div 
-              v-for="(value, key) in service.labels" 
-              :key="key"
-              class="text-xs"
+              v-for="(env, idx) in service.env.slice(0, 10)" 
+              :key="idx"
+              class="text-xs font-mono"
             >
-              <span class="font-mono text-gray-500">{{ key }}</span>
+              <span class="text-gray-500">{{ env.split('=')[0] }}</span>
               <span class="text-gray-400">=</span>
-              <span class="font-mono text-gray-900 dark:text-white break-all">{{ value }}</span>
+              <span class="text-gray-900 dark:text-white break-all">{{ env.split('=').slice(1).join('=') }}</span>
             </div>
+            <p v-if="service.env?.length > 10" class="text-xs text-gray-500 mt-2">
+              +{{ service.env.length - 10 }} more variables
+            </p>
           </div>
         </div>
       </div>
@@ -268,12 +372,12 @@ onMounted(async () => {
           <button 
             @click="fetchLogs"
             :disabled="logsLoading"
-            class="text-sm text-cube-600 dark:text-cube-400 hover:underline disabled:opacity-50"
+            class="text-sm text-teal-500 dark:text-teal-400 hover:underline disabled:opacity-50"
           >
             {{ logsLoading ? 'Loading...' : 'Refresh' }}
           </button>
         </div>
-        <pre class="p-4 text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto max-h-96 whitespace-pre-wrap">{{ logs || 'No logs available' }}</pre>
+        <pre class="p-4 text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto max-h-[500px] whitespace-pre-wrap bg-gray-900 text-gray-100">{{ logs || 'No logs available' }}</pre>
       </div>
     </template>
 
@@ -282,7 +386,7 @@ onMounted(async () => {
       <p class="text-gray-500">Service not found</p>
       <button 
         @click="router.push('/services')"
-        class="mt-4 px-4 py-2 bg-cube-600 text-white rounded-lg hover:bg-cube-700"
+        class="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-500"
       >
         Back to Services
       </button>

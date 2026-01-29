@@ -6,126 +6,44 @@ export const useSystemStore = defineStore('system', () => {
   // State
   const info = ref(null)
   const stats = ref(null)
+  const power = ref(null)
+  const wifiClientsData = ref(null)
   const loading = ref(false)
   const error = ref(null)
   const lastUpdated = ref(null)
 
-  // Getters
+  // Getters - adapted to match API flat response format
   const hostname = computed(() => info.value?.hostname ?? 'CubeOS')
+  const uptime = computed(() => info.value?.uptime_human ?? '—')
+  const cpuUsage = computed(() => Math.round(stats.value?.cpu_percent ?? 0))
+  const memoryUsage = computed(() => Math.round(stats.value?.memory_percent ?? 0))
+  const temperature = computed(() => stats.value?.temperature_cpu ?? null)
+  const diskUsage = computed(() => Math.round(stats.value?.disk_percent ?? 0))
   
-  // Uptime comes from /system/info, not /stats
-  const uptime = computed(() => {
-    // First check info endpoint (Go API returns uptime_human there)
-    if (info.value?.uptime_human) return info.value.uptime_human
-    if (info.value?.uptime_seconds) {
-      return formatUptime(info.value.uptime_seconds)
-    }
-    // Fallback to stats if present
-    if (stats.value?.uptime_human) return stats.value.uptime_human
-    if (stats.value?.uptime_seconds) {
-      return formatUptime(stats.value.uptime_seconds)
-    }
-    return '—'
-  })
-
-  function formatUptime(secs) {
-    const days = Math.floor(secs / 86400)
-    const hours = Math.floor((secs % 86400) / 3600)
-    const mins = Math.floor((secs % 3600) / 60)
-    if (days > 0) return `${days}d ${hours}h`
-    if (hours > 0) return `${hours}h ${mins}m`
-    return `${mins}m`
-  }
-  
-  // CPU - handle both flat (cpu_percent) and nested (cpu.percent) formats
-  const cpuUsage = computed(() => {
-    if (!stats.value) return 0
-    // Flat format from Go API
-    if (stats.value.cpu_percent !== undefined) {
-      return Math.round(stats.value.cpu_percent)
-    }
-    // Nested format
-    if (stats.value.cpu?.percent !== undefined) {
-      return Math.round(stats.value.cpu.percent)
-    }
-    return 0
+  // WiFi clients count
+  const wifiClients = computed(() => {
+    if (wifiClientsData.value === null) return null
+    return wifiClientsData.value?.clients?.length ?? 0
   })
   
-  // Memory - handle both flat and nested formats
-  const memoryUsage = computed(() => {
-    if (!stats.value) return 0
-    // Flat format from Go API
-    if (stats.value.memory_percent !== undefined) {
-      return Math.round(stats.value.memory_percent)
-    }
-    // Nested format
-    const mem = stats.value.memory
-    if (mem?.percent !== undefined) return Math.round(mem.percent)
-    return 0
-  })
-  
-  // Temperature - handle both flat and nested formats
-  const temperature = computed(() => {
-    if (!stats.value) return null
-    // Flat format from Go API
-    if (stats.value.temperature_cpu !== undefined) {
-      return Math.round(stats.value.temperature_cpu)
-    }
-    // Nested format
-    const temp = stats.value.temperature
-    if (temp?.current !== undefined) return Math.round(temp.current)
-    if (temp?.cpu_temp_c !== undefined) return Math.round(temp.cpu_temp_c)
-    return null
-  })
-  
-  // Disk - handle both flat and nested formats
-  const diskUsage = computed(() => {
-    if (!stats.value) return 0
-    // Flat format from Go API
-    if (stats.value.disk_percent !== undefined) {
-      return Math.round(stats.value.disk_percent)
-    }
-    // Nested format
-    const disk = stats.value.disk
-    if (disk?.percent !== undefined) return Math.round(disk.percent)
-    return 0
-  })
+  // Power getters
+  const batteryPercent = computed(() => power.value?.battery_percent ?? null)
+  const batteryAvailable = computed(() => power.value?.available ?? false)
+  const onBattery = computed(() => power.value?.on_battery ?? false)
+  const isCharging = computed(() => power.value?.is_charging ?? false)
 
   // Formatted values
   const memoryFormatted = computed(() => {
-    if (!stats.value) return '—'
-    // Flat format
-    const total = stats.value.memory_total
-    const used = stats.value.memory_used
-    if (total && used) {
-      const usedGB = (used / 1024 / 1024 / 1024).toFixed(1)
-      const totalGB = (total / 1024 / 1024 / 1024).toFixed(1)
-      return `${usedGB} / ${totalGB} GB`
-    }
-    // Nested format
-    const mem = stats.value.memory
-    if (!mem?.total) return '—'
-    const usedVal = mem.used ?? (mem.total - (mem.available ?? 0))
-    const usedGB = (usedVal / 1024 / 1024 / 1024).toFixed(1)
-    const totalGB = (mem.total / 1024 / 1024 / 1024).toFixed(1)
+    if (!stats.value?.memory_total) return '—'
+    const usedGB = (stats.value.memory_used / 1024 / 1024 / 1024).toFixed(1)
+    const totalGB = (stats.value.memory_total / 1024 / 1024 / 1024).toFixed(1)
     return `${usedGB} / ${totalGB} GB`
   })
 
   const diskFormatted = computed(() => {
-    if (!stats.value) return '—'
-    // Flat format
-    const total = stats.value.disk_total
-    const used = stats.value.disk_used
-    if (total && used) {
-      const usedGB = (used / 1024 / 1024 / 1024).toFixed(0)
-      const totalGB = (total / 1024 / 1024 / 1024).toFixed(0)
-      return `${usedGB} / ${totalGB} GB`
-    }
-    // Nested format
-    const disk = stats.value.disk
-    if (!disk?.total) return '—'
-    const usedGB = (disk.used / 1024 / 1024 / 1024).toFixed(0)
-    const totalGB = (disk.total / 1024 / 1024 / 1024).toFixed(0)
+    if (!stats.value?.disk_total) return '—'
+    const usedGB = (stats.value.disk_used / 1024 / 1024 / 1024).toFixed(0)
+    const totalGB = (stats.value.disk_total / 1024 / 1024 / 1024).toFixed(0)
     return `${usedGB} / ${totalGB} GB`
   })
 
@@ -134,19 +52,34 @@ export const useSystemStore = defineStore('system', () => {
     try {
       info.value = await api.getSystemInfo()
     } catch (e) {
-      console.error('Failed to fetch system info:', e)
       error.value = e.message
     }
   }
 
   async function fetchStats() {
     try {
-      const data = await api.getSystemStats()
-      stats.value = data
+      stats.value = await api.getSystemStats()
       lastUpdated.value = new Date()
     } catch (e) {
-      console.error('Failed to fetch system stats:', e)
       error.value = e.message
+    }
+  }
+  
+  async function fetchPower() {
+    try {
+      power.value = await api.get('/power/status')
+    } catch (e) {
+      // UPS might not be available, that's ok
+      power.value = { available: false }
+    }
+  }
+  
+  async function fetchWifiClients() {
+    try {
+      wifiClientsData.value = await api.get('/network/wifi/ap/clients')
+    } catch (e) {
+      // AP might not be available
+      wifiClientsData.value = { clients: [] }
     }
   }
 
@@ -154,7 +87,7 @@ export const useSystemStore = defineStore('system', () => {
     loading.value = true
     error.value = null
     try {
-      await Promise.all([fetchInfo(), fetchStats()])
+      await Promise.all([fetchInfo(), fetchStats(), fetchPower(), fetchWifiClients()])
     } finally {
       loading.value = false
     }
@@ -185,6 +118,7 @@ export const useSystemStore = defineStore('system', () => {
   return {
     info,
     stats,
+    power,
     loading,
     error,
     lastUpdated,
@@ -196,8 +130,15 @@ export const useSystemStore = defineStore('system', () => {
     diskUsage,
     memoryFormatted,
     diskFormatted,
+    batteryPercent,
+    batteryAvailable,
+    onBattery,
+    isCharging,
+    wifiClients,
     fetchInfo,
     fetchStats,
+    fetchPower,
+    fetchWifiClients,
     fetchAll,
     reboot,
     shutdown

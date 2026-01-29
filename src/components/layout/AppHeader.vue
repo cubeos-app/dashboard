@@ -1,193 +1,149 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import { computed } from 'vue'
 import { useSystemStore } from '@/stores/system'
+import { useThemeStore } from '@/stores/theme'
+import { useBrandingStore } from '@/stores/branding'
+import Icon from '@/components/ui/Icon.vue'
 
-const props = defineProps({
-  darkMode: Boolean
-})
-
-const emit = defineEmits(['toggle-dark-mode'])
-
-const authStore = useAuthStore()
+const emit = defineEmits(['toggle-sidebar'])
 const systemStore = useSystemStore()
-const showUserMenu = ref(false)
-const showMobileMenu = ref(false)
+const themeStore = useThemeStore()
+const brandingStore = useBrandingStore()
 
-let statsInterval = null
-let infoInterval = null
-
-onMounted(async () => {
-  // Fetch both info (for uptime) and stats on mount
-  await systemStore.fetchAll()
-  // Poll stats every 5 seconds
-  statsInterval = setInterval(() => systemStore.fetchStats(), 5000)
-  // Poll info every 60 seconds (for uptime updates)
-  infoInterval = setInterval(() => systemStore.fetchInfo(), 60000)
+// Format uptime
+const uptimeFormatted = computed(() => {
+  const seconds = systemStore.uptime?.uptime_seconds || 0
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${mins}m`
+  return `${mins}m`
 })
 
-onUnmounted(() => {
-  if (statsInterval) clearInterval(statsInterval)
-  if (infoInterval) clearInterval(infoInterval)
+// Stats
+const cpuPercent = computed(() => Math.round(systemStore.stats?.cpu_percent || 0))
+const memPercent = computed(() => Math.round(systemStore.stats?.memory_percent || 0))
+const diskPercent = computed(() => Math.round(systemStore.stats?.disk_percent || 0))
+const temperature = computed(() => {
+  const temp = systemStore.stats?.temperature_cpu || systemStore.temperature?.cpu_temp_c || 0
+  return Math.round(temp * 10) / 10
 })
 
-async function handleLogout() {
-  await authStore.logout()
-  window.location.href = '/login'
-}
+// Battery
+const batteryPercent = computed(() => {
+  const pct = systemStore.power?.battery_percent
+  if (pct === null || pct === undefined) return null
+  return Math.round(pct)
+})
+const batteryCharging = computed(() => {
+  return systemStore.power?.charging || false
+})
 </script>
 
 <template>
-  <header class="fixed top-0 left-0 right-0 z-40 bg-[#0d1117] border-b border-gray-800">
-    <div class="flex items-center justify-between h-16 px-4 lg:px-6">
-      <!-- Left: Logo & mobile menu -->
-      <div class="flex items-center gap-4">
+  <header class="fixed top-0 left-0 right-0 z-50 h-14 border-b glass border-theme-primary">
+    <div class="flex items-center justify-between h-full px-4 lg:px-6">
+      <!-- Left: Menu + Logo -->
+      <div class="flex items-center gap-3">
         <!-- Mobile menu button -->
-        <button 
-          @click="showMobileMenu = !showMobileMenu"
-          class="lg:hidden p-2 rounded-lg hover:bg-gray-800"
+        <button
+          @click="$emit('toggle-sidebar')"
+          class="lg:hidden p-2 -ml-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
         >
-          <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <Icon name="Menu" :size="20" />
         </button>
 
-        <!-- Logo - Icon + Text inline -->
+        <!-- Logo -->
         <router-link to="/" class="flex items-center gap-2.5">
-          <img 
-            src="/images/cubeos-icon.svg" 
-            alt="CubeOS" 
-            class="h-9 w-9"
-          />
-          <span class="text-xl font-semibold text-white hidden sm:block tracking-tight">
-            Cube<span class="text-[#2dd4bf]">OS</span>
+          <img :src="brandingStore.brandLogo" :alt="brandingStore.brandName" class="w-9 h-9" />
+          <span class="text-lg font-semibold tracking-tight text-theme-primary hidden sm:block">
+            {{ brandingStore.brandNameFormatted.prefix }}<span class="text-accent">{{ brandingStore.brandNameFormatted.accent }}</span>
           </span>
         </router-link>
       </div>
 
-      <!-- Center: System stats -->
-      <div class="hidden md:flex items-center gap-6 text-sm">
+      <!-- Center: System stats (desktop only) -->
+      <div class="hidden lg:flex items-center gap-0.5">
         <!-- Uptime -->
-        <div class="flex items-center gap-2 text-gray-400">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{{ systemStore.uptime }}</span>
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-theme-secondary text-xs">
+          <Icon name="Clock" :size="13" class="text-theme-muted" />
+          <span class="font-medium tabular-nums">{{ uptimeFormatted }}</span>
         </div>
+
+        <div class="w-px h-3 bg-theme-primary mx-1"></div>
+
         <!-- CPU -->
-        <div class="flex items-center gap-2 text-gray-400">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-          </svg>
-          <span>{{ systemStore.cpuUsage }}%</span>
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-theme-secondary text-xs">
+          <Icon name="Cpu" :size="13" class="text-theme-muted" />
+          <span class="font-medium tabular-nums">{{ cpuPercent }}%</span>
         </div>
+
         <!-- Memory -->
-        <div class="flex items-center gap-2 text-gray-400">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-          </svg>
-          <span>{{ systemStore.memoryUsage }}%</span>
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-theme-secondary text-xs">
+          <Icon name="MemoryStick" :size="13" class="text-theme-muted" />
+          <span class="font-medium tabular-nums">{{ memPercent }}%</span>
         </div>
-        <!-- Temperature - thermometer icon -->
-        <div v-if="systemStore.temperature" class="flex items-center gap-2 text-gray-400">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19c0 1.105.895 2 2 2h2c1.105 0 2-.895 2-2v-1H9v1zm3-16a2 2 0 00-2 2v8.126A4 4 0 1015 17V5a2 2 0 00-2-2z" />
-            <circle cx="12" cy="17" r="2" fill="currentColor" />
-          </svg>
-          <span>{{ systemStore.temperature }}°C</span>
+
+        <!-- Disk -->
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-theme-secondary text-xs">
+          <Icon name="HardDrive" :size="13" class="text-theme-muted" />
+          <span class="font-medium tabular-nums">{{ diskPercent }}%</span>
         </div>
+
+        <div class="w-px h-3 bg-theme-primary mx-1"></div>
+
+        <!-- Temperature -->
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs"
+             :class="temperature > 80 ? 'text-error' : temperature > 70 ? 'text-warning' : 'text-theme-secondary'">
+          <Icon name="Thermometer" :size="13" class="text-theme-muted" />
+          <span class="font-medium tabular-nums">{{ temperature }}C</span>
+        </div>
+
+        <!-- Battery (if present) -->
+        <template v-if="batteryPercent !== null">
+          <div class="w-px h-3 bg-theme-primary mx-1"></div>
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs"
+               :class="batteryPercent < 20 ? 'text-error' : batteryPercent < 40 ? 'text-warning' : 'text-theme-secondary'">
+            <Icon :name="batteryCharging ? 'BatteryCharging' : 'Battery'" :size="13" class="text-theme-muted" />
+            <span class="font-medium tabular-nums">{{ batteryPercent }}%</span>
+          </div>
+        </template>
       </div>
 
       <!-- Right: Actions -->
-      <div class="flex items-center gap-2">
-        <!-- Dark mode toggle -->
-        <button 
-          @click="emit('toggle-dark-mode')"
-          class="p-2 rounded-lg hover:bg-gray-800 transition-colors"
-          :title="darkMode ? 'Switch to light mode' : 'Switch to dark mode'"
+      <div class="flex items-center gap-1.5">
+        <!-- Theme indicator -->
+        <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-theme-muted text-xs">
+          <div 
+            class="w-2.5 h-2.5 rounded-full"
+            :style="{ backgroundColor: themeStore.currentTheme.preview.accent }"
+          ></div>
+          <span>{{ themeStore.currentTheme.name }}</span>
+        </div>
+
+        <!-- Settings -->
+        <router-link
+          to="/settings"
+          class="p-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
         >
-          <svg v-if="darkMode" class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-          <svg v-else class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-        </button>
+          <Icon name="Settings" :size="18" />
+        </router-link>
 
         <!-- User menu -->
-        <div class="relative">
-          <button 
-            @click="showUserMenu = !showUserMenu"
-            class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            <div class="w-8 h-8 bg-gradient-to-br from-[#2dd4bf] to-[#22d3ee] rounded-full flex items-center justify-center">
-              <span class="text-gray-900 font-semibold text-sm">
-                {{ authStore.username.charAt(0).toUpperCase() }}
-              </span>
+        <router-link
+          to="/settings"
+          class="flex items-center gap-2 pl-2 ml-1 border-l border-theme-primary"
+        >
+          <div class="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-theme-tertiary transition-colors">
+            <div class="w-7 h-7 rounded-full bg-accent-muted flex items-center justify-center">
+              <span class="text-xs font-semibold text-accent">A</span>
             </div>
-            <span class="hidden sm:block text-sm text-gray-300">
-              {{ authStore.username }}
-            </span>
-            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          <!-- Dropdown -->
-          <div 
-            v-if="showUserMenu"
-            class="absolute right-0 mt-2 w-48 bg-[#161b22] rounded-lg shadow-lg border border-gray-800 py-1 z-50"
-          >
-            <router-link 
-              to="/system" 
-              class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
-              @click="showUserMenu = false"
-            >
-              System Settings
-            </router-link>
-            <hr class="my-1 border-gray-800">
-            <button 
-              @click="handleLogout"
-              class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800"
-            >
-              Sign out
-            </button>
+            <span class="hidden sm:block text-sm font-medium text-theme-primary">admin</span>
           </div>
-        </div>
+        </router-link>
       </div>
     </div>
-
-    <!-- Mobile menu -->
-    <div 
-      v-if="showMobileMenu"
-      class="lg:hidden border-t border-gray-800 bg-[#0d1117] py-4 px-4"
-    >
-      <nav class="space-y-2">
-        <router-link 
-          to="/" 
-          class="block px-4 py-2 rounded-lg hover:bg-gray-800 text-gray-300"
-          @click="showMobileMenu = false"
-        >
-          Dashboard
-        </router-link>
-        <router-link 
-          to="/services" 
-          class="block px-4 py-2 rounded-lg hover:bg-gray-800 text-gray-300"
-          @click="showMobileMenu = false"
-        >
-          Services
-        </router-link>
-        <router-link 
-          to="/system" 
-          class="block px-4 py-2 rounded-lg hover:bg-gray-800 text-gray-300"
-          @click="showMobileMenu = false"
-        >
-          System
-        </router-link>
-      </nav>
-    </div>
   </header>
-
-  <!-- Spacer for fixed header -->
-  <div class="h-16"></div>
 </template>
