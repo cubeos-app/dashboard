@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import api from '@/api'
+import api from '@/api/client'
 
 export const useAppManagerStore = defineStore('appmanager', () => {
   // State
