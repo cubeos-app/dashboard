@@ -14,8 +14,6 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['showHealth'])
-
 const servicesStore = useServicesStore()
 const actionLoading = ref(false)
 const favoriteLoading = ref(false)
@@ -24,9 +22,8 @@ const displayName = computed(() => servicesStore.getServiceName(props.service.na
 const iconName = computed(() => servicesStore.getServiceIcon(props.service.name))
 const isRunning = computed(() => props.service.state === 'running')
 const isHealthy = computed(() => props.service.health === 'healthy' || !props.service.health)
-const isCore = computed(() => props.service.is_core || props.service.name.startsWith('cubeos-'))
+const isCore = computed(() => props.service.is_core)
 const isFavorite = computed(() => servicesStore.isFavorite(props.service.name))
-const hasUI = computed(() => servicesStore.hasWebUI(props.service.name))
 
 const statusConfig = computed(() => {
   if (!isRunning.value) {
@@ -39,8 +36,12 @@ const statusConfig = computed(() => {
 })
 
 const serviceUrl = computed(() => {
-  if (!hasUI.value) return null
-  return servicesStore.getServiceUrl(props.service)
+  const ports = props.service.ports || []
+  const webPort = ports.find(p => p.public_port)
+  if (webPort) {
+    return `http://192.168.42.1:${webPort.public_port}`
+  }
+  return null
 })
 
 const imageName = computed(() => {
@@ -57,19 +58,6 @@ const extraPortCount = computed(() => {
   const ports = props.service.ports || []
   return Math.max(0, ports.filter(p => p.public_port).length - 3)
 })
-
-function handleClick() {
-  if (!isRunning.value) return
-  
-  if (hasUI.value && serviceUrl.value) {
-    // Track usage and open URL
-    servicesStore.trackUsage(props.service.name)
-    window.open(serviceUrl.value, '_blank', 'noopener,noreferrer')
-  } else {
-    // Show health/logs modal for no-UI services
-    emit('showHealth', props.service)
-  }
-}
 
 async function handleAction(action, e) {
   e.preventDefault()
@@ -103,12 +91,8 @@ async function handleToggleFavorite(e) {
 
 <template>
   <div
-    @click="handleClick"
     class="group relative bg-theme-card rounded-xl border border-theme-primary overflow-hidden transition-all duration-200 hover:border-theme-secondary hover:shadow-theme-md hover:-translate-y-0.5"
-    :class="[
-      { 'opacity-60': !isRunning },
-      isRunning ? 'cursor-pointer' : 'cursor-default'
-    ]"
+    :class="{ 'opacity-60': !isRunning }"
   >
     <div class="p-4" :class="{ 'p-3': compact }">
       <div class="flex items-center gap-3">
@@ -210,14 +194,18 @@ async function handleToggleFavorite(e) {
             </button>
           </div>
           
-          <!-- Open link / Info icon -->
-          <div
-            v-if="isRunning"
+          <!-- Open link -->
+          <a
+            v-if="isRunning && serviceUrl"
+            :href="serviceUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            @click.stop
             class="p-1.5 text-theme-tertiary hover:text-accent hover:bg-accent-muted rounded-lg transition-colors"
-            :title="hasUI ? 'Open' : 'View Status'"
+            title="Open"
           >
-            <Icon :name="hasUI ? 'ExternalLink' : 'Info'" :size="16" />
-          </div>
+            <Icon name="ExternalLink" :size="16" />
+          </a>
         </div>
       </div>
     </div>

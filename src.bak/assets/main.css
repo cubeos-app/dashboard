@@ -1,0 +1,442 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   CUBEOS THEME SYSTEM - 4 Professional Themes
+   ============================================================================
+   Theme 1: Obsidian (Dark) - Linear/Vercel inspired, deep blacks
+   Theme 2: Midnight (Dark) - Apple-style with violet accents
+   Theme 3: Snow (Light) - Clean Apple white aesthetic
+   Theme 4: Pearl (Light) - Warm Notion-inspired cream tones
+   ============================================================================ */
+
+@layer base {
+  :root {
+    /* Base spacing unit: 8px */
+    --spacing-unit: 8px;
+    
+    /* Typography */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+    
+    /* Layout */
+    --sidebar-width: 240px;
+    --sidebar-collapsed: 72px;
+    --header-height: 64px;
+    
+    /* Transitions */
+    --transition-fast: 150ms;
+    --transition-base: 200ms;
+    --transition-slow: 300ms;
+  }
+
+  /* -------------------------------------------------------------------------
+     THEME 1: OBSIDIAN (Dark) - Linear/Vercel Inspired
+     Deep blacks, cyan accents, sharp contrast
+     ------------------------------------------------------------------------- */
+  [data-theme="obsidian"] {
+    --bg-primary: #09090b;
+    --bg-secondary: #0c0c0e;
+    --bg-tertiary: #131316;
+    --bg-elevated: #18181b;
+    --bg-card: #1a1a1f;
+    --bg-card-hover: #222228;
+    --bg-input: #18181b;
+    
+    --border-primary: #27272a;
+    --border-secondary: #3f3f46;
+    --border-accent: #0ea5e9;
+    
+    --text-primary: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --text-muted: #52525b;
+    
+    --accent-primary: #0ea5e9;
+    --accent-secondary: #06b6d4;
+    --accent-hover: #0284c7;
+    --accent-muted: rgba(14, 165, 233, 0.15);
+    
+    --success: #22c55e;
+    --success-muted: rgba(34, 197, 94, 0.15);
+    --warning: #f59e0b;
+    --warning-muted: rgba(245, 158, 11, 0.15);
+    --error: #ef4444;
+    --error-muted: rgba(239, 68, 68, 0.15);
+    
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 20px rgba(14, 165, 233, 0.3);
+    
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    
+    --scrollbar-track: #18181b;
+    --scrollbar-thumb: #3f3f46;
+    --scrollbar-hover: #52525b;
+  }
+
+  /* -------------------------------------------------------------------------
+     THEME 2: MIDNIGHT (Dark) - Apple-style with Violet
+     Softer darks, purple/indigo accents, refined elegance
+     ------------------------------------------------------------------------- */
+  [data-theme="midnight"] {
+    --bg-primary: #0f0f14;
+    --bg-secondary: #13131a;
+    --bg-tertiary: #1a1a24;
+    --bg-elevated: #1e1e2a;
+    --bg-card: #1c1c28;
+    --bg-card-hover: #252533;
+    --bg-input: #1a1a24;
+    
+    --border-primary: #2a2a3c;
+    --border-secondary: #3d3d52;
+    --border-accent: #8b5cf6;
+    
+    --text-primary: #f8f8fc;
+    --text-secondary: #9d9db8;
+    --text-tertiary: #6b6b85;
+    --text-muted: #4a4a60;
+    
+    --accent-primary: #8b5cf6;
+    --accent-secondary: #a78bfa;
+    --accent-hover: #7c3aed;
+    --accent-muted: rgba(139, 92, 246, 0.15);
+    
+    --success: #34d399;
+    --success-muted: rgba(52, 211, 153, 0.15);
+    --warning: #fbbf24;
+    --warning-muted: rgba(251, 191, 36, 0.15);
+    --error: #f87171;
+    --error-muted: rgba(248, 113, 113, 0.15);
+    
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.25);
+    
+    --glass-bg: rgba(255, 255, 255, 0.04);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    
+    --scrollbar-track: #1a1a24;
+    --scrollbar-thumb: #3d3d52;
+    --scrollbar-hover: #4a4a60;
+  }
+
+  /* -------------------------------------------------------------------------
+     THEME 3: SNOW (Light) - Clean Apple White
+     Pure whites, cyan accents, crisp and minimal
+     ------------------------------------------------------------------------- */
+  [data-theme="snow"] {
+    --bg-primary: #ffffff;
+    --bg-secondary: #fafafa;
+    --bg-tertiary: #f4f4f5;
+    --bg-elevated: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #fafafa;
+    --bg-input: #f4f4f5;
+    
+    --border-primary: #e4e4e7;
+    --border-secondary: #d4d4d8;
+    --border-accent: #0ea5e9;
+    
+    --text-primary: #18181b;
+    --text-secondary: #52525b;
+    --text-tertiary: #71717a;
+    --text-muted: #a1a1aa;
+    
+    --accent-primary: #0ea5e9;
+    --accent-secondary: #06b6d4;
+    --accent-hover: #0284c7;
+    --accent-muted: rgba(14, 165, 233, 0.1);
+    
+    --success: #16a34a;
+    --success-muted: rgba(22, 163, 74, 0.1);
+    --warning: #d97706;
+    --warning-muted: rgba(217, 119, 6, 0.1);
+    --error: #dc2626;
+    --error-muted: rgba(220, 38, 38, 0.1);
+    
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+    --shadow-glow: 0 0 20px rgba(14, 165, 233, 0.15);
+    
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(0, 0, 0, 0.06);
+    
+    --scrollbar-track: #f4f4f5;
+    --scrollbar-thumb: #d4d4d8;
+    --scrollbar-hover: #a1a1aa;
+  }
+
+  /* -------------------------------------------------------------------------
+     THEME 4: PEARL (Light) - Warm Notion-inspired
+     Warm whites, soft teal accents, comfortable reading
+     ------------------------------------------------------------------------- */
+  [data-theme="pearl"] {
+    --bg-primary: #fffffe;
+    --bg-secondary: #faf9f7;
+    --bg-tertiary: #f5f4f0;
+    --bg-elevated: #fffffe;
+    --bg-card: #fffffe;
+    --bg-card-hover: #faf9f7;
+    --bg-input: #f5f4f0;
+    
+    --border-primary: #e8e6e1;
+    --border-secondary: #d9d6cf;
+    --border-accent: #14b8a6;
+    
+    --text-primary: #1c1917;
+    --text-secondary: #57534e;
+    --text-tertiary: #78716c;
+    --text-muted: #a8a29e;
+    
+    --accent-primary: #14b8a6;
+    --accent-secondary: #2dd4bf;
+    --accent-hover: #0d9488;
+    --accent-muted: rgba(20, 184, 166, 0.1);
+    
+    --success: #15803d;
+    --success-muted: rgba(21, 128, 61, 0.1);
+    --warning: #b45309;
+    --warning-muted: rgba(180, 83, 9, 0.1);
+    --error: #b91c1c;
+    --error-muted: rgba(185, 28, 28, 0.1);
+    
+    --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.04);
+    --shadow-md: 0 4px 6px rgba(28, 25, 23, 0.05);
+    --shadow-lg: 0 10px 15px rgba(28, 25, 23, 0.07);
+    --shadow-xl: 0 20px 25px rgba(28, 25, 23, 0.09);
+    --shadow-glow: 0 0 20px rgba(20, 184, 166, 0.12);
+    
+    --glass-bg: rgba(255, 255, 254, 0.85);
+    --glass-border: rgba(28, 25, 23, 0.05);
+    
+    --scrollbar-track: #f5f4f0;
+    --scrollbar-thumb: #d9d6cf;
+    --scrollbar-hover: #a8a29e;
+  }
+
+  /* Default to Obsidian */
+  :root {
+    --bg-primary: #09090b;
+    --bg-secondary: #0c0c0e;
+    --bg-tertiary: #131316;
+    --bg-elevated: #18181b;
+    --bg-card: #1a1a1f;
+    --bg-card-hover: #222228;
+    --bg-input: #18181b;
+    --border-primary: #27272a;
+    --border-secondary: #3f3f46;
+    --border-accent: #0ea5e9;
+    --text-primary: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --text-muted: #52525b;
+    --accent-primary: #0ea5e9;
+    --accent-secondary: #06b6d4;
+    --accent-hover: #0284c7;
+    --accent-muted: rgba(14, 165, 233, 0.15);
+    --success: #22c55e;
+    --success-muted: rgba(34, 197, 94, 0.15);
+    --warning: #f59e0b;
+    --warning-muted: rgba(245, 158, 11, 0.15);
+    --error: #ef4444;
+    --error-muted: rgba(239, 68, 68, 0.15);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 20px rgba(14, 165, 233, 0.3);
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --scrollbar-track: #18181b;
+    --scrollbar-thumb: #3f3f46;
+    --scrollbar-hover: #52525b;
+  }
+}
+
+/* ============================================================================
+   GLOBAL STYLES
+   ============================================================================ */
+
+html {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color var(--transition-base), color var(--transition-base);
+}
+
+/* ============================================================================
+   SCROLLBAR
+   ============================================================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+@layer utilities {
+  /* Theme-aware backgrounds */
+  .bg-theme-primary { background-color: var(--bg-primary); }
+  .bg-theme-secondary { background-color: var(--bg-secondary); }
+  .bg-theme-tertiary { background-color: var(--bg-tertiary); }
+  .bg-theme-elevated { background-color: var(--bg-elevated); }
+  .bg-theme-card { background-color: var(--bg-card); }
+  .bg-theme-input { background-color: var(--bg-input); }
+  .bg-theme-glass { background-color: var(--glass-bg); }
+  .bg-accent-muted { background-color: var(--accent-muted); }
+  
+  /* Theme-aware borders */
+  .border-theme-primary { border-color: var(--border-primary); }
+  .border-theme-secondary { border-color: var(--border-secondary); }
+  .border-theme-accent { border-color: var(--border-accent); }
+  .border-theme-glass { border-color: var(--glass-border); }
+  
+  /* Theme-aware text */
+  .text-theme-primary { color: var(--text-primary); }
+  .text-theme-secondary { color: var(--text-secondary); }
+  .text-theme-tertiary { color: var(--text-tertiary); }
+  .text-theme-muted { color: var(--text-muted); }
+  .text-accent { color: var(--accent-primary); }
+  .text-accent-secondary { color: var(--accent-secondary); }
+  
+  /* Status colors */
+  .text-success { color: var(--success); }
+  .text-warning { color: var(--warning); }
+  .text-error { color: var(--error); }
+  .bg-success { background-color: var(--success); }
+  .bg-warning { background-color: var(--warning); }
+  .bg-error { background-color: var(--error); }
+  .bg-success-muted { background-color: var(--success-muted); }
+  .bg-warning-muted { background-color: var(--warning-muted); }
+  .bg-error-muted { background-color: var(--error-muted); }
+  
+  /* Shadows */
+  .shadow-theme-sm { box-shadow: var(--shadow-sm); }
+  .shadow-theme-md { box-shadow: var(--shadow-md); }
+  .shadow-theme-lg { box-shadow: var(--shadow-lg); }
+  .shadow-theme-xl { box-shadow: var(--shadow-xl); }
+  .shadow-theme-glow { box-shadow: var(--shadow-glow); }
+  
+  /* Accent button */
+  .btn-accent {
+    background-color: var(--accent-primary);
+    color: white;
+    transition: background-color var(--transition-fast);
+  }
+  .btn-accent:hover {
+    background-color: var(--accent-hover);
+  }
+  
+  /* Glass effect */
+  .glass {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  
+  /* Card hover effect */
+  .card-hover {
+    transition: all var(--transition-base) ease-out;
+  }
+  .card-hover:hover {
+    background-color: var(--bg-card-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  /* Focus ring */
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
+  }
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+@keyframes pulse-status {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-status {
+  animation: pulse-status 2s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in var(--transition-base) ease-out;
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slide-in var(--transition-base) ease-out;
+}
+
+/* Vue transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--transition-base) ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: all var(--transition-base) ease;
+}
+
+.slide-enter-from {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.slide-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}

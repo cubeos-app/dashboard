@@ -3,7 +3,6 @@ import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useServicesStore } from '@/stores/services'
 import ServiceCard from '@/components/services/ServiceCard.vue'
-import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
 import Icon from '@/components/ui/Icon.vue'
 
 const route = useRoute()
@@ -13,20 +12,6 @@ const servicesStore = useServicesStore()
 const searchQuery = ref('')
 const showCoreServices = ref(false)
 const activeCategory = ref(null)
-
-// Health modal
-const showHealthModal = ref(false)
-const selectedService = ref(null)
-
-function handleShowHealth(service) {
-  selectedService.value = service
-  showHealthModal.value = true
-}
-
-function closeHealthModal() {
-  showHealthModal.value = false
-  selectedService.value = null
-}
 
 watch(searchQuery, (value) => {
   servicesStore.setSearchQuery(value)
@@ -147,8 +132,8 @@ onUnmounted(() => {
             : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-card hover:text-theme-primary'
         ]"
       >
-        <Icon name="Box" :size="18" class="opacity-70" />
-        <span>CubeOS Core Apps</span>
+        <Icon name="Settings" :size="18" class="opacity-70" />
+        <span>Core Services</span>
         <span :class="[
           'px-1.5 py-0.5 rounded-md text-xs',
           showCoreServices 
@@ -174,7 +159,6 @@ onUnmounted(() => {
         :key="service.id"
         :service="service"
         compact
-        @showHealth="handleShowHealth"
       />
     </div>
 
@@ -188,12 +172,5 @@ onUnmounted(() => {
         {{ searchQuery ? 'Try adjusting your search.' : 'No services are available.' }}
       </p>
     </div>
-
-    <!-- Health Modal -->
-    <ServiceHealthModal
-      :service="selectedService"
-      :show="showHealthModal"
-      @close="closeHealthModal"
-    />
   </div>
 </template>

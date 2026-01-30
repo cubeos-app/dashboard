@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/client'
 
-// Service categories with Lucide icon names
+// Service categories with Lucide icon names (monochrome SVG)
 const SERVICE_CATEGORIES = {
   ai: {
     title: 'AI Services',
@@ -34,79 +34,20 @@ const SERVICE_CATEGORIES = {
     icon: 'Wrench',
     services: ['it-tools', 'apkrepo-nginx', 'networking-toolbox', 'network-tools', 'tika', 'meilisearch', 'great_galois']
   },
+  infrastructure: {
+    title: 'Infrastructure',
+    icon: 'Server',
+    services: ['uptime-kuma', 'pihole', 'beszel', 'nginx-proxy']
+  },
   admin: {
     title: 'Admin',
     icon: 'Settings',
-    services: ['dockge', 'dozzle', 'terminal']
-  },
-  core: {
-    title: 'CubeOS Core Apps',
-    icon: 'Box',
-    services: [
-      'cubeos-api', 'cubeos-dashboard', 'cubeos-pihole', 'cubeos-npm',
-      'cubeos-watchdog', 'cubeos-backup', 'cubeos-diagnostics', 'cubeos-reset',
-      'cubeos-gpio', 'cubeos-nettools', 'cubeos-usb-monitor'
-    ]
+    services: ['mulecube-dockge', 'dockge', 'mulecube-logs', 'dozzle', 'mulecube-terminal', 'homarr', 'mulecube-homarr']
   }
 }
 
-// Services that have a web UI with their FQDN hostnames
-const SERVICE_URLS = {
-  'cubeos-dashboard': 'cubeos.cube',
-  'cubeos-pihole': 'pihole.cubeos.cube',
-  'cubeos-npm': 'npm.cubeos.cube',
-  'cubeos-dockge': 'dockge.cubeos.cube',
-  'dockge': 'dockge.cubeos.cube',
-  'cubeos-logs': 'logs.cubeos.cube',
-  'dozzle': 'logs.cubeos.cube',
-  'cubeos-terminal': 'terminal.cubeos.cube',
-  'terminal': 'terminal.cubeos.cube',
-  // User apps - will use port-based URLs or custom FQDNs
-  'kiwix': 'kiwix.cubeos.cube',
-  'kiwix-server': 'kiwix.cubeos.cube',
-  'tileserver': 'maps.cubeos.cube',
-  'tileserver-gl': 'maps.cubeos.cube',
-  'open-webui': 'ai.cubeos.cube',
-  'filebrowser': 'files.cubeos.cube',
-  'calibre-web': 'books.cubeos.cube',
-  'syncthing': 'sync.cubeos.cube',
-  'uptime-kuma': 'uptime.cubeos.cube',
-  'it-tools': 'tools.cubeos.cube',
-  'element': 'chat.cubeos.cube',
-  'element-web': 'chat.cubeos.cube',
-  'jellyfin': 'media.cubeos.cube',
-  'vaultwarden': 'vault.cubeos.cube',
-  'cryptpad': 'docs.cubeos.cube',
-  'excalidraw': 'draw.cubeos.cube',
-  'libretranslate': 'translate.cubeos.cube',
-  'linkwarden': 'links.cubeos.cube'
-}
-
-// Services with no UI (backend only) - show health/logs modal when clicked
-const NO_UI_SERVICES = [
-  'cubeos-watchdog', 'cubeos-backup', 'cubeos-diagnostics', 'cubeos-reset',
-  'cubeos-gpio', 'cubeos-nettools', 'cubeos-usb-monitor', 'ollama', 'conduit',
-  'tika', 'meilisearch'
-]
-
 // Friendly display names for services
 const SERVICE_NAMES = {
-  // CubeOS Core
-  'cubeos-api': 'CubeOS API',
-  'cubeos-dashboard': 'CubeOS Dashboard',
-  'cubeos-pihole': 'Pi-hole DNS',
-  'cubeos-npm': 'Nginx Proxy',
-  'cubeos-dockge': 'Dockge',
-  'cubeos-logs': 'Dozzle Logs',
-  'cubeos-terminal': 'Terminal',
-  'cubeos-watchdog': 'Watchdog',
-  'cubeos-backup': 'Backup Service',
-  'cubeos-diagnostics': 'Diagnostics',
-  'cubeos-reset': 'Reset Service',
-  'cubeos-gpio': 'GPIO Service',
-  'cubeos-nettools': 'Network Tools',
-  'cubeos-usb-monitor': 'USB Monitor',
-  // User apps
   'open-webui': 'Open WebUI',
   'kiwix': 'Wikipedia (Kiwix)',
   'kiwix-server': 'Wikipedia (Kiwix)',
@@ -114,7 +55,7 @@ const SERVICE_NAMES = {
   'tileserver-gl': 'Maps',
   'calibre-web': 'Calibre-Web',
   'signalk-server': 'Signal K',
-  'emergency-ref': 'Emergency Reference',
+  'emergency-ref': 'RadioReference',
   'radioreference': 'RadioReference',
   'cryptpad': 'CryptPad',
   'excalidraw': 'Excalidraw',
@@ -136,35 +77,24 @@ const SERVICE_NAMES = {
   'network-tools': 'Network Tools',
   'uptime-kuma': 'Uptime Kuma',
   'pihole': 'Pi-hole',
+  'beszel': 'Beszel',
+  'nginx-proxy': 'Nginx Proxy',
+  'mulecube-dockge': 'Dockge',
   'dockge': 'Dockge',
+  'mulecube-logs': 'Dozzle',
   'dozzle': 'Dozzle',
-  'terminal': 'Terminal',
+  'mulecube-terminal': 'Terminal',
   'libretranslate': 'LibreTranslate',
   'ollama': 'Ollama',
   'great_galois': 'Great Galois',
   'tika': 'Tika',
   'meilisearch': 'Meilisearch',
-  'jellyfin': 'Jellyfin'
+  'homarr': 'Homarr',
+  'mulecube-homarr': 'Homarr'
 }
 
-// Service icons - Lucide icon component names
+// Service icons - Lucide icon component names (monochrome SVG)
 const SERVICE_ICONS = {
-  // CubeOS Core
-  'cubeos-api': 'Server',
-  'cubeos-dashboard': 'LayoutDashboard',
-  'cubeos-pihole': 'Shield',
-  'cubeos-npm': 'Globe',
-  'cubeos-dockge': 'Container',
-  'cubeos-logs': 'ScrollText',
-  'cubeos-terminal': 'Terminal',
-  'cubeos-watchdog': 'Eye',
-  'cubeos-backup': 'HardDrive',
-  'cubeos-diagnostics': 'Stethoscope',
-  'cubeos-reset': 'RotateCcw',
-  'cubeos-gpio': 'Cpu',
-  'cubeos-nettools': 'Network',
-  'cubeos-usb-monitor': 'Usb',
-  // User apps
   'kiwix': 'BookOpen',
   'kiwix-server': 'BookOpen',
   'open-webui': 'Bot',
@@ -190,8 +120,12 @@ const SERVICE_ICONS = {
   'meshtastic-web': 'Radio',
   'it-tools': 'Wrench',
   'dockge': 'Container',
+  'mulecube-dockge': 'Container',
   'dozzle': 'ScrollText',
-  'terminal': 'Terminal',
+  'mulecube-logs': 'ScrollText',
+  'mulecube-terminal': 'Terminal',
+  'homarr': 'LayoutDashboard',
+  'mulecube-homarr': 'LayoutDashboard',
   'signalk-server': 'Anchor',
   'bentopdf': 'FileOutput',
   'radioreference': 'Radio',
@@ -204,14 +138,12 @@ const SERVICE_ICONS = {
   'network-tools': 'Network',
   'apkrepo-nginx': 'Smartphone',
   'beszel': 'Monitor',
-  'jellyfin': 'Film',
   'default': 'Box'
 }
 
 export const useServicesStore = defineStore('services', () => {
   const services = ref([])
   const favorites = ref([])
-  const recentlyUsed = ref([])
   const loading = ref(false)
   const error = ref(null)
   const lastUpdated = ref(null)
@@ -230,14 +162,6 @@ export const useServicesStore = defineStore('services', () => {
       .sort((a, b) => a.name.localeCompare(b.name))
   })
 
-  // Recently used services
-  const recentServices = computed(() => {
-    return recentlyUsed.value
-      .map(name => services.value.find(s => s.name === name))
-      .filter(Boolean)
-      .slice(0, 6)
-  })
-
   const filteredServices = computed(() => {
     if (!searchQuery.value) return services.value
     const query = searchQuery.value.toLowerCase()
@@ -251,7 +175,7 @@ export const useServicesStore = defineStore('services', () => {
     const result = {}
     for (const [key, category] of Object.entries(SERVICE_CATEGORIES)) {
       const categoryServices = filteredServices.value.filter(s => {
-        const baseName = s.name.replace('cubeos-', '')
+        const baseName = s.name.replace('mulecube-', '')
         return category.services.some(cs => 
           s.name === cs || 
           baseName === cs ||
@@ -274,7 +198,7 @@ export const useServicesStore = defineStore('services', () => {
     const allCategorized = Object.values(SERVICE_CATEGORIES)
       .flatMap(c => c.services)
     return filteredServices.value.filter(s => {
-      const baseName = s.name.replace('cubeos-', '')
+      const baseName = s.name.replace('mulecube-', '')
       const isCategorized = allCategorized.some(cs => 
         s.name === cs || baseName === cs || s.name.includes(cs) || baseName.includes(cs)
       )
@@ -283,59 +207,12 @@ export const useServicesStore = defineStore('services', () => {
   })
 
   const coreServices = computed(() => 
-    filteredServices.value.filter(s => s.is_core || s.name.startsWith('cubeos-'))
-  )
-
-  const userInstalledServices = computed(() =>
-    filteredServices.value.filter(s => !s.is_core && !s.name.startsWith('cubeos-'))
+    filteredServices.value.filter(s => s.is_core)
   )
   
   // Check if a service is favorited
   function isFavorite(serviceName) {
     return favorites.value.includes(serviceName)
-  }
-
-  // Check if service has a web UI
-  function hasWebUI(serviceName) {
-    return !NO_UI_SERVICES.includes(serviceName) && 
-           (SERVICE_URLS[serviceName] || getServicePort(serviceName))
-  }
-
-  // Get service URL (FQDN or port-based)
-  function getServiceUrl(service) {
-    const name = service.name
-    
-    // Check for predefined FQDN
-    if (SERVICE_URLS[name]) {
-      return `http://${SERVICE_URLS[name]}`
-    }
-    
-    // Fall back to port-based URL with FQDN base
-    const ports = service.ports || []
-    const webPort = ports.find(p => p.public_port)
-    if (webPort) {
-      // Use cubeos.cube as base domain with port
-      return `http://cubeos.cube:${webPort.public_port}`
-    }
-    
-    return null
-  }
-
-  // Get just the port for a service
-  function getServicePort(serviceName) {
-    const service = services.value.find(s => s.name === serviceName)
-    if (!service) return null
-    const ports = service.ports || []
-    const webPort = ports.find(p => p.public_port)
-    return webPort?.public_port || null
-  }
-
-  // Track recently used
-  function trackUsage(serviceName) {
-    const recent = recentlyUsed.value.filter(n => n !== serviceName)
-    recent.unshift(serviceName)
-    recentlyUsed.value = recent.slice(0, 10)
-    localStorage.setItem('cubeos-recent', JSON.stringify(recentlyUsed.value))
   }
 
   async function fetchServices() {
@@ -358,17 +235,6 @@ export const useServicesStore = defineStore('services', () => {
       favorites.value = data.favorites || []
     } catch (e) {
       console.error('Failed to fetch favorites:', e)
-    }
-  }
-
-  function loadRecentlyUsed() {
-    try {
-      const stored = localStorage.getItem('cubeos-recent')
-      if (stored) {
-        recentlyUsed.value = JSON.parse(stored)
-      }
-    } catch (e) {
-      console.error('Failed to load recently used:', e)
     }
   }
   
@@ -438,31 +304,12 @@ export const useServicesStore = defineStore('services', () => {
     }
   }
 
-  // Get service health and logs (for no-UI services)
-  async function getServiceHealth(name) {
-    try {
-      const [health, logs] = await Promise.all([
-        api.get(`/services/${name}`),
-        api.get(`/services/${name}/logs?lines=20`)
-      ])
-      return {
-        status: health.state,
-        health: health.health,
-        uptime: health.uptime,
-        logs: logs.logs || []
-      }
-    } catch (e) {
-      error.value = e.message
-      return null
-    }
-  }
-
   function getServiceName(containerName) {
-    return SERVICE_NAMES[containerName] || SERVICE_NAMES[containerName.replace('cubeos-', '')] || formatName(containerName)
+    return SERVICE_NAMES[containerName] || SERVICE_NAMES[containerName.replace('mulecube-', '')] || formatName(containerName)
   }
 
   function getServiceIcon(containerName) {
-    return SERVICE_ICONS[containerName] || SERVICE_ICONS[containerName.replace('cubeos-', '')] || SERVICE_ICONS.default
+    return SERVICE_ICONS[containerName] || SERVICE_ICONS[containerName.replace('mulecube-', '')] || SERVICE_ICONS.default
   }
 
   function getCategoryIcon(categoryKey) {
@@ -471,7 +318,7 @@ export const useServicesStore = defineStore('services', () => {
 
   function formatName(name) {
     return name
-      .replace('cubeos-', '')
+      .replace('mulecube-', '')
       .replace(/-/g, ' ')
       .replace(/_/g, ' ')
       .split(' ')
@@ -486,7 +333,6 @@ export const useServicesStore = defineStore('services', () => {
   return {
     services,
     favorites,
-    recentlyUsed,
     loading,
     error,
     lastUpdated,
@@ -494,27 +340,19 @@ export const useServicesStore = defineStore('services', () => {
     serviceCount,
     runningCount,
     favoriteServices,
-    recentServices,
     filteredServices,
     categorizedServices,
     uncategorizedServices,
     coreServices,
-    userInstalledServices,
     isFavorite,
-    hasWebUI,
-    getServiceUrl,
-    getServicePort,
-    trackUsage,
     fetchServices,
     fetchFavorites,
-    loadRecentlyUsed,
     toggleFavorite,
     addFavorite,
     removeFavorite,
     startService,
     stopService,
     restartService,
-    getServiceHealth,
     getServiceName,
     getServiceIcon,
     getCategoryIcon,
