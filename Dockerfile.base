@@ -1,0 +1,13 @@
+# Base builder image with pre-installed dependencies
+# Rebuild this only when package.json changes
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies (this is the slow part we're caching)
+RUN npm ci --no-audit --no-fund
+
+# This image is used as base for the main build

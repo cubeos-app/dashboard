@@ -1,16 +1,58 @@
 # =============================================================================
 # CubeOS Dashboard Pipeline - Build, Package, Deploy
 # =============================================================================
+# Optimized with pre-built base image for faster builds
+# Base image rebuilds only when package.json changes
+# =============================================================================
+
 stages:
+  - base
   - build
   - package
   - deploy
 
 variables:
   GHCR_IMAGE: "ghcr.io/cubeos-app/dashboard"
+  BUILDER_IMAGE: "ghcr.io/cubeos-app/dashboard-builder"
 
 # -----------------------------------------------------------------------------
-# BUILD - Install deps and build static files
+# BASE - Build base image with node_modules (only when deps change)
+# -----------------------------------------------------------------------------
+base-image:
+  stage: base
+  tags: [multiarch]
+  image: docker:24
+  before_script:
+    - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+    - docker buildx create --name basebuilder --driver docker-container --use
+    - docker buildx inspect --bootstrap
+  script:
+    - echo "📦 Building base image with dependencies..."
+    - |
+      docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --push \
+        -f Dockerfile.base \
+        -t ${BUILDER_IMAGE}:latest \
+        -t ${BUILDER_IMAGE}:${CI_COMMIT_SHORT_SHA} \
+        .
+    - echo "✅ Base image pushed: ${BUILDER_IMAGE}:latest"
+  after_script:
+    - docker buildx rm basebuilder || true
+  rules:
+    # Only rebuild base when package files change
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - package.json
+        - package-lock.json
+        - Dockerfile.base
+    # Allow manual trigger
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: true
+
+# -----------------------------------------------------------------------------
+# BUILD - Build static files (for MR validation)
 # -----------------------------------------------------------------------------
 build:
   stage: build
@@ -26,10 +68,9 @@ build:
     expire_in: 1 week
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "main"
 
 # -----------------------------------------------------------------------------
-# PACKAGE - Build multi-arch Docker image and push to ghcr.io
+# PACKAGE - Build multi-arch Docker image (uses cached base)
 # -----------------------------------------------------------------------------
 package:
   stage: package
@@ -40,14 +81,16 @@ package:
     - docker buildx create --name mybuilder --driver docker-container --use
     - docker buildx inspect --bootstrap
   script:
+    - echo "🔨 Building dashboard image..."
     - |
       docker buildx build \
         --platform linux/amd64,linux/arm64 \
+        --build-arg BUILDER_IMAGE=${BUILDER_IMAGE}:latest \
         --push \
         -t ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} \
         -t ${GHCR_IMAGE}:latest \
         .
-    - echo "✅ Pushed multi-arch ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+    - echo "✅ Pushed ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
   after_script:
     - docker buildx rm mybuilder || true
   rules:
@@ -64,7 +107,7 @@ deploy:
   script:
     - echo "🚀 Deploying CubeOS Dashboard..."
     - docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
-    - docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} dashboard:latest
+    - docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} cubeos-dashboard:latest
     - docker compose -f /cubeos/coreapps/orchestrator/appconfig/docker-compose.yml up -d --force-recreate dashboard
     - |
       echo "⏳ Waiting for Dashboard to be healthy..."

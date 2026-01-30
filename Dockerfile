@@ -1,18 +1,13 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Build stage - uses pre-built base with node_modules
+ARG BUILDER_IMAGE=ghcr.io/cubeos-app/dashboard-builder:latest
+FROM ${BUILDER_IMAGE} AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy source code
+# Copy source code (node_modules already present from base)
 COPY . .
 
-# Build for production
+# Build for production (fast - no npm install needed)
 RUN npm run build
 
 # Production stage
