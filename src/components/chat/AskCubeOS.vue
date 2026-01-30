@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, computed } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
@@ -24,6 +24,29 @@ const suggestedPrompts = [
   "What's the WiFi password?"
 ]
 
+// Simple markdown parser for chat messages
+function parseMarkdown(text) {
+  if (!text) return ''
+  
+  return text
+    // Escape HTML first
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // Bold: **text** or __text__
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    // Italic: *text* or _text_
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+    // Inline code: `code`
+    .replace(/`([^`]+)`/g, '<code class="bg-theme-primary px-1 rounded text-xs">$1</code>')
+    // Links: [text](url)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-accent underline">$1</a>')
+    // Line breaks
+    .replace(/\n/g, '<br>')
+}
+
 async function checkStatus() {
   try {
     const token = localStorage.getItem('cubeos_access_token')
@@ -46,7 +69,6 @@ async function pullModel() {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    // Wait and recheck
     setTimeout(() => {
       checkStatus()
       isPullingModel.value = false
@@ -162,7 +184,7 @@ onMounted(() => checkStatus())
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <button v-if="messages.length > 0" @click="clearChat" class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-primary transition-colors">
+              <button v-if="messages.length > 0" @click="clearChat" class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-primary transition-colors" title="Clear chat">
                 <Icon name="Trash2" :size="16" />
               </button>
               <button @click="$emit('close')" class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-primary transition-colors">
@@ -207,18 +229,22 @@ onMounted(() => checkStatus())
 
             <template v-else>
               <div v-for="(msg, idx) in messages" :key="idx" class="flex gap-3" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
-                <div v-if="msg.role === 'assistant'" class="w-7 h-7 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0">
+                <div v-if="msg.role === 'assistant'" class="w-7 h-7 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0 mt-1">
                   <Icon name="Bot" :size="14" class="text-accent" />
                 </div>
                 <div class="max-w-[80%] px-3 py-2 rounded-xl text-sm" :class="[msg.role === 'user' ? 'bg-accent text-white rounded-br-md' : 'bg-theme-tertiary text-theme-primary rounded-bl-md', msg.error ? 'bg-error/20 text-error' : '']">
+                  <!-- Loading indicator -->
                   <div v-if="msg.loading" class="flex items-center gap-1.5">
                     <div class="w-1.5 h-1.5 bg-theme-muted rounded-full animate-bounce"></div>
                     <div class="w-1.5 h-1.5 bg-theme-muted rounded-full animate-bounce" style="animation-delay: 150ms"></div>
                     <div class="w-1.5 h-1.5 bg-theme-muted rounded-full animate-bounce" style="animation-delay: 300ms"></div>
                   </div>
-                  <div v-else class="whitespace-pre-wrap">{{ msg.content }}</div>
+                  <!-- User message (plain text) -->
+                  <div v-else-if="msg.role === 'user'" class="whitespace-pre-wrap">{{ msg.content }}</div>
+                  <!-- Assistant message (with markdown) -->
+                  <div v-else class="prose prose-sm prose-invert max-w-none" v-html="parseMarkdown(msg.content)"></div>
                 </div>
-                <div v-if="msg.role === 'user'" class="w-7 h-7 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                <div v-if="msg.role === 'user'" class="w-7 h-7 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0 mt-1">
                   <Icon name="User" :size="14" class="text-theme-secondary" />
                 </div>
               </div>
@@ -244,4 +270,29 @@ onMounted(() => checkStatus())
 <style scoped>
 .modal-enter-active, .modal-leave-active { transition: all 0.2s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
+
+/* Markdown styles for assistant messages */
+:deep(.prose) {
+  color: inherit;
+  line-height: 1.5;
+}
+:deep(.prose strong) {
+  font-weight: 600;
+  color: inherit;
+}
+:deep(.prose em) {
+  font-style: italic;
+}
+:deep(.prose code) {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+:deep(.prose a) {
+  text-decoration: underline;
+}
+:deep(.prose br) {
+  display: block;
+  content: "";
+  margin-top: 0.5em;
+}
 </style>
