@@ -28,15 +28,8 @@ base-image:
     - docker buildx inspect --bootstrap
   script:
     - echo "📦 Building base image with dependencies..."
-    - |
-      docker buildx build \
-        --platform linux/amd64,linux/arm64 \
-        --push \
-        -f Dockerfile.base \
-        -t ${BUILDER_IMAGE}:latest \
-        -t ${BUILDER_IMAGE}:${CI_COMMIT_SHORT_SHA} \
-        .
-    - echo "✅ Base image pushed: ${BUILDER_IMAGE}:latest"
+    - docker buildx build --platform linux/amd64,linux/arm64 --push -f Dockerfile.base -t ${BUILDER_IMAGE}:latest -t ${BUILDER_IMAGE}:${CI_COMMIT_SHORT_SHA} .
+    - echo "✅ Base image pushed"
   after_script:
     - docker buildx rm basebuilder || true
   rules:
@@ -82,14 +75,7 @@ package:
     - docker buildx inspect --bootstrap
   script:
     - echo "🔨 Building dashboard image..."
-    - |
-      docker buildx build \
-        --platform linux/amd64,linux/arm64 \
-        --build-arg BUILDER_IMAGE=${BUILDER_IMAGE}:latest \
-        --push \
-        -t ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} \
-        -t ${GHCR_IMAGE}:latest \
-        .
+    - docker buildx build --platform linux/amd64,linux/arm64 --build-arg BUILDER_IMAGE=${BUILDER_IMAGE}:latest --push -t ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} -t ${GHCR_IMAGE}:latest .
     - echo "✅ Pushed ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
   after_script:
     - docker buildx rm mybuilder || true
