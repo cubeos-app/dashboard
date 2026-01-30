@@ -226,12 +226,12 @@ function handleClose() {
   emit('close')
 }
 
-// Extract readable name from GitHub URL
+// Extract readable name from docs URL
 function getSourceName(url) {
-  // Extract filename from URL like https://github.com/cubeos-app/docs/blob/main/faq/general.md
-  const match = url.match(/\/([^/]+\.md)$/)
+  // Extract filename from URL like /docs/faq/general or https://github.com/.../faq/general.md
+  const match = url.match(/\/([^/]+)(?:\.md)?$/)
   if (match) {
-    return match[1].replace('.md', '').replace(/-/g, ' ')
+    return match[1].replace(/-/g, ' ')
   }
   return url
 }
@@ -388,8 +388,6 @@ onMounted(() => {
                       v-for="(source, sIdx) in msg.sources" 
                       :key="sIdx" 
                       :href="source" 
-                      target="_blank" 
-                      rel="noopener" 
                       class="text-[10px] text-accent hover:text-accent-secondary hover:underline"
                     >
                       {{ getSourceName(source) }}<span v-if="sIdx < msg.sources.length - 1" class="text-theme-muted">,</span>

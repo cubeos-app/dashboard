@@ -25,6 +25,7 @@ const navItems = [
   { path: '/network', name: 'Network', icon: 'Wifi' },
   { path: '/storage', name: 'Storage', icon: 'HardDrive' },
   { path: '/logs', name: 'Logs', icon: 'ScrollText' },
+  { path: '/docs', name: 'Docs', icon: 'BookOpen' },
   { path: '/system', name: 'System', icon: 'Settings2' }
 ]
 

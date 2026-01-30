@@ -80,6 +80,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/docs/:pathMatch(.*)*',
+    name: 'docs',
+    component: () => import('@/components/docs/DocsView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }
