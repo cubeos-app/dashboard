@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAppManagerStore } from '@/stores/appmanager'
 import Icon from '@/components/ui/Icon.vue'
 import ConfigEditorModal from './ConfigEditorModal.vue'
@@ -11,6 +11,10 @@ const showConfigModal = ref(false)
 const configLoading = ref(false)
 const selectedApp = ref(null)
 const appConfig = ref({ compose: '', env: '' })
+
+// Track app states (running/stopped)
+const appStates = ref({})
+const loadingStates = ref(true)
 
 const newApp = ref({
   name: '',
@@ -30,11 +34,66 @@ const filteredApps = computed(() => {
   return store.apps.filter(a => a.type === typeFilter.value)
 })
 
+// Fetch container status for all apps
+async function fetchAllAppStates() {
+  loadingStates.value = true
+  const states = {}
+  
+  for (const app of store.apps) {
+    try {
+      const status = await store.getAppStatus(app.name)
+      states[app.name] = {
+        running: status.running || false,
+        status: status.status || 'unknown'
+      }
+    } catch (e) {
+      states[app.name] = { running: false, status: 'unknown' }
+    }
+  }
+  
+  appStates.value = states
+  loadingStates.value = false
+}
+
+// Helper functions for state checking
+function isAppRunning(app) {
+  return appStates.value[app.name]?.running || false
+}
+
+function getAppStatus(app) {
+  return appStates.value[app.name]?.status || 'unknown'
+}
+
+function getStatusClass(app) {
+  const running = isAppRunning(app)
+  if (running) return 'bg-success-muted text-success'
+  return 'bg-error-muted text-error'
+}
+
+function getStatusText(app) {
+  const status = getAppStatus(app)
+  if (status === 'running') return 'Running'
+  if (status === 'exited') return 'Stopped'
+  if (status === 'not found') return 'Not found'
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+// Can start if NOT running
+function canStart(app) {
+  return !isAppRunning(app) && controllingApp.value !== app.name
+}
+
+// Can stop if IS running
+function canStop(app) {
+  return isAppRunning(app) && controllingApp.value !== app.name
+}
+
 async function registerApp() {
   try {
     await store.registerApp(newApp.value)
     showRegisterModal.value = false
     resetForm()
+    await fetchAllAppStates()
   } catch (e) {}
 }
 
@@ -55,20 +114,43 @@ async function deleteApp(app) {
 }
 
 async function startAppContainer(app) {
+  if (!canStart(app)) return
   controllingApp.value = app.name
-  try { await store.startApp(app.name) } catch (e) {}
+  try { 
+    await store.startApp(app.name)
+    // Update state after short delay
+    setTimeout(async () => {
+      const status = await store.getAppStatus(app.name)
+      appStates.value[app.name] = { running: status.running, status: status.status }
+    }, 2000)
+  } catch (e) {}
   finally { controllingApp.value = null }
 }
 
 async function stopAppContainer(app) {
+  if (!canStop(app)) return
   controllingApp.value = app.name
-  try { await store.stopApp(app.name) } catch (e) {}
+  try { 
+    await store.stopApp(app.name)
+    // Update state after short delay
+    setTimeout(async () => {
+      const status = await store.getAppStatus(app.name)
+      appStates.value[app.name] = { running: status.running, status: status.status }
+    }, 2000)
+  } catch (e) {}
   finally { controllingApp.value = null }
 }
 
 async function restartAppContainer(app) {
   controllingApp.value = app.name
-  try { await store.restartApp(app.name) } catch (e) {}
+  try { 
+    await store.restartApp(app.name)
+    // Update state after short delay
+    setTimeout(async () => {
+      const status = await store.getAppStatus(app.name)
+      appStates.value[app.name] = { running: status.running, status: status.status }
+    }, 3000)
+  } catch (e) {}
   finally { controllingApp.value = null }
 }
 
@@ -97,12 +179,30 @@ async function saveConfig({ compose, env, recreate }) {
   try {
     await store.saveAppConfig(selectedApp.value.name, compose, env, recreate)
     showConfigModal.value = false
+    // Refresh state after recreate
+    if (recreate) {
+      setTimeout(() => fetchAllAppStates(), 3000)
+    }
   } catch (e) {
     alert('Failed to save config: ' + e.message)
   } finally {
     configLoading.value = false
   }
 }
+
+// Initial fetch when apps are loaded
+onMounted(async () => {
+  if (store.apps.length > 0) {
+    await fetchAllAppStates()
+  }
+})
+
+// Re-fetch when apps list changes
+watch(() => store.apps, async (newApps) => {
+  if (newApps.length > 0) {
+    await fetchAllAppStates()
+  }
+}, { deep: true })
 </script>
 
 <template>
@@ -116,6 +216,9 @@ async function saveConfig({ compose, env, recreate }) {
           <option value="user">User</option>
         </select>
         <span class="text-sm text-theme-secondary">{{ filteredApps.length }} apps</span>
+        <button @click="fetchAllAppStates" :disabled="loadingStates" class="p-1.5 text-theme-secondary hover:text-accent hover:bg-accent-muted rounded transition-colors disabled:opacity-50" title="Refresh status">
+          <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': loadingStates }" />
+        </button>
       </div>
       <button @click="showRegisterModal = true" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors">
         <Icon name="Plus" :size="16" />
@@ -136,14 +239,26 @@ async function saveConfig({ compose, env, recreate }) {
         <!-- Header -->
         <div class="flex items-start justify-between">
           <div class="flex items-center">
-            <div class="w-10 h-10 rounded-lg bg-theme-tertiary flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-theme-tertiary flex items-center justify-center relative">
               <Icon name="Box" :size="20" class="text-accent" />
+              <!-- Status indicator dot -->
+              <span v-if="!loadingStates" 
+                :class="['absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-theme-secondary', 
+                  isAppRunning(app) ? 'bg-success' : 'bg-error']" 
+                :title="getStatusText(app)">
+              </span>
             </div>
             <div class="ml-3">
               <h3 class="text-sm font-medium text-theme-primary">{{ app.display_name || app.name }}</h3>
-              <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', app.type === 'system' ? 'bg-accent-muted text-accent' : 'bg-theme-tertiary text-theme-secondary']">
-                {{ app.type }}
-              </span>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', app.type === 'system' ? 'bg-accent-muted text-accent' : 'bg-theme-tertiary text-theme-secondary']">
+                  {{ app.type }}
+                </span>
+                <!-- Status badge -->
+                <span v-if="!loadingStates" :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', getStatusClass(app)]">
+                  {{ getStatusText(app) }}
+                </span>
+              </div>
             </div>
           </div>
           <!-- Edit Config Button -->
@@ -162,22 +277,36 @@ async function saveConfig({ compose, env, recreate }) {
           <span v-if="(app.ports || []).length > 3" class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-theme-tertiary text-theme-secondary">+{{ app.ports.length - 3 }} more</span>
         </div>
 
-        <!-- FQDNs -->
+        <!-- FQDNs - Show only primary (matching subdomain) -->
         <div v-if="app.fqdns && app.fqdns.length" class="mt-2 flex flex-wrap gap-2">
-          <a v-for="fqdn in app.fqdns" :key="fqdn.fqdn" :href="`http://${fqdn.fqdn}`" target="_blank" class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-success-muted text-success hover:bg-success/20">
+          <a v-for="fqdn in app.fqdns.filter(f => f.subdomain === app.name || app.fqdns.length === 1).slice(0, 1)" :key="fqdn.fqdn" :href="`http://${fqdn.fqdn}`" target="_blank" class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-success-muted text-success hover:bg-success/20">
             <Icon name="Globe" :size="10" class="mr-1" />{{ fqdn.fqdn }}
           </a>
+          <span v-if="app.fqdns.length > 1" class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-theme-tertiary text-theme-secondary">+{{ app.fqdns.length - 1 }} more</span>
         </div>
 
         <!-- Actions -->
         <div class="mt-4 flex items-center justify-between border-t border-theme-primary pt-3">
           <div class="flex items-center gap-1">
-            <button @click="startAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-success hover:bg-success-muted rounded transition-colors disabled:opacity-50" title="Start">
+            <!-- Start: enabled only when stopped -->
+            <button 
+              @click="startAppContainer(app)" 
+              :disabled="!canStart(app)" 
+              :class="['p-1.5 rounded transition-colors', 
+                canStart(app) ? 'text-success hover:bg-success-muted' : 'text-theme-muted cursor-not-allowed opacity-50']" 
+              :title="isAppRunning(app) ? 'Already running' : 'Start'">
               <Icon name="Play" :size="14" />
             </button>
-            <button @click="stopAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors disabled:opacity-50" title="Stop">
+            <!-- Stop: enabled only when running -->
+            <button 
+              @click="stopAppContainer(app)" 
+              :disabled="!canStop(app)" 
+              :class="['p-1.5 rounded transition-colors', 
+                canStop(app) ? 'text-error hover:bg-error-muted' : 'text-theme-muted cursor-not-allowed opacity-50']" 
+              :title="!isAppRunning(app) ? 'Not running' : 'Stop'">
               <Icon name="Square" :size="14" />
             </button>
+            <!-- Restart: always available if not controlling -->
             <button @click="restartAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-accent hover:bg-accent-muted rounded transition-colors disabled:opacity-50" title="Restart">
               <Icon name="RotateCcw" :size="14" />
             </button>
