@@ -26,7 +26,7 @@ const suggestedPrompts = [
 
 async function checkStatus() {
   try {
-    const token = localStorage.getItem('cubeos-token')
+    const token = localStorage.getItem('cubeos_access_token')
     const resp = await fetch('/api/v1/chat/status', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -41,7 +41,7 @@ async function checkStatus() {
 async function pullModel() {
   isPullingModel.value = true
   try {
-    const token = localStorage.getItem('cubeos-token')
+    const token = localStorage.getItem('cubeos_access_token')
     await fetch('/api/v1/chat/pull-model', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` }
@@ -71,7 +71,7 @@ async function sendMessage(text = null) {
   messages.value.push({ role: 'assistant', content: '', loading: true })
 
   try {
-    const token = localStorage.getItem('cubeos-token')
+    const token = localStorage.getItem('cubeos_access_token')
     const history = messages.value.slice(0, -2).slice(-10)
 
     const response = await fetch('/api/v1/chat/stream', {
