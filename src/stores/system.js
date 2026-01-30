@@ -116,12 +116,15 @@ export const useSystemStore = defineStore('system', () => {
   }
 
   return {
+    // State
     info,
     stats,
     power,
     loading,
     error,
     lastUpdated,
+    
+    // Computed getters
     hostname,
     uptime,
     cpuUsage,
@@ -135,12 +138,18 @@ export const useSystemStore = defineStore('system', () => {
     onBattery,
     isCharging,
     wifiClients,
+    
+    // Actions
     fetchInfo,
     fetchStats,
     fetchPower,
     fetchWifiClients,
     fetchAll,
     reboot,
-    shutdown
+    shutdown,
+    
+    // Aliases for DashboardView.vue compatibility
+    systemInfo: info,
+    fetchSystemInfo: fetchInfo
   }
 })
