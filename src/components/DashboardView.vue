@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/theme'
 import { useBrandingStore } from '@/stores/branding'
 import Icon from '@/components/ui/Icon.vue'
 import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
+import AskCubeOS from '@/components/chat/AskCubeOS.vue'
 
 const servicesStore = useServicesStore()
 const systemStore = useSystemStore()
@@ -31,6 +32,7 @@ const searchResults = computed(() => {
 
 // Health modal for no-UI services
 const showHealthModal = ref(false)
+const showChatModal = ref(false)
 const selectedService = ref(null)
 
 function handleShowHealth(service) {
@@ -148,8 +150,8 @@ onUnmounted(() => {
               <h3 class="font-medium text-theme-primary">Ask CubeOS</h3>
               <p class="text-sm text-theme-tertiary">Chat with your local AI assistant</p>
             </div>
-            <button class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors">
-              Coming Soon
+            <button @click="showChatModal = true" class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors">
+              Ask Now
             </button>
           </div>
         </div>
@@ -376,6 +378,8 @@ onUnmounted(() => {
     </div>
 
     <!-- Health Modal -->
+    <AskCubeOS :show="showChatModal" @close="showChatModal = false" />
+
     <ServiceHealthModal
       :service="selectedService"
       :show="showHealthModal"
