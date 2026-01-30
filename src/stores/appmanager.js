@@ -37,14 +37,14 @@ export const useAppManagerStore = defineStore('appmanager', () => {
 
   // Apps
   async function fetchApps() {
-    const { data } = await api.get('/appmanager/apps')
-    apps.value = data.apps || []
+    const response = await api.get('/appmanager/apps')
+    apps.value = response.apps || []
   }
 
   async function registerApp(appData) {
-    const { data } = await api.post('/appmanager/apps', appData)
+    const response = await api.post('/appmanager/apps', appData)
     await fetchApps()
-    return data
+    return response
   }
 
   async function unregisterApp(name) {
@@ -75,42 +75,42 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   async function getAppStatus(name) {
-    const { data } = await api.get(`/appmanager/apps/${name}/status`)
-    return data
+    const response = await api.get(`/appmanager/apps/${name}/status`)
+    return response
   }
 
   // Ports
   async function fetchPorts() {
-    const { data } = await api.get('/appmanager/ports')
-    ports.value = data.ports || []
+    const response = await api.get('/appmanager/ports')
+    ports.value = response.ports || []
   }
 
   async function allocatePort(portData) {
-    const { data } = await api.post('/appmanager/ports', portData)
+    const response = await api.post('/appmanager/ports', portData)
     await fetchPorts()
-    return data
+    return response
   }
 
   async function releasePort(port, protocol = 'tcp') {
-    await api.delete(`/appmanager/ports/${port}`, { params: { protocol } })
+    await api.delete(`/appmanager/ports/${port}?protocol=${protocol}`)
     await fetchPorts()
   }
 
   async function getAvailablePort(type = 'user') {
-    const { data } = await api.get('/appmanager/ports/available', { params: { type } })
-    return data.port
+    const response = await api.get('/appmanager/ports/available', { type })
+    return response.port
   }
 
   // FQDNs
   async function fetchFQDNs() {
-    const { data } = await api.get('/appmanager/fqdns')
-    fqdns.value = data.fqdns || []
+    const response = await api.get('/appmanager/fqdns')
+    fqdns.value = response.fqdns || []
   }
 
   async function registerFQDN(fqdnData) {
-    const { data } = await api.post('/appmanager/fqdns', fqdnData)
+    const response = await api.post('/appmanager/fqdns', fqdnData)
     await fetchFQDNs()
-    return data
+    return response
   }
 
   async function deregisterFQDN(fqdn) {
@@ -120,19 +120,19 @@ export const useAppManagerStore = defineStore('appmanager', () => {
 
   // Profiles
   async function fetchProfiles() {
-    const { data } = await api.get('/appmanager/profiles')
-    profiles.value = data.profiles || []
+    const response = await api.get('/appmanager/profiles')
+    profiles.value = response.profiles || []
   }
 
   async function getProfile(id) {
-    const { data } = await api.get(`/appmanager/profiles/${id}`)
-    return data
+    const response = await api.get(`/appmanager/profiles/${id}`)
+    return response
   }
 
   async function createProfile(name, description = '') {
-    const { data } = await api.post('/appmanager/profiles', { name, description })
+    const response = await api.post('/appmanager/profiles', { name, description })
     await fetchProfiles()
-    return data
+    return response
   }
 
   async function deleteProfile(id) {
@@ -151,8 +151,8 @@ export const useAppManagerStore = defineStore('appmanager', () => {
 
   // Registry
   async function getRegistryStatus() {
-    const { data } = await api.get('/appmanager/registry/status')
-    return data
+    const response = await api.get('/appmanager/registry/status')
+    return response
   }
 
   async function initRegistry() {
@@ -160,8 +160,8 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   async function getRegistryImages() {
-    const { data } = await api.get('/appmanager/registry/images')
-    return data.images || []
+    const response = await api.get('/appmanager/registry/images')
+    return response.images || []
   }
 
   async function cacheImage(imageRef) {
@@ -169,24 +169,24 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   async function deleteRegistryImage(name, tag) {
-    await api.delete(`/appmanager/registry/images/${encodeURIComponent(name)}`, { params: { tag } })
+    await api.delete(`/appmanager/registry/images/${encodeURIComponent(name)}?tag=${encodeURIComponent(tag)}`)
   }
 
   // CasaOS
   async function fetchCasaOSStore(url) {
-    const { data } = await api.get('/appmanager/casaos/stores', { params: { url } })
-    return data.apps || []
+    const response = await api.get('/appmanager/casaos/stores', { url })
+    return response.apps || []
   }
 
   async function previewCasaOSApp(json) {
-    const { data } = await api.post('/appmanager/casaos/preview', { json })
-    return data
+    const response = await api.post('/appmanager/casaos/preview', { json })
+    return response
   }
 
   async function importCasaOSApp(json) {
-    const { data } = await api.post('/appmanager/casaos/import', { json })
+    const response = await api.post('/appmanager/casaos/import', { json })
     await fetchApps()
-    return data
+    return response
   }
 
   return {
