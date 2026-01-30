@@ -16,18 +16,26 @@ const error = ref(null)
 
 // Get current doc path from route
 const currentPath = computed(() => {
-  return route.params.pathMatch?.join('/') || 'README'
+  const pathMatch = route.params.pathMatch
+  if (!pathMatch || pathMatch.length === 0) {
+    return 'README'
+  }
+  return Array.isArray(pathMatch) ? pathMatch.join('/') : pathMatch
 })
 
 // Fetch docs tree structure
 async function fetchDocsTree() {
   try {
     const token = localStorage.getItem('cubeos_access_token')
+    console.log('Fetching docs tree...')
     const resp = await fetch('/api/v1/documentation/tree', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (resp.ok) {
       docsTree.value = await resp.json()
+      console.log('Docs tree loaded:', docsTree.value)
+    } else {
+      console.error('Docs tree fetch failed:', resp.status)
     }
   } catch (e) {
     console.error('Failed to load docs tree:', e)
@@ -38,6 +46,7 @@ async function fetchDocsTree() {
 async function fetchDoc(path) {
   isLoading.value = true
   error.value = null
+  console.log('Fetching doc:', path)
   
   try {
     const token = localStorage.getItem('cubeos_access_token')
@@ -45,8 +54,11 @@ async function fetchDoc(path) {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     
+    console.log('Doc fetch response:', resp.status)
+    
     if (resp.ok) {
       currentDoc.value = await resp.json()
+      console.log('Doc loaded:', currentDoc.value?.title)
     } else if (resp.status === 404) {
       error.value = 'Document not found'
       currentDoc.value = null
@@ -55,6 +67,7 @@ async function fetchDoc(path) {
       currentDoc.value = null
     }
   } catch (e) {
+    console.error('Doc fetch error:', e)
     error.value = 'Failed to connect to API'
     currentDoc.value = null
   } finally {
@@ -130,7 +143,7 @@ function renderMarkdown(content) {
 // Watch for route changes
 watch(currentPath, (newPath) => {
   fetchDoc(newPath)
-}, { immediate: true })
+})
 
 // Debounced search
 let searchTimeout = null
@@ -145,6 +158,8 @@ watch(searchQuery, (val) => {
 
 onMounted(() => {
   fetchDocsTree()
+  // Load initial document
+  fetchDoc(currentPath.value)
 })
 
 // Recursive tree item component
@@ -154,10 +169,10 @@ function isActive(path) {
 </script>
 
 <template>
-  <div class="flex h-full bg-theme-primary">
+  <div class="flex min-h-[calc(100vh-4rem)] bg-theme-primary">
     <!-- Sidebar -->
     <aside 
-      class="w-64 flex-shrink-0 border-r border-theme-primary bg-theme-secondary overflow-y-auto transition-all duration-300"
+      class="w-64 flex-shrink-0 border-r border-theme-primary bg-theme-secondary overflow-y-auto transition-all duration-300 sticky top-0 h-[calc(100vh-4rem)]"
       :class="{ '-ml-64': !isSidebarOpen }"
     >
       <div class="p-4">
