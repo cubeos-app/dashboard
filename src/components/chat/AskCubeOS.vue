@@ -115,7 +115,7 @@ async function sendMessage(text = null) {
   scrollToBottom()
 
   const assistantIndex = messages.value.length
-  messages.value.push({ role: 'assistant', content: '', loading: true })
+  messages.value.push({ role: 'assistant', content: '', loading: true, sources: [] })
 
   try {
     const token = localStorage.getItem('cubeos_access_token')
@@ -138,6 +138,7 @@ async function sendMessage(text = null) {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let fullContent = ''
+    let sources = []
 
     while (true) {
       const { done, value } = await reader.read()
@@ -150,12 +151,23 @@ async function sendMessage(text = null) {
         if (line.startsWith('data: ')) {
           try {
             const data = JSON.parse(line.slice(6))
+            // Capture sources (sent as first event)
+            if (data.sources && Array.isArray(data.sources)) {
+              sources = data.sources
+              messages.value[assistantIndex] = { 
+                role: 'assistant', 
+                content: fullContent, 
+                loading: true,
+                sources: sources
+              }
+            }
             if (data.content) {
               fullContent += data.content
               messages.value[assistantIndex] = { 
                 role: 'assistant', 
                 content: fullContent, 
-                loading: false 
+                loading: false,
+                sources: sources
               }
               await nextTick()
               scrollToBottom()
@@ -172,7 +184,8 @@ async function sendMessage(text = null) {
         role: 'assistant', 
         content: "I couldn't generate a response. Please try again.", 
         loading: false, 
-        error: true 
+        error: true,
+        sources: []
       }
     }
   } catch (e) {
@@ -180,7 +193,8 @@ async function sendMessage(text = null) {
       role: 'assistant', 
       content: "Failed to connect to AI service. Check if Ollama is running.", 
       loading: false, 
-      error: true 
+      error: true,
+      sources: []
     }
   } finally {
     isLoading.value = false
@@ -206,6 +220,16 @@ function handleKeydown(e) {
 
 function handleClose() {
   emit('close')
+}
+
+// Extract readable name from GitHub URL
+function getSourceName(url) {
+  // Extract filename from URL like https://github.com/cubeos-app/docs/blob/main/faq/general.md
+  const match = url.match(/\/([^/]+\.md)$/)
+  if (match) {
+    return match[1].replace('.md', '').replace(/-/g, ' ')
+  }
+  return url
 }
 
 onMounted(() => {
@@ -329,25 +353,44 @@ onMounted(() => {
                 </div>
                 
                 <!-- Message bubble -->
-                <div 
-                  class="max-w-[80%] px-3 py-2 rounded-xl text-sm" 
-                  :class="[
-                    msg.role === 'user' 
-                      ? 'bg-accent text-white rounded-br-md' 
-                      : 'bg-theme-tertiary text-theme-primary rounded-bl-md', 
-                    msg.error ? 'bg-error/20 text-error' : ''
-                  ]"
-                >
-                  <!-- Loading dots -->
-                  <div v-if="msg.loading" class="flex items-center gap-1.5 py-1">
-                    <div class="w-1.5 h-1.5 bg-current opacity-60 rounded-full animate-bounce"></div>
-                    <div class="w-1.5 h-1.5 bg-current opacity-60 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-                    <div class="w-1.5 h-1.5 bg-current opacity-60 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                <div class="flex flex-col">
+                  <div 
+                    class="max-w-[80%] px-3 py-2 rounded-xl text-sm" 
+                    :class="[
+                      msg.role === 'user' 
+                        ? 'bg-accent text-white rounded-br-md' 
+                        : 'bg-theme-tertiary text-theme-primary rounded-bl-md', 
+                      msg.error ? 'bg-error/20 text-error' : ''
+                    ]"
+                  >
+                    <!-- Loading dots -->
+                    <div v-if="msg.loading" class="flex items-center gap-1.5 py-1">
+                      <div class="w-1.5 h-1.5 bg-current opacity-60 rounded-full animate-bounce"></div>
+                      <div class="w-1.5 h-1.5 bg-current opacity-60 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                      <div class="w-1.5 h-1.5 bg-current opacity-60 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                    </div>
+                    <!-- User message (plain text) -->
+                    <div v-else-if="msg.role === 'user'" class="whitespace-pre-wrap">{{ msg.content }}</div>
+                    <!-- Assistant message (with markdown) -->
+                    <div v-else class="chat-content" v-html="parseMarkdown(msg.content)"></div>
                   </div>
-                  <!-- User message (plain text) -->
-                  <div v-else-if="msg.role === 'user'" class="whitespace-pre-wrap">{{ msg.content }}</div>
-                  <!-- Assistant message (with markdown) -->
-                  <div v-else class="chat-content" v-html="parseMarkdown(msg.content)"></div>
+                  <!-- Sources links -->
+                  <div 
+                    v-if="msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && !msg.loading" 
+                    class="flex flex-wrap gap-1.5 mt-1.5 ml-1"
+                  >
+                    <span class="text-[10px] text-theme-muted">📚</span>
+                    <a 
+                      v-for="(source, sIdx) in msg.sources" 
+                      :key="sIdx" 
+                      :href="source" 
+                      target="_blank" 
+                      rel="noopener" 
+                      class="text-[10px] text-accent hover:text-accent-secondary hover:underline"
+                    >
+                      {{ getSourceName(source) }}<span v-if="sIdx < msg.sources.length - 1" class="text-theme-muted">,</span>
+                    </a>
+                  </div>
                 </div>
                 
                 <!-- User avatar -->
