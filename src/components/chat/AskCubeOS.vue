@@ -49,6 +49,10 @@ function parseMarkdown(text) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    // Headers: ### text (must be at start of line)
+    .replace(/^### (.+)$/gm, '<strong class="block mt-2 mb-1">$1</strong>')
+    .replace(/^## (.+)$/gm, '<strong class="block mt-2 mb-1 text-base">$1</strong>')
+    .replace(/^# (.+)$/gm, '<strong class="block mt-2 mb-1 text-lg">$1</strong>')
     // Bold: **text** or __text__
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/__(.+?)__/g, '<strong>$1</strong>')
@@ -254,7 +258,7 @@ onMounted(() => {
         ></div>
 
         <!-- Modal -->
-        <div class="relative w-full max-w-lg bg-theme-secondary rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] sm:max-h-[600px]">
+        <div class="relative w-full max-w-xl bg-theme-secondary rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[680px]">
           
           <!-- Header -->
           <div class="flex items-center justify-between px-4 py-3 border-b border-theme-primary bg-theme-tertiary">
