@@ -11,23 +11,30 @@ const currentDoc = ref(null)
 const searchQuery = ref('')
 const searchResults = ref([])
 const isLoading = ref(false)
-const isSidebarOpen = ref(false) // Closed by default on mobile
+const isSidebarOpen = ref(true) // Open by default, will close on mobile via handleResize
 const error = ref(null)
 
 // Detect if on mobile
 const isMobile = ref(window.innerWidth < 768)
 
 function handleResize() {
+  const wasMobile = isMobile.value
   isMobile.value = window.innerWidth < 768
-  // Auto-open sidebar on desktop
-  if (!isMobile.value) {
+  
+  // Auto-close sidebar when switching to mobile, auto-open when switching to desktop
+  if (isMobile.value && !wasMobile) {
+    isSidebarOpen.value = false
+  } else if (!isMobile.value && wasMobile) {
     isSidebarOpen.value = true
   }
 }
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
-  handleResize() // Initial check
+  // Initial check - close on mobile
+  if (isMobile.value) {
+    isSidebarOpen.value = false
+  }
 })
 
 onUnmounted(() => {
@@ -192,7 +199,7 @@ function closeSidebar() {
 </script>
 
 <template>
-  <div class="relative min-h-[calc(100vh-3.5rem)] bg-theme-primary">
+  <div class="relative bg-theme-primary">
     <!-- Mobile overlay -->
     <Transition name="fade">
       <div 
@@ -202,11 +209,13 @@ function closeSidebar() {
       ></div>
     </Transition>
 
-    <!-- Sidebar -->
-    <Transition name="slide">
+    <div class="flex min-h-[calc(100vh-3.5rem)]">
+      <!-- Sidebar -->
       <aside 
-        v-show="isSidebarOpen"
-        class="fixed md:sticky top-0 left-0 z-50 md:z-auto w-72 md:w-64 h-full md:h-[calc(100vh-3.5rem)] bg-theme-secondary border-r border-theme-primary overflow-y-auto"
+        class="fixed md:relative z-50 md:z-auto w-72 md:w-64 h-[calc(100vh-3.5rem)] bg-theme-secondary border-r border-theme-primary overflow-y-auto flex-shrink-0 transition-transform duration-200"
+        :class="[
+          isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'
+        ]"
       >
         <div class="p-4">
           <!-- Mobile close button -->
@@ -278,15 +287,9 @@ function closeSidebar() {
           </nav>
         </div>
       </aside>
-    </Transition>
 
-    <!-- Main content wrapper -->
-    <div class="flex">
-      <!-- Spacer for desktop sidebar -->
-      <div class="hidden md:block w-64 flex-shrink-0" v-if="isSidebarOpen"></div>
-      
       <!-- Content -->
-      <main class="flex-1 min-w-0">
+      <main class="flex-1 min-w-0 overflow-y-auto">
         <!-- Mobile header with menu button -->
         <div class="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-theme-secondary/95 backdrop-blur border-b border-theme-primary md:hidden">
           <button 
@@ -300,7 +303,7 @@ function closeSidebar() {
           </h1>
         </div>
 
-        <div class="px-4 md:px-8 py-6 md:py-8 max-w-4xl mx-auto">
+        <div class="px-4 md:px-8 py-6 md:py-8 max-w-4xl">
           <!-- Loading -->
           <div v-if="isLoading" class="flex items-center justify-center py-12">
             <div class="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
@@ -343,22 +346,6 @@ function closeSidebar() {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-.slide-enter-active,
-.slide-leave-active {
-  transition: transform 0.2s ease;
-}
-.slide-enter-from,
-.slide-leave-to {
-  transform: translateX(-100%);
-}
-
-@media (min-width: 768px) {
-  .slide-enter-from,
-  .slide-leave-to {
-    transform: translateX(0);
-  }
 }
 
 /* Document styles */
