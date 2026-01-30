@@ -64,8 +64,8 @@ deploy:
   script:
     - echo "🚀 Deploying CubeOS Dashboard..."
     - docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
-    - docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} cubeos-dashboard:latest
-    - docker compose -f /cubeos/coreapps/orchestrator/appconfig/docker-compose.yml up -d --force-recreate cubeos-dashboard
+    - docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} dashboard:latest
+    - docker compose -f /cubeos/coreapps/orchestrator/appconfig/docker-compose.yml up -d --force-recreate dashboard
     - |
       echo "⏳ Waiting for Dashboard to be healthy..."
       for i in $(seq 1 30); do
