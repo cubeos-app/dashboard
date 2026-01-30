@@ -94,8 +94,8 @@ const SERVICE_NAMES = {
   // CubeOS Core
   'cubeos-api': 'CubeOS API',
   'cubeos-dashboard': 'CubeOS Dashboard',
-  'cubeos-pihole': 'Pi-hole DNS',
-  'cubeos-npm': 'Nginx Proxy',
+  'cubeos-pihole': 'Pi-hole DNS & DHCP',
+  'cubeos-npm': 'Nginx Proxy Manager',
   'cubeos-dockge': 'Dockge',
   'cubeos-logs': 'Dozzle Logs',
   'cubeos-terminal': 'Terminal',
@@ -343,7 +343,10 @@ export const useServicesStore = defineStore('services', () => {
     error.value = null
     try {
       const data = await api.getServices()
-      services.value = data.services || []
+      // Filter out exited/dead containers - only show running or stopped (paused)
+      services.value = (data.services || []).filter(s => 
+        s.state === 'running' || s.state === 'paused' || s.state === 'restarting'
+      )
       lastUpdated.value = new Date()
     } catch (e) {
       error.value = e.message
