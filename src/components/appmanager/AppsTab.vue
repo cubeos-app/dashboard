@@ -2,10 +2,16 @@
 import { ref, computed } from 'vue'
 import { useAppManagerStore } from '@/stores/appmanager'
 import Icon from '@/components/ui/Icon.vue'
+import ConfigEditorModal from './ConfigEditorModal.vue'
 
 const store = useAppManagerStore()
 
 const showRegisterModal = ref(false)
+const showConfigModal = ref(false)
+const configLoading = ref(false)
+const selectedApp = ref(null)
+const appConfig = ref({ compose: '', env: '' })
+
 const newApp = ref({
   name: '',
   display_name: '',
@@ -65,6 +71,38 @@ async function restartAppContainer(app) {
   try { await store.restartApp(app.name) } catch (e) {}
   finally { controllingApp.value = null }
 }
+
+async function openConfigEditor(app) {
+  selectedApp.value = app
+  configLoading.value = true
+  showConfigModal.value = true
+  
+  try {
+    const config = await store.getAppConfig(app.name)
+    appConfig.value = {
+      compose: config.compose || '',
+      env: config.env || ''
+    }
+  } catch (e) {
+    appConfig.value = { compose: '', env: '' }
+  } finally {
+    configLoading.value = false
+  }
+}
+
+async function saveConfig({ compose, env, recreate }) {
+  if (!selectedApp.value) return
+  configLoading.value = true
+  
+  try {
+    await store.saveAppConfig(selectedApp.value.name, compose, env, recreate)
+    showConfigModal.value = false
+  } catch (e) {
+    alert('Failed to save config: ' + e.message)
+  } finally {
+    configLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -108,6 +146,10 @@ async function restartAppContainer(app) {
               </span>
             </div>
           </div>
+          <!-- Edit Config Button -->
+          <button @click="openConfigEditor(app)" class="p-1.5 text-theme-secondary hover:text-accent hover:bg-accent-muted rounded transition-colors" title="Edit Config">
+            <Icon name="FileCode" :size="16" />
+          </button>
         </div>
 
         <p v-if="app.description" class="mt-2 text-sm text-theme-secondary line-clamp-2">{{ app.description }}</p>
@@ -130,13 +172,13 @@ async function restartAppContainer(app) {
         <!-- Actions -->
         <div class="mt-4 flex items-center justify-between border-t border-theme-primary pt-3">
           <div class="flex items-center gap-1">
-            <button v-if="app.compose_path" @click="startAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-success hover:bg-success-muted rounded transition-colors disabled:opacity-50" title="Start">
+            <button @click="startAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-success hover:bg-success-muted rounded transition-colors disabled:opacity-50" title="Start">
               <Icon name="Play" :size="14" />
             </button>
-            <button v-if="app.compose_path" @click="stopAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors disabled:opacity-50" title="Stop">
+            <button @click="stopAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors disabled:opacity-50" title="Stop">
               <Icon name="Square" :size="14" />
             </button>
-            <button v-if="app.compose_path" @click="restartAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-accent hover:bg-accent-muted rounded transition-colors disabled:opacity-50" title="Restart">
+            <button @click="restartAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-accent hover:bg-accent-muted rounded transition-colors disabled:opacity-50" title="Restart">
               <Icon name="RotateCcw" :size="14" />
             </button>
             <label class="relative inline-flex items-center cursor-pointer ml-2">
@@ -202,5 +244,16 @@ async function restartAppContainer(app) {
         </div>
       </div>
     </div>
+
+    <!-- Config Editor Modal -->
+    <ConfigEditorModal
+      :show="showConfigModal"
+      :app-name="selectedApp?.display_name || selectedApp?.name"
+      :compose="appConfig.compose"
+      :env="appConfig.env"
+      :loading="configLoading"
+      @close="showConfigModal = false"
+      @save="saveConfig"
+    />
   </div>
 </template>

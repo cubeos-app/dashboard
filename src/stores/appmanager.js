@@ -189,6 +189,69 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     return response
   }
 
+  // Config Editing
+  async function getAppConfig(appName) {
+    const response = await api.get(`/appmanager/apps/${appName}/config`)
+    return response
+  }
+
+  async function saveAppConfig(appName, compose, env, recreate = true) {
+    const response = await api.put(`/appmanager/apps/${appName}/config`, { compose, env, recreate })
+    return response
+  }
+
+  // Enhanced Ports
+  async function getListeningPorts() {
+    const response = await api.get('/appmanager/ports/listening')
+    return response.ports || []
+  }
+
+  async function getPortStats() {
+    const response = await api.get('/appmanager/ports/stats')
+    return response
+  }
+
+  async function syncPorts() {
+    const response = await api.post('/appmanager/ports/sync')
+    await fetchPorts()
+    return response
+  }
+
+  // Enhanced Domains
+  async function getDomainsEnhanced() {
+    const response = await api.get('/appmanager/domains')
+    return response.domains || []
+  }
+
+  async function syncDomains() {
+    const response = await api.post('/appmanager/domains/sync')
+    await fetchFQDNs()
+    return response
+  }
+
+  // NPM
+  async function getNPMStatus() {
+    const response = await api.get('/appmanager/npm/status')
+    return response
+  }
+
+  async function getNPMHosts() {
+    const response = await api.get('/appmanager/npm/hosts')
+    return response.hosts || []
+  }
+
+  async function initNPM() {
+    const response = await api.post('/appmanager/npm/init')
+    return response
+  }
+
+  // Migration
+  async function runMigration() {
+    const response = await api.post('/appmanager/migrate')
+    await init()
+    return response
+  }
+
   return {
     // State
     apps,
@@ -213,13 +276,20 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     stopApp,
     restartApp,
     getAppStatus,
+    getAppConfig,
+    saveAppConfig,
     fetchPorts,
     allocatePort,
     releasePort,
     getAvailablePort,
+    getListeningPorts,
+    getPortStats,
+    syncPorts,
     fetchFQDNs,
     registerFQDN,
     deregisterFQDN,
+    getDomainsEnhanced,
+    syncDomains,
     fetchProfiles,
     getProfile,
     createProfile,
@@ -233,6 +303,10 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     deleteRegistryImage,
     fetchCasaOSStore,
     previewCasaOSApp,
-    importCasaOSApp
+    importCasaOSApp,
+    getNPMStatus,
+    getNPMHosts,
+    initNPM,
+    runMigration
   }
 })
