@@ -22,6 +22,7 @@ const navItems = [
   { path: '/', name: 'Dashboard', icon: 'LayoutDashboard' },
   { path: '/services', name: 'Services', icon: 'Grid3X3', badge: () => servicesStore.runningCount },
   { path: '/appstore', name: 'App Store', icon: 'Store' },
+  { path: '/appmanager', name: 'App Manager', icon: 'Boxes' },
   { path: '/network', name: 'Network', icon: 'Wifi' },
   { path: '/storage', name: 'Storage', icon: 'HardDrive' },
   { path: '/logs', name: 'Logs', icon: 'ScrollText' },
