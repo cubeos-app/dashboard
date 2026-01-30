@@ -10,11 +10,11 @@ variables:
   GHCR_IMAGE: "ghcr.io/cubeos-app/dashboard"
 
 # -----------------------------------------------------------------------------
-# BUILD - Install deps and build static files (Docker executor)
+# BUILD - Install deps and build static files
 # -----------------------------------------------------------------------------
 build:
   stage: build
-  tags: [docker]
+  tags: [multiarch]
   image: node:20-alpine
   script:
     - npm ci
@@ -29,29 +29,43 @@ build:
     - if: $CI_COMMIT_BRANCH == "main"
 
 # -----------------------------------------------------------------------------
-# PACKAGE - Build Docker image on Pi (shell executor) and push
+# PACKAGE - Build multi-arch Docker image and push to ghcr.io
 # -----------------------------------------------------------------------------
 package:
   stage: package
-  tags: [arm64, cubeos, deploy]
+  tags: [multiarch]
+  image: docker:24
   before_script:
     - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+    - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - docker buildx create --name mybuilder --driver docker-container --use
+    - docker buildx inspect --bootstrap
   script:
-    - docker build -t ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} -t ${GHCR_IMAGE}:latest .
-    - docker push ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
-    - docker push ${GHCR_IMAGE}:latest
-    - echo "✅ Pushed ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+    - |
+      docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --push \
+        -t ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} \
+        -t ${GHCR_IMAGE}:latest \
+        .
+    - echo "✅ Pushed multi-arch ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+  after_script:
+    - docker buildx rm mybuilder || true
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
 # -----------------------------------------------------------------------------
-# DEPLOY - Restart container on Pi
+# DEPLOY - Pull image on Pi and restart
 # -----------------------------------------------------------------------------
 deploy:
   stage: deploy
   tags: [arm64, cubeos, deploy]
+  before_script:
+    - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
   script:
     - echo "🚀 Deploying CubeOS Dashboard..."
+    - docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
+    - docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} cubeos-dashboard:latest
     - docker compose -f /cubeos/docker-compose.yml up -d --force-recreate cubeos-dashboard
     - |
       echo "⏳ Waiting for Dashboard to be healthy..."
