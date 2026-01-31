@@ -29,7 +29,7 @@ async function openAPConfigModal() {
   try {
     const cfg = await api.get('/network/wifi/ap/config')
     apConfig.value = {
-      ssid: cfg.ssid || 'MuleCube',
+      ssid: cfg.ssid || 'CubeOS',
       password: cfg.password || '',
       channel: cfg.channel || 6,
       hidden: cfg.hidden || false,
@@ -374,7 +374,7 @@ function signalColor(pct) {
               </div>
               <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Access Point</p>
-                <p class="font-semibold text-gray-900 dark:text-white">{{ apStatus?.ssid || 'MuleCube' }}</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ apStatus?.ssid || 'CubeOS' }}</p>
               </div>
             </div>
             <button 
@@ -851,7 +851,7 @@ function signalColor(pct) {
                 type="text"
                 maxlength="32"
                 class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                placeholder="MuleCube"
+                placeholder="CubeOS"
               >
             </div>
             
