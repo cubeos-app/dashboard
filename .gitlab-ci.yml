@@ -4,7 +4,6 @@
 # Uses pre-built base image: ghcr.io/cubeos-app/dashboard-builder:latest
 # To rebuild base: run manually on GPU VM when package.json changes
 # =============================================================================
-
 stages:
   - build
   - package
@@ -64,9 +63,11 @@ deploy:
     - echo "🚀 Deploying CubeOS Dashboard..."
     - docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
     - docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} cubeos-dashboard:latest
-    - docker compose -f /cubeos/coreapps/orchestrator/appconfig/docker-compose.yml up -d --force-recreate dashboard
+    - cd /cubeos/coreapps/cubeos-dashboard/appconfig
+    - docker compose down --remove-orphans || true
+    - docker compose up -d --force-recreate
     - echo "⏳ Waiting for Dashboard to be healthy..."
-    - for i in $(seq 1 30); do curl -sf http://localhost:8087/ > /dev/null 2>&1 && echo "✅ Health check passed!" && exit 0; echo "  Attempt $i/30..."; sleep 2; done
+    - for i in $(seq 1 30); do curl -sf http://127.0.0.1:6011/ > /dev/null 2>&1 && echo "✅ Health check passed!" && exit 0; echo "  Attempt $i/30..."; sleep 2; done
     - echo "❌ Health check failed!" && exit 1
   environment:
     name: production
