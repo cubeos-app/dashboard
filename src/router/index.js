@@ -27,12 +27,24 @@ const routes = [
   {
     path: '/services',
     name: 'services',
-    component: () => import('@/components/services/ServicesView.vue'),
+    component: () => import('@/components/apps/AppsView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/apps',
+    name: 'apps',
+    component: () => import('@/components/apps/AppsView.vue'),
     meta: { requiresAuth: true }
   },
   {
     path: '/services/:name',
     name: 'service-detail',
+    component: () => import('@/components/services/ServiceDetailView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/apps/:name',
+    name: 'app-detail',
     component: () => import('@/components/services/ServiceDetailView.vue'),
     meta: { requiresAuth: true }
   },
