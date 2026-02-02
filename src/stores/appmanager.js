@@ -24,8 +24,6 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     try {
       await Promise.all([
         fetchApps(),
-        fetchPorts(),
-        fetchFQDNs(),
         fetchProfiles()
       ])
     } catch (e) {
@@ -35,221 +33,194 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     }
   }
 
-  // Apps
+  // Apps - GET /apps
   async function fetchApps() {
-    const response = await api.get('/appmanager/apps')
+    const response = await api.get('/apps')
     apps.value = response.apps || []
   }
 
   async function registerApp(appData) {
-    const response = await api.post('/appmanager/apps', appData)
+    const response = await api.post('/apps', appData)
     await fetchApps()
     return response
   }
 
   async function unregisterApp(name) {
-    await api.delete(`/appmanager/apps/${name}`)
+    await api.delete(`/apps/${name}`)
     await fetchApps()
   }
 
   async function enableApp(name) {
-    await api.post(`/appmanager/apps/${name}/enable`)
+    await api.post(`/apps/${name}/enable`)
     await fetchApps()
   }
 
   async function disableApp(name) {
-    await api.post(`/appmanager/apps/${name}/disable`)
+    await api.post(`/apps/${name}/disable`)
     await fetchApps()
   }
 
   async function startApp(name) {
-    await api.post(`/appmanager/apps/${name}/start`)
+    await api.post(`/apps/${name}/start`)
   }
 
   async function stopApp(name) {
-    await api.post(`/appmanager/apps/${name}/stop`)
+    await api.post(`/apps/${name}/stop`)
   }
 
   async function restartApp(name) {
-    await api.post(`/appmanager/apps/${name}/restart`)
+    await api.post(`/apps/${name}/restart`)
   }
 
   async function getAppStatus(name) {
-    const response = await api.get(`/appmanager/apps/${name}/status`)
+    const response = await api.get(`/apps/${name}`)
     return response
   }
 
-  // Ports
+  // Ports - NOT IMPLEMENTED IN API
   async function fetchPorts() {
-    const response = await api.get('/appmanager/ports')
-    ports.value = response.ports || []
+    // API endpoint not available
+    ports.value = []
   }
 
   async function allocatePort(portData) {
-    const response = await api.post('/appmanager/ports', portData)
-    await fetchPorts()
-    return response
+    throw new Error('Port allocation endpoint not implemented')
   }
 
   async function releasePort(port, protocol = 'tcp') {
-    await api.delete(`/appmanager/ports/${port}?protocol=${protocol}`)
-    await fetchPorts()
+    throw new Error('Port release endpoint not implemented')
   }
 
   async function getAvailablePort(type = 'user') {
-    const response = await api.get('/appmanager/ports/available', { type })
-    return response.port
+    throw new Error('Available port endpoint not implemented')
   }
 
-  // FQDNs
+  // FQDNs - NOT IMPLEMENTED IN API
   async function fetchFQDNs() {
-    const response = await api.get('/appmanager/fqdns')
-    fqdns.value = response.fqdns || []
+    // API endpoint not available
+    fqdns.value = []
   }
 
   async function registerFQDN(fqdnData) {
-    const response = await api.post('/appmanager/fqdns', fqdnData)
-    await fetchFQDNs()
-    return response
+    throw new Error('FQDN registration endpoint not implemented')
   }
 
   async function deregisterFQDN(fqdn) {
-    await api.delete(`/appmanager/fqdns/${encodeURIComponent(fqdn)}`)
-    await fetchFQDNs()
+    throw new Error('FQDN deregistration endpoint not implemented')
   }
 
-  // Profiles
+  // Profiles - GET /profiles
   async function fetchProfiles() {
-    const response = await api.get('/appmanager/profiles')
+    const response = await api.get('/profiles')
     profiles.value = response.profiles || []
   }
 
-  async function getProfile(id) {
-    const response = await api.get(`/appmanager/profiles/${id}`)
+  async function getProfile(name) {
+    const response = await api.get(`/profiles/${name}`)
     return response
   }
 
   async function createProfile(name, description = '') {
-    const response = await api.post('/appmanager/profiles', { name, description })
+    const response = await api.post('/profiles', { name, description })
     await fetchProfiles()
     return response
   }
 
-  async function deleteProfile(id) {
-    await api.delete(`/appmanager/profiles/${id}`)
+  async function deleteProfile(name) {
+    await api.delete(`/profiles/${name}`)
     await fetchProfiles()
   }
 
-  async function activateProfile(id) {
-    await api.post(`/appmanager/profiles/${id}/activate`)
+  async function activateProfile(name) {
+    await api.post(`/profiles/${name}/apply`)
     await fetchProfiles()
   }
 
-  async function setProfileApp(profileId, appId, enabled) {
-    await api.put(`/appmanager/profiles/${profileId}/apps/${appId}`, { enabled })
+  async function setProfileApp(profileName, appName, enabled) {
+    throw new Error('Profile app settings endpoint not implemented')
   }
 
-  // Registry
+  // Registry - NOT IMPLEMENTED IN API
   async function getRegistryStatus() {
-    const response = await api.get('/appmanager/registry/status')
-    return response
+    throw new Error('Registry status endpoint not implemented')
   }
 
   async function initRegistry() {
-    await api.post('/appmanager/registry/init')
+    throw new Error('Registry init endpoint not implemented')
   }
 
   async function getRegistryImages() {
-    const response = await api.get('/appmanager/registry/images')
-    return response.images || []
+    throw new Error('Registry images endpoint not implemented')
   }
 
   async function cacheImage(imageRef) {
-    await api.post('/appmanager/registry/images/cache', { image: imageRef })
+    throw new Error('Cache image endpoint not implemented')
   }
 
   async function deleteRegistryImage(name, tag) {
-    await api.delete(`/appmanager/registry/images/${encodeURIComponent(name)}?tag=${encodeURIComponent(tag)}`)
+    throw new Error('Delete registry image endpoint not implemented')
   }
 
-  // CasaOS
+  // CasaOS - NOT IMPLEMENTED IN API
   async function fetchCasaOSStore(url) {
-    const response = await api.get('/appmanager/casaos/stores', { url })
-    return response.apps || []
+    throw new Error('CasaOS store endpoint not implemented')
   }
 
   async function previewCasaOSApp(json) {
-    const response = await api.post('/appmanager/casaos/preview', { json })
-    return response
+    throw new Error('CasaOS preview endpoint not implemented')
   }
 
   async function importCasaOSApp(json) {
-    const response = await api.post('/appmanager/casaos/import', { json })
-    await fetchApps()
-    return response
+    throw new Error('CasaOS import endpoint not implemented')
   }
 
-  // Config Editing
+  // Config Editing - NOT IMPLEMENTED IN API
   async function getAppConfig(appName) {
-    const response = await api.get(`/appmanager/apps/${appName}/config`)
-    return response
+    throw new Error('App config endpoint not implemented')
   }
 
   async function saveAppConfig(appName, compose, env, recreate = true) {
-    const response = await api.put(`/appmanager/apps/${appName}/config`, { compose, env, recreate })
-    return response
+    throw new Error('Save app config endpoint not implemented')
   }
 
-  // Enhanced Ports
+  // Enhanced Ports - NOT IMPLEMENTED IN API
   async function getListeningPorts() {
-    const response = await api.get('/appmanager/ports/listening')
-    return response.ports || []
+    throw new Error('Listening ports endpoint not implemented')
   }
 
   async function getPortStats() {
-    const response = await api.get('/appmanager/ports/stats')
-    return response
+    throw new Error('Port stats endpoint not implemented')
   }
 
   async function syncPorts() {
-    const response = await api.post('/appmanager/ports/sync')
-    await fetchPorts()
-    return response
+    throw new Error('Sync ports endpoint not implemented')
   }
 
-  // Enhanced Domains
+  // Enhanced Domains - NOT IMPLEMENTED IN API
   async function getDomainsEnhanced() {
-    const response = await api.get('/appmanager/domains')
-    return response.domains || []
+    throw new Error('Enhanced domains endpoint not implemented')
   }
 
   async function syncDomains() {
-    const response = await api.post('/appmanager/domains/sync')
-    await fetchFQDNs()
-    return response
+    throw new Error('Sync domains endpoint not implemented')
   }
 
-  // NPM
+  // NPM - NOT IMPLEMENTED IN API
   async function getNPMStatus() {
-    const response = await api.get('/appmanager/npm/status')
-    return response
+    throw new Error('NPM status endpoint not implemented')
   }
 
   async function getNPMHosts() {
-    const response = await api.get('/appmanager/npm/hosts')
-    return response.hosts || []
+    throw new Error('NPM hosts endpoint not implemented')
   }
 
   async function initNPM() {
-    const response = await api.post('/appmanager/npm/init')
-    return response
+    throw new Error('NPM init endpoint not implemented')
   }
 
-  // Migration
+  // Migration - NOT IMPLEMENTED IN API
   async function runMigration() {
-    const response = await api.post('/appmanager/migrate')
-    await init()
-    return response
+    throw new Error('Migration endpoint not implemented')
   }
 
   return {
