@@ -266,9 +266,11 @@ export const useAppsStore = defineStore('apps', () => {
 
   /**
    * Check if an app is healthy
+   * API returns "healthy" for Swarm stacks, "running" for Compose services
    */
   function isHealthy(app) {
-    return app.status?.health === 'healthy' || !app.status?.health
+    const health = app.status?.health
+    return health === 'healthy' || health === 'running' || !health
   }
 
   /**
@@ -352,7 +354,9 @@ export const useAppsStore = defineStore('apps', () => {
    */
   function getHealthColor(health) {
     switch (health) {
-      case HEALTH_STATUS.HEALTHY: return 'text-green-500'
+      case HEALTH_STATUS.HEALTHY: 
+      case 'running':  // Compose services return "running" instead of "healthy"
+        return 'text-green-500'
       case HEALTH_STATUS.UNHEALTHY: return 'text-red-500'
       case HEALTH_STATUS.STARTING: return 'text-yellow-500'
       case HEALTH_STATUS.STOPPED: return 'text-gray-500'
@@ -366,6 +370,7 @@ export const useAppsStore = defineStore('apps', () => {
   function getHealthLabel(health) {
     switch (health) {
       case HEALTH_STATUS.HEALTHY: return 'Healthy'
+      case 'running': return 'Running'  // Compose services
       case HEALTH_STATUS.UNHEALTHY: return 'Unhealthy'
       case HEALTH_STATUS.STARTING: return 'Starting'
       case HEALTH_STATUS.STOPPED: return 'Stopped'
