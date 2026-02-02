@@ -34,20 +34,29 @@ const filteredApps = computed(() => {
   return store.apps.filter(a => a.type === typeFilter.value)
 })
 
-// Fetch container status for all apps
+// Fetch container status for all apps - use status from apps list instead of separate calls
 async function fetchAllAppStates() {
   loadingStates.value = true
   const states = {}
   
   for (const app of store.apps) {
-    try {
-      const status = await store.getAppStatus(app.name)
+    // Use status from app object if available (Sprint 3 format)
+    if (app.status) {
       states[app.name] = {
-        running: status.running || false,
-        status: status.status || 'unknown'
+        running: app.status.running || false,
+        status: app.status.health || (app.status.running ? 'running' : 'stopped')
       }
-    } catch (e) {
-      states[app.name] = { running: false, status: 'unknown' }
+    } else {
+      // Fallback to API call if no embedded status
+      try {
+        const status = await store.getAppStatus(app.name)
+        states[app.name] = {
+          running: status?.running || false,
+          status: status?.health || (status?.running ? 'running' : 'stopped')
+        }
+      } catch (e) {
+        states[app.name] = { running: false, status: 'unknown' }
+      }
     }
   }
   
@@ -57,10 +66,15 @@ async function fetchAllAppStates() {
 
 // Helper functions for state checking
 function isAppRunning(app) {
+  // Check embedded status first, then appStates
+  if (app.status?.running !== undefined) return app.status.running
   return appStates.value[app.name]?.running || false
 }
 
 function getAppStatus(app) {
+  // Check embedded status first
+  if (app.status?.health) return app.status.health
+  if (app.status?.running !== undefined) return app.status.running ? 'running' : 'stopped'
   return appStates.value[app.name]?.status || 'unknown'
 }
 
@@ -72,10 +86,12 @@ function getStatusClass(app) {
 
 function getStatusText(app) {
   const status = getAppStatus(app)
-  if (status === 'running') return 'Running'
-  if (status === 'exited') return 'Stopped'
-  if (status === 'not found') return 'Not found'
-  return status.charAt(0).toUpperCase() + status.slice(1)
+  // Ensure status is a string before calling charAt
+  const statusStr = String(status || 'unknown')
+  if (statusStr === 'running' || statusStr === 'healthy') return 'Running'
+  if (statusStr === 'exited' || statusStr === 'stopped') return 'Stopped'
+  if (statusStr === 'not found') return 'Not found'
+  return statusStr.charAt(0).toUpperCase() + statusStr.slice(1)
 }
 
 // Can start if NOT running
@@ -121,7 +137,10 @@ async function startAppContainer(app) {
     // Update state after short delay
     setTimeout(async () => {
       const status = await store.getAppStatus(app.name)
-      appStates.value[app.name] = { running: status.running, status: status.status }
+      appStates.value[app.name] = { 
+        running: status?.running || false, 
+        status: status?.health || (status?.running ? 'running' : 'stopped') 
+      }
     }, 2000)
   } catch (e) {}
   finally { controllingApp.value = null }
@@ -135,7 +154,10 @@ async function stopAppContainer(app) {
     // Update state after short delay
     setTimeout(async () => {
       const status = await store.getAppStatus(app.name)
-      appStates.value[app.name] = { running: status.running, status: status.status }
+      appStates.value[app.name] = { 
+        running: status?.running || false, 
+        status: status?.health || (status?.running ? 'running' : 'stopped') 
+      }
     }, 2000)
   } catch (e) {}
   finally { controllingApp.value = null }
@@ -148,7 +170,10 @@ async function restartAppContainer(app) {
     // Update state after short delay
     setTimeout(async () => {
       const status = await store.getAppStatus(app.name)
-      appStates.value[app.name] = { running: status.running, status: status.status }
+      appStates.value[app.name] = { 
+        running: status?.running || false, 
+        status: status?.health || (status?.running ? 'running' : 'stopped') 
+      }
     }, 3000)
   } catch (e) {}
   finally { controllingApp.value = null }
@@ -179,36 +204,23 @@ async function saveConfig({ compose, env, recreate }) {
   try {
     await store.saveAppConfig(selectedApp.value.name, compose, env, recreate)
     showConfigModal.value = false
-    // Refresh state after recreate
-    if (recreate) {
-      setTimeout(() => fetchAllAppStates(), 3000)
-    }
-  } catch (e) {
-    alert('Failed to save config: ' + e.message)
-  } finally {
-    configLoading.value = false
-  }
+    await fetchAllAppStates()
+  } catch (e) {}
+  finally { configLoading.value = false }
 }
 
-// Initial fetch when apps are loaded
-onMounted(async () => {
-  if (store.apps.length > 0) {
-    await fetchAllAppStates()
+// Watch for store.apps changes and fetch states
+watch(() => store.apps, (newApps) => {
+  if (newApps && newApps.length > 0) {
+    fetchAllAppStates()
   }
-})
-
-// Re-fetch when apps list changes
-watch(() => store.apps, async (newApps) => {
-  if (newApps.length > 0) {
-    await fetchAllAppStates()
-  }
-}, { deep: true })
+}, { immediate: true })
 </script>
 
 <template>
   <div>
     <!-- Toolbar -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-4">
         <select v-model="typeFilter" class="rounded-md border-theme-primary bg-theme-secondary text-theme-primary text-sm focus:ring-accent focus:border-accent">
           <option value="">All Apps</option>
