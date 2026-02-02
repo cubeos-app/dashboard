@@ -146,6 +146,7 @@ const SERVICE_NAMES = {
   'cubeos-dashboard': 'CubeOS Dashboard',
   'cubeos-pihole': 'Pi-hole DNS & DHCP',
   'cubeos-npm': 'Nginx Proxy Manager',
+  'cubeos-hal': 'HAL',
   'cubeos-dockge': 'Dockge',
   'cubeos-logs': 'Dozzle Logs',
   'cubeos-terminal': 'Terminal',
@@ -156,6 +157,16 @@ const SERVICE_NAMES = {
   'cubeos-gpio': 'GPIO Service',
   'cubeos-nettools': 'Network Tools',
   'cubeos-usb-monitor': 'USB Monitor',
+  // Short names (Swarm stacks use these)
+  'api': 'CubeOS API',
+  'dashboard': 'CubeOS Dashboard',
+  'pihole': 'Pi-hole DNS & DHCP',
+  'npm': 'Nginx Proxy Manager',
+  'hal': 'HAL',
+  'registry': 'Docker Registry',
+  'dozzle': 'Dozzle',
+  'ollama': 'Ollama',
+  'chromadb': 'ChromaDB',
   // User apps
   'open-webui': 'Open WebUI',
   'kiwix': 'Wikipedia (Kiwix)',
@@ -526,12 +537,54 @@ export const useServicesStore = defineStore('services', () => {
     }
   }
 
+  /**
+   * Extract clean service name from Swarm task name
+   * e.g., "registry_registry.1.abc123" -> "registry"
+   * e.g., "cubeos-api_cubeos-api.1.xyz789" -> "cubeos-api"
+   * e.g., "cubeos-pihole" -> "pihole"
+   */
+  function extractServiceName(containerName) {
+    let name = containerName
+    
+    // Strip Swarm task suffix (e.g., ".1.abc123xyz")
+    if (name.includes('.1.')) {
+      name = name.split('.1.')[0]
+    }
+    
+    // Handle stack_service format (e.g., "registry_registry" -> "registry")
+    if (name.includes('_')) {
+      const parts = name.split('_')
+      // Take the service name part (usually after underscore)
+      name = parts[parts.length - 1]
+    }
+    
+    return name
+  }
+
   function getServiceName(containerName) {
-    return SERVICE_NAMES[containerName] || SERVICE_NAMES[containerName.replace('cubeos-', '')] || formatName(containerName)
+    // First extract clean name from Swarm format
+    const cleanName = extractServiceName(containerName)
+    
+    // Try direct lookup
+    if (SERVICE_NAMES[cleanName]) return SERVICE_NAMES[cleanName]
+    
+    // Try with cubeos- prefix
+    if (SERVICE_NAMES['cubeos-' + cleanName]) return SERVICE_NAMES['cubeos-' + cleanName]
+    
+    // Try without cubeos- prefix
+    const withoutPrefix = cleanName.replace('cubeos-', '')
+    if (SERVICE_NAMES[withoutPrefix]) return SERVICE_NAMES[withoutPrefix]
+    
+    // Fallback to formatted name
+    return formatName(cleanName)
   }
 
   function getServiceIcon(containerName) {
-    return SERVICE_ICONS[containerName] || SERVICE_ICONS[containerName.replace('cubeos-', '')] || SERVICE_ICONS.default
+    const cleanName = extractServiceName(containerName)
+    return SERVICE_ICONS[cleanName] || 
+           SERVICE_ICONS['cubeos-' + cleanName] || 
+           SERVICE_ICONS[cleanName.replace('cubeos-', '')] || 
+           SERVICE_ICONS.default
   }
 
   function getCategoryIcon(categoryKey) {
