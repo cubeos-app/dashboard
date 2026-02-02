@@ -64,7 +64,7 @@ async function fetchStats() {
 }
 
 async function handleAction(action) {
-  if (!confirm(\`Are you sure you want to \${action} \${displayName.value}?\`)) return
+  if (!confirm(`Are you sure you want to ${action} ${displayName.value}?`)) return
   
   actionLoading.value = true
   try {
@@ -102,7 +102,7 @@ function formatBytes(bytes) {
     bytes /= 1024
     i++
   }
-  return \`\${bytes.toFixed(1)} \${units[i]}\`
+  return `${bytes.toFixed(1)} ${units[i]}`
 }
 </script>
 
@@ -255,7 +255,7 @@ function formatBytes(bytes) {
                 <dd class="text-gray-900 dark:text-white text-sm font-medium">{{ stats.cpu_percent?.toFixed(2) }}%</dd>
               </div>
               <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div class="h-full bg-blue-500" :style="{ width: \`\${Math.min(stats.cpu_percent || 0, 100)}%\` }"></div>
+                <div class="h-full bg-blue-500" :style="{ width: `${Math.min(stats.cpu_percent || 0, 100)}%` }"></div>
               </div>
             </div>
             <div>
@@ -266,7 +266,7 @@ function formatBytes(bytes) {
                 </dd>
               </div>
               <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div class="h-full bg-purple-500" :style="{ width: \`\${stats.memory_percent || 0}%\` }"></div>
+                <div class="h-full bg-purple-500" :style="{ width: `${stats.memory_percent || 0}%` }"></div>
               </div>
             </div>
           </dl>
