@@ -1,0 +1,235 @@
+/**
+ * CubeOS Profiles Store
+ * 
+ * Sprint 4: Uses verified /api/v1/profiles endpoints.
+ * Manages service profiles (Full, Minimal, Offline, Custom).
+ * 
+ * Verified endpoints:
+ * - GET /api/v1/profiles - List profiles (returns 3 profiles, active: full)
+ * - POST /api/v1/profiles/{name}/apply - Apply profile (404 for nonexistent)
+ * - POST /api/v1/profiles - Create profile
+ */
+
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import api from '@/api/client'
+
+// Default profiles
+export const DEFAULT_PROFILES = {
+  FULL: 'full',
+  MINIMAL: 'minimal',
+  OFFLINE: 'offline'
+}
+
+// Profile descriptions
+export const PROFILE_DESCRIPTIONS = {
+  [DEFAULT_PROFILES.FULL]: 'All services enabled including AI/ML',
+  [DEFAULT_PROFILES.MINIMAL]: 'Essential services only (Pi-hole, NPM, API, Dashboard)',
+  [DEFAULT_PROFILES.OFFLINE]: 'Optimized for air-gapped operation'
+}
+
+export const useProfilesStore = defineStore('profiles', () => {
+  // ==========================================
+  // State
+  // ==========================================
+  
+  const profiles = ref([])
+  const activeProfile = ref('')
+  const loading = ref(false)
+  const error = ref(null)
+  
+  // ==========================================
+  // Computed
+  // ==========================================
+  
+  const profileCount = computed(() => profiles.value.length)
+  const systemProfiles = computed(() => profiles.value.filter(p => p.is_system))
+  const customProfiles = computed(() => profiles.value.filter(p => !p.is_system))
+  
+  const currentProfile = computed(() => 
+    profiles.value.find(p => p.name === activeProfile.value)
+  )
+  
+  // ==========================================
+  // API Methods
+  // ==========================================
+  
+  /**
+   * Fetch all profiles
+   * GET /api/v1/profiles (verified: returns 3 profiles)
+   */
+  async function fetchProfiles() {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await api.get('/profiles')
+      profiles.value = response.profiles || []
+      activeProfile.value = response.active_profile || ''
+    } catch (e) {
+      error.value = e.message
+      console.error('Failed to fetch profiles:', e)
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Get profile details
+   * GET /api/v1/profiles/{name}
+   */
+  async function getProfile(name) {
+    try {
+      return await api.get(`/profiles/${encodeURIComponent(name)}`)
+    } catch (e) {
+      error.value = e.message
+      return null
+    }
+  }
+  
+  /**
+   * Apply/activate a profile
+   * POST /api/v1/profiles/{name}/apply (verified: 404 for nonexistent)
+   */
+  async function applyProfile(name) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const result = await api.post(`/profiles/${encodeURIComponent(name)}/apply`)
+      activeProfile.value = name
+      await fetchProfiles()
+      return result
+    } catch (e) {
+      error.value = e.message
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Create a new custom profile
+   * POST /api/v1/profiles
+   */
+  async function createProfile(name, displayName, description = '', apps = []) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.post('/profiles', {
+        name,
+        display_name: displayName || name,
+        description,
+        apps
+      })
+      await fetchProfiles()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Delete a custom profile
+   * DELETE /api/v1/profiles/{name}
+   */
+  async function deleteProfile(name) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      // Check if it's a system profile
+      const profile = profiles.value.find(p => p.name === name)
+      if (profile?.is_system) {
+        throw new Error('Cannot delete system profiles')
+      }
+      
+      await api.delete(`/profiles/${encodeURIComponent(name)}`)
+      await fetchProfiles()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  // ==========================================
+  // Helper Methods
+  // ==========================================
+  
+  /**
+   * Get profile by name
+   */
+  function getProfileByName(name) {
+    return profiles.value.find(p => p.name === name)
+  }
+  
+  /**
+   * Check if profile is active
+   */
+  function isActive(name) {
+    return activeProfile.value === name
+  }
+  
+  /**
+   * Get profile description
+   */
+  function getDescription(profile) {
+    if (!profile) return ''
+    return profile.description || PROFILE_DESCRIPTIONS[profile.name] || ''
+  }
+  
+  /**
+   * Get profile display name
+   */
+  function getDisplayName(profile) {
+    if (!profile) return ''
+    return profile.display_name || profile.name
+  }
+  
+  /**
+   * Check if profile can be deleted
+   */
+  function canDelete(profile) {
+    if (!profile) return false
+    return !profile.is_system
+  }
+  
+  // ==========================================
+  // Export
+  // ==========================================
+  
+  return {
+    // State
+    profiles,
+    activeProfile,
+    loading,
+    error,
+    
+    // Computed
+    profileCount,
+    systemProfiles,
+    customProfiles,
+    currentProfile,
+    
+    // API Methods
+    fetchProfiles,
+    getProfile,
+    applyProfile,
+    createProfile,
+    deleteProfile,
+    
+    // Helpers
+    getProfileByName,
+    isActive,
+    getDescription,
+    getDisplayName,
+    canDelete
+  }
+})

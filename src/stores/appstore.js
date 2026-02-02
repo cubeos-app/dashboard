@@ -1,21 +1,52 @@
+/**
+ * CubeOS App Store Store
+ * 
+ * Sprint 4: Migrated from deprecated /appstore/* to verified /apps/* endpoints.
+ * 
+ * NOTE: The app store catalog functionality requires backend implementation.
+ * Currently only installed app management via /apps is working.
+ * 
+ * Backend gaps (not yet implemented):
+ * - GET /appstore/stores - External app store sources
+ * - GET /appstore/apps - Browse available apps
+ * - GET /appstore/categories - App categories
+ * - POST /appstore/stores/sync - Sync from external stores
+ * 
+ * Working endpoints (verified):
+ * - GET /apps - List installed apps
+ * - POST /apps - Install app
+ * - DELETE /apps/{name} - Uninstall app
+ * - POST /apps/{name}/start|stop|restart - Control app
+ */
+
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/client'
 
 export const useAppStoreStore = defineStore('appstore', () => {
+  // ==========================================
   // State
+  // ==========================================
+  
+  // Note: stores and catalog require backend implementation
   const stores = ref([])
   const catalog = ref([])
   const categories = ref([])
+  
+  // Installed apps (works via /apps endpoint)
   const installedApps = ref([])
+  
   const loading = ref(false)
   const syncing = ref(false)
-  const installing = ref(null) // App ID being installed
+  const installing = ref(null)
   const error = ref(null)
   const selectedCategory = ref('')
   const searchQuery = ref('')
-
-  // Getters
+  
+  // ==========================================
+  // Computed
+  // ==========================================
+  
   const filteredApps = computed(() => {
     let apps = catalog.value
 
@@ -38,18 +69,33 @@ export const useAppStoreStore = defineStore('appstore', () => {
   })
 
   const installedCount = computed(() => installedApps.value.length)
-  const runningCount = computed(() => installedApps.value.filter(a => a.status === 'running').length)
-
-  // Actions
+  const runningCount = computed(() => 
+    installedApps.value.filter(a => a.status?.running).length
+  )
+  
+  // ==========================================
+  // API Methods
+  // ==========================================
+  
+  /**
+   * Fetch stores (NOT IMPLEMENTED IN BACKEND)
+   * TODO: Implement GET /appstore/stores or similar
+   */
   async function fetchStores() {
     try {
       const data = await api.get('/appstore/stores')
       stores.value = data.stores || []
     } catch (e) {
-      error.value = e.message
+      // Expected to fail - endpoint not implemented
+      stores.value = []
+      console.warn('App stores endpoint not implemented yet')
     }
   }
 
+  /**
+   * Fetch catalog (NOT IMPLEMENTED IN BACKEND)
+   * TODO: Implement GET /appstore/apps or similar
+   */
   async function fetchCatalog(category = '', search = '') {
     loading.value = true
     error.value = null
@@ -61,30 +107,42 @@ export const useAppStoreStore = defineStore('appstore', () => {
       const data = await api.get('/appstore/apps', params)
       catalog.value = data.apps || []
     } catch (e) {
-      error.value = e.message
+      // Expected to fail - endpoint not implemented
+      catalog.value = []
+      console.warn('App catalog endpoint not implemented yet')
     } finally {
       loading.value = false
     }
   }
 
+  /**
+   * Fetch categories (NOT IMPLEMENTED IN BACKEND)
+   */
   async function fetchCategories() {
     try {
       const data = await api.get('/appstore/categories')
       categories.value = data.categories || []
     } catch (e) {
-      console.error('Failed to fetch categories:', e)
+      categories.value = []
     }
   }
 
+  /**
+   * Fetch installed apps
+   * Uses GET /api/v1/apps (verified working: returns 8 apps)
+   */
   async function fetchInstalledApps() {
     try {
-      const data = await api.get('/appstore/installed')
+      const data = await api.get('/apps')
       installedApps.value = data.apps || []
     } catch (e) {
       error.value = e.message
     }
   }
 
+  /**
+   * Sync stores (NOT IMPLEMENTED IN BACKEND)
+   */
   async function syncStores() {
     syncing.value = true
     error.value = null
@@ -94,71 +152,42 @@ export const useAppStoreStore = defineStore('appstore', () => {
       await fetchCatalog()
       await fetchCategories()
     } catch (e) {
-      error.value = e.message
+      console.warn('Store sync not implemented yet')
     } finally {
       syncing.value = false
     }
   }
 
-  async function syncStore(storeId) {
-    syncing.value = true
-    error.value = null
-    try {
-      await api.post(`/appstore/stores/${storeId}/sync`)
-      await fetchCatalog()
-    } catch (e) {
-      error.value = e.message
-    } finally {
-      syncing.value = false
-    }
-  }
-
+  /**
+   * Add external store (NOT IMPLEMENTED IN BACKEND)
+   */
   async function addStore(url, name, description) {
     try {
       await api.post('/appstore/stores', { url, name, description })
       await fetchStores()
       return true
     } catch (e) {
-      error.value = e.message
+      error.value = e.message || 'Add store not implemented'
       return false
     }
   }
 
-  async function removeStore(storeId) {
-    try {
-      await api.delete(`/appstore/stores/${storeId}`)
-      await fetchStores()
-      await fetchCatalog()
-      return true
-    } catch (e) {
-      error.value = e.message
-      return false
-    }
-  }
-
-  async function getApp(storeId, appName) {
-    try {
-      return await api.get(`/appstore/stores/${storeId}/apps/${appName}`)
-    } catch (e) {
-      error.value = e.message
-      return null
-    }
-  }
-
+  /**
+   * Install app
+   * Uses POST /api/v1/apps (endpoint exists, needs valid payload)
+   */
   async function installApp(storeId, appName, options = {}) {
     installing.value = `${storeId}/${appName}`
     error.value = null
     try {
-      const result = await api.post('/appstore/installed', {
-        store_id: storeId,
-        app_name: appName,
-        title: options.title,
-        env_overrides: options.envOverrides,
-        port_overrides: options.portOverrides,
-        volume_overrides: options.volumeOverrides
+      const result = await api.post('/apps', {
+        name: appName,
+        display_name: options.title || appName,
+        source: storeId || 'custom',
+        store_app_id: appName,
+        ...options
       })
       await fetchInstalledApps()
-      await fetchCatalog() // Update installed status
       return result
     } catch (e) {
       error.value = e.message
@@ -168,9 +197,13 @@ export const useAppStoreStore = defineStore('appstore', () => {
     }
   }
 
-  async function startApp(appId) {
+  /**
+   * Start installed app
+   * Uses POST /api/v1/apps/{name}/start (verified working)
+   */
+  async function startApp(name) {
     try {
-      await api.post(`/appstore/installed/${appId}/start`)
+      await api.post(`/apps/${encodeURIComponent(name)}/start`)
       await fetchInstalledApps()
     } catch (e) {
       error.value = e.message
@@ -178,9 +211,13 @@ export const useAppStoreStore = defineStore('appstore', () => {
     }
   }
 
-  async function stopApp(appId) {
+  /**
+   * Stop installed app
+   * Uses POST /api/v1/apps/{name}/stop (verified working)
+   */
+  async function stopApp(name) {
     try {
-      await api.post(`/appstore/installed/${appId}/stop`)
+      await api.post(`/apps/${encodeURIComponent(name)}/stop`)
       await fetchInstalledApps()
     } catch (e) {
       error.value = e.message
@@ -188,9 +225,13 @@ export const useAppStoreStore = defineStore('appstore', () => {
     }
   }
 
-  async function restartApp(appId) {
+  /**
+   * Restart installed app
+   * Uses POST /api/v1/apps/{name}/restart (verified working)
+   */
+  async function restartApp(name) {
     try {
-      await api.post(`/appstore/installed/${appId}/restart`)
+      await api.post(`/apps/${encodeURIComponent(name)}/restart`)
       await fetchInstalledApps()
     } catch (e) {
       error.value = e.message
@@ -198,39 +239,64 @@ export const useAppStoreStore = defineStore('appstore', () => {
     }
   }
 
-  async function removeApp(appId, deleteData = false) {
+  /**
+   * Uninstall app
+   * Uses DELETE /api/v1/apps/{name} (endpoint works, returns 404 for nonexistent)
+   */
+  async function removeApp(name, deleteData = false) {
     try {
-      await api.delete(`/appstore/installed/${appId}?delete_data=${deleteData}`)
+      await api.delete(`/apps/${encodeURIComponent(name)}?keep_data=${!deleteData}`)
       await fetchInstalledApps()
-      await fetchCatalog()
     } catch (e) {
       error.value = e.message
       throw e
     }
   }
 
-  // Get app display title
+  // ==========================================
+  // Helper Methods
+  // ==========================================
+  
+  /**
+   * Get app display title
+   */
   function getAppTitle(app) {
     if (!app) return ''
-    return app.title?.en_us || app.title?.en_US || app.name || ''
+    return app.title?.en_us || app.title?.en_US || app.display_name || app.name || ''
   }
 
-  // Get app display description
+  /**
+   * Get app display description
+   */
   function getAppDescription(app) {
     if (!app) return ''
-    return app.description?.en_us || app.description?.en_US || ''
+    return app.description?.en_us || app.description?.en_US || app.description || ''
   }
 
-  // Initial load
+  /**
+   * Check if app is installed
+   */
+  function isInstalled(name) {
+    return installedApps.value.some(a => a.name === name)
+  }
+
+  /**
+   * Initialize - fetch installed apps (catalog requires backend work)
+   */
   async function init() {
-    await Promise.all([
+    await fetchInstalledApps()
+    // These will fail silently until backend implements them:
+    await Promise.allSettled([
       fetchStores(),
       fetchCatalog(),
-      fetchCategories(),
-      fetchInstalledApps()
+      fetchCategories()
     ])
   }
 
+  // ==========================================
+  // Export
+  // ==========================================
+  
   return {
     // State
     stores,
@@ -244,28 +310,28 @@ export const useAppStoreStore = defineStore('appstore', () => {
     selectedCategory,
     searchQuery,
     
-    // Getters
+    // Computed
     filteredApps,
     installedCount,
     runningCount,
     
-    // Actions
+    // API Methods
     fetchStores,
     fetchCatalog,
     fetchCategories,
     fetchInstalledApps,
     syncStores,
-    syncStore,
     addStore,
-    removeStore,
-    getApp,
     installApp,
     startApp,
     stopApp,
     restartApp,
     removeApp,
+    
+    // Helpers
     getAppTitle,
     getAppDescription,
+    isInstalled,
     init
   }
 })

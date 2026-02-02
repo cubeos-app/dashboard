@@ -1,6 +1,10 @@
 /**
  * CubeOS API Client
- * Handles authentication and API requests
+ * 
+ * Updated for Sprint 4: Uses unified /api/v1/apps endpoints.
+ * Deprecated /services/* endpoints removed.
+ * 
+ * All service operations should use the apps.js store instead.
  */
 
 const API_BASE = '/api/v1'
@@ -51,6 +55,10 @@ class ApiClient {
     return response
   }
 
+  // ==========================================
+  // Authentication
+  // ==========================================
+
   /**
    * Login with username and password
    */
@@ -62,12 +70,12 @@ class ApiClient {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Login failed')
+      const error = await response.json().catch(() => ({ error: 'Login failed' }))
+      throw new Error(error.error || error.message || 'Login failed')
     }
 
     const data = await response.json()
-    this.setTokens(data.access_token, data.refresh_token)
+    this.setTokens(data.token || data.access_token, data.refresh_token)
     return data
   }
 
@@ -90,7 +98,7 @@ class ApiClient {
       }
 
       const data = await response.json()
-      this.setTokens(data.access_token, data.refresh_token)
+      this.setTokens(data.token || data.access_token, data.refresh_token)
       return true
     } catch {
       this.clearTokens()
@@ -106,7 +114,6 @@ class ApiClient {
     if (accessToken) {
       localStorage.setItem('cubeos_access_token', accessToken)
     }
-    // Only store refresh token if provided
     if (refreshToken) {
       this.refreshToken = refreshToken
       localStorage.setItem('cubeos_refresh_token', refreshToken)
@@ -142,30 +149,32 @@ class ApiClient {
     return !!this.accessToken
   }
 
-  // ==========================================
-  // Auth endpoints
-  // ==========================================
-
+  /**
+   * Get current user info
+   */
   async getMe() {
     const response = await this.request('/auth/me')
     if (!response.ok) throw new Error('Failed to get user info')
     return response.json()
   }
 
+  /**
+   * Change password
+   */
   async changePassword(currentPassword, newPassword) {
     const response = await this.request('/auth/password', {
       method: 'POST',
       body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
     })
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Failed to change password')
+      const error = await response.json().catch(() => ({ error: 'Failed' }))
+      throw new Error(error.error || error.message || 'Failed to change password')
     }
     return response.json()
   }
 
   // ==========================================
-  // System endpoints
+  // System endpoints (verified working)
   // ==========================================
 
   async getSystemInfo() {
@@ -177,6 +186,12 @@ class ApiClient {
   async getSystemStats() {
     const response = await this.request('/system/stats')
     if (!response.ok) throw new Error('Failed to get system stats')
+    return response.json()
+  }
+
+  async getSystemTemperature() {
+    const response = await this.request('/system/temperature')
+    if (!response.ok) throw new Error('Failed to get temperature')
     return response.json()
   }
 
@@ -193,59 +208,7 @@ class ApiClient {
   }
 
   // ==========================================
-  // Services endpoints
-  // ==========================================
-
-  async getServices() {
-    const response = await this.request('/services')
-    if (!response.ok) throw new Error('Failed to get services')
-    return response.json()
-  }
-
-  async getService(name) {
-    const response = await this.request(`/services/${encodeURIComponent(name)}`)
-    if (!response.ok) throw new Error('Failed to get service')
-    return response.json()
-  }
-
-  async getServicesStatus() {
-    const response = await this.request('/services/status')
-    if (!response.ok) throw new Error('Failed to get services status')
-    return response.json()
-  }
-
-  async startService(name) {
-    const response = await this.request(`/services/${encodeURIComponent(name)}/start`, { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to start service')
-    return response.json()
-  }
-
-  async stopService(name) {
-    const response = await this.request(`/services/${encodeURIComponent(name)}/stop`, { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to stop service')
-    return response.json()
-  }
-
-  async restartService(name) {
-    const response = await this.request(`/services/${encodeURIComponent(name)}/restart`, { method: 'POST' })
-    if (!response.ok) throw new Error('Failed to restart service')
-    return response.json()
-  }
-
-  async getServiceLogs(name, lines = 100) {
-    const response = await this.request(`/services/${encodeURIComponent(name)}/logs?lines=${lines}`)
-    if (!response.ok) throw new Error('Failed to get service logs')
-    return response.json()
-  }
-
-  async getServiceStats(name) {
-    const response = await this.request(`/services/${encodeURIComponent(name)}/stats`)
-    if (!response.ok) throw new Error('Failed to get service stats')
-    return response.json()
-  }
-
-  // ==========================================
-  // Generic GET/POST helpers
+  // Generic REST helpers (used by stores)
   // ==========================================
 
   async get(endpoint, params = {}) {

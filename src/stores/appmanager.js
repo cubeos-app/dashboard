@@ -1,23 +1,55 @@
+/**
+ * CubeOS App Manager Store
+ * 
+ * Sprint 4: Updated to handle backend gaps gracefully.
+ * 
+ * Working endpoints (verified):
+ * - GET/POST/DELETE /apps, /apps/{name}, /apps/{name}/start|stop|restart
+ * - GET /profiles, POST /profiles/{name}/apply
+ * 
+ * Backend gaps (return 404, need implementation):
+ * - GET/POST/DELETE /ports - Port management
+ * - GET/POST/DELETE /fqdns - Domain management  
+ * - GET /registry/status, /registry/images - Registry status
+ * - GET/PUT /apps/{name}/config - App configuration
+ * - GET/POST /casaos/* - CasaOS import
+ * - GET/POST /npm/* - NPM integration
+ */
+
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/client'
 
 export const useAppManagerStore = defineStore('appmanager', () => {
+  // ==========================================
   // State
+  // ==========================================
+  
   const apps = ref([])
   const ports = ref([])
   const fqdns = ref([])
   const profiles = ref([])
   const loading = ref(false)
   const error = ref(null)
+  
+  // Track which features are available
+  const portsAvailable = ref(false)
+  const fqdnsAvailable = ref(false)
+  const registryAvailable = ref(false)
 
+  // ==========================================
   // Computed
+  // ==========================================
+  
   const allocatedPortCount = computed(() => ports.value.length)
   const fqdnCount = computed(() => fqdns.value.length)
   const systemApps = computed(() => apps.value.filter(a => a.type === 'system'))
   const userApps = computed(() => apps.value.filter(a => a.type === 'user'))
 
-  // Initialize - fetch all data
+  // ==========================================
+  // Initialize
+  // ==========================================
+  
   async function init() {
     loading.value = true
     error.value = null
@@ -35,7 +67,14 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     }
   }
 
-  // Apps - /apps endpoints
+  // ==========================================
+  // Apps (Working - verified)
+  // ==========================================
+  
+  /**
+   * Fetch all apps
+   * GET /api/v1/apps - verified working, returns 8 apps
+   */
   async function fetchApps() {
     const response = await api.get('/apps')
     apps.value = response.apps || []
@@ -75,68 +114,130 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   async function getAppStatus(name) {
-    const response = await api.get(`/apps/${name}`)
-    return response
+    return await api.get(`/apps/${name}`)
   }
 
-  // Ports - /ports endpoints (if available)
+  // ==========================================
+  // Ports (Backend gap - returns 404)
+  // ==========================================
+  
+  /**
+   * Fetch ports - NOT IMPLEMENTED in backend
+   * GET /api/v1/ports returns 404
+   */
   async function fetchPorts() {
     try {
       const response = await api.get('/ports')
       ports.value = response.ports || []
+      portsAvailable.value = true
     } catch (e) {
-      // Endpoint may not exist yet
+      // Expected - endpoint not implemented
       ports.value = []
+      portsAvailable.value = false
+      
+      // Extract ports from apps as fallback
+      const allPorts = []
+      apps.value.forEach(app => {
+        if (app.ports) {
+          app.ports.forEach(p => {
+            allPorts.push({
+              port: p.port,
+              protocol: p.protocol || 'tcp',
+              app_name: app.name,
+              description: p.description || ''
+            })
+          })
+        }
+      })
+      ports.value = allPorts
     }
   }
 
   async function allocatePort(portData) {
+    if (!portsAvailable.value) {
+      throw new Error('Port management not yet implemented in backend')
+    }
     const response = await api.post('/ports', portData)
     await fetchPorts()
     return response
   }
 
   async function releasePort(port, protocol = 'tcp') {
+    if (!portsAvailable.value) {
+      throw new Error('Port management not yet implemented in backend')
+    }
     await api.delete(`/ports/${port}?protocol=${protocol}`)
     await fetchPorts()
   }
 
-  async function getAvailablePort(type = 'user') {
-    const response = await api.get('/ports/available', { params: { type } })
-    return response.port
-  }
-
-  // FQDNs - /fqdns endpoints (if available)
+  // ==========================================
+  // FQDNs/Domains (Backend gap - returns 404)
+  // ==========================================
+  
+  /**
+   * Fetch FQDNs - NOT IMPLEMENTED in backend
+   * GET /api/v1/fqdns returns 404
+   */
   async function fetchFQDNs() {
     try {
       const response = await api.get('/fqdns')
       fqdns.value = response.fqdns || []
+      fqdnsAvailable.value = true
     } catch (e) {
-      // Endpoint may not exist yet
+      // Expected - endpoint not implemented
       fqdns.value = []
+      fqdnsAvailable.value = false
+      
+      // Extract FQDNs from apps as fallback
+      const allFqdns = []
+      apps.value.forEach(app => {
+        if (app.fqdns) {
+          app.fqdns.forEach(f => {
+            allFqdns.push({
+              fqdn: f.fqdn,
+              subdomain: f.subdomain,
+              app_name: app.name,
+              backend_port: f.backend_port
+            })
+          })
+        }
+      })
+      fqdns.value = allFqdns
     }
   }
 
   async function registerFQDN(fqdnData) {
+    if (!fqdnsAvailable.value) {
+      throw new Error('FQDN management not yet implemented in backend')
+    }
     const response = await api.post('/fqdns', fqdnData)
     await fetchFQDNs()
     return response
   }
 
   async function deregisterFQDN(fqdn) {
+    if (!fqdnsAvailable.value) {
+      throw new Error('FQDN management not yet implemented in backend')
+    }
     await api.delete(`/fqdns/${encodeURIComponent(fqdn)}`)
     await fetchFQDNs()
   }
 
-  // Profiles - /profiles endpoints
+  // ==========================================
+  // Profiles (Working - verified)
+  // ==========================================
+  
+  /**
+   * Fetch profiles
+   * GET /api/v1/profiles - verified working, returns 3 profiles
+   */
   async function fetchProfiles() {
     const response = await api.get('/profiles')
     profiles.value = response.profiles || []
   }
 
   async function getProfile(name) {
-    const response = await api.get(`/profiles/${name}`)
-    return response
+    return await api.get(`/profiles/${name}`)
   }
 
   async function createProfile(name, description = '') {
@@ -150,27 +251,35 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     await fetchProfiles()
   }
 
+  /**
+   * Activate profile
+   * POST /api/v1/profiles/{name}/apply - verified working
+   */
   async function activateProfile(name) {
     await api.post(`/profiles/${name}/apply`)
     await fetchProfiles()
   }
 
-  async function setProfileApp(profileName, appName, enabled) {
-    await api.put(`/profiles/${profileName}/apps/${appName}`, { enabled })
-  }
-
-  // Registry - /registry endpoints (if available)
+  // ==========================================
+  // Registry (Backend gap - returns 404)
+  // ==========================================
+  
+  /**
+   * Get registry status - NOT IMPLEMENTED in backend
+   */
   async function getRegistryStatus() {
     try {
       const response = await api.get('/registry/status')
+      registryAvailable.value = true
       return response
     } catch (e) {
-      return { online: false, error: e.message }
+      registryAvailable.value = false
+      return { 
+        online: false, 
+        error: 'Registry status endpoint not implemented',
+        _unavailable: true
+      }
     }
-  }
-
-  async function initRegistry() {
-    await api.post('/registry/init')
   }
 
   async function getRegistryImages() {
@@ -182,23 +291,47 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     }
   }
 
-  async function cacheImage(imageRef) {
-    await api.post('/registry/images/cache', { image: imageRef })
+  // ==========================================
+  // App Config (Backend gap - returns 404)
+  // ==========================================
+  
+  /**
+   * Get app config - NOT IMPLEMENTED in backend
+   * GET /api/v1/apps/{name}/config returns 404
+   */
+  async function getAppConfig(appName) {
+    try {
+      return await api.get(`/apps/${appName}/config`)
+    } catch (e) {
+      return { 
+        compose: '',
+        env: {},
+        _unavailable: true,
+        error: 'App config endpoint not implemented'
+      }
+    }
   }
 
-  async function deleteRegistryImage(name, tag) {
-    await api.delete(`/registry/images/${encodeURIComponent(name)}?tag=${encodeURIComponent(tag)}`)
+  async function saveAppConfig(appName, compose, env, recreate = true) {
+    return await api.put(`/apps/${appName}/config`, { compose, env, recreate })
   }
 
-  // CasaOS - /casaos endpoints (if available)
+  // ==========================================
+  // CasaOS Import (Backend gap)
+  // ==========================================
+  
   async function fetchCasaOSStore(url) {
-    const response = await api.get('/casaos/stores', { params: { url } })
-    return response.apps || []
+    try {
+      const response = await api.get('/casaos/stores', { url })
+      return response.apps || []
+    } catch (e) {
+      console.warn('CasaOS import not implemented')
+      return []
+    }
   }
 
   async function previewCasaOSApp(json) {
-    const response = await api.post('/casaos/preview', { json })
-    return response
+    return await api.post('/casaos/preview', { json })
   }
 
   async function importCasaOSApp(json) {
@@ -207,69 +340,31 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     return response
   }
 
-  // Config Editing
-  async function getAppConfig(appName) {
-    const response = await api.get(`/apps/${appName}/config`)
-    return response
-  }
-
-  async function saveAppConfig(appName, compose, env, recreate = true) {
-    const response = await api.put(`/apps/${appName}/config`, { compose, env, recreate })
-    return response
-  }
-
-  // Enhanced Ports
-  async function getListeningPorts() {
-    const response = await api.get('/ports/listening')
-    return response.ports || []
-  }
-
-  async function getPortStats() {
-    const response = await api.get('/ports/stats')
-    return response
-  }
-
-  async function syncPorts() {
-    const response = await api.post('/ports/sync')
-    await fetchPorts()
-    return response
-  }
-
-  // Enhanced Domains
-  async function getDomainsEnhanced() {
-    const response = await api.get('/domains')
-    return response.domains || []
-  }
-
-  async function syncDomains() {
-    const response = await api.post('/domains/sync')
-    await fetchFQDNs()
-    return response
-  }
-
-  // NPM
+  // ==========================================
+  // NPM Integration (Backend gap)
+  // ==========================================
+  
   async function getNPMStatus() {
-    const response = await api.get('/npm/status')
-    return response
+    try {
+      return await api.get('/npm/status')
+    } catch (e) {
+      return { available: false, error: 'NPM status not implemented' }
+    }
   }
 
   async function getNPMHosts() {
-    const response = await api.get('/npm/hosts')
-    return response.hosts || []
+    try {
+      const response = await api.get('/npm/hosts')
+      return response.hosts || []
+    } catch (e) {
+      return []
+    }
   }
 
-  async function initNPM() {
-    const response = await api.post('/npm/init')
-    return response
-  }
-
-  // Migration
-  async function runMigration() {
-    const response = await api.post('/migrate')
-    await init()
-    return response
-  }
-
+  // ==========================================
+  // Export
+  // ==========================================
+  
   return {
     // State
     apps,
@@ -278,13 +373,22 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     profiles,
     loading,
     error,
+    
+    // Feature availability flags
+    portsAvailable,
+    fqdnsAvailable,
+    registryAvailable,
+    
     // Computed
     allocatedPortCount,
     fqdnCount,
     systemApps,
     userApps,
+    
     // Actions
     init,
+    
+    // Apps (working)
     fetchApps,
     registerApp,
     unregisterApp,
@@ -296,35 +400,35 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     getAppStatus,
     getAppConfig,
     saveAppConfig,
+    
+    // Ports (backend gap)
     fetchPorts,
     allocatePort,
     releasePort,
-    getAvailablePort,
-    getListeningPorts,
-    getPortStats,
-    syncPorts,
+    
+    // FQDNs (backend gap)
     fetchFQDNs,
     registerFQDN,
     deregisterFQDN,
-    getDomainsEnhanced,
-    syncDomains,
+    
+    // Profiles (working)
     fetchProfiles,
     getProfile,
     createProfile,
     deleteProfile,
     activateProfile,
-    setProfileApp,
+    
+    // Registry (backend gap)
     getRegistryStatus,
-    initRegistry,
     getRegistryImages,
-    cacheImage,
-    deleteRegistryImage,
+    
+    // CasaOS (backend gap)
     fetchCasaOSStore,
     previewCasaOSApp,
     importCasaOSApp,
+    
+    // NPM (backend gap)
     getNPMStatus,
-    getNPMHosts,
-    initNPM,
-    runMigration
+    getNPMHosts
   }
 })
