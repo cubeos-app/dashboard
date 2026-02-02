@@ -51,17 +51,66 @@ const SERVICE_CATEGORIES = {
 }
 
 // Services that have a web UI with their FQDN hostnames
+// ALL services must use FQDN via NPM - no direct port access
+// Format: { fqdn: 'hostname', path: '/optional/path' } or just 'hostname' for simple cases
+const SERVICE_FQDNS = {
+  // Core CubeOS services
+  'cubeos-dashboard': { fqdn: 'cubeos.cube' },
+  'cubeos-pihole': { fqdn: 'pihole.cubeos.cube', path: '/admin' },
+  'cubeos-npm': { fqdn: 'npm.cubeos.cube' },
+  'cubeos-dockge': { fqdn: 'dockge.cubeos.cube' },
+  'dockge': { fqdn: 'dockge.cubeos.cube' },
+  'cubeos-logs': { fqdn: 'dozzle.cubeos.cube' },
+  'dozzle': { fqdn: 'dozzle.cubeos.cube' },
+  'cubeos-terminal': { fqdn: 'terminal.cubeos.cube' },
+  'terminal': { fqdn: 'terminal.cubeos.cube' },
+  // Shorthand aliases
+  'pihole': { fqdn: 'pihole.cubeos.cube', path: '/admin' },
+  'npm': { fqdn: 'npm.cubeos.cube' },
+  'registry': { fqdn: 'registry.cubeos.cube' },
+  'ollama': { fqdn: 'ollama.cubeos.cube' },
+  'chromadb': { fqdn: 'chromadb.cubeos.cube' },
+  // User apps - all use FQDN via NPM
+  'kiwix': { fqdn: 'kiwix.cubeos.cube' },
+  'kiwix-server': { fqdn: 'kiwix.cubeos.cube' },
+  'tileserver': { fqdn: 'maps.cubeos.cube' },
+  'tileserver-gl': { fqdn: 'maps.cubeos.cube' },
+  'open-webui': { fqdn: 'ai.cubeos.cube' },
+  'filebrowser': { fqdn: 'files.cubeos.cube' },
+  'calibre-web': { fqdn: 'books.cubeos.cube' },
+  'syncthing': { fqdn: 'sync.cubeos.cube' },
+  'uptime-kuma': { fqdn: 'uptime.cubeos.cube' },
+  'it-tools': { fqdn: 'tools.cubeos.cube' },
+  'element': { fqdn: 'chat.cubeos.cube' },
+  'element-web': { fqdn: 'chat.cubeos.cube' },
+  'jellyfin': { fqdn: 'media.cubeos.cube' },
+  'vaultwarden': { fqdn: 'vault.cubeos.cube' },
+  'cryptpad': { fqdn: 'docs.cubeos.cube' },
+  'excalidraw': { fqdn: 'draw.cubeos.cube' },
+  'libretranslate': { fqdn: 'translate.cubeos.cube' },
+  'linkwarden': { fqdn: 'links.cubeos.cube' },
+  'portainer': { fqdn: 'portainer.cubeos.cube' }
+}
+
+// Legacy string-only format for backwards compatibility (deprecated)
 const SERVICE_URLS = {
+  // Core CubeOS services
   'cubeos-dashboard': 'cubeos.cube',
   'cubeos-pihole': 'pihole.cubeos.cube',
   'cubeos-npm': 'npm.cubeos.cube',
   'cubeos-dockge': 'dockge.cubeos.cube',
   'dockge': 'dockge.cubeos.cube',
-  'cubeos-logs': 'logs.cubeos.cube',
-  'dozzle': 'logs.cubeos.cube',
+  'cubeos-logs': 'dozzle.cubeos.cube',
+  'dozzle': 'dozzle.cubeos.cube',
   'cubeos-terminal': 'terminal.cubeos.cube',
   'terminal': 'terminal.cubeos.cube',
-  // User apps - will use port-based URLs or custom FQDNs
+  // Shorthand aliases
+  'pihole': 'pihole.cubeos.cube',
+  'npm': 'npm.cubeos.cube',
+  'registry': 'registry.cubeos.cube',
+  'ollama': 'ollama.cubeos.cube',
+  'chromadb': 'chromadb.cubeos.cube',
+  // User apps - all use FQDN via NPM
   'kiwix': 'kiwix.cubeos.cube',
   'kiwix-server': 'kiwix.cubeos.cube',
   'tileserver': 'maps.cubeos.cube',
@@ -79,14 +128,15 @@ const SERVICE_URLS = {
   'cryptpad': 'docs.cubeos.cube',
   'excalidraw': 'draw.cubeos.cube',
   'libretranslate': 'translate.cubeos.cube',
-  'linkwarden': 'links.cubeos.cube'
+  'linkwarden': 'links.cubeos.cube',
+  'portainer': 'portainer.cubeos.cube'
 }
 
 // Services with no UI (backend only) - show health/logs modal when clicked
 const NO_UI_SERVICES = [
   'cubeos-watchdog', 'cubeos-backup', 'cubeos-diagnostics', 'cubeos-reset',
   'cubeos-gpio', 'cubeos-nettools', 'cubeos-usb-monitor', 'ollama', 'conduit',
-  'tika', 'meilisearch'
+  'tika', 'meilisearch', 'chromadb', 'registry', 'cubeos-api', 'cubeos-hal'
 ]
 
 // Friendly display names for services
@@ -297,31 +347,47 @@ export const useServicesStore = defineStore('services', () => {
 
   // Check if service has a web UI
   function hasWebUI(serviceName) {
-    return !NO_UI_SERVICES.includes(serviceName) && 
-           (SERVICE_URLS[serviceName] || getServicePort(serviceName))
+    // Check if in NO_UI_SERVICES list
+    if (NO_UI_SERVICES.includes(serviceName)) return false
+    
+    // Check if we have an FQDN mapping
+    return !!SERVICE_URLS[serviceName]
   }
 
-  // Get service URL (FQDN or port-based)
+  // Get service URL (FQDN-only via NPM)
+  // NO port-based fallback - all services must go through reverse proxy
   function getServiceUrl(service) {
     const name = service.name
     
-    // Check for predefined FQDN
+    // Check for predefined FQDN config (new format with path support)
+    if (SERVICE_FQDNS[name]) {
+      const config = SERVICE_FQDNS[name]
+      const path = config.path || ''
+      return `http://${config.fqdn}${path}`
+    }
+    
+    // Check without cubeos- prefix
+    const baseName = name.replace('cubeos-', '')
+    if (SERVICE_FQDNS[baseName]) {
+      const config = SERVICE_FQDNS[baseName]
+      const path = config.path || ''
+      return `http://${config.fqdn}${path}`
+    }
+    
+    // Fallback to legacy SERVICE_URLS (string-only, no path)
     if (SERVICE_URLS[name]) {
       return `http://${SERVICE_URLS[name]}`
     }
-    
-    // Fall back to port-based URL with FQDN base
-    const ports = service.ports || []
-    const webPort = ports.find(p => p.public_port)
-    if (webPort) {
-      // Use cubeos.cube as base domain with port
-      return `http://cubeos.cube:${webPort.public_port}`
+    if (SERVICE_URLS[baseName]) {
+      return `http://${SERVICE_URLS[baseName]}`
     }
     
+    // No FQDN configured - service needs NPM proxy setup
+    // Do NOT fall back to port-based URLs
     return null
   }
 
-  // Get just the port for a service
+  // Get just the port for a service (for display/info purposes only)
   function getServicePort(serviceName) {
     const service = services.value.find(s => s.name === serviceName)
     if (!service) return null

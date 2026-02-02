@@ -108,12 +108,15 @@ const SERVICE_NAMES = {
   'chromadb': 'ChromaDB Vector Store'
 }
 
-// Services with web UI (for navigation)
+// Services with web UI - FQDN-only, no ports
+// All services must go through NPM reverse proxy
 const WEB_UI_SERVICES = {
   'pihole': { fqdn: 'pihole.cubeos.cube', path: '/admin' },
-  'npm': { port: 81 },
-  'dozzle': { port: 6012 },
-  'ollama': { port: 6030, path: '/api/tags' }, // API endpoint
+  'npm': { fqdn: 'npm.cubeos.cube' },
+  'dozzle': { fqdn: 'dozzle.cubeos.cube' },
+  'ollama': { fqdn: 'ollama.cubeos.cube', path: '/api/tags', hasUI: false },
+  'registry': { fqdn: 'registry.cubeos.cube', path: '/v2/', hasUI: false },
+  'chromadb': { fqdn: 'chromadb.cubeos.cube', hasUI: false },
 }
 
 export const useAppsStore = defineStore('apps', () => {
@@ -299,34 +302,27 @@ export const useAppsStore = defineStore('apps', () => {
 
   /**
    * Get URL for an app's web UI (if available)
+   * ALL URLs go through FQDN via NPM - no direct port access
    */
   function getAppUrl(app) {
     const name = app.name.replace('cubeos-', '')
     
-    // Check predefined web UI services
+    // Check predefined web UI services (FQDN-only)
     if (WEB_UI_SERVICES[name]) {
       const config = WEB_UI_SERVICES[name]
-      if (config.fqdn) {
-        const path = config.path || ''
-        return `http://${config.fqdn}${path}`
-      }
-      if (config.port) {
-        const path = config.path || ''
-        return `http://cubeos.cube:${config.port}${path}`
-      }
+      // Skip services that are API-only (no web UI)
+      if (config.hasUI === false) return null
+      const path = config.path || ''
+      return `http://${config.fqdn}${path}`
     }
     
-    // Use primary FQDN from app
+    // Use primary FQDN from app data (set by API)
     if (app.fqdns?.length > 0) {
       return `http://${app.fqdns[0].fqdn}`
     }
     
-    // Fall back to primary port
-    const primaryPort = getPrimaryPort(app)
-    if (primaryPort) {
-      return `http://cubeos.cube:${primaryPort}`
-    }
-    
+    // No URL available - service must have NPM proxy configured
+    // Do NOT fall back to port-based URLs
     return null
   }
 
@@ -334,11 +330,16 @@ export const useAppsStore = defineStore('apps', () => {
    * Check if app has a web UI
    */
   function hasWebUI(app) {
+    const name = app.name.replace('cubeos-', '')
+    
+    // Check if explicitly marked as no UI
+    if (WEB_UI_SERVICES[name]?.hasUI === false) return false
+    
     return getAppUrl(app) !== null
   }
 
   /**
-   * Get primary port for an app
+   * Get primary port for an app (for display purposes only)
    */
   function getPrimaryPort(app) {
     if (!app.ports?.length) return null

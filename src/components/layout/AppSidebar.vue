@@ -30,31 +30,30 @@ const navItems = [
   { path: '/system', name: 'System', icon: 'Settings2' }
 ]
 
-// Quick links to external services
+// FQDN mappings for quick links - all services go through NPM reverse proxy
+const QUICK_LINK_FQDNS = {
+  'dockge': { name: 'Dockge', fqdn: 'dockge.cubeos.cube', icon: 'Box' },
+  'portainer': { name: 'Portainer', fqdn: 'portainer.cubeos.cube', icon: 'Box' },
+  'uptime': { name: 'Uptime Kuma', fqdn: 'uptime.cubeos.cube', icon: 'Activity' },
+  'pihole': { name: 'Pi-hole', fqdn: 'pihole.cubeos.cube', path: '/admin', icon: 'Shield' }
+}
+
+// Quick links to external services - using FQDNs, not IP:port
 const quickLinks = computed(() => {
   const links = []
   const services = servicesStore.services || []
   
-  const dockge = services.find(s => s.name?.toLowerCase().includes('dockge'))
-  const portainer = services.find(s => s.name?.toLowerCase().includes('portainer'))
-  const uptime = services.find(s => s.name?.toLowerCase().includes('uptime'))
-  const pihole = services.find(s => s.name?.toLowerCase().includes('pihole'))
-  
-  if (dockge?.state === 'running') {
-    const port = dockge.ports?.find(p => p.public_port)?.public_port
-    if (port) links.push({ name: 'Dockge', url: `http://192.168.42.1:${port}`, icon: 'Box' })
-  }
-  if (portainer?.state === 'running') {
-    const port = portainer.ports?.find(p => p.public_port)?.public_port
-    if (port) links.push({ name: 'Portainer', url: `http://192.168.42.1:${port}`, icon: 'Box' })
-  }
-  if (uptime?.state === 'running') {
-    const port = uptime.ports?.find(p => p.public_port)?.public_port
-    if (port) links.push({ name: 'Uptime Kuma', url: `http://192.168.42.1:${port}`, icon: 'Activity' })
-  }
-  if (pihole?.state === 'running') {
-    const port = pihole.ports?.find(p => p.public_port)?.public_port
-    if (port) links.push({ name: 'Pi-hole', url: `http://192.168.42.1:${port}`, icon: 'Shield' })
+  // Check for each quick link service
+  for (const [key, config] of Object.entries(QUICK_LINK_FQDNS)) {
+    const service = services.find(s => s.name?.toLowerCase().includes(key))
+    if (service?.state === 'running') {
+      const path = config.path || ''
+      links.push({
+        name: config.name,
+        url: `http://${config.fqdn}${path}`,
+        icon: config.icon
+      })
+    }
   }
   
   return links.slice(0, 4)
