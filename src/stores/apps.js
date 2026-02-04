@@ -630,6 +630,7 @@ export const useAppsStore = defineStore('apps', () => {
     isRunning,
     isHealthy,
     getAppDisplayName,
+    getDisplayName: getAppDisplayName,  // Alias for convenience
     getAppIcon,
     getAppUrl,
     hasWebUI,
