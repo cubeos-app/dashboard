@@ -135,7 +135,7 @@ async function handleSubmit() {
       <!-- Footer -->
       <div class="text-center mt-5 space-y-1.5">
         <p class="text-theme-muted text-[10px]">
-          {{ brandingStore.brandName }} v2.0.0
+          {{ brandingStore.brandName }} v0.0.11
         </p>
         <div class="flex items-center justify-center gap-3 text-[10px]">
           <a 
@@ -150,7 +150,7 @@ async function handleSubmit() {
           </a>
           <span class="text-theme-muted">|</span>
           <a 
-            href="/api/v1/docs" 
+            href="http://cubeos.cube:6010/api/v1/docs/" 
             target="_blank"
             class="text-theme-tertiary hover:text-theme-secondary transition-colors flex items-center gap-1"
           >

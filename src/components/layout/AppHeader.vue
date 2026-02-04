@@ -31,14 +31,17 @@ const temperature = computed(() => {
   return Math.round(temp * 10) / 10
 })
 
-// Battery
+// Battery - only show if actually available and has valid data
 const batteryPercent = computed(() => {
+  // Check if power data exists and battery is actually available
+  if (!systemStore.power?.available) return null
   const pct = systemStore.power?.battery_percent
-  if (pct === null || pct === undefined) return null
+  // Must be a valid number >= 0
+  if (pct === null || pct === undefined || pct < 0) return null
   return Math.round(pct)
 })
 const batteryCharging = computed(() => {
-  return systemStore.power?.charging || false
+  return systemStore.power?.is_charging || systemStore.power?.charging || false
 })
 </script>
 

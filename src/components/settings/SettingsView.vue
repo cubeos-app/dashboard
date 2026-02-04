@@ -1,5 +1,12 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+/**
+ * SettingsView.vue
+ * 
+ * User settings: Appearance, Account, System Info, Session.
+ * Fixed: Theme switching, system info from host, API docs link, sign out redirect.
+ */
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
 import { useSystemStore } from '@/stores/system'
 import { useAuthStore } from '@/stores/auth'
@@ -7,6 +14,7 @@ import { useBrandingStore } from '@/stores/branding'
 import Icon from '@/components/ui/Icon.vue'
 import api from '@/api/client'
 
+const router = useRouter()
 const themeStore = useThemeStore()
 const systemStore = useSystemStore()
 const authStore = useAuthStore()
@@ -21,6 +29,26 @@ const passwordForm = ref({
 const passwordLoading = ref(false)
 const passwordError = ref('')
 const passwordSuccess = ref('')
+
+// Version info fetched from API
+const versionInfo = ref({
+  version: '0.0.11',
+  api_version: 'v1'
+})
+
+async function fetchVersion() {
+  try {
+    const data = await api.get('/system/version')
+    if (data) {
+      versionInfo.value = {
+        version: data.version || '0.0.11',
+        api_version: data.api_version || 'v1'
+      }
+    }
+  } catch (e) {
+    // Use defaults
+  }
+}
 
 async function changePassword() {
   passwordError.value = ''
@@ -45,19 +73,29 @@ async function changePassword() {
     passwordSuccess.value = 'Password changed successfully'
     passwordForm.value = { current: '', new: '', confirm: '' }
   } catch (err) {
-    passwordError.value = err.response?.data?.error || 'Failed to change password'
+    passwordError.value = err.response?.data?.error || err.message || 'Failed to change password'
   } finally {
     passwordLoading.value = false
   }
 }
 
-// Logout
-function logout() {
-  authStore.logout()
+// Logout with redirect
+async function logout() {
+  await authStore.logout()
+  router.push('/login')
 }
 
-onMounted(() => {
-  systemStore.fetchInfo()
+// System info computed (from host, not container)
+const hostInfo = computed(() => ({
+  hostname: systemStore.info?.hostname || 'CubeOS',
+  platform: systemStore.info?.platform || systemStore.info?.os_name || 'Linux',
+  architecture: systemStore.info?.architecture || systemStore.info?.arch || 'arm64',
+  kernel: systemStore.info?.kernel_version || systemStore.info?.kernel || 'Unknown'
+}))
+
+onMounted(async () => {
+  await systemStore.fetchInfo()
+  await fetchVersion()
 })
 </script>
 
@@ -69,72 +107,11 @@ onMounted(() => {
       <p class="text-theme-tertiary text-sm">Customize your experience</p>
     </div>
 
-    <!-- Branding Selection -->
+    <!-- Theme Selection (Appearance) - FIRST -->
     <section class="animate-fade-in">
       <div class="flex items-center gap-2.5 mb-3">
         <div class="w-8 h-8 rounded-lg bg-accent-muted flex items-center justify-center">
-          <Icon name="Layers" :size="16" class="text-accent" />
-        </div>
-        <div>
-          <h2 class="text-sm font-semibold text-theme-primary">Product Branding</h2>
-          <p class="text-xs text-theme-tertiary">Choose which product you are using</p>
-        </div>
-      </div>
-
-      <div class="p-4 rounded-xl border border-theme-primary bg-theme-card">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            v-for="brand in brandingStore.brands"
-            :key="brand.id"
-            @click="brandingStore.setBrand(brand.id)"
-            class="relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all duration-150 text-left"
-            :class="brandingStore.currentBrandId === brand.id 
-              ? 'border-accent bg-accent-muted' 
-              : 'border-theme-primary hover:border-theme-secondary bg-theme-tertiary'"
-          >
-            <!-- Brand logo -->
-            <div 
-              class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
-              :class="brandingStore.currentBrandId === brand.id ? 'bg-theme-card' : 'bg-theme-secondary'"
-            >
-              <img :src="brand.logo" :alt="brand.name" class="w-8 h-8" />
-            </div>
-            
-            <!-- Brand info -->
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="font-semibold text-theme-primary text-sm">{{ brand.name }}</span>
-                <span 
-                  v-if="brandingStore.currentBrandId === brand.id"
-                  class="px-1.5 py-0.5 text-[10px] font-medium rounded bg-accent text-white"
-                >
-                  Active
-                </span>
-              </div>
-              <p class="text-xs text-theme-tertiary mt-0.5">{{ brand.tagline }}</p>
-            </div>
-            
-            <!-- Check mark -->
-            <div 
-              v-if="brandingStore.currentBrandId === brand.id"
-              class="absolute top-2 right-2 w-5 h-5 rounded-full bg-accent flex items-center justify-center"
-            >
-              <Icon name="Check" :size="12" class="text-white" :stroke-width="3" />
-            </div>
-          </button>
-        </div>
-        
-        <p class="text-[10px] text-theme-muted mt-3">
-          This changes the branding throughout the interface. Both products use the same underlying software.
-        </p>
-      </div>
-    </section>
-
-    <!-- Theme Selection -->
-    <section class="animate-fade-in" style="animation-delay: 50ms">
-      <div class="flex items-center gap-2.5 mb-3">
-        <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center">
-          <Icon name="Palette" :size="16" class="text-theme-secondary" />
+          <Icon name="Palette" :size="16" class="text-accent" />
         </div>
         <div>
           <h2 class="text-sm font-semibold text-theme-primary">Appearance</h2>
@@ -198,10 +175,10 @@ onMounted(() => {
               <!-- Theme preview -->
               <div 
                 class="w-10 h-10 rounded-md flex-shrink-0 overflow-hidden border"
-                :style="{ backgroundColor: theme.preview.bg, borderColor: theme.preview.text + '20' }"
+                :style="{ backgroundColor: theme.preview.bg, borderColor: theme.preview.card === '#ffffff' ? '#e4e4e7' : theme.preview.card }"
               >
                 <div class="p-1.5 space-y-1">
-                  <div class="w-full h-1.5 rounded" :style="{ backgroundColor: theme.preview.text + '15' }"></div>
+                  <div class="w-full h-1.5 rounded" :style="{ backgroundColor: '#e4e4e7' }"></div>
                   <div class="w-3/4 h-1.5 rounded" :style="{ backgroundColor: theme.preview.accent }"></div>
                 </div>
               </div>
@@ -224,7 +201,7 @@ onMounted(() => {
     </section>
 
     <!-- Account Section -->
-    <section class="animate-fade-in" style="animation-delay: 100ms">
+    <section class="animate-fade-in" style="animation-delay: 50ms">
       <div class="flex items-center gap-2.5 mb-3">
         <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center">
           <Icon name="User" :size="16" class="text-theme-secondary" />
@@ -300,7 +277,7 @@ onMounted(() => {
     </section>
 
     <!-- System Info -->
-    <section class="animate-fade-in" style="animation-delay: 150ms">
+    <section class="animate-fade-in" style="animation-delay: 100ms">
       <div class="flex items-center gap-2.5 mb-3">
         <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center">
           <Icon name="Info" :size="16" class="text-theme-secondary" />
@@ -315,27 +292,27 @@ onMounted(() => {
         <div class="grid grid-cols-2 gap-2">
           <div class="p-3 rounded-lg bg-theme-tertiary">
             <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Hostname</p>
-            <p class="text-xs font-medium text-theme-primary">{{ systemStore.info?.hostname || 'Unknown' }}</p>
+            <p class="text-xs font-medium text-theme-primary">{{ hostInfo.hostname }}</p>
           </div>
           <div class="p-3 rounded-lg bg-theme-tertiary">
             <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Platform</p>
-            <p class="text-xs font-medium text-theme-primary">{{ systemStore.info?.os_name || 'Unknown' }}</p>
+            <p class="text-xs font-medium text-theme-primary">{{ hostInfo.platform }}</p>
           </div>
           <div class="p-3 rounded-lg bg-theme-tertiary">
             <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Architecture</p>
-            <p class="text-xs font-medium text-theme-primary">{{ systemStore.info?.architecture || 'Unknown' }}</p>
+            <p class="text-xs font-medium text-theme-primary">{{ hostInfo.architecture }}</p>
           </div>
           <div class="p-3 rounded-lg bg-theme-tertiary">
             <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Kernel</p>
-            <p class="text-xs font-medium text-theme-primary truncate">{{ systemStore.info?.kernel || 'Unknown' }}</p>
+            <p class="text-xs font-medium text-theme-primary truncate">{{ hostInfo.kernel }}</p>
           </div>
         </div>
 
         <div class="mt-4 pt-4 border-t border-theme-primary">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-xs font-medium text-theme-primary">{{ brandingStore.brandName }} v2.0.0</p>
-              <p class="text-[10px] text-theme-muted">API v1</p>
+              <p class="text-xs font-medium text-theme-primary">CubeOS v{{ versionInfo.version }}</p>
+              <p class="text-[10px] text-theme-muted">API {{ versionInfo.api_version }}</p>
             </div>
             <div class="flex items-center gap-2">
               <a
@@ -350,7 +327,7 @@ onMounted(() => {
                 GitHub
               </a>
               <a
-                href="/api/v1/docs"
+                href="http://cubeos.cube:6010/api/v1/docs/"
                 target="_blank"
                 rel="noopener"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-theme-primary text-xs text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
@@ -365,7 +342,7 @@ onMounted(() => {
     </section>
 
     <!-- Session -->
-    <section class="animate-fade-in" style="animation-delay: 200ms">
+    <section class="animate-fade-in" style="animation-delay: 150ms">
       <div class="flex items-center gap-2.5 mb-3">
         <div class="w-8 h-8 rounded-lg bg-error-muted flex items-center justify-center">
           <Icon name="LogOut" :size="16" class="text-error" />

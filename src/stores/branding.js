@@ -1,92 +1,59 @@
-import { ref, computed, watch } from 'vue'
+/**
+ * CubeOS Branding Store
+ * 
+ * Single brand: CubeOS only.
+ */
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
 export const useBrandingStore = defineStore('branding', () => {
-  // Available brands
-  const brands = ref([
-    {
-      id: 'cubeos',
-      name: 'CubeOS',
-      tagline: 'Open Source Server OS',
-      logo: '/icon.svg',
-      logoDark: '/icon.svg',
-      primaryColor: '#0ea5e9',
-      accentName: 'OS',
-      github: 'https://github.com/cubeos-app/',
-      website: 'https://cubeos.app'
-    },
-    {
-      id: 'mulecube',
-      name: 'MuleCube',
-      tagline: 'Offline Knowledge Server',
-      logo: '/branding/mulecube-icon.svg',
-      logoDark: '/branding/mulecube-icon.svg',
-      primaryColor: '#f59e0b',
-      accentName: 'Cube',
-      github: 'https://github.com/nuclearlighters/mulecube',
-      website: 'https://mulecube.com'
-    }
-  ])
+  // CubeOS brand (single brand, no selection needed)
+  const brand = {
+    id: 'cubeos',
+    name: 'CubeOS',
+    tagline: 'Open Source Server OS',
+    logo: '/icon.svg',
+    logoDark: '/icon.svg',
+    primaryColor: '#0ea5e9',
+    accentName: 'OS',
+    github: 'https://github.com/redrickh/cubeos',
+    website: 'https://cubeos.app'
+  }
 
-  // Current brand ID
-  const currentBrandId = ref(localStorage.getItem('cubeos-brand') || 'cubeos')
+  // For compatibility with existing code
+  const brands = ref([brand])
+  const currentBrandId = ref('cubeos')
 
-  // Current brand object
-  const currentBrand = computed(() => {
-    return brands.value.find(b => b.id === currentBrandId.value) || brands.value[0]
-  })
+  // Current brand (always CubeOS)
+  const currentBrand = computed(() => brand)
 
   // Convenience getters
-  const brandName = computed(() => currentBrand.value.name)
-  const brandLogo = computed(() => currentBrand.value.logo)
-  const brandTagline = computed(() => currentBrand.value.tagline)
-  const isMuleCube = computed(() => currentBrandId.value === 'mulecube')
-  const isCubeOS = computed(() => currentBrandId.value === 'cubeos')
+  const brandName = computed(() => brand.name)
+  const brandLogo = computed(() => brand.logo)
+  const brandTagline = computed(() => brand.tagline)
+  const isCubeOS = computed(() => true)
 
-  // Format brand name with accent
-  const brandNameFormatted = computed(() => {
-    const brand = currentBrand.value
-    if (brand.id === 'cubeos') {
-      return { prefix: 'Cube', accent: 'OS' }
-    } else if (brand.id === 'mulecube') {
-      return { prefix: 'Mule', accent: 'Cube' }
-    }
-    return { prefix: brand.name, accent: '' }
-  })
+  // Format brand name with accent (Cube + OS)
+  const brandNameFormatted = computed(() => ({
+    prefix: 'Cube',
+    accent: 'OS'
+  }))
 
-  // Set brand
+  // Set brand (no-op since we only have CubeOS)
   function setBrand(brandId) {
-    const brand = brands.value.find(b => b.id === brandId)
-    if (brand) {
-      currentBrandId.value = brandId
-      localStorage.setItem('cubeos-brand', brandId)
-      
-      // Update CSS custom property for accent if needed
-      if (brandId === 'mulecube') {
-        document.documentElement.style.setProperty('--brand-accent', '#f59e0b')
-      } else {
-        document.documentElement.style.removeProperty('--brand-accent')
-      }
-    }
+    // No-op - CubeOS only
   }
 
-  // Initialize branding on load
+  // Initialize branding (no-op)
   function initBranding() {
-    const savedBrand = localStorage.getItem('cubeos-brand') || 'cubeos'
-    currentBrandId.value = savedBrand
-    
-    if (savedBrand === 'mulecube') {
-      document.documentElement.style.setProperty('--brand-accent', '#f59e0b')
-    }
+    // No-op - CubeOS only
   }
 
-  // Check if first visit (for showing branding prompt)
-  const hasChosenBrand = computed(() => {
-    return localStorage.getItem('cubeos-brand-chosen') === 'true'
-  })
+  // Compatibility getters
+  const hasChosenBrand = computed(() => true)
 
   function markBrandChosen() {
-    localStorage.setItem('cubeos-brand-chosen', 'true')
+    // No-op
   }
 
   return {
@@ -96,7 +63,6 @@ export const useBrandingStore = defineStore('branding', () => {
     brandName,
     brandLogo,
     brandTagline,
-    isMuleCube,
     isCubeOS,
     brandNameFormatted,
     hasChosenBrand,
