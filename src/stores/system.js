@@ -1,3 +1,9 @@
+/**
+ * CubeOS System Store
+ * 
+ * Manages system information, stats, and hardware status.
+ * Uses HAL endpoints for hardware-specific data (battery, Pi model, etc.)
+ */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/client'
@@ -6,14 +12,15 @@ export const useSystemStore = defineStore('system', () => {
   // State
   const info = ref(null)
   const stats = ref(null)
-  const power = ref(null)
+  const battery = ref(null)
+  const hardware = ref(null)  // Pi model, serial from EEPROM
   const wifiClientsData = ref(null)
   const loading = ref(false)
   const error = ref(null)
   const lastUpdated = ref(null)
 
-  // Getters - adapted to match API flat response format
-  const hostname = computed(() => info.value?.hostname ?? 'CubeOS')
+  // Getters - system info
+  const hostname = computed(() => info.value?.hostname ?? hardware.value?.model ?? 'CubeOS')
   const uptime = computed(() => info.value?.uptime_human ?? '—')
   const cpuUsage = computed(() => Math.round(stats.value?.cpu_percent ?? 0))
   const memoryUsage = computed(() => Math.round(stats.value?.memory_percent ?? 0))
@@ -26,11 +33,34 @@ export const useSystemStore = defineStore('system', () => {
     return wifiClientsData.value?.clients?.length ?? 0
   })
   
-  // Power getters
-  const batteryPercent = computed(() => power.value?.battery_percent ?? null)
-  const batteryAvailable = computed(() => power.value?.available ?? false)
-  const onBattery = computed(() => power.value?.on_battery ?? false)
-  const isCharging = computed(() => power.value?.is_charging ?? false)
+  // Battery getters - mapped from HAL /hardware/battery response
+  const batteryPercent = computed(() => {
+    if (!battery.value?.available) return null
+    return battery.value?.percentage ?? null
+  })
+  const batteryAvailable = computed(() => battery.value?.available ?? false)
+  const onBattery = computed(() => {
+    // On battery if available, not charging, and no AC present
+    if (!battery.value?.available) return false
+    return !battery.value?.ac_present && !battery.value?.is_charging
+  })
+  const isCharging = computed(() => battery.value?.is_charging ?? false)
+
+  // Power getter for backward compatibility
+  const power = computed(() => {
+    if (!battery.value) return null
+    return {
+      available: battery.value.available,
+      battery_percent: battery.value.percentage,
+      is_charging: battery.value.is_charging,
+      on_battery: onBattery.value
+    }
+  })
+
+  // Hardware info getters (from EEPROM)
+  const piModel = computed(() => hardware.value?.model ?? null)
+  const piSerial = computed(() => hardware.value?.serial ?? null)
+  const piRevision = computed(() => hardware.value?.revision ?? null)
 
   // Formatted values
   const memoryFormatted = computed(() => {
@@ -65,12 +95,34 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
   
-  async function fetchPower() {
+  /**
+   * Fetch battery status from HAL
+   * Uses /hardware/battery endpoint which returns:
+   * - available: boolean
+   * - percentage: number (0-100)
+   * - is_charging: boolean
+   * - ac_present: boolean
+   * - voltage: number
+   */
+  async function fetchBattery() {
     try {
-      power.value = await api.get('/power/status')
+      battery.value = await api.get('/hardware/battery')
     } catch (e) {
-      // UPS might not be available, that's ok
-      power.value = { available: false }
+      // Battery/UPS might not be available, that's ok
+      battery.value = { available: false }
+    }
+  }
+
+  /**
+   * Fetch hardware info from HAL EEPROM
+   * Returns Pi model, serial, revision
+   */
+  async function fetchHardware() {
+    try {
+      hardware.value = await api.get('/hardware/eeprom')
+    } catch (e) {
+      // EEPROM read might fail on non-Pi hardware
+      hardware.value = null
     }
   }
   
@@ -83,11 +135,22 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
 
+  // Legacy alias for backward compatibility
+  async function fetchPower() {
+    return fetchBattery()
+  }
+
   async function fetchAll() {
     loading.value = true
     error.value = null
     try {
-      await Promise.all([fetchInfo(), fetchStats(), fetchPower(), fetchWifiClients()])
+      await Promise.all([
+        fetchInfo(),
+        fetchStats(),
+        fetchBattery(),
+        fetchHardware(),
+        fetchWifiClients()
+      ])
     } finally {
       loading.value = false
     }
@@ -119,7 +182,9 @@ export const useSystemStore = defineStore('system', () => {
     // State
     info,
     stats,
-    power,
+    battery,
+    hardware,
+    power,  // Computed for backward compatibility
     loading,
     error,
     lastUpdated,
@@ -138,11 +203,16 @@ export const useSystemStore = defineStore('system', () => {
     onBattery,
     isCharging,
     wifiClients,
+    piModel,
+    piSerial,
+    piRevision,
     
     // Actions
     fetchInfo,
     fetchStats,
-    fetchPower,
+    fetchBattery,
+    fetchHardware,
+    fetchPower,  // Legacy alias
     fetchWifiClients,
     fetchAll,
     reboot,

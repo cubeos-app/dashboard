@@ -85,16 +85,23 @@ async function logout() {
   router.push('/login')
 }
 
-// System info computed (from host, not container)
+// System info computed (from host via HAL, not container)
 const hostInfo = computed(() => ({
-  hostname: systemStore.info?.hostname || 'CubeOS',
-  platform: systemStore.info?.platform || systemStore.info?.os_name || 'Linux',
+  hostname: systemStore.info?.hostname || systemStore.piModel || 'CubeOS',
+  platform: systemStore.piModel || systemStore.info?.platform || systemStore.info?.os_name || 'Raspberry Pi OS',
   architecture: systemStore.info?.architecture || systemStore.info?.arch || 'arm64',
   kernel: systemStore.info?.kernel_version || systemStore.info?.kernel || 'Unknown'
 }))
 
+// Pi-specific info from EEPROM
+const piInfo = computed(() => ({
+  model: systemStore.piModel,
+  serial: systemStore.piSerial,
+  revision: systemStore.piRevision
+}))
+
 onMounted(async () => {
-  await systemStore.fetchInfo()
+  await systemStore.fetchAll()  // Fetches info, stats, battery, hardware
   await fetchVersion()
 })
 </script>
@@ -305,6 +312,10 @@ onMounted(async () => {
           <div class="p-3 rounded-lg bg-theme-tertiary">
             <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Kernel</p>
             <p class="text-xs font-medium text-theme-primary truncate">{{ hostInfo.kernel }}</p>
+          </div>
+          <div v-if="piInfo.serial" class="p-3 rounded-lg bg-theme-tertiary col-span-2">
+            <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Pi Serial</p>
+            <p class="text-xs font-medium text-theme-primary font-mono">{{ piInfo.serial }}</p>
           </div>
         </div>
 
