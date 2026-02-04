@@ -4,8 +4,14 @@
  * 
  * Main dashboard view with SwarmOverview widget integrated.
  * Sprint 4: Uses new unified apps.js store.
+ * 
+ * Fixes:
+ * - Search now actually filters apps and shows results
+ * - Search can navigate to settings, network, storage, etc.
+ * - Better keyboard handling (Escape to clear, Enter to open first result)
  */
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useAppsStore } from '@/stores/apps'
 import Icon from '@/components/ui/Icon.vue'
@@ -13,11 +19,13 @@ import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
 import AskCubeOS from '@/components/chat/AskCubeOS.vue'
 import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
 
+const router = useRouter()
 const systemStore = useSystemStore()
 const appsStore = useAppsStore()
 
 // State
 const searchQuery = ref('')
+const showSearchResults = ref(false)
 const showHealthModal = ref(false)
 const showChatModal = ref(false)
 const chatQuery = ref('')
@@ -26,6 +34,19 @@ const favorites = ref([])
 
 // Refresh interval
 let refreshInterval = null
+
+// Quick actions for search (pages user can navigate to)
+const quickActions = [
+  { name: 'Settings', icon: 'Settings', route: '/settings', keywords: ['settings', 'preferences', 'theme', 'appearance', 'account', 'password'] },
+  { name: 'Services', icon: 'Server', route: '/services', keywords: ['services', 'containers', 'docker', 'swarm'] },
+  { name: 'App Store', icon: 'Store', route: '/store', keywords: ['store', 'apps', 'install', 'marketplace'] },
+  { name: 'App Manager', icon: 'Package', route: '/manager', keywords: ['manager', 'installed', 'apps', 'manage'] },
+  { name: 'Network', icon: 'Wifi', route: '/network', keywords: ['network', 'wifi', 'ap', 'firewall', 'internet', 'clients'] },
+  { name: 'Storage', icon: 'HardDrive', route: '/storage', keywords: ['storage', 'disk', 'usb', 'smb', 'backup'] },
+  { name: 'Logs', icon: 'FileText', route: '/logs', keywords: ['logs', 'journal', 'debug', 'errors'] },
+  { name: 'Documentation', icon: 'BookOpen', route: '/docs', keywords: ['docs', 'documentation', 'help', 'guide'] },
+  { name: 'System', icon: 'Monitor', route: '/system', keywords: ['system', 'reboot', 'shutdown', 'power', 'cpu', 'memory'] },
+]
 
 // Computed
 const systemInfo = computed(() => systemStore.systemInfo)
@@ -56,6 +77,68 @@ const recentApps = computed(() => {
     return []
   }
 })
+
+/**
+ * Search results - combines apps and quick actions
+ */
+const searchResults = computed(() => {
+  if (!searchQuery.value.trim()) return { apps: [], actions: [] }
+  
+  const query = searchQuery.value.toLowerCase().trim()
+  
+  // Filter apps
+  const matchedApps = appsStore.allApps.filter(app => {
+    const name = (app.display_name || app.name || '').toLowerCase()
+    const desc = (app.description || '').toLowerCase()
+    return name.includes(query) || desc.includes(query)
+  }).slice(0, 5)
+  
+  // Filter quick actions
+  const matchedActions = quickActions.filter(action => {
+    const name = action.name.toLowerCase()
+    const keywords = action.keywords.join(' ').toLowerCase()
+    return name.includes(query) || keywords.includes(query)
+  }).slice(0, 3)
+  
+  return { apps: matchedApps, actions: matchedActions }
+})
+
+const hasSearchResults = computed(() => {
+  return searchResults.value.apps.length > 0 || searchResults.value.actions.length > 0
+})
+
+// Watch search query to show/hide results
+watch(searchQuery, (val) => {
+  showSearchResults.value = val.trim().length > 0
+})
+
+// Search handlers
+function handleSearchKeydown(e) {
+  if (e.key === 'Escape') {
+    searchQuery.value = ''
+    showSearchResults.value = false
+  } else if (e.key === 'Enter' && hasSearchResults.value) {
+    // Open first result
+    if (searchResults.value.apps.length > 0) {
+      openApp(searchResults.value.apps[0])
+    } else if (searchResults.value.actions.length > 0) {
+      navigateTo(searchResults.value.actions[0].route)
+    }
+    searchQuery.value = ''
+    showSearchResults.value = false
+  }
+}
+
+function navigateTo(route) {
+  router.push(route)
+  searchQuery.value = ''
+  showSearchResults.value = false
+}
+
+function clearSearch() {
+  searchQuery.value = ''
+  showSearchResults.value = false
+}
 
 // Chat functions
 function openChatWithQuery() {
@@ -110,6 +193,7 @@ function trackUsage(appName) {
 
 function openApp(app) {
   trackUsage(app.name)
+  clearSearch()
   
   const url = appsStore.getAppUrl(app)
   if (url) {
@@ -200,37 +284,108 @@ onUnmounted(() => {
               v-model="chatQuery"
               @keydown="handleChatKeydown"
               type="text"
-              placeholder="Ask anything about CubeOS..."
-              class="w-full pl-9 pr-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+              placeholder="Ask a question..."
+              class="w-full pl-9 pr-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent"
             />
           </div>
           <button
             @click="openChatWithQuery"
             :disabled="!chatQuery.trim()"
-            class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <Icon name="Send" :size="16" />
-            <span class="hidden sm:inline">Ask</span>
+            Ask
           </button>
         </div>
       </div>
     </section>
 
     <!-- Section: Quick Search -->
-    <section class="animate-fade-in">
+    <section class="animate-fade-in relative">
       <h2 class="text-xs font-semibold text-theme-tertiary uppercase tracking-wider mb-3 flex items-center gap-2">
         <Icon name="Search" :size="12" />
         Quick Search
       </h2>
       <div class="relative">
-        <Icon name="Search" :size="18" class="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted" />
+        <Icon name="Search" :size="18" class="absolute left-4 top-1/2 -translate-y-1/2 text-theme-muted z-10" />
         <input 
           v-model="searchQuery"
+          @keydown="handleSearchKeydown"
+          @focus="showSearchResults = searchQuery.trim().length > 0"
           type="text" 
           placeholder="Search services, apps, settings..."
-          class="w-full pl-11 pr-4 py-3 rounded-xl border border-theme-primary bg-theme-card text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+          class="w-full pl-11 pr-10 py-3 rounded-xl border border-theme-primary bg-theme-card text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
         />
+        <button
+          v-if="searchQuery"
+          @click="clearSearch"
+          class="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded text-theme-muted hover:text-theme-primary transition-colors"
+        >
+          <Icon name="X" :size="16" />
+        </button>
+        
+        <!-- Search Results Dropdown -->
+        <div
+          v-if="showSearchResults && hasSearchResults"
+          class="absolute top-full left-0 right-0 mt-2 rounded-xl border border-theme-primary bg-theme-card shadow-lg z-20 overflow-hidden"
+        >
+          <!-- Apps -->
+          <div v-if="searchResults.apps.length > 0">
+            <p class="px-4 py-2 text-xs font-semibold text-theme-muted uppercase tracking-wider bg-theme-tertiary">Services</p>
+            <button
+              v-for="app in searchResults.apps"
+              :key="app.name"
+              @click="openApp(app)"
+              class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-theme-tertiary transition-colors text-left"
+            >
+              <Icon :name="getAppIcon(app)" :size="18" class="text-accent" />
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-theme-primary">{{ getAppName(app) }}</p>
+                <p class="text-xs text-theme-muted truncate">{{ app.description || 'Service' }}</p>
+              </div>
+              <span 
+                class="w-2 h-2 rounded-full"
+                :class="{
+                  'bg-success': getHealthStatus(app) === 'running',
+                  'bg-warning': getHealthStatus(app) === 'starting',
+                  'bg-error': getHealthStatus(app) === 'unhealthy',
+                  'bg-theme-muted': getHealthStatus(app) === 'stopped' || getHealthStatus(app) === 'unknown'
+                }"
+              ></span>
+            </button>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div v-if="searchResults.actions.length > 0">
+            <p class="px-4 py-2 text-xs font-semibold text-theme-muted uppercase tracking-wider bg-theme-tertiary">Go to</p>
+            <button
+              v-for="action in searchResults.actions"
+              :key="action.route"
+              @click="navigateTo(action.route)"
+              class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-theme-tertiary transition-colors text-left"
+            >
+              <Icon :name="action.icon" :size="18" class="text-theme-secondary" />
+              <span class="text-sm font-medium text-theme-primary">{{ action.name }}</span>
+              <Icon name="ChevronRight" :size="14" class="text-theme-muted ml-auto" />
+            </button>
+          </div>
+        </div>
+        
+        <!-- No Results -->
+        <div
+          v-if="showSearchResults && searchQuery.trim() && !hasSearchResults"
+          class="absolute top-full left-0 right-0 mt-2 rounded-xl border border-theme-primary bg-theme-card shadow-lg z-20 p-4 text-center"
+        >
+          <Icon name="SearchX" :size="24" class="text-theme-muted mx-auto mb-2" />
+          <p class="text-sm text-theme-muted">No results found</p>
+        </div>
       </div>
+      
+      <!-- Clickaway overlay -->
+      <div
+        v-if="showSearchResults"
+        class="fixed inset-0 z-10"
+        @click="showSearchResults = false"
+      ></div>
     </section>
 
     <!-- Section: Swarm Overview -->
