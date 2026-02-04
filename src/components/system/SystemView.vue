@@ -41,9 +41,9 @@ async function fetchPowerStatus() {
 async function fetchBackups() {
   backupLoading.value = true
   try {
-    const data = await api.get('/backup/')
+    const data = await api.get('/backups')
     backups.value = data.backups || []
-    backupStats.value = await api.get('/backup/stats/summary')
+    backupStats.value = await api.get('/backups/stats')
   } catch (e) {
     console.error('Failed to fetch backups:', e)
   } finally {
@@ -54,7 +54,7 @@ async function fetchBackups() {
 async function createBackup() {
   backupCreating.value = true
   try {
-    await api.post('/backup/create', {
+    await api.post('/backups', {
       type: newBackupType.value,
       description: newBackupDescription.value,
       compress: true
@@ -74,7 +74,7 @@ async function restoreBackup(backupId) {
   
   backupRestoring.value = true
   try {
-    await api.post(`/backup/restore/${backupId}`, { restart_services: true })
+    await api.post(`/backups/${backupId}/restore`, { restart_services: true })
     alert('Backup restored successfully. Some services may need to be restarted.')
   } catch (e) {
     console.error('Failed to restore backup:', e)
@@ -88,7 +88,7 @@ async function deleteBackup(backupId) {
   if (!confirm('Are you sure you want to delete this backup?')) return
   
   try {
-    await api.delete(`/backup/${backupId}`)
+    await api.delete(`/backups/${backupId}`)
     await fetchBackups()
   } catch (e) {
     console.error('Failed to delete backup:', e)
@@ -96,7 +96,7 @@ async function deleteBackup(backupId) {
 }
 
 function downloadBackup(backupId) {
-  window.open(`/api/v1/backup/${backupId}/download`, '_blank')
+  window.open(`/api/v1/backups/${backupId}/download`, '_blank')
 }
 
 onMounted(async () => {

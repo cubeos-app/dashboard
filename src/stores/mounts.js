@@ -110,14 +110,14 @@ export const useMountsStore = defineStore('mounts', () => {
   
   /**
    * Delete a mount
-   * DELETE /api/v1/mounts/{id} (verified - 404 for nonexistent)
+   * DELETE /api/v1/mounts/{name}
    */
-  async function deleteMount(id) {
+  async function deleteMount(name) {
     loading.value = true
     error.value = null
     
     try {
-      await api.delete(`/mounts/${id}`)
+      await api.delete(`/mounts/${name}`)
       await fetchMounts()
       return true
     } catch (e) {
@@ -130,13 +130,13 @@ export const useMountsStore = defineStore('mounts', () => {
   
   /**
    * Mount a configured mount point
-   * POST /api/v1/mounts/{id}/mount
+   * POST /api/v1/mounts/{name}/mount
    */
-  async function mountPath(id) {
+  async function mountPath(name) {
     error.value = null
     
     try {
-      await api.post(`/mounts/${id}/mount`)
+      await api.post(`/mounts/${name}/mount`)
       await fetchMounts()
       return true
     } catch (e) {
@@ -147,13 +147,13 @@ export const useMountsStore = defineStore('mounts', () => {
   
   /**
    * Unmount a mount point
-   * POST /api/v1/mounts/{id}/unmount
+   * POST /api/v1/mounts/{name}/unmount
    */
-  async function unmountPath(id) {
+  async function unmountPath(name) {
     error.value = null
     
     try {
-      await api.post(`/mounts/${id}/unmount`)
+      await api.post(`/mounts/${name}/unmount`)
       await fetchMounts()
       return true
     } catch (e) {
@@ -167,10 +167,10 @@ export const useMountsStore = defineStore('mounts', () => {
   // ==========================================
   
   /**
-   * Get mount by ID
+   * Get mount by name
    */
-  function getMount(id) {
-    return mounts.value.find(m => m.id === id)
+  function getMount(name) {
+    return mounts.value.find(m => m.name === name)
   }
   
   /**

@@ -27,7 +27,7 @@ const availableChannels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 async function openAPConfigModal() {
   apConfigLoading.value = true
   try {
-    const cfg = await api.get('/network/wifi/ap/config')
+    const cfg = await api.get('/network/ap/config')
     apConfig.value = {
       ssid: cfg.ssid || 'CubeOS',
       password: cfg.password || '',
@@ -51,7 +51,7 @@ async function saveAPConfig() {
   
   apConfigLoading.value = true
   try {
-    await api.put('/network/wifi/ap/config', apConfig.value)
+    await api.put('/network/ap/config', apConfig.value)
     // Restart AP to apply changes
     await api.post('/network/wifi/ap/restart')
     showAPConfigModal.value = false

@@ -54,7 +54,7 @@ const currentPath = computed(() => {
 async function fetchDocsTree() {
   try {
     const token = localStorage.getItem('cubeos_access_token')
-    const resp = await fetch('/api/v1/documentation/tree', {
+    const resp = await fetch('/api/v1/docs/tree', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (resp.ok) {
@@ -72,7 +72,7 @@ async function fetchDoc(path) {
   
   try {
     const token = localStorage.getItem('cubeos_access_token')
-    const resp = await fetch(`/api/v1/documentation/${path}`, {
+    const resp = await fetch(`/api/v1/docs/${path}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     

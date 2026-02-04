@@ -42,13 +42,12 @@ async function fetchAll() {
   loading.value = true
   error.value = null
   try {
-    const [stats, dockerInfo, serviceData, health, smb, shares] = await Promise.all([
+    const [stats, dockerInfo, health, smb, shares] = await Promise.all([
       api.get('/system/stats'),
       api.get('/docker/disk-usage').catch(() => null),
-      api.get('/storage/service-data').catch(() => ({ services: [] })),
       api.get('/storage/health').catch(() => ({ disks: [] })),
-      api.get('/storage/smb/status').catch(() => null),
-      api.get('/storage/smb/shares').catch(() => ({ shares: [] }))
+      api.get('/smb/status').catch(() => null),
+      api.get('/smb/shares').catch(() => ({ shares: [] }))
     ])
     
     disks.value = [{
@@ -72,13 +71,6 @@ async function fetchAll() {
         containers_count: dockerInfo.containers_count,
         volumes_count: dockerInfo.volumes_count
       }
-    }
-    
-    if (serviceData?.services) {
-      dataDirectories.value = serviceData.services
-        .filter(s => s.exists && s.size_bytes > 0)
-        .sort((a, b) => b.size_bytes - a.size_bytes)
-      serviceDataTotal.value = serviceData.total_size || 0
     }
     
     diskHealth.value = health?.disks || []
@@ -122,9 +114,9 @@ async function saveShare() {
   shareLoading.value = true
   try {
     if (shareModalMode.value === 'create') {
-      await api.post('/storage/smb/shares', shareForm.value)
+      await api.post('/smb/shares', shareForm.value)
     } else {
-      await api.put(`/storage/smb/shares/${shareForm.value.name}`, shareForm.value)
+      await api.put(`/smb/shares/${shareForm.value.name}`, shareForm.value)
     }
     showShareModal.value = false
     await fetchAll()
@@ -138,7 +130,7 @@ async function saveShare() {
 async function deleteShare(name) {
   if (!confirm(`Delete share "${name}"? The shared folder will NOT be deleted.`)) return
   try {
-    await api.delete(`/storage/smb/shares/${name}`)
+    await api.delete(`/smb/shares/${name}`)
     await fetchAll()
   } catch (e) {
     alert('Failed to delete share: ' + e.message)

@@ -162,7 +162,7 @@ async function applyConfiguration() {
     
     // Apply WiFi AP configuration
     if (wifiEnabled.value) {
-      await api.put('/network/wifi/ap', {
+      await api.put('/network/ap/config', {
         enabled: true,
         ssid: wifiSSID.value,
         password: wifiPassword.value,
@@ -171,7 +171,7 @@ async function applyConfiguration() {
     }
     
     // Apply profile/services
-    await api.post('/wizard/apply-profile', {
+    await api.post('/wizard/apply', {
       profile: selectedProfile.value,
       additional_services: selectedServices.value.filter(s => 
         !selectedProfileInfo.value?.services?.includes(s)
@@ -183,14 +183,14 @@ async function applyConfiguration() {
     
     // Change admin password
     if (adminPassword.value) {
-      await api.post('/auth/change-password', {
+      await api.post('/auth/password', {
         current_password: 'admin', // Default password
         new_password: adminPassword.value
       })
     }
     
     // Mark setup as complete
-    await api.post('/preferences', {
+    await api.put('/preferences', {
       setup_complete: true
     })
     
