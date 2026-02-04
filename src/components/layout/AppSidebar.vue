@@ -155,7 +155,7 @@ function navigate(path) {
           <span class="font-mono">{{ brandingStore.brandName }} v2.0.0</span>
         </a>
         <a
-          href="/api/v1/docs"
+          href="http://cubeos.cube:6010/api/v1/docs/"
           target="_blank"
           rel="noopener"
           class="flex items-center gap-1.5 text-[10px] text-theme-muted hover:text-theme-tertiary transition-colors"
