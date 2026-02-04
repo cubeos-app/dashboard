@@ -11,12 +11,12 @@ const props = defineProps({
 })
 
 const colorClasses = {
-  cube: 'bg-teal-100 dark:bg-teal-900/30 text-teal-500 dark:text-teal-400',
-  green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-  blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-  purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-  yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
-  red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+  cube: 'bg-accent-muted text-accent',
+  green: 'bg-success-muted text-success',
+  blue: 'bg-accent-muted text-accent',
+  purple: 'bg-[#8b5cf620] text-[#8b5cf6]',
+  yellow: 'bg-warning-muted text-warning',
+  red: 'bg-error-muted text-error'
 }
 
 const icons = {
@@ -32,7 +32,7 @@ const icons = {
 </script>
 
 <template>
-  <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+  <div class="bg-theme-card rounded-xl p-4 border border-theme-primary">
     <div class="flex items-center gap-3">
       <!-- Icon -->
       <div 
@@ -44,9 +44,9 @@ const icons = {
 
       <!-- Content -->
       <div class="flex-1 min-w-0">
-        <p class="text-sm text-gray-500 dark:text-gray-400">{{ title }}</p>
-        <p class="text-lg font-semibold text-gray-900 dark:text-white truncate">{{ value }}</p>
-        <p v-if="subtitle" class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ subtitle }}</p>
+        <p class="text-sm text-theme-tertiary">{{ title }}</p>
+        <p class="text-lg font-semibold text-theme-primary truncate">{{ value }}</p>
+        <p v-if="subtitle" class="text-xs text-theme-muted truncate">{{ subtitle }}</p>
       </div>
     </div>
   </div>

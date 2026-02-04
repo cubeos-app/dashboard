@@ -311,7 +311,7 @@ function formatRate(bytesPerSec) {
 }
 
 function signalColor(pct) {
-  if (!pct) return 'text-gray-400'
+  if (!pct) return 'text-theme-muted'
   if (pct >= 70) return 'text-green-500'
   if (pct >= 40) return 'text-yellow-500'
   return 'text-red-500'
@@ -323,13 +323,13 @@ function signalColor(pct) {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Network</h1>
-        <p class="text-gray-500 dark:text-gray-400 mt-1">Manage network interfaces and connectivity</p>
+        <h1 class="text-2xl font-bold text-theme-primary">Network</h1>
+        <p class="text-theme-tertiary mt-1">Manage network interfaces and connectivity</p>
       </div>
       <button 
         @click="fetchAll" 
         :disabled="loading"
-        class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
+        class="px-4 py-2 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary disabled:opacity-50"
       >
         <svg class="w-5 h-5" :class="{ 'animate-spin': loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -338,12 +338,12 @@ function signalColor(pct) {
     </div>
 
     <!-- Error Alert -->
-    <div v-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-      <p class="text-red-600 dark:text-red-400">{{ error }}</p>
+    <div v-if="error" class="bg-error-muted border border-error rounded-lg p-4">
+      <p class="text-error">{{ error }}</p>
     </div>
 
     <!-- Tabs -->
-    <div class="border-b border-gray-200 dark:border-gray-700">
+    <div class="border-b border-theme-primary">
       <nav class="flex gap-4">
         <button
           v-for="tab in tabs"
@@ -351,8 +351,8 @@ function signalColor(pct) {
           @click="activeTab = tab.id"
           class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
           :class="activeTab === tab.id 
-            ? 'border-teal-500 text-teal-500 dark:text-teal-400' 
-            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+            ? 'border-[color:var(--accent-primary)] text-accent' 
+            : 'border-transparent text-theme-muted hover:text-theme-primary'"
         >
           {{ tab.label }}
         </button>
@@ -364,22 +364,22 @@ function signalColor(pct) {
       <!-- Status Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- WiFi AP Status -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div class="bg-theme-card rounded-xl p-4 border border-theme-primary">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
+                <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
                 </svg>
               </div>
               <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Access Point</p>
-                <p class="font-semibold text-gray-900 dark:text-white">{{ apStatus?.ssid || 'CubeOS' }}</p>
+                <p class="text-sm text-theme-tertiary">Access Point</p>
+                <p class="font-semibold text-theme-primary">{{ apStatus?.ssid || 'CubeOS' }}</p>
               </div>
             </div>
             <button 
               @click="openAPConfigModal"
-              class="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+              class="p-2 text-theme-muted hover:text-accent hover:bg-accent-muted rounded-lg transition-colors"
               title="Configure Access Point"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -389,64 +389,64 @@ function signalColor(pct) {
             </button>
           </div>
           <div class="flex items-center justify-between text-sm">
-            <span class="text-gray-500">Status</span>
+            <span class="text-theme-muted">Status</span>
             <span :class="apStatus?.status === 'up' ? 'text-green-500' : 'text-red-500'">
               {{ apStatus?.status === 'up' ? 'Active' : 'Inactive' }}
             </span>
           </div>
           <div class="flex items-center justify-between text-sm mt-1">
-            <span class="text-gray-500">Clients</span>
-            <span class="font-medium text-gray-900 dark:text-white">{{ clients.length }}</span>
+            <span class="text-theme-muted">Clients</span>
+            <span class="font-medium text-theme-primary">{{ clients.length }}</span>
           </div>
           <div class="flex items-center justify-between text-sm mt-1">
-            <span class="text-gray-500">Channel</span>
-            <span class="text-gray-700 dark:text-gray-300">{{ apStatus?.channel || '-' }} ({{ apStatus?.frequency || '2.4GHz' }})</span>
+            <span class="text-theme-muted">Channel</span>
+            <span class="text-theme-secondary">{{ apStatus?.channel || '-' }} ({{ apStatus?.frequency || '2.4GHz' }})</span>
           </div>
         </div>
 
         <!-- Internet Status -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div class="bg-theme-card rounded-xl p-4 border border-theme-primary">
           <div class="flex items-center gap-3 mb-3">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                 :class="internetStatus?.connected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-700'">
-              <svg class="w-5 h-5" :class="internetStatus?.connected ? 'text-green-600 dark:text-green-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 :class="internetStatus?.connected ? 'bg-success-muted' : 'bg-theme-tertiary'">
+              <svg class="w-5 h-5" :class="internetStatus?.connected ? 'text-success' : 'text-theme-muted'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
               </svg>
             </div>
             <div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">Internet</p>
-              <p class="font-semibold" :class="internetStatus?.connected ? 'text-green-600 dark:text-green-400' : 'text-gray-500'">
+              <p class="text-sm text-theme-tertiary">Internet</p>
+              <p class="font-semibold" :class="internetStatus?.connected ? 'text-success' : 'text-theme-muted'">
                 {{ internetStatus?.connected ? 'Connected' : 'Offline' }}
               </p>
             </div>
           </div>
           <div v-if="internetStatus?.connected" class="text-sm">
             <div class="flex items-center justify-between">
-              <span class="text-gray-500">Latency</span>
-              <span class="text-gray-700 dark:text-gray-300">{{ internetStatus?.rtt_ms?.toFixed(1) || '-' }} ms</span>
+              <span class="text-theme-muted">Latency</span>
+              <span class="text-theme-secondary">{{ internetStatus?.rtt_ms?.toFixed(1) || '-' }} ms</span>
             </div>
             <div class="flex items-center justify-between mt-1">
-              <span class="text-gray-500">Target</span>
-              <span class="text-gray-700 dark:text-gray-300">{{ internetStatus?.target_name || '-' }}</span>
+              <span class="text-theme-muted">Target</span>
+              <span class="text-theme-secondary">{{ internetStatus?.target_name || '-' }}</span>
             </div>
           </div>
-          <div v-else class="text-sm text-gray-500 mt-2">
+          <div v-else class="text-sm text-theme-muted mt-2">
             Running in offline mode
           </div>
         </div>
 
         <!-- NAT Status -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div class="bg-theme-card rounded-xl p-4 border border-theme-primary">
           <div class="flex items-center gap-3 mb-3">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                 :class="natStatus?.enabled ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-gray-100 dark:bg-gray-700'">
-              <svg class="w-5 h-5" :class="natStatus?.enabled ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 :class="natStatus?.enabled ? 'bg-[#8b5cf620]' : 'bg-theme-tertiary'">
+              <svg class="w-5 h-5" :class="natStatus?.enabled ? 'text-[#8b5cf6]' : 'text-theme-muted'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
             </div>
             <div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">Internet Sharing</p>
-              <p class="font-semibold" :class="natStatus?.enabled ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500'">
+              <p class="text-sm text-theme-tertiary">Internet Sharing</p>
+              <p class="font-semibold" :class="natStatus?.enabled ? 'text-[#8b5cf6]' : 'text-theme-muted'">
                 {{ natStatus?.enabled ? 'Enabled' : 'Disabled' }}
               </p>
             </div>
@@ -455,30 +455,30 @@ function signalColor(pct) {
             @click="toggleNAT"
             class="w-full mt-2 px-3 py-2 text-sm rounded-lg transition-colors"
             :class="natStatus?.enabled 
-              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'"
+              ? 'bg-[#8b5cf620] text-[#8b5cf6] hover:opacity-80'
+              : 'bg-theme-tertiary text-theme-secondary hover:bg-gray-200'"
           >
             {{ natStatus?.enabled ? 'Disable NAT' : 'Enable NAT' }}
           </button>
         </div>
 
         <!-- Firewall -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div class="bg-theme-card rounded-xl p-4 border border-theme-primary">
           <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-              <svg class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 rounded-lg bg-[#f59e0b20] flex items-center justify-center">
+              <svg class="w-5 h-5 text-[#f59e0b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
             </div>
             <div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">Firewall</p>
-              <p class="font-semibold text-gray-900 dark:text-white capitalize">{{ activeProfile }}</p>
+              <p class="text-sm text-theme-tertiary">Firewall</p>
+              <p class="font-semibold text-theme-primary capitalize">{{ activeProfile }}</p>
             </div>
           </div>
           <div class="text-sm">
             <div class="flex items-center justify-between">
-              <span class="text-gray-500">IP Forward</span>
-              <span :class="firewallStatus?.ip_forward ? 'text-green-500' : 'text-gray-400'">
+              <span class="text-theme-muted">IP Forward</span>
+              <span :class="firewallStatus?.ip_forward ? 'text-green-500' : 'text-theme-muted'">
                 {{ firewallStatus?.ip_forward ? 'On' : 'Off' }}
               </span>
             </div>
@@ -487,50 +487,50 @@ function signalColor(pct) {
       </div>
 
       <!-- Interfaces -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h3 class="font-semibold text-gray-900 dark:text-white">Network Interfaces</h3>
+      <div class="bg-theme-card rounded-xl border border-theme-primary">
+        <div class="px-4 py-3 border-b border-theme-primary">
+          <h3 class="font-semibold text-theme-primary">Network Interfaces</h3>
         </div>
-        <div class="divide-y divide-gray-200 dark:divide-gray-700">
+        <div class="divide-y divide-[color:var(--border-primary)]">
           <div v-for="iface in interfaces" :key="iface.name" class="px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <svg v-if="iface.type === 'wifi'" class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center">
+                <svg v-if="iface.type === 'wifi'" class="w-4 h-4 text-theme-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
                 </svg>
-                <svg v-else class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-else class="w-4 h-4 text-theme-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
               <div>
-                <p class="font-medium text-gray-900 dark:text-white">{{ iface.name }}</p>
-                <p class="text-sm text-gray-500">{{ iface.ipv4 || iface.ip || 'No IP' }}</p>
+                <p class="font-medium text-theme-primary">{{ iface.name }}</p>
+                <p class="text-sm text-theme-muted">{{ iface.ipv4 || iface.ip || 'No IP' }}</p>
               </div>
             </div>
             <div class="flex items-center gap-3">
-              <div v-if="iface.rx_bytes || iface.tx_bytes" class="text-xs text-gray-400 text-right">
+              <div v-if="iface.rx_bytes || iface.tx_bytes" class="text-xs text-theme-muted text-right">
                 <span>↓ {{ formatBytes(iface.rx_bytes) }}</span>
                 <span class="mx-1">↑ {{ formatBytes(iface.tx_bytes) }}</span>
               </div>
               <span class="px-2 py-1 text-xs rounded-full"
                     :class="iface.state === 'up' || iface.state === 'UP'
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500'">
+                      ? 'bg-success-muted text-success'
+                      : 'bg-theme-tertiary text-theme-muted'">
                 {{ iface.state || 'unknown' }}
               </span>
             </div>
           </div>
-          <div v-if="interfaces.length === 0" class="px-4 py-8 text-center text-gray-500">
+          <div v-if="interfaces.length === 0" class="px-4 py-8 text-center text-theme-muted">
             No interfaces found
           </div>
         </div>
       </div>
 
       <!-- Firewall Profiles -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h3 class="font-semibold text-gray-900 dark:text-white">Firewall Profiles</h3>
-          <p class="text-sm text-gray-500 mt-1">Quick presets for common network configurations</p>
+      <div class="bg-theme-card rounded-xl border border-theme-primary">
+        <div class="px-4 py-3 border-b border-theme-primary">
+          <h3 class="font-semibold text-theme-primary">Firewall Profiles</h3>
+          <p class="text-sm text-theme-muted mt-1">Quick presets for common network configurations</p>
         </div>
         <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
@@ -539,20 +539,20 @@ function signalColor(pct) {
             @click="applyFirewallProfile(profile.id)"
             class="p-4 rounded-lg border-2 text-left transition-all"
             :class="activeProfile === profile.id 
-              ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20' 
-              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'"
+              ? 'border-[color:var(--accent-primary)] bg-accent-muted' 
+              : 'border-theme-primary hover:border-theme-secondary'"
           >
             <div class="flex items-center gap-3 mb-2">
-              <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <svg class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center">
+                <svg class="w-4 h-4 text-theme-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               </div>
-              <span class="font-medium text-gray-900 dark:text-white">{{ profile.name }}</span>
+              <span class="font-medium text-theme-primary">{{ profile.name }}</span>
             </div>
-            <p class="text-sm text-gray-500">{{ profile.desc }}</p>
+            <p class="text-sm text-theme-muted">{{ profile.desc }}</p>
             <div v-if="activeProfile === profile.id" class="mt-2">
-              <span class="text-xs text-teal-500 dark:text-teal-400 font-medium">Active</span>
+              <span class="text-xs text-accent font-medium">Active</span>
             </div>
           </button>
         </div>
@@ -561,32 +561,32 @@ function signalColor(pct) {
 
     <!-- Clients Tab -->
     <div v-if="activeTab === 'clients'" class="space-y-4">
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div class="bg-theme-card rounded-xl border border-theme-primary">
+        <div class="px-4 py-3 border-b border-theme-primary flex items-center justify-between">
           <div>
-            <h3 class="font-semibold text-gray-900 dark:text-white">Connected Clients</h3>
-            <p class="text-sm text-gray-500">{{ clients.length }} device{{ clients.length !== 1 ? 's' : '' }} connected</p>
+            <h3 class="font-semibold text-theme-primary">Connected Clients</h3>
+            <p class="text-sm text-theme-muted">{{ clients.length }} device{{ clients.length !== 1 ? 's' : '' }} connected</p>
           </div>
         </div>
         
-        <div class="divide-y divide-gray-200 dark:divide-gray-700">
+        <div class="divide-y divide-[color:var(--border-primary)]">
           <div v-for="client in clients" :key="client.mac_address" class="px-4 py-4">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-4">
                 <!-- Device icon -->
-                <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                  <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-10 h-10 rounded-lg bg-theme-tertiary flex items-center justify-center">
+                  <svg class="w-5 h-5 text-theme-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
                 </div>
                 
                 <!-- Client info -->
                 <div>
-                  <p class="font-medium text-gray-900 dark:text-white">
+                  <p class="font-medium text-theme-primary">
                     {{ client.hostname || 'Unknown Device' }}
                   </p>
-                  <p class="text-sm text-gray-500">{{ client.ip_address || 'No IP' }}</p>
-                  <p class="text-xs text-gray-400 font-mono">{{ client.mac_address }}</p>
+                  <p class="text-sm text-theme-muted">{{ client.ip_address || 'No IP' }}</p>
+                  <p class="text-xs text-theme-muted font-mono">{{ client.mac_address }}</p>
                 </div>
               </div>
               
@@ -599,20 +599,20 @@ function signalColor(pct) {
                     </svg>
                     <span class="text-sm" :class="signalColor(client.signal_percent)">{{ client.signal_percent }}%</span>
                   </div>
-                  <p class="text-xs text-gray-400">{{ client.signal_dbm }} dBm</p>
+                  <p class="text-xs text-theme-muted">{{ client.signal_dbm }} dBm</p>
                 </div>
                 
                 <!-- Traffic -->
                 <div class="text-right text-sm">
-                  <p class="text-gray-500">↓ {{ formatBytes(client.rx_bytes) }}</p>
-                  <p class="text-gray-500">↑ {{ formatBytes(client.tx_bytes) }}</p>
+                  <p class="text-theme-muted">↓ {{ formatBytes(client.rx_bytes) }}</p>
+                  <p class="text-theme-muted">↑ {{ formatBytes(client.tx_bytes) }}</p>
                 </div>
                 
                 <!-- Actions -->
                 <div class="flex gap-2">
                   <button 
                     @click="kickClient(client.mac_address)"
-                    class="p-2 text-gray-400 hover:text-yellow-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                    class="p-2 text-theme-muted hover:text-yellow-500 rounded-lg hover:bg-theme-tertiary"
                     title="Disconnect"
                   >
                     <!-- WiFi off icon -->
@@ -623,7 +623,7 @@ function signalColor(pct) {
                   </button>
                   <button 
                     @click="blockClient(client.mac_address)"
-                    class="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                    class="p-2 text-theme-muted hover:text-red-500 rounded-lg hover:bg-theme-tertiary"
                     title="Block"
                   >
                     <!-- Shield ban icon -->
@@ -638,10 +638,10 @@ function signalColor(pct) {
           </div>
           
           <div v-if="clients.length === 0" class="px-4 py-12 text-center">
-            <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-12 h-12 mx-auto text-theme-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
             </svg>
-            <p class="text-gray-500">No clients connected</p>
+            <p class="text-theme-muted">No clients connected</p>
           </div>
         </div>
       </div>
@@ -649,32 +649,32 @@ function signalColor(pct) {
 
     <!-- Firewall Tab -->
     <div v-if="activeTab === 'firewall'" class="space-y-4">
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div class="bg-theme-card rounded-xl border border-theme-primary">
+        <div class="px-4 py-3 border-b border-theme-primary flex items-center justify-between">
           <div>
-            <h3 class="font-semibold text-gray-900 dark:text-white">Firewall Rules</h3>
-            <p class="text-sm text-gray-500">User-defined firewall rules</p>
+            <h3 class="font-semibold text-theme-primary">Firewall Rules</h3>
+            <p class="text-sm text-theme-muted">User-defined firewall rules</p>
           </div>
-          <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-            <input type="checkbox" v-model="showDockerRules" class="rounded border-gray-300 dark:border-gray-600">
+          <label class="flex items-center gap-2 text-sm text-theme-tertiary">
+            <input type="checkbox" v-model="showDockerRules" class="rounded border-theme-secondary">
             Show Docker rules
           </label>
         </div>
         <div class="p-4">
           <div v-if="displayedFirewallRules?.length" class="space-y-2">
             <div v-for="(rule, idx) in displayedFirewallRules" :key="idx" 
-                 class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm">
+                 class="flex items-center justify-between p-3 bg-theme-secondary rounded-lg text-sm">
               <div class="flex items-center gap-3">
                 <span class="px-2 py-0.5 rounded text-xs font-medium"
-                      :class="rule.target === 'ACCEPT' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 
-                              rule.target === 'DROP' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 
-                              rule.target === 'MASQUERADE' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                              'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'">
+                      :class="rule.target === 'ACCEPT' ? 'bg-success-muted text-success' : 
+                              rule.target === 'DROP' ? 'bg-error-muted text-error' : 
+                              rule.target === 'MASQUERADE' ? 'bg-accent-muted text-accent' :
+                              'bg-theme-tertiary text-theme-secondary'">
                   {{ rule.target }}
                 </span>
-                <span class="text-gray-700 dark:text-gray-300 font-mono text-xs">{{ rule.chain }}</span>
+                <span class="text-theme-secondary font-mono text-xs">{{ rule.chain }}</span>
               </div>
-              <div class="text-gray-500 text-xs space-x-2">
+              <div class="text-theme-muted text-xs space-x-2">
                 <span v-if="rule.protocol && rule.protocol !== 'all'">{{ rule.protocol }}</span>
                 <span v-if="rule.port">:{{ rule.port }}</span>
                 <span v-if="rule.interface_in && rule.interface_in !== '*'">in:{{ rule.interface_in }}</span>
@@ -684,8 +684,8 @@ function signalColor(pct) {
               </div>
             </div>
           </div>
-          <div v-else class="text-center py-8 text-gray-500">
-            <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div v-else class="text-center py-8 text-theme-muted">
+            <svg class="w-12 h-12 mx-auto text-theme-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
             <p>No custom firewall rules configured</p>
@@ -698,13 +698,13 @@ function signalColor(pct) {
     <!-- Traffic Tab -->
     <div v-if="activeTab === 'traffic'" class="space-y-4">
       <!-- Interface selector -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div class="bg-theme-card rounded-xl border border-theme-primary p-4">
         <div class="flex flex-wrap items-center gap-4">
-          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Interface:</label>
+          <label class="text-sm font-medium text-theme-secondary">Interface:</label>
           <select 
             v-model="selectedTrafficInterface" 
             @change="fetchTrafficHistory"
-            class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            class="px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary"
           >
             <option v-for="iface in physicalInterfaces" :key="iface.name" :value="iface.name">
               {{ iface.name }} ({{ iface.state }})
@@ -712,7 +712,7 @@ function signalColor(pct) {
           </select>
           <button 
             @click="fetchTrafficHistory" 
-            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+            class="px-3 py-2 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary"
           >
             Refresh
           </button>
@@ -721,50 +721,50 @@ function signalColor(pct) {
       
       <!-- Current Stats -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div class="bg-theme-card rounded-xl border border-theme-primary p-6">
           <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 rounded-lg bg-success-muted flex items-center justify-center">
+              <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
             </div>
             <div>
-              <h3 class="font-semibold text-gray-900 dark:text-white">Download</h3>
-              <p class="text-sm text-gray-500">Incoming traffic</p>
+              <h3 class="font-semibold text-theme-primary">Download</h3>
+              <p class="text-sm text-theme-muted">Incoming traffic</p>
             </div>
           </div>
-          <div class="text-3xl font-bold text-gray-900 dark:text-white">
+          <div class="text-3xl font-bold text-theme-primary">
             {{ formatBytes(currentTrafficStats?.rx_bytes || 0) }}
           </div>
-          <div v-if="currentTrafficStats?.rx_rate_bps" class="text-sm text-green-600 dark:text-green-400 mt-1">
+          <div v-if="currentTrafficStats?.rx_rate_bps" class="text-sm text-success mt-1">
             {{ formatRate(currentTrafficStats.rx_rate_bps) }}/s
           </div>
         </div>
         
-        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div class="bg-theme-card rounded-xl border border-theme-primary p-6">
           <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
+              <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
               </svg>
             </div>
             <div>
-              <h3 class="font-semibold text-gray-900 dark:text-white">Upload</h3>
-              <p class="text-sm text-gray-500">Outgoing traffic</p>
+              <h3 class="font-semibold text-theme-primary">Upload</h3>
+              <p class="text-sm text-theme-muted">Outgoing traffic</p>
             </div>
           </div>
-          <div class="text-3xl font-bold text-gray-900 dark:text-white">
+          <div class="text-3xl font-bold text-theme-primary">
             {{ formatBytes(currentTrafficStats?.tx_bytes || 0) }}
           </div>
-          <div v-if="currentTrafficStats?.tx_rate_bps" class="text-sm text-blue-600 dark:text-blue-400 mt-1">
+          <div v-if="currentTrafficStats?.tx_rate_bps" class="text-sm text-accent mt-1">
             {{ formatRate(currentTrafficStats.tx_rate_bps) }}/s
           </div>
         </div>
       </div>
       
       <!-- Traffic History Graph -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Traffic History (Last 60 minutes)</h3>
+      <div class="bg-theme-card rounded-xl border border-theme-primary p-6">
+        <h3 class="font-semibold text-theme-primary mb-4">Traffic History (Last 60 minutes)</h3>
         
         <div v-if="trafficHistory.length > 0" class="space-y-4">
           <!-- Simple bar chart visualization -->
@@ -776,11 +776,11 @@ function signalColor(pct) {
               :title="`RX: ${formatRate(point.rx_rate_bps)}/s, TX: ${formatRate(point.tx_rate_bps)}/s`"
             >
               <div 
-                class="bg-green-500 dark:bg-green-400 rounded-t transition-all"
+                class="bg-green-500 rounded-t transition-all"
                 :style="{ height: `${point.rxHeight}%` }"
               ></div>
               <div 
-                class="bg-blue-500 dark:bg-blue-400 rounded-t transition-all"
+                class="bg-blue-500 rounded-t transition-all"
                 :style="{ height: `${point.txHeight}%` }"
               ></div>
             </div>
@@ -790,37 +790,37 @@ function signalColor(pct) {
           <div class="flex items-center justify-center gap-6 text-sm">
             <div class="flex items-center gap-2">
               <span class="w-3 h-3 bg-green-500 rounded"></span>
-              <span class="text-gray-600 dark:text-gray-400">Download</span>
+              <span class="text-theme-tertiary">Download</span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-3 h-3 bg-blue-500 rounded"></span>
-              <span class="text-gray-600 dark:text-gray-400">Upload</span>
+              <span class="text-theme-tertiary">Upload</span>
             </div>
           </div>
           
           <!-- Stats summary -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-theme-primary text-sm">
             <div>
-              <p class="text-gray-500">Max Download</p>
-              <p class="font-medium text-gray-900 dark:text-white">{{ formatRate(maxRxRate) }}/s</p>
+              <p class="text-theme-muted">Max Download</p>
+              <p class="font-medium text-theme-primary">{{ formatRate(maxRxRate) }}/s</p>
             </div>
             <div>
-              <p class="text-gray-500">Max Upload</p>
-              <p class="font-medium text-gray-900 dark:text-white">{{ formatRate(maxTxRate) }}/s</p>
+              <p class="text-theme-muted">Max Upload</p>
+              <p class="font-medium text-theme-primary">{{ formatRate(maxTxRate) }}/s</p>
             </div>
             <div>
-              <p class="text-gray-500">Avg Download</p>
-              <p class="font-medium text-gray-900 dark:text-white">{{ formatRate(avgRxRate) }}/s</p>
+              <p class="text-theme-muted">Avg Download</p>
+              <p class="font-medium text-theme-primary">{{ formatRate(avgRxRate) }}/s</p>
             </div>
             <div>
-              <p class="text-gray-500">Avg Upload</p>
-              <p class="font-medium text-gray-900 dark:text-white">{{ formatRate(avgTxRate) }}/s</p>
+              <p class="text-theme-muted">Avg Upload</p>
+              <p class="font-medium text-theme-primary">{{ formatRate(avgTxRate) }}/s</p>
             </div>
           </div>
         </div>
         
-        <div v-else class="text-center py-12 text-gray-500">
-          <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div v-else class="text-center py-12 text-theme-muted">
+          <svg class="w-12 h-12 mx-auto text-theme-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
           <p>No traffic history available yet</p>
@@ -832,10 +832,10 @@ function signalColor(pct) {
     <!-- WiFi AP Config Modal -->
     <Teleport to="body">
       <div v-if="showAPConfigModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="showAPConfigModal = false">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">WiFi Access Point Settings</h3>
-            <button @click="showAPConfigModal = false" class="p-1 text-gray-400 hover:text-gray-500 rounded-lg">
+        <div class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
+            <h3 class="text-lg font-semibold text-theme-primary">WiFi Access Point Settings</h3>
+            <button @click="showAPConfigModal = false" class="p-1 text-theme-muted hover:text-gray-500 rounded-lg">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -845,42 +845,42 @@ function signalColor(pct) {
           <div class="p-6 space-y-4">
             <!-- SSID -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Network Name (SSID)</label>
+              <label class="block text-sm font-medium text-theme-secondary mb-1">Network Name (SSID)</label>
               <input 
                 v-model="apConfig.ssid"
                 type="text"
                 maxlength="32"
-                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
                 placeholder="CubeOS"
               >
             </div>
             
             <!-- Password -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+              <label class="block text-sm font-medium text-theme-secondary mb-1">Password</label>
               <input 
                 v-model="apConfig.password"
                 type="password"
                 minlength="8"
                 maxlength="63"
-                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
                 placeholder="Min 8 characters"
               >
-              <p class="text-xs text-gray-500 mt-1">WPA2-PSK encryption. Minimum 8 characters.</p>
+              <p class="text-xs text-theme-muted mt-1">WPA2-PSK encryption. Minimum 8 characters.</p>
             </div>
             
             <!-- Channel -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Channel</label>
+              <label class="block text-sm font-medium text-theme-secondary mb-1">Channel</label>
               <select 
                 v-model="apConfig.channel"
-                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
               >
                 <option v-for="ch in availableChannels" :key="ch" :value="ch">
                   Channel {{ ch }} {{ ch === 1 || ch === 6 || ch === 11 ? '(recommended)' : '' }}
                 </option>
               </select>
-              <p class="text-xs text-gray-500 mt-1">Channels 1, 6, 11 don't overlap with neighbors</p>
+              <p class="text-xs text-theme-muted mt-1">Channels 1, 6, 11 don't overlap with neighbors</p>
             </div>
             
             <!-- Hidden -->
@@ -889,30 +889,30 @@ function signalColor(pct) {
                 v-model="apConfig.hidden"
                 type="checkbox"
                 id="ap-hidden"
-                class="w-4 h-4 rounded border-gray-300 text-teal-500 focus:ring-teal-500"
+                class="w-4 h-4 rounded border-gray-300 text-accent focus:ring-[color:var(--accent-primary)]"
               >
-              <label for="ap-hidden" class="text-sm text-gray-700 dark:text-gray-300">
+              <label for="ap-hidden" class="text-sm text-theme-secondary">
                 Hide network (don't broadcast SSID)
               </label>
             </div>
             
             <!-- Warning -->
-            <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 text-sm text-amber-800 dark:text-amber-200">
+            <div class="bg-warning-muted border border-warning rounded-lg p-3 text-sm text-warning">
               <strong>Note:</strong> Saving will restart the access point. Connected devices will briefly disconnect.
             </div>
           </div>
           
-          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-theme-primary">
             <button 
               @click="showAPConfigModal = false"
-              class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              class="px-4 py-2 text-theme-secondary hover:bg-theme-tertiary rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button 
               @click="saveAPConfig"
               :disabled="apConfigLoading || !apConfig.ssid"
-              class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              class="px-4 py-2 btn-accent rounded-lg hover:bg-[color:var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <svg v-if="apConfigLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
