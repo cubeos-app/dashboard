@@ -12,6 +12,10 @@ const selectedApp = ref(null)
 const showDetailModal = ref(false)
 const activeTab = ref('browse') // browse, installed, coreapps, stores
 const coreApps = ref([])
+const newStoreUrl = ref('')
+const newStoreName = ref('')
+const addingStore = ref(false)
+const addStoreError = ref('')
 
 // Computed
 const hasApps = computed(() => appStore.catalog.length > 0)
@@ -65,6 +69,25 @@ function clearFilters() {
   appStore.selectedCategory = ''
   appStore.searchQuery = ''
   appStore.fetchCatalog()
+}
+
+async function handleAddStore() {
+  if (!newStoreUrl.value) return
+  addingStore.value = true
+  addStoreError.value = ''
+  try {
+    const success = await appStore.addStore(newStoreUrl.value, newStoreName.value || '', '')
+    if (success) {
+      newStoreUrl.value = ''
+      newStoreName.value = ''
+    } else {
+      addStoreError.value = appStore.error || 'Failed to add store'
+    }
+  } catch (e) {
+    addStoreError.value = e.message
+  } finally {
+    addingStore.value = false
+  }
 }
 
 onMounted(async () => {
@@ -414,11 +437,33 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Add Store (placeholder) -->
-      <div class="mt-4 p-4 rounded-xl border border-dashed border-theme-secondary text-center">
-        <p class="text-xs text-theme-muted">
-          Add custom app stores via API: POST /api/v1/appstore/stores
-        </p>
+      <!-- Add Store Form -->
+      <div class="mt-4 p-4 rounded-xl border border-theme-primary bg-theme-card">
+        <h4 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Add App Store</h4>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input
+            v-model="newStoreUrl"
+            type="text"
+            placeholder="Store URL (e.g. https://casaos.app/store)"
+            class="flex-1 px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+          />
+          <input
+            v-model="newStoreName"
+            type="text"
+            placeholder="Name (optional)"
+            class="sm:w-40 px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+          />
+          <button
+            @click="handleAddStore"
+            :disabled="!newStoreUrl || addingStore"
+            class="flex items-center justify-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium disabled:opacity-50 whitespace-nowrap"
+          >
+            <Icon v-if="addingStore" name="Loader2" :size="16" class="animate-spin" />
+            <Icon v-else name="Plus" :size="16" />
+            Add
+          </button>
+        </div>
+        <p v-if="addStoreError" class="mt-2 text-xs text-error">{{ addStoreError }}</p>
       </div>
     </template>
 

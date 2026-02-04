@@ -155,82 +155,28 @@ onMounted(async () => {
       </div>
 
       <div class="p-4 rounded-xl border border-theme-primary bg-theme-card">
-        <!-- Dark Themes -->
-        <div class="mb-4">
-          <h3 class="text-[10px] font-semibold text-theme-muted uppercase tracking-wider mb-2">Dark Themes</h3>
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              v-for="theme in themeStore.darkThemes"
-              :key="theme.id"
-              @click="themeStore.setTheme(theme.id)"
-              class="relative flex items-center gap-2.5 p-2.5 rounded-lg border-2 transition-all duration-150 text-left"
-              :class="themeStore.currentThemeId === theme.id 
-                ? 'border-accent bg-accent-muted' 
-                : 'border-theme-primary hover:border-theme-secondary bg-theme-tertiary'"
-            >
-              <!-- Theme preview -->
-              <div 
-                class="w-10 h-10 rounded-md flex-shrink-0 overflow-hidden border border-white/10"
-                :style="{ backgroundColor: theme.preview.bg }"
-              >
-                <div class="p-1.5 space-y-1">
-                  <div class="w-full h-1.5 rounded" :style="{ backgroundColor: theme.preview.card }"></div>
-                  <div class="w-3/4 h-1.5 rounded" :style="{ backgroundColor: theme.preview.accent }"></div>
-                </div>
-              </div>
-              
-              <!-- Theme info -->
-              <div class="flex-1 min-w-0">
-                <span class="font-medium text-theme-primary text-xs">{{ theme.name }}</span>
-                <div class="flex items-center gap-1.5 mt-0.5">
-                  <div class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: theme.preview.accent }"></div>
-                  <span class="text-[10px] text-theme-muted font-mono">{{ theme.preview.accent }}</span>
-                </div>
-              </div>
-              
-              <!-- Check -->
-              <Icon v-if="themeStore.currentThemeId === theme.id" name="Check" :size="14" class="text-accent" :stroke-width="3" />
-            </button>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <Icon :name="themeStore.isDark ? 'Moon' : 'Sun'" :size="20" class="text-accent" />
+            <div>
+              <p class="text-sm font-medium text-theme-primary">{{ themeStore.isDark ? 'Dark Mode' : 'Light Mode' }}</p>
+              <p class="text-xs text-theme-muted">{{ themeStore.currentTheme.description }}</p>
+            </div>
           </div>
-        </div>
-
-        <!-- Light Themes -->
-        <div>
-          <h3 class="text-[10px] font-semibold text-theme-muted uppercase tracking-wider mb-2">Light Themes</h3>
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              v-for="theme in themeStore.lightThemes"
-              :key="theme.id"
-              @click="themeStore.setTheme(theme.id)"
-              class="relative flex items-center gap-2.5 p-2.5 rounded-lg border-2 transition-all duration-150 text-left"
-              :class="themeStore.currentThemeId === theme.id 
-                ? 'border-accent bg-accent-muted' 
-                : 'border-theme-primary hover:border-theme-secondary bg-theme-tertiary'"
+          
+          <!-- Toggle switch -->
+          <button
+            @click="themeStore.setTheme(themeStore.isDark ? 'light' : 'dark')"
+            class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200"
+            :class="themeStore.isDark ? 'bg-accent' : 'bg-theme-tertiary border border-theme-secondary'"
+          >
+            <span
+              class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transform transition-transform duration-200"
+              :class="themeStore.isDark ? 'translate-x-6' : 'translate-x-1'"
             >
-              <!-- Theme preview -->
-              <div 
-                class="w-10 h-10 rounded-md flex-shrink-0 overflow-hidden border"
-                :style="{ backgroundColor: theme.preview.bg, borderColor: theme.preview.card === '#ffffff' ? '#e4e4e7' : theme.preview.card }"
-              >
-                <div class="p-1.5 space-y-1">
-                  <div class="w-full h-1.5 rounded" :style="{ backgroundColor: '#e4e4e7' }"></div>
-                  <div class="w-3/4 h-1.5 rounded" :style="{ backgroundColor: theme.preview.accent }"></div>
-                </div>
-              </div>
-              
-              <!-- Theme info -->
-              <div class="flex-1 min-w-0">
-                <span class="font-medium text-theme-primary text-xs">{{ theme.name }}</span>
-                <div class="flex items-center gap-1.5 mt-0.5">
-                  <div class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: theme.preview.accent }"></div>
-                  <span class="text-[10px] text-theme-muted font-mono">{{ theme.preview.accent }}</span>
-                </div>
-              </div>
-              
-              <!-- Check -->
-              <Icon v-if="themeStore.currentThemeId === theme.id" name="Check" :size="14" class="text-accent" :stroke-width="3" />
-            </button>
-          </div>
+              <Icon :name="themeStore.isDark ? 'Moon' : 'Sun'" :size="12" class="text-gray-600" />
+            </span>
+          </button>
         </div>
       </div>
     </section>

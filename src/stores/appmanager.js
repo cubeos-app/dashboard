@@ -247,8 +247,8 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   async function deleteProfile(name) {
-    await api.delete(`/profiles/${name}`)
-    await fetchProfiles()
+    // No DELETE /profiles/{name} endpoint exists in API
+    throw new Error('Profile deletion is not supported')
   }
 
   /**
@@ -292,28 +292,33 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   // ==========================================
-  // App Config (Backend gap - returns 404)
+  // App Config
+  // Uses /appstore/installed/{appID}/config for user apps
+  // Uses /appstore/coreapps/{appID}/config for core apps
   // ==========================================
   
   /**
-   * Get app config - NOT IMPLEMENTED in backend
-   * GET /api/v1/apps/{name}/config returns 404
+   * Get app config
+   * GET /api/v1/appstore/installed/{appID}/config
+   * GET /api/v1/appstore/coreapps/{appID}/config (for core apps)
    */
-  async function getAppConfig(appName) {
+  async function getAppConfig(appName, isCore = false) {
     try {
-      return await api.get(`/apps/${appName}/config`)
+      const base = isCore ? '/appstore/coreapps' : '/appstore/installed'
+      return await api.get(`${base}/${encodeURIComponent(appName)}/config`)
     } catch (e) {
       return { 
         compose: '',
         env: {},
         _unavailable: true,
-        error: 'App config endpoint not implemented'
+        error: e.message
       }
     }
   }
 
-  async function saveAppConfig(appName, compose, env, recreate = true) {
-    return await api.put(`/apps/${appName}/config`, { compose, env, recreate })
+  async function saveAppConfig(appName, compose, env, recreate = true, isCore = false) {
+    const base = isCore ? '/appstore/coreapps' : '/appstore/installed'
+    return await api.put(`${base}/${encodeURIComponent(appName)}/config`, { compose, env, recreate })
   }
 
   // ==========================================

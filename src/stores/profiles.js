@@ -135,28 +135,12 @@ export const useProfilesStore = defineStore('profiles', () => {
   
   /**
    * Delete a custom profile
-   * DELETE /api/v1/profiles/{name}
+   * NOTE: No DELETE /profiles/{name} endpoint exists in the API.
+   * Profiles are managed server-side and cannot be deleted from the dashboard.
    */
   async function deleteProfile(name) {
-    loading.value = true
-    error.value = null
-    
-    try {
-      // Check if it's a system profile
-      const profile = profiles.value.find(p => p.name === name)
-      if (profile?.is_system) {
-        throw new Error('Cannot delete system profiles')
-      }
-      
-      await api.delete(`/profiles/${encodeURIComponent(name)}`)
-      await fetchProfiles()
-      return true
-    } catch (e) {
-      error.value = e.message
-      return false
-    } finally {
-      loading.value = false
-    }
+    error.value = 'Profile deletion is not supported. Profiles are managed server-side.'
+    return false
   }
   
   // ==========================================

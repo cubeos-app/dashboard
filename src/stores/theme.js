@@ -2,11 +2,11 @@ import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 
 export const useThemeStore = defineStore('theme', () => {
-  // Available themes
+  // Two themes: one dark, one light
   const themes = ref([
     {
-      id: 'obsidian',
-      name: 'Obsidian',
+      id: 'dark',
+      name: 'Dark',
       description: 'Deep blacks with cyan accents',
       mode: 'dark',
       preview: {
@@ -17,20 +17,8 @@ export const useThemeStore = defineStore('theme', () => {
       }
     },
     {
-      id: 'midnight',
-      name: 'Midnight',
-      description: 'Elegant purple tones',
-      mode: 'dark',
-      preview: {
-        bg: '#0f0f14',
-        card: '#1c1c28',
-        accent: '#8b5cf6',
-        text: '#f8f8fc'
-      }
-    },
-    {
-      id: 'snow',
-      name: 'Snow',
+      id: 'light',
+      name: 'Light',
       description: 'Clean white with blue accents',
       mode: 'light',
       preview: {
@@ -39,23 +27,20 @@ export const useThemeStore = defineStore('theme', () => {
         accent: '#0ea5e9',
         text: '#18181b'
       }
-    },
-    {
-      id: 'pearl',
-      name: 'Pearl',
-      description: 'Warm cream with teal accents',
-      mode: 'light',
-      preview: {
-        bg: '#fffffe',
-        card: '#fffffe',
-        accent: '#14b8a6',
-        text: '#1c1917'
-      }
     }
   ])
 
+  // Migrate old theme IDs to new ones
+  function migrateThemeId(id) {
+    if (id === 'obsidian' || id === 'midnight') return 'dark'
+    if (id === 'snow' || id === 'pearl') return 'light'
+    if (id === 'dark' || id === 'light') return id
+    return 'dark'
+  }
+
   // Current theme ID
-  const currentThemeId = ref(localStorage.getItem('cubeos-theme') || 'obsidian')
+  const storedTheme = localStorage.getItem('cubeos-theme')
+  const currentThemeId = ref(migrateThemeId(storedTheme || 'dark'))
 
   // Current theme object
   const currentTheme = computed(() => {
@@ -67,12 +52,12 @@ export const useThemeStore = defineStore('theme', () => {
     return currentTheme.value?.mode === 'dark'
   })
 
-  // Dark themes
+  // Dark themes (for settings grid)
   const darkThemes = computed(() => {
     return themes.value.filter(t => t.mode === 'dark')
   })
 
-  // Light themes
+  // Light themes (for settings grid)
   const lightThemes = computed(() => {
     return themes.value.filter(t => t.mode === 'light')
   })
@@ -91,7 +76,7 @@ export const useThemeStore = defineStore('theme', () => {
   function applyTheme(themeId) {
     document.documentElement.setAttribute('data-theme', themeId)
     
-    // Also set dark class for Tailwind compatibility
+    // Set dark class for Tailwind compatibility
     const theme = themes.value.find(t => t.id === themeId)
     if (theme?.mode === 'dark') {
       document.documentElement.classList.add('dark')
@@ -102,9 +87,10 @@ export const useThemeStore = defineStore('theme', () => {
 
   // Initialize theme on load
   function initTheme() {
-    const savedTheme = localStorage.getItem('cubeos-theme') || 'obsidian'
-    currentThemeId.value = savedTheme
-    applyTheme(savedTheme)
+    const saved = migrateThemeId(localStorage.getItem('cubeos-theme') || 'dark')
+    currentThemeId.value = saved
+    localStorage.setItem('cubeos-theme', saved)
+    applyTheme(saved)
   }
 
   // Watch for theme changes
