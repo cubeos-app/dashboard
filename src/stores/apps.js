@@ -602,6 +602,7 @@ export const useAppsStore = defineStore('apps', () => {
   return {
     // State
     apps,
+    allApps: apps,  // HOTFIX: Alias for DashboardView search that uses allApps
     loading,
     error,
     lastUpdated,
