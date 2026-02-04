@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useServicesStore } from '@/stores/services'
+import { useAppsStore } from '@/stores/apps'
 import { useBrandingStore } from '@/stores/branding'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -14,13 +14,13 @@ const emit = defineEmits(['close-mobile'])
 
 const route = useRoute()
 const router = useRouter()
-const servicesStore = useServicesStore()
+const appsStore = useAppsStore()
 const brandingStore = useBrandingStore()
 
 // Navigation items
 const navItems = [
   { path: '/', name: 'Dashboard', icon: 'LayoutDashboard' },
-  { path: '/services', name: 'Services', icon: 'Grid3X3', badge: () => servicesStore.runningCount },
+  { path: '/services', name: 'Services', icon: 'Grid3X3', badge: () => appsStore.runningCount },
   { path: '/appstore', name: 'App Store', icon: 'Store' },
   { path: '/appmanager', name: 'App Manager', icon: 'Boxes' },
   { path: '/network', name: 'Network', icon: 'Wifi' },
@@ -41,12 +41,12 @@ const QUICK_LINK_FQDNS = {
 // Quick links to external services - using FQDNs, not IP:port
 const quickLinks = computed(() => {
   const links = []
-  const services = servicesStore.services || []
+  const apps = appsStore.apps || []
   
   // Check for each quick link service
   for (const [key, config] of Object.entries(QUICK_LINK_FQDNS)) {
-    const service = services.find(s => s.name?.toLowerCase().includes(key))
-    if (service?.state === 'running') {
+    const app = apps.find(a => a.name?.toLowerCase().includes(key))
+    if (app?.status?.running) {
       const path = config.path || ''
       links.push({
         name: config.name,

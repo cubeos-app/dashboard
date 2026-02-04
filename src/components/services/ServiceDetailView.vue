@@ -1,43 +1,77 @@
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+/**
+ * ServiceDetailView.vue
+ * 
+ * Detailed view for a single app/service.
+ * Sprint 4: Uses unified apps.js store.
+ */
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useServicesStore } from '@/stores/services'
-import api from '@/api/client'
+import { useAppsStore } from '@/stores/apps'
+import TorToggle from '@/components/swarm/TorToggle.vue'
+import Icon from '@/components/ui/Icon.vue'
 
 const route = useRoute()
 const router = useRouter()
-const servicesStore = useServicesStore()
+const appsStore = useAppsStore()
 
-const service = ref(null)
-const logs = ref('')
-const stats = ref(null)
+const app = ref(null)
+const logs = ref([])
 const loading = ref(true)
 const logsLoading = ref(false)
 const actionLoading = ref(false)
 const activeTab = ref('overview')
 
-const serviceName = computed(() => route.params.name)
-const displayName = computed(() => servicesStore.getServiceName(serviceName.value))
-const iconName = computed(() => servicesStore.getServiceIcon(serviceName.value))
-const isRunning = computed(() => service.value?.state === 'running')
-const isCore = computed(() => service.value?.is_core)
+const appName = computed(() => route.params.name)
 
-// Get service URL via FQDN (no direct port access)
-const serviceUrl = computed(() => {
-  if (!service.value) return null
-  return servicesStore.getServiceUrl(service.value)
+const displayName = computed(() => 
+  app.value ? appsStore.getDisplayName(app.value) : appName.value
+)
+
+const iconName = computed(() => 
+  app.value ? appsStore.getAppIcon(app.value) : 'Box'
+)
+
+const isRunning = computed(() => 
+  app.value?.status?.running || app.value?.state === 'running'
+)
+
+const isHealthy = computed(() => {
+  const health = app.value?.status?.health
+  return health === 'healthy' || health === 'running' || !health
 })
 
-// Check if service has a web UI
-const hasWebUI = computed(() => {
-  return servicesStore.hasWebUI(serviceName.value)
+const isCore = computed(() => 
+  app.value?.type === 'system' || app.value?.type === 'platform'
+)
+
+const serviceUrl = computed(() => 
+  app.value ? appsStore.getAppUrl(app.value) : null
+)
+
+const hasWebUI = computed(() => 
+  app.value ? appsStore.hasWebUI(app.value) : false
+)
+
+const status = computed(() => {
+  if (!isRunning.value) return { text: 'Stopped', color: 'text-gray-500' }
+  if (!isHealthy.value) return { text: 'Unhealthy', color: 'text-yellow-500' }
+  return { text: 'Running', color: 'text-green-500' }
 })
 
-async function fetchService() {
+async function fetchApp() {
+  loading.value = true
   try {
-    service.value = await api.getService(serviceName.value)
+    const result = await appsStore.getApp(appName.value)
+    if (result) {
+      app.value = result
+    } else {
+      // Try to find in store
+      app.value = appsStore.getAppByName(appName.value)
+    }
   } catch (e) {
-    console.error('Failed to fetch service:', e)
+    console.error('Failed to fetch app:', e)
+    app.value = appsStore.getAppByName(appName.value)
   } finally {
     loading.value = false
   }
@@ -46,52 +80,69 @@ async function fetchService() {
 async function fetchLogs() {
   logsLoading.value = true
   try {
-    const data = await api.getServiceLogs(serviceName.value, 200)
-    logs.value = data.logs || 'No logs available'
+    const result = await appsStore.getAppLogs(appName.value, 200)
+    logs.value = result || []
   } catch (e) {
-    logs.value = 'Failed to fetch logs: ' + e.message
+    console.error('Failed to fetch logs:', e)
+    logs.value = []
   } finally {
     logsLoading.value = false
   }
 }
 
-async function fetchStats() {
-  try {
-    stats.value = await api.getServiceStats(serviceName.value)
-  } catch (e) {
-    console.error('Failed to fetch stats:', e)
-  }
-}
-
 async function handleAction(action) {
-  if (!confirm(`Are you sure you want to ${action} ${displayName.value}?`)) return
+  if (action !== 'start' && !confirm(`Are you sure you want to ${action} ${displayName.value}?`)) return
   
   actionLoading.value = true
   try {
-    if (action === 'start') await servicesStore.startService(serviceName.value)
-    else if (action === 'stop') await servicesStore.stopService(serviceName.value)
-    else if (action === 'restart') await servicesStore.restartService(serviceName.value)
+    if (action === 'start') await appsStore.startApp(appName.value)
+    else if (action === 'stop') await appsStore.stopApp(appName.value)
+    else if (action === 'restart') await appsStore.restartApp(appName.value)
     
-    await fetchService()
-    if (isRunning.value) await fetchStats()
+    await fetchApp()
   } finally {
     actionLoading.value = false
   }
 }
 
-let refreshInterval = null
-onMounted(async () => {
-  await fetchService()
-  if (isRunning.value) {
-    await Promise.all([fetchLogs(), fetchStats()])
+function openWebUI() {
+  if (serviceUrl.value) {
+    window.open(serviceUrl.value, '_blank')
   }
+}
+
+let refreshInterval = null
+
+onMounted(async () => {
+  // First try to get from store cache
+  app.value = appsStore.getAppByName(appName.value)
+  if (!app.value) {
+    await appsStore.fetchApps()
+    app.value = appsStore.getAppByName(appName.value)
+  }
+  loading.value = false
+  
+  if (isRunning.value) {
+    await fetchLogs()
+  }
+  
   refreshInterval = setInterval(async () => {
-    if (isRunning.value) await fetchStats()
-  }, 10000)
+    if (isRunning.value) {
+      await appsStore.fetchApps()
+      app.value = appsStore.getAppByName(appName.value)
+    }
+  }, 15000)
 })
 
 onUnmounted(() => {
   if (refreshInterval) clearInterval(refreshInterval)
+})
+
+// Fetch logs when switching to logs tab
+watch(activeTab, async (tab) => {
+  if (tab === 'logs' && logs.value.length === 0 && isRunning.value) {
+    await fetchLogs()
+  }
 })
 
 function formatBytes(bytes) {
@@ -107,197 +158,211 @@ function formatBytes(bytes) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="p-6 max-w-5xl mx-auto space-y-6">
     <!-- Back button & header -->
     <div class="flex items-center gap-4">
       <button 
         @click="router.push('/services')"
-        class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+        class="p-2 rounded-lg hover:bg-theme-tertiary transition-colors"
       >
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
+        <Icon name="ChevronLeft" :size="20" class="text-theme-secondary" />
       </button>
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-          <span class="text-2xl">{{ iconName }}</span>
+      
+      <div class="flex items-center gap-3 flex-1">
+        <div class="w-12 h-12 rounded-xl bg-theme-tertiary flex items-center justify-center">
+          <Icon :name="iconName" :size="24" class="text-theme-secondary" />
         </div>
         <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ displayName }}</h1>
-          <p class="text-gray-500 dark:text-gray-400">{{ serviceName }}</p>
+          <h1 class="text-2xl font-semibold text-theme-primary">{{ displayName }}</h1>
+          <p class="text-sm" :class="status.color">{{ status.text }}</p>
         </div>
       </div>
+      
+      <!-- Actions -->
+      <div class="flex items-center gap-2">
+        <button
+          v-if="hasWebUI && isRunning"
+          @click="openWebUI"
+          class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors flex items-center gap-2"
+        >
+          <Icon name="ExternalLink" :size="16" />
+          Open
+        </button>
+        
+        <button
+          v-if="!isRunning && !isCore"
+          @click="handleAction('start')"
+          :disabled="actionLoading"
+          class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-500 transition-colors disabled:opacity-50 flex items-center gap-2"
+        >
+          <Icon name="Play" :size="16" />
+          Start
+        </button>
+        
+        <button
+          v-if="isRunning && !isCore"
+          @click="handleAction('restart')"
+          :disabled="actionLoading"
+          class="px-4 py-2 rounded-lg bg-yellow-600 text-white text-sm font-medium hover:bg-yellow-500 transition-colors disabled:opacity-50 flex items-center gap-2"
+        >
+          <Icon name="RotateCw" :size="16" />
+          Restart
+        </button>
+        
+        <button
+          v-if="isRunning && !isCore"
+          @click="handleAction('stop')"
+          :disabled="actionLoading"
+          class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-500 transition-colors disabled:opacity-50 flex items-center gap-2"
+        >
+          <Icon name="Square" :size="16" />
+          Stop
+        </button>
+      </div>
     </div>
-
-    <!-- Loading state -->
-    <div v-if="loading" class="bg-white dark:bg-gray-800 rounded-xl p-8 text-center">
-      <div class="animate-spin w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full mx-auto"></div>
-      <p class="mt-4 text-gray-500">Loading service...</p>
+    
+    <!-- Loading -->
+    <div v-if="loading" class="flex items-center justify-center py-16">
+      <Icon name="Loader2" :size="32" class="animate-spin text-accent" />
     </div>
-
-    <template v-else-if="service">
-      <!-- Status & Actions -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2">
-              <span 
-                class="w-3 h-3 rounded-full"
-                :class="isRunning ? 'bg-green-400 animate-pulse' : 'bg-gray-400'"
-              ></span>
-              <span class="font-medium text-gray-900 dark:text-white">
-                {{ isRunning ? 'Running' : 'Stopped' }}
-              </span>
-            </div>
-            <span v-if="service.health_status" class="text-sm px-2 py-0.5 rounded-full"
-                  :class="service.health_status === 'healthy' 
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'">
-              {{ service.health_status }}
-            </span>
-            <span v-if="isCore" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-              Core Service
+    
+    <!-- Content -->
+    <div v-else-if="app" class="space-y-6">
+      <!-- Tabs -->
+      <div class="flex items-center gap-1 border-b border-theme-primary">
+        <button
+          v-for="tab in ['overview', 'logs', 'settings']"
+          :key="tab"
+          @click="activeTab = tab"
+          class="px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px"
+          :class="activeTab === tab 
+            ? 'text-accent border-accent' 
+            : 'text-theme-secondary border-transparent hover:text-theme-primary'"
+        >
+          {{ tab }}
+        </button>
+      </div>
+      
+      <!-- Overview Tab -->
+      <div v-if="activeTab === 'overview'" class="space-y-6">
+        <!-- Info Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
+            <p class="text-xs text-theme-muted mb-1">Type</p>
+            <p class="font-medium text-theme-primary capitalize">{{ app.type || 'Unknown' }}</p>
+          </div>
+          <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
+            <p class="text-xs text-theme-muted mb-1">Deploy Mode</p>
+            <p class="font-medium text-theme-primary capitalize">{{ app.deploy_mode || 'Unknown' }}</p>
+          </div>
+          <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
+            <p class="text-xs text-theme-muted mb-1">Health</p>
+            <p class="font-medium" :class="isHealthy ? 'text-green-500' : 'text-yellow-500'">
+              {{ app.status?.health || 'Unknown' }}
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
+            <p class="text-xs text-theme-muted mb-1">Enabled</p>
+            <p class="font-medium" :class="app.enabled ? 'text-green-500' : 'text-gray-500'">
+              {{ app.enabled ? 'Yes' : 'No' }}
+            </p>
+          </div>
+        </div>
+        
+        <!-- Ports -->
+        <div v-if="app.ports?.length" class="p-4 rounded-xl bg-theme-card border border-theme-primary">
+          <h3 class="text-sm font-medium text-theme-secondary mb-3">Ports</h3>
+          <div class="flex flex-wrap gap-2">
+            <span 
+              v-for="port in app.ports" 
+              :key="port.port"
+              class="px-3 py-1.5 rounded-lg bg-theme-tertiary text-theme-primary font-mono text-sm"
+            >
+              {{ port.port }}{{ port.protocol ? `/${port.protocol}` : '' }}
+              <span v-if="port.is_primary" class="ml-1 text-xs text-accent">(primary)</span>
             </span>
           </div>
-
+        </div>
+        
+        <!-- FQDNs -->
+        <div v-if="app.fqdns?.length" class="p-4 rounded-xl bg-theme-card border border-theme-primary">
+          <h3 class="text-sm font-medium text-theme-secondary mb-3">Domain Names</h3>
           <div class="flex flex-wrap gap-2">
-            <button
-              v-if="!isRunning && !isCore"
-              @click="handleAction('start')"
-              :disabled="actionLoading"
-              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              Start
-            </button>
-            <button
-              v-if="isRunning && !isCore"
-              @click="handleAction('stop')"
-              :disabled="actionLoading"
-              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              Stop
-            </button>
-            <button
-              v-if="isRunning"
-              @click="handleAction('restart')"
-              :disabled="actionLoading"
-              class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              Restart
-            </button>
-            
-            <!-- Open in browser - uses FQDN via NPM, NOT direct port -->
-            <a
-              v-if="isRunning && hasWebUI && serviceUrl"
-              :href="serviceUrl"
+            <a 
+              v-for="fqdn in app.fqdns" 
+              :key="fqdn.fqdn"
+              :href="`http://${fqdn.fqdn}`"
               target="_blank"
-              class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-500 flex items-center gap-2"
+              class="px-3 py-1.5 rounded-lg bg-theme-tertiary text-accent hover:bg-accent/10 transition-colors text-sm flex items-center gap-2"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              Open
+              {{ fqdn.fqdn }}
+              <Icon name="ExternalLink" :size="12" />
             </a>
           </div>
         </div>
-      </div>
-
-      <!-- Tabs -->
-      <div class="border-b border-gray-200 dark:border-gray-700">
-        <nav class="flex gap-4">
-          <button
-            @click="activeTab = 'overview'"
-            :class="[
-              'py-3 px-1 border-b-2 font-medium text-sm transition-colors',
-              activeTab === 'overview'
-                ? 'border-teal-500 text-teal-500'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            ]"
-          >
-            Overview
-          </button>
-          <button
-            @click="activeTab = 'logs'; fetchLogs()"
-            :class="[
-              'py-3 px-1 border-b-2 font-medium text-sm transition-colors',
-              activeTab === 'logs'
-                ? 'border-teal-500 text-teal-500'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            ]"
-          >
-            Logs
-          </button>
-        </nav>
-      </div>
-
-      <!-- Overview tab content -->
-      <div v-if="activeTab === 'overview'" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Container Info</h3>
-          <dl class="space-y-3 text-sm">
-            <div class="flex justify-between">
-              <dt class="text-gray-500">Image</dt>
-              <dd class="font-mono text-gray-900 dark:text-white truncate max-w-48">{{ service.image }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt class="text-gray-500">Container ID</dt>
-              <dd class="font-mono text-gray-900 dark:text-white">{{ service.id?.substring(0, 12) }}</dd>
-            </div>
-          </dl>
-        </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Resource Usage</h3>
-          <dl v-if="stats" class="space-y-4">
-            <div>
-              <div class="flex justify-between mb-1">
-                <dt class="text-gray-500 text-sm">CPU</dt>
-                <dd class="text-gray-900 dark:text-white text-sm font-medium">{{ stats.cpu_percent?.toFixed(2) }}%</dd>
-              </div>
-              <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div class="h-full bg-blue-500" :style="{ width: `${Math.min(stats.cpu_percent || 0, 100)}%` }"></div>
-              </div>
-            </div>
-            <div>
-              <div class="flex justify-between mb-1">
-                <dt class="text-gray-500 text-sm">Memory</dt>
-                <dd class="text-gray-900 dark:text-white text-sm font-medium">
-                  {{ formatBytes(stats.memory_usage) }} / {{ formatBytes(stats.memory_limit) }}
-                </dd>
-              </div>
-              <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div class="h-full bg-purple-500" :style="{ width: `${stats.memory_percent || 0}%` }"></div>
-              </div>
-            </div>
-          </dl>
-          <p v-else class="text-gray-500 text-sm">
-            {{ isRunning ? 'Loading stats...' : 'Start service to view stats' }}
-          </p>
+        
+        <!-- Description -->
+        <div v-if="app.description" class="p-4 rounded-xl bg-theme-card border border-theme-primary">
+          <h3 class="text-sm font-medium text-theme-secondary mb-2">Description</h3>
+          <p class="text-theme-primary">{{ app.description }}</p>
         </div>
       </div>
-
-      <!-- Logs tab -->
-      <div v-if="activeTab === 'logs'" class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
-          <h3 class="font-medium text-gray-900 dark:text-white">Container Logs</h3>
-          <button 
+      
+      <!-- Logs Tab -->
+      <div v-if="activeTab === 'logs'" class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-medium text-theme-secondary">Container Logs</h3>
+          <button
             @click="fetchLogs"
             :disabled="logsLoading"
-            class="text-sm text-teal-500 hover:underline disabled:opacity-50"
+            class="px-3 py-1.5 rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors text-sm flex items-center gap-2"
           >
-            {{ logsLoading ? 'Loading...' : 'Refresh' }}
+            <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': logsLoading }" />
+            Refresh
           </button>
         </div>
-        <pre class="p-4 text-xs font-mono overflow-x-auto max-h-[500px] whitespace-pre-wrap bg-gray-900 text-gray-100">{{ logs || 'No logs available' }}</pre>
+        
+        <div class="bg-gray-900 rounded-xl p-4 max-h-[500px] overflow-auto">
+          <pre 
+            v-if="logs.length > 0"
+            class="text-xs font-mono text-gray-300 whitespace-pre-wrap"
+          >{{ logs.join('\n') }}</pre>
+          <p v-else-if="logsLoading" class="text-gray-500 italic">Loading logs...</p>
+          <p v-else class="text-gray-500 italic">No logs available</p>
+        </div>
       </div>
-    </template>
-
-    <!-- Not found -->
-    <div v-else class="text-center py-12">
-      <p class="text-gray-500">Service not found</p>
-      <button 
+      
+      <!-- Settings Tab -->
+      <div v-if="activeTab === 'settings'" class="space-y-6">
+        <!-- Tor Routing -->
+        <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
+          <h3 class="text-sm font-medium text-theme-secondary mb-3">Privacy</h3>
+          <TorToggle :app-name="app.name" :model-value="app.tor_enabled" />
+        </div>
+        
+        <!-- Danger Zone -->
+        <div v-if="!isCore" class="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+          <h3 class="text-sm font-medium text-red-500 mb-3">Danger Zone</h3>
+          <p class="text-sm text-theme-muted mb-4">
+            Uninstalling this app will remove it from your system. Data may be preserved depending on your settings.
+          </p>
+          <button
+            class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-500 transition-colors"
+          >
+            Uninstall App
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Not Found -->
+    <div v-else class="text-center py-16">
+      <Icon name="AlertCircle" :size="48" class="mx-auto text-theme-muted mb-4" />
+      <h2 class="text-xl font-semibold text-theme-primary mb-2">App Not Found</h2>
+      <p class="text-theme-muted mb-4">The app "{{ appName }}" could not be found.</p>
+      <button
         @click="router.push('/services')"
-        class="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-500"
+        class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors"
       >
         Back to Services
       </button>

@@ -1,39 +1,61 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+/**
+ * DashboardView.vue
+ * 
+ * Main dashboard view with SwarmOverview widget integrated.
+ * Sprint 4: Uses new unified apps.js store.
+ */
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useSystemStore } from '@/stores/system'
-import { useServicesStore } from '@/stores/services'
+import { useAppsStore } from '@/stores/apps'
 import Icon from '@/components/ui/Icon.vue'
 import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
 import AskCubeOS from '@/components/chat/AskCubeOS.vue'
+import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
 
 const systemStore = useSystemStore()
-const servicesStore = useServicesStore()
+const appsStore = useAppsStore()
 
 // State
 const searchQuery = ref('')
 const showHealthModal = ref(false)
 const showChatModal = ref(false)
 const chatQuery = ref('')
-const selectedService = ref(null)
+const selectedApp = ref(null)
 const favorites = ref([])
+
+// Refresh interval
+let refreshInterval = null
 
 // Computed
 const systemInfo = computed(() => systemStore.systemInfo)
-const coreServices = computed(() => servicesStore.coreServices)
 
-const runningCount = computed(() => {
-  return servicesStore.services.filter(s => s.state === 'running').length
-})
+// Core apps (system + platform types)
+const coreApps = computed(() => appsStore.coreApps)
 
-const totalCount = computed(() => servicesStore.services.length)
+const runningCount = computed(() => appsStore.runningCount)
+const totalCount = computed(() => appsStore.appCount)
 
-const favoriteServices = computed(() => {
+const favoriteApps = computed(() => {
   return favorites.value
-    .map(name => servicesStore.services.find(s => s.name === name))
+    .map(name => appsStore.getAppByName(name))
     .filter(Boolean)
 })
 
-const recentServices = computed(() => servicesStore.recentServices)
+// Recently used (stored in localStorage)
+const recentApps = computed(() => {
+  try {
+    const stored = localStorage.getItem('cubeos-recent')
+    if (!stored) return []
+    const names = JSON.parse(stored)
+    return names
+      .map(name => appsStore.getAppByName(name))
+      .filter(Boolean)
+      .slice(0, 6)
+  } catch (e) {
+    return []
+  }
+})
 
 // Chat functions
 function openChatWithQuery() {
@@ -58,42 +80,59 @@ function closeChatModal() {
   chatQuery.value = ''
 }
 
-// Service functions
-function toggleFavorite(serviceName) {
-  const idx = favorites.value.indexOf(serviceName)
+// App functions
+function toggleFavorite(appName) {
+  const idx = favorites.value.indexOf(appName)
   if (idx === -1) {
-    favorites.value.push(serviceName)
+    favorites.value.push(appName)
   } else {
     favorites.value.splice(idx, 1)
   }
   localStorage.setItem('cubeos-favorites', JSON.stringify(favorites.value))
 }
 
-function isFavorite(serviceName) {
-  return favorites.value.includes(serviceName)
+function isFavorite(appName) {
+  return favorites.value.includes(appName)
 }
 
-function openService(service) {
-  servicesStore.trackUsage(service.name)
+function trackUsage(appName) {
+  try {
+    const stored = localStorage.getItem('cubeos-recent')
+    let recent = stored ? JSON.parse(stored) : []
+    // Remove if exists, add to front
+    recent = recent.filter(n => n !== appName)
+    recent.unshift(appName)
+    // Keep only last 10
+    recent = recent.slice(0, 10)
+    localStorage.setItem('cubeos-recent', JSON.stringify(recent))
+  } catch (e) {}
+}
+
+function openApp(app) {
+  trackUsage(app.name)
   
-  if (!servicesStore.hasWebUI(service.name)) {
-    selectedService.value = service
-    showHealthModal.value = true
-    return
-  }
-  
-  const url = servicesStore.getServiceUrl(service)
+  const url = appsStore.getAppUrl(app)
   if (url) {
     window.open(url, '_blank')
+  } else {
+    // Show health modal for apps without web UI
+    selectedApp.value = app
+    showHealthModal.value = true
   }
 }
 
-function getServiceIcon(service) {
-  return servicesStore.getServiceIcon(service.name)
+function getAppIcon(app) {
+  return appsStore.getAppIcon(app)
 }
 
-function getServiceName(service) {
-  return servicesStore.getServiceName(service.name)
+function getAppName(app) {
+  return appsStore.getDisplayName(app)
+}
+
+function getHealthStatus(app) {
+  if (!app.status) return 'unknown'
+  if (app.status.health === 'healthy' || app.status.health === 'running') return 'running'
+  return app.status.health || 'unknown'
 }
 
 // Lifecycle
@@ -108,12 +147,18 @@ onMounted(async () => {
   await Promise.all([
     systemStore.fetchSystemInfo(),
     systemStore.fetchStats(),
-    servicesStore.fetchServices()
+    appsStore.fetchApps()
   ])
-  servicesStore.loadRecentlyUsed()
   
-  // Auto-refresh stats
-  setInterval(() => systemStore.fetchStats(), 5000)
+  // Auto-refresh stats and apps
+  refreshInterval = setInterval(() => {
+    systemStore.fetchStats()
+    appsStore.fetchApps()
+  }, 10000)
+})
+
+onUnmounted(() => {
+  if (refreshInterval) clearInterval(refreshInterval)
 })
 </script>
 
@@ -188,6 +233,11 @@ onMounted(async () => {
       </div>
     </section>
 
+    <!-- Section: Swarm Overview -->
+    <section class="animate-fade-in">
+      <SwarmOverview />
+    </section>
+
     <!-- Section: Favorites & Recently Used -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Favorites -->
@@ -197,20 +247,20 @@ onMounted(async () => {
           Favorites
         </h2>
         <div class="p-4 rounded-2xl border border-theme-primary bg-theme-card min-h-[120px]">
-          <div v-if="favoriteServices.length === 0" class="flex flex-col items-center justify-center h-full py-6 text-center">
+          <div v-if="favoriteApps.length === 0" class="flex flex-col items-center justify-center h-full py-6 text-center">
             <Icon name="Star" :size="24" class="text-theme-muted mb-2" />
             <p class="text-sm text-theme-tertiary">No favorites yet</p>
             <p class="text-xs text-theme-muted">Star services to add them here</p>
           </div>
           <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button 
-              v-for="service in favoriteServices" 
-              :key="service.name"
-              @click="openService(service)"
+              v-for="app in favoriteApps" 
+              :key="app.name"
+              @click="openApp(app)"
               class="flex items-center gap-2 p-2 rounded-lg hover:bg-theme-tertiary transition-colors text-left"
             >
-              <Icon :name="getServiceIcon(service)" :size="16" class="text-accent" />
-              <span class="text-sm text-theme-primary truncate">{{ getServiceName(service) }}</span>
+              <Icon :name="getAppIcon(app)" :size="16" class="text-accent" />
+              <span class="text-sm text-theme-primary truncate">{{ getAppName(app) }}</span>
             </button>
           </div>
         </div>
@@ -223,20 +273,20 @@ onMounted(async () => {
           Recently Used
         </h2>
         <div class="p-4 rounded-2xl border border-theme-primary bg-theme-card min-h-[120px]">
-          <div v-if="recentServices.length === 0" class="flex flex-col items-center justify-center h-full py-6 text-center">
+          <div v-if="recentApps.length === 0" class="flex flex-col items-center justify-center h-full py-6 text-center">
             <Icon name="Clock" :size="24" class="text-theme-muted mb-2" />
             <p class="text-sm text-theme-tertiary">No recent activity</p>
             <p class="text-xs text-theme-muted">Services you use will appear here</p>
           </div>
           <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button 
-              v-for="service in recentServices" 
-              :key="service.name"
-              @click="openService(service)"
+              v-for="app in recentApps" 
+              :key="app.name"
+              @click="openApp(app)"
               class="flex items-center gap-2 p-2 rounded-lg hover:bg-theme-tertiary transition-colors text-left"
             >
-              <Icon :name="getServiceIcon(service)" :size="16" class="text-theme-secondary" />
-              <span class="text-sm text-theme-primary truncate">{{ getServiceName(service) }}</span>
+              <Icon :name="getAppIcon(app)" :size="16" class="text-theme-secondary" />
+              <span class="text-sm text-theme-primary truncate">{{ getAppName(app) }}</span>
             </button>
           </div>
         </div>
@@ -251,30 +301,38 @@ onMounted(async () => {
       </h2>
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div 
-          v-for="service in coreServices" 
-          :key="service.name"
-          @click="openService(service)"
+          v-for="app in coreApps" 
+          :key="app.name"
+          @click="openApp(app)"
           class="group p-4 rounded-xl border border-theme-primary bg-theme-card hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer relative"
         >
           <!-- Favorite star -->
           <button 
-            @click.stop="toggleFavorite(service.name)"
+            @click.stop="toggleFavorite(app.name)"
             class="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-            :class="isFavorite(service.name) ? 'text-yellow-500' : 'text-theme-muted hover:text-yellow-500'"
+            :class="isFavorite(app.name) ? 'text-yellow-500' : 'text-theme-muted hover:text-yellow-500'"
           >
-            <Icon :name="isFavorite(service.name) ? 'Star' : 'Star'" :size="14" :fill="isFavorite(service.name) ? 'currentColor' : 'none'" />
+            <Icon name="Star" :size="14" :fill="isFavorite(app.name) ? 'currentColor' : 'none'" />
           </button>
           
           <div class="flex flex-col items-center text-center">
             <div class="w-10 h-10 rounded-xl bg-theme-tertiary flex items-center justify-center mb-2 group-hover:bg-accent/10 transition-colors">
-              <Icon :name="getServiceIcon(service)" :size="20" class="text-theme-secondary group-hover:text-accent transition-colors" />
+              <Icon :name="getAppIcon(app)" :size="20" class="text-theme-secondary group-hover:text-accent transition-colors" />
             </div>
-            <span class="text-sm font-medium text-theme-primary">{{ getServiceName(service) }}</span>
+            <span class="text-sm font-medium text-theme-primary">{{ getAppName(app) }}</span>
             <span 
               class="text-xs mt-1"
-              :class="service.state === 'running' ? 'text-success' : 'text-error'"
+              :class="{
+                'text-success': getHealthStatus(app) === 'running',
+                'text-warning': getHealthStatus(app) === 'starting',
+                'text-error': getHealthStatus(app) === 'unhealthy',
+                'text-theme-muted': getHealthStatus(app) === 'stopped' || getHealthStatus(app) === 'unknown'
+              }"
             >
-              {{ service.state === 'running' ? '● Running' : '● Stopped' }}
+              <template v-if="getHealthStatus(app) === 'running'">Running</template>
+              <template v-else-if="getHealthStatus(app) === 'starting'">Starting</template>
+              <template v-else-if="getHealthStatus(app) === 'unhealthy'">Unhealthy</template>
+              <template v-else>Stopped</template>
             </span>
           </div>
         </div>
@@ -295,9 +353,9 @@ onMounted(async () => {
     />
 
     <ServiceHealthModal 
-      v-if="selectedService"
+      v-if="selectedApp"
       :show="showHealthModal" 
-      :service="selectedService"
+      :service="selectedApp"
       @close="showHealthModal = false" 
     />
   </div>

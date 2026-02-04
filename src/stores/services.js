@@ -1,3 +1,21 @@
+/**
+ * @deprecated This store is DEPRECATED as of Sprint 4.
+ * Use `stores/apps.js` instead which provides the unified apps API.
+ * 
+ * This file is kept temporarily for reference but should be removed
+ * after verifying all components have migrated to apps.js.
+ * 
+ * Migration checklist:
+ * - [x] DashboardView.vue -> apps.js
+ * - [x] ServicesView.vue -> apps.js
+ * - [x] ServiceCard.vue -> apps.js
+ * - [x] ServiceDetailView.vue -> apps.js
+ * - [x] ServiceHealthModal.vue -> apps.js
+ * - [x] AppSidebar.vue -> apps.js
+ * 
+ * TODO: Delete this file after Sprint 4 testing is complete.
+ */
+
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/client'

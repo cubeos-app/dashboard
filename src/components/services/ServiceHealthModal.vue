@@ -1,6 +1,12 @@
 <script setup>
+/**
+ * ServiceHealthModal.vue
+ * 
+ * Modal showing service/app health details and logs.
+ * Sprint 4: Uses unified apps.js store.
+ */
 import { ref, watch, computed } from 'vue'
-import { useServicesStore } from '@/stores/services'
+import { useAppsStore } from '@/stores/apps'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
@@ -16,42 +22,78 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
-const servicesStore = useServicesStore()
+const appsStore = useAppsStore()
 const loading = ref(false)
-const healthData = ref(null)
+const logs = ref([])
+const error = ref(null)
 
 const displayName = computed(() => 
-  props.service ? servicesStore.getServiceName(props.service.name) : ''
+  props.service ? appsStore.getDisplayName(props.service) : ''
 )
 
 const iconName = computed(() => 
-  props.service ? servicesStore.getServiceIcon(props.service.name) : 'Box'
+  props.service ? appsStore.getAppIcon(props.service) : 'Box'
 )
 
+const status = computed(() => {
+  if (!props.service) return 'unknown'
+  return props.service.status?.health || 
+         props.service.health || 
+         (props.service.status?.running ? 'running' : 'stopped')
+})
+
+const isRunning = computed(() => {
+  return props.service?.status?.running || props.service?.state === 'running'
+})
+
 const isHealthy = computed(() => {
-  if (!healthData.value) return false
-  return healthData.value.health === 'healthy' || !healthData.value.health
+  return status.value === 'healthy' || status.value === 'running'
 })
 
 const statusText = computed(() => {
-  if (!healthData.value) return 'Loading...'
-  if (healthData.value.status !== 'running') return 'Stopped'
-  if (!isHealthy.value) return 'Unhealthy'
+  if (!isRunning.value) return 'Stopped'
+  if (status.value === 'unhealthy') return 'Unhealthy'
+  if (status.value === 'starting') return 'Starting'
   return 'Healthy'
 })
 
 const statusColor = computed(() => {
-  if (!healthData.value) return 'text-theme-muted'
-  if (healthData.value.status !== 'running') return 'text-theme-muted'
-  if (!isHealthy.value) return 'text-warning'
+  if (!isRunning.value) return 'text-theme-muted'
+  if (status.value === 'unhealthy') return 'text-warning'
+  if (status.value === 'starting') return 'text-yellow-500'
   return 'text-success'
 })
 
+const uptime = computed(() => {
+  if (!props.service?.status?.started_at) return 'N/A'
+  const started = new Date(props.service.status.started_at)
+  const now = new Date()
+  const diff = now - started
+  
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return `${minutes}m`
+})
+
+// Fetch logs when modal opens
 watch(() => [props.show, props.service], async ([show, service]) => {
   if (show && service) {
     loading.value = true
-    healthData.value = await servicesStore.getServiceHealth(service.name)
-    loading.value = false
+    error.value = null
+    
+    try {
+      const result = await appsStore.getAppLogs(service.name, 50)
+      logs.value = result || []
+    } catch (e) {
+      error.value = e.message
+      logs.value = []
+    } finally {
+      loading.value = false
+    }
   }
 }, { immediate: true })
 
@@ -105,25 +147,41 @@ function close() {
             </div>
             
             <!-- Health Info -->
-            <div v-else-if="healthData" class="space-y-4">
+            <div v-else class="space-y-4">
               <!-- Status Cards -->
               <div class="grid grid-cols-3 gap-3">
                 <div class="p-3 rounded-xl bg-theme-tertiary">
                   <p class="text-xs text-theme-muted mb-1">Status</p>
                   <p class="font-medium" :class="statusColor">
-                    {{ healthData.status || 'Unknown' }}
+                    {{ isRunning ? 'Running' : 'Stopped' }}
                   </p>
                 </div>
                 <div class="p-3 rounded-xl bg-theme-tertiary">
                   <p class="text-xs text-theme-muted mb-1">Health</p>
                   <p class="font-medium" :class="statusColor">
-                    {{ healthData.health || 'N/A' }}
+                    {{ status }}
                   </p>
                 </div>
                 <div class="p-3 rounded-xl bg-theme-tertiary">
                   <p class="text-xs text-theme-muted mb-1">Uptime</p>
                   <p class="font-medium text-theme-primary">
-                    {{ healthData.uptime || 'N/A' }}
+                    {{ uptime }}
+                  </p>
+                </div>
+              </div>
+              
+              <!-- App Type & Deploy Mode -->
+              <div class="grid grid-cols-2 gap-3">
+                <div class="p-3 rounded-xl bg-theme-tertiary">
+                  <p class="text-xs text-theme-muted mb-1">Type</p>
+                  <p class="font-medium text-theme-primary capitalize">
+                    {{ service?.type || 'Unknown' }}
+                  </p>
+                </div>
+                <div class="p-3 rounded-xl bg-theme-tertiary">
+                  <p class="text-xs text-theme-muted mb-1">Deploy Mode</p>
+                  <p class="font-medium text-theme-primary capitalize">
+                    {{ service?.deploy_mode || 'Unknown' }}
                   </p>
                 </div>
               </div>
@@ -136,18 +194,13 @@ function close() {
                 </h3>
                 <div class="bg-gray-900 rounded-xl p-3 max-h-64 overflow-auto">
                   <pre 
-                    v-if="healthData.logs && healthData.logs.length > 0"
+                    v-if="logs.length > 0"
                     class="text-xs font-mono text-gray-300 whitespace-pre-wrap"
-                  >{{ healthData.logs.join('\n') }}</pre>
+                  >{{ logs.join('\n') }}</pre>
+                  <p v-else-if="error" class="text-xs text-red-400 italic">{{ error }}</p>
                   <p v-else class="text-xs text-gray-500 italic">No recent logs available</p>
                 </div>
               </div>
-            </div>
-            
-            <!-- Error -->
-            <div v-else class="text-center py-8">
-              <Icon name="AlertCircle" :size="32" class="text-error mx-auto mb-2" />
-              <p class="text-theme-tertiary">Failed to load service health</p>
             </div>
           </div>
           

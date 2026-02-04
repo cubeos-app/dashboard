@@ -1,6 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue'
-import { useServicesStore } from '@/stores/services'
+/**
+ * ServiceCard.vue
+ * 
+ * Reusable service/app card component.
+ * Sprint 4: Uses unified apps.js store.
+ */
+import { computed, ref, onMounted } from 'vue'
+import { useAppsStore } from '@/stores/apps'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
@@ -16,17 +22,41 @@ const props = defineProps({
 
 const emit = defineEmits(['showHealth'])
 
-const servicesStore = useServicesStore()
+const appsStore = useAppsStore()
 const actionLoading = ref(false)
 const favoriteLoading = ref(false)
+const favorites = ref([])
 
-const displayName = computed(() => servicesStore.getServiceName(props.service.name))
-const iconName = computed(() => servicesStore.getServiceIcon(props.service.name))
-const isRunning = computed(() => props.service.state === 'running')
-const isHealthy = computed(() => props.service.health === 'healthy' || !props.service.health)
-const isCore = computed(() => props.service.is_core || props.service.name.startsWith('cubeos-'))
-const isFavorite = computed(() => servicesStore.isFavorite(props.service.name))
-const hasUI = computed(() => servicesStore.hasWebUI(props.service.name))
+// Load favorites from localStorage
+onMounted(() => {
+  try {
+    const stored = localStorage.getItem('cubeos-favorites')
+    if (stored) favorites.value = JSON.parse(stored)
+  } catch (e) {}
+})
+
+// Computed properties
+const displayName = computed(() => appsStore.getDisplayName(props.service))
+const iconName = computed(() => appsStore.getAppIcon(props.service))
+
+const isRunning = computed(() => {
+  return props.service.status?.running || props.service.state === 'running'
+})
+
+const isHealthy = computed(() => {
+  const health = props.service.status?.health || props.service.health
+  return health === 'healthy' || health === 'running' || !health
+})
+
+const isCore = computed(() => {
+  return props.service.type === 'system' || 
+         props.service.type === 'platform' || 
+         props.service.name.startsWith('cubeos-')
+})
+
+const isFavorite = computed(() => favorites.value.includes(props.service.name))
+
+const hasUI = computed(() => appsStore.hasWebUI(props.service))
 
 const statusConfig = computed(() => {
   if (!isRunning.value) {
@@ -40,7 +70,7 @@ const statusConfig = computed(() => {
 
 const serviceUrl = computed(() => {
   if (!hasUI.value) return null
-  return servicesStore.getServiceUrl(props.service)
+  return appsStore.getAppUrl(props.service)
 })
 
 const imageName = computed(() => {
@@ -50,23 +80,33 @@ const imageName = computed(() => {
 
 const displayPorts = computed(() => {
   const ports = props.service.ports || []
-  return ports.filter(p => p.public_port).slice(0, 3).map(p => p.public_port)
+  return ports.filter(p => p.port || p.public_port).slice(0, 3).map(p => p.port || p.public_port)
 })
 
 const extraPortCount = computed(() => {
   const ports = props.service.ports || []
-  return Math.max(0, ports.filter(p => p.public_port).length - 3)
+  return Math.max(0, ports.filter(p => p.port || p.public_port).length - 3)
 })
+
+// Track usage in localStorage
+function trackUsage(name) {
+  try {
+    const stored = localStorage.getItem('cubeos-recent')
+    let recent = stored ? JSON.parse(stored) : []
+    recent = recent.filter(n => n !== name)
+    recent.unshift(name)
+    recent = recent.slice(0, 10)
+    localStorage.setItem('cubeos-recent', JSON.stringify(recent))
+  } catch (e) {}
+}
 
 function handleClick() {
   if (!isRunning.value) return
   
   if (hasUI.value && serviceUrl.value) {
-    // Track usage and open URL
-    servicesStore.trackUsage(props.service.name)
+    trackUsage(props.service.name)
     window.open(serviceUrl.value, '_blank', 'noopener,noreferrer')
   } else {
-    // Show health/logs modal for no-UI services
     emit('showHealth', props.service)
   }
 }
@@ -79,25 +119,25 @@ async function handleAction(action, e) {
   
   actionLoading.value = true
   try {
-    if (action === 'start') await servicesStore.startService(props.service.name)
-    else if (action === 'stop') await servicesStore.stopService(props.service.name)
-    else if (action === 'restart') await servicesStore.restartService(props.service.name)
-    await servicesStore.fetchServices()
+    if (action === 'start') await appsStore.startApp(props.service.name)
+    else if (action === 'stop') await appsStore.stopApp(props.service.name)
+    else if (action === 'restart') await appsStore.restartApp(props.service.name)
   } finally {
     actionLoading.value = false
   }
 }
 
-async function handleToggleFavorite(e) {
+function handleToggleFavorite(e) {
   e.preventDefault()
   e.stopPropagation()
   
-  favoriteLoading.value = true
-  try {
-    await servicesStore.toggleFavorite(props.service.name)
-  } finally {
-    favoriteLoading.value = false
+  const idx = favorites.value.indexOf(props.service.name)
+  if (idx === -1) {
+    favorites.value.push(props.service.name)
+  } else {
+    favorites.value.splice(idx, 1)
   }
+  localStorage.setItem('cubeos-favorites', JSON.stringify(favorites.value))
 }
 </script>
 
