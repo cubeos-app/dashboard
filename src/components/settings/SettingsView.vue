@@ -3,7 +3,13 @@
  * SettingsView.vue
  * 
  * User settings: Appearance, Account, System Info, Session.
- * Fixed: Theme switching, system info from host, API docs link, sign out redirect.
+ * 
+ * Fixes applied:
+ * - Removed /system/version call (endpoint doesn't exist)
+ * - System info properly detects Pi from kernel/EEPROM
+ * - Shows "Raspberry Pi OS" when Alpine container detected
+ * - Theme switching via themeStore.setTheme()
+ * - Sign out redirects to login
  */
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -30,25 +36,11 @@ const passwordLoading = ref(false)
 const passwordError = ref('')
 const passwordSuccess = ref('')
 
-// Version info fetched from API
+// Version info - hardcoded since /system/version doesn't exist in API
 const versionInfo = ref({
   version: '0.0.11',
   api_version: 'v1'
 })
-
-async function fetchVersion() {
-  try {
-    const data = await api.get('/system/version')
-    if (data) {
-      versionInfo.value = {
-        version: data.version || '0.0.11',
-        api_version: data.api_version || 'v1'
-      }
-    }
-  } catch (e) {
-    // Use defaults
-  }
-}
 
 async function changePassword() {
   passwordError.value = ''
@@ -85,13 +77,49 @@ async function logout() {
   router.push('/login')
 }
 
-// System info computed (from host via HAL, not container)
-const hostInfo = computed(() => ({
-  hostname: systemStore.info?.hostname || systemStore.piModel || 'CubeOS',
-  platform: systemStore.piModel || systemStore.info?.platform || systemStore.info?.os_name || 'Raspberry Pi OS',
-  architecture: systemStore.info?.architecture || systemStore.info?.arch || 'arm64',
-  kernel: systemStore.info?.kernel_version || systemStore.info?.kernel || 'Unknown'
-}))
+/**
+ * System info computed - intelligently merges data from multiple sources:
+ * - /system/info (may show container data like Alpine)
+ * - /hardware/eeprom (Pi model from EEPROM)
+ * 
+ * Logic:
+ * - Hostname: Use actual hostname, or Pi model, or fallback to 'CubeOS'
+ * - Platform: If kernel contains 'raspi', show 'Raspberry Pi OS' instead of container OS
+ * - Architecture: From system info
+ * - Kernel: From system info (shows real host kernel even from container)
+ */
+const hostInfo = computed(() => {
+  const info = systemStore.info
+  const kernel = info?.kernel || ''
+  const osName = info?.os_name || ''
+  
+  // Detect if running on Raspberry Pi by checking kernel
+  const isRaspberryPi = kernel.includes('raspi') || kernel.includes('rpi')
+  
+  // Determine platform - if Alpine container on Pi, show "Raspberry Pi OS"
+  let platform = osName
+  if (isRaspberryPi && (osName.includes('Alpine') || osName === '')) {
+    platform = 'Raspberry Pi OS'
+  }
+  // Or use Pi model from EEPROM if available
+  if (systemStore.piModel) {
+    platform = systemStore.piModel
+  }
+  
+  // Hostname - prefer Pi model display, then actual hostname
+  let hostname = info?.hostname || 'CubeOS'
+  // If hostname is the container name (cubeos-api), use something better
+  if (hostname === 'cubeos-api' || hostname === 'cubeos_api') {
+    hostname = systemStore.piModel || 'CubeOS'
+  }
+  
+  return {
+    hostname: hostname,
+    platform: platform || 'Raspberry Pi OS',
+    architecture: info?.architecture || 'arm64',
+    kernel: kernel || 'Unknown'
+  }
+})
 
 // Pi-specific info from EEPROM
 const piInfo = computed(() => ({
@@ -101,8 +129,8 @@ const piInfo = computed(() => ({
 }))
 
 onMounted(async () => {
-  await systemStore.fetchAll()  // Fetches info, stats, battery, hardware
-  await fetchVersion()
+  // Fetch all system data including hardware info from HAL
+  await systemStore.fetchAll()
 })
 </script>
 

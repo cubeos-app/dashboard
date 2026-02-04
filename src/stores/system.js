@@ -3,6 +3,12 @@
  * 
  * Manages system information, stats, and hardware status.
  * Uses HAL endpoints for hardware-specific data (battery, Pi model, etc.)
+ * 
+ * API Endpoints used:
+ * - /system/info - Basic system info (container-aware)
+ * - /system/stats - CPU, memory, disk, temperature
+ * - /hardware/battery - Battery status from HAL (UPS/PiJuice)
+ * - /hardware/eeprom - Pi model, serial, revision from EEPROM
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
@@ -19,9 +25,20 @@ export const useSystemStore = defineStore('system', () => {
   const error = ref(null)
   const lastUpdated = ref(null)
 
+  // Uptime - can come from info or be fetched separately
+  const uptime = computed(() => {
+    return {
+      uptime_seconds: info.value?.uptime_seconds || 0,
+      uptime_human: info.value?.uptime_human || '—'
+    }
+  })
+
   // Getters - system info
-  const hostname = computed(() => info.value?.hostname ?? hardware.value?.model ?? 'CubeOS')
-  const uptime = computed(() => info.value?.uptime_human ?? '—')
+  const hostname = computed(() => {
+    // Prefer Pi model name if available, then hostname from info
+    return info.value?.hostname || hardware.value?.model || 'CubeOS'
+  })
+  
   const cpuUsage = computed(() => Math.round(stats.value?.cpu_percent ?? 0))
   const memoryUsage = computed(() => Math.round(stats.value?.memory_percent ?? 0))
   const temperature = computed(() => stats.value?.temperature_cpu ?? null)
@@ -33,34 +50,51 @@ export const useSystemStore = defineStore('system', () => {
     return wifiClientsData.value?.clients?.length ?? 0
   })
   
-  // Battery getters - mapped from HAL /hardware/battery response
+  /**
+   * Battery getters - mapped from HAL /hardware/battery response
+   * The HAL endpoint returns:
+   * - available: boolean (whether battery hardware is detected)
+   * - percentage: number (0-100)
+   * - is_charging: boolean
+   * - ac_present: boolean
+   * - voltage: number
+   */
   const batteryPercent = computed(() => {
     if (!battery.value?.available) return null
-    return battery.value?.percentage ?? null
+    const pct = battery.value?.percentage
+    if (pct === null || pct === undefined || pct < 0) return null
+    return Math.round(pct)
   })
+  
   const batteryAvailable = computed(() => battery.value?.available ?? false)
+  
   const onBattery = computed(() => {
     // On battery if available, not charging, and no AC present
     if (!battery.value?.available) return false
     return !battery.value?.ac_present && !battery.value?.is_charging
   })
+  
   const isCharging = computed(() => battery.value?.is_charging ?? false)
 
-  // Power getter for backward compatibility
+  /**
+   * Power getter - formatted for AppHeader.vue compatibility
+   * Returns null if no battery hardware detected
+   */
   const power = computed(() => {
     if (!battery.value) return null
     return {
-      available: battery.value.available,
-      battery_percent: battery.value.percentage,
-      is_charging: battery.value.is_charging,
+      available: battery.value.available ?? false,
+      battery_percent: battery.value.percentage ?? null,
+      is_charging: battery.value.is_charging ?? false,
+      charging: battery.value.is_charging ?? false, // alias
       on_battery: onBattery.value
     }
   })
 
   // Hardware info getters (from EEPROM)
-  const piModel = computed(() => hardware.value?.model ?? null)
-  const piSerial = computed(() => hardware.value?.serial ?? null)
-  const piRevision = computed(() => hardware.value?.revision ?? null)
+  const piModel = computed(() => hardware.value?.model ?? info.value?.pi_model ?? null)
+  const piSerial = computed(() => hardware.value?.serial ?? info.value?.pi_serial ?? null)
+  const piRevision = computed(() => hardware.value?.revision ?? info.value?.pi_revision ?? null)
 
   // Formatted values
   const memoryFormatted = computed(() => {
@@ -82,6 +116,7 @@ export const useSystemStore = defineStore('system', () => {
     try {
       info.value = await api.getSystemInfo()
     } catch (e) {
+      console.error('Failed to fetch system info:', e)
       error.value = e.message
     }
   }
@@ -91,24 +126,22 @@ export const useSystemStore = defineStore('system', () => {
       stats.value = await api.getSystemStats()
       lastUpdated.value = new Date()
     } catch (e) {
+      console.error('Failed to fetch system stats:', e)
       error.value = e.message
     }
   }
   
   /**
    * Fetch battery status from HAL
-   * Uses /hardware/battery endpoint which returns:
-   * - available: boolean
-   * - percentage: number (0-100)
-   * - is_charging: boolean
-   * - ac_present: boolean
-   * - voltage: number
+   * Uses /hardware/battery endpoint
    */
   async function fetchBattery() {
     try {
-      battery.value = await api.get('/hardware/battery')
+      const data = await api.get('/hardware/battery')
+      battery.value = data
     } catch (e) {
       // Battery/UPS might not be available, that's ok
+      // Set available: false so UI knows not to display battery
       battery.value = { available: false }
     }
   }
@@ -140,6 +173,10 @@ export const useSystemStore = defineStore('system', () => {
     return fetchBattery()
   }
 
+  /**
+   * Fetch all system data - info, stats, battery, hardware
+   * Called on app init for header display
+   */
   async function fetchAll() {
     loading.value = true
     error.value = null
@@ -151,6 +188,8 @@ export const useSystemStore = defineStore('system', () => {
         fetchHardware(),
         fetchWifiClients()
       ])
+    } catch (e) {
+      error.value = e.message
     } finally {
       loading.value = false
     }
@@ -184,14 +223,14 @@ export const useSystemStore = defineStore('system', () => {
     stats,
     battery,
     hardware,
-    power,  // Computed for backward compatibility
+    power,  // Computed for AppHeader compatibility
+    uptime, // Computed for uptime display
     loading,
     error,
     lastUpdated,
     
     // Computed getters
     hostname,
-    uptime,
     cpuUsage,
     memoryUsage,
     temperature,
@@ -218,7 +257,7 @@ export const useSystemStore = defineStore('system', () => {
     reboot,
     shutdown,
     
-    // Aliases for DashboardView.vue compatibility
+    // Aliases for backward compatibility
     systemInfo: info,
     fetchSystemInfo: fetchInfo
   }

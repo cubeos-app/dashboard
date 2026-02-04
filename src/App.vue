@@ -1,18 +1,23 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useBrandingStore } from '@/stores/branding'
+import { useSystemStore } from '@/stores/system'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const brandingStore = useBrandingStore()
+const systemStore = useSystemStore()
 
 // Mobile sidebar state
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
+
+// Stats refresh interval
+let statsInterval = null
 
 function toggleSidebar() {
   if (window.innerWidth < 1024) {
@@ -27,12 +32,29 @@ function closeMobileSidebar() {
 }
 
 onMounted(async () => {
-  // Initialize theme and branding
+  // Initialize theme and branding FIRST (synchronous)
   themeStore.initTheme()
   brandingStore.initBranding()
   
   // Initialize auth
   await authStore.init()
+  
+  // If authenticated, fetch system data for header display
+  if (authStore.isAuthenticated) {
+    // Fetch all system data including battery from HAL
+    systemStore.fetchAll()
+    
+    // Refresh stats every 5 seconds for live header display
+    statsInterval = setInterval(() => {
+      systemStore.fetchStats()
+    }, 5000)
+  }
+})
+
+onUnmounted(() => {
+  if (statsInterval) {
+    clearInterval(statsInterval)
+  }
 })
 </script>
 

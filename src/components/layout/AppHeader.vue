@@ -1,4 +1,14 @@
 <script setup>
+/**
+ * AppHeader.vue
+ * 
+ * Top navigation header with system stats display.
+ * 
+ * Fixes:
+ * - Uptime calculated from uptime_seconds in systemStore.info
+ * - Battery only shows when HAL reports available: true
+ * - Temperature and other stats from systemStore.stats
+ */
 import { computed } from 'vue'
 import { useSystemStore } from '@/stores/system'
 import { useThemeStore } from '@/stores/theme'
@@ -10,9 +20,13 @@ const systemStore = useSystemStore()
 const themeStore = useThemeStore()
 const brandingStore = useBrandingStore()
 
-// Format uptime
+// Format uptime from seconds
 const uptimeFormatted = computed(() => {
-  const seconds = systemStore.uptime?.uptime_seconds || 0
+  // Try uptime from info first, then from uptime object
+  const seconds = systemStore.info?.uptime_seconds || systemStore.uptime?.uptime_seconds || 0
+  
+  if (seconds === 0) return '—'
+  
   const days = Math.floor(seconds / 86400)
   const hours = Math.floor((seconds % 86400) / 3600)
   const mins = Math.floor((seconds % 3600) / 60)
@@ -22,24 +36,31 @@ const uptimeFormatted = computed(() => {
   return `${mins}m`
 })
 
-// Stats
+// Stats from /system/stats endpoint
 const cpuPercent = computed(() => Math.round(systemStore.stats?.cpu_percent || 0))
 const memPercent = computed(() => Math.round(systemStore.stats?.memory_percent || 0))
 const diskPercent = computed(() => Math.round(systemStore.stats?.disk_percent || 0))
 const temperature = computed(() => {
-  const temp = systemStore.stats?.temperature_cpu || systemStore.temperature?.cpu_temp_c || 0
+  const temp = systemStore.stats?.temperature_cpu || 0
   return Math.round(temp * 10) / 10
 })
 
-// Battery - only show if actually available and has valid data
+/**
+ * Battery - only show if HAL reports battery hardware is available
+ * The power computed in systemStore returns:
+ * - available: boolean
+ * - battery_percent: number (0-100)
+ * - is_charging: boolean
+ */
 const batteryPercent = computed(() => {
-  // Check if power data exists and battery is actually available
+  // Must have power data and battery must be available
   if (!systemStore.power?.available) return null
   const pct = systemStore.power?.battery_percent
   // Must be a valid number >= 0
   if (pct === null || pct === undefined || pct < 0) return null
   return Math.round(pct)
 })
+
 const batteryCharging = computed(() => {
   return systemStore.power?.is_charging || systemStore.power?.charging || false
 })
@@ -104,7 +125,7 @@ const batteryCharging = computed(() => {
           <span class="font-medium tabular-nums">{{ temperature }}C</span>
         </div>
 
-        <!-- Battery (if present) -->
+        <!-- Battery (only if hardware present) -->
         <template v-if="batteryPercent !== null">
           <div class="w-px h-3 bg-theme-primary mx-1"></div>
           <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs"

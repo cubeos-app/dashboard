@@ -1,4 +1,14 @@
 <script setup>
+/**
+ * DocsView.vue
+ * 
+ * Documentation browser for CubeOS built-in docs.
+ * 
+ * Fixes:
+ * - Handles 404 errors gracefully when docs not available
+ * - Shows helpful empty state when no docs configured
+ * - Search endpoint corrected to /docs/search
+ */
 import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/ui/Icon.vue'
@@ -11,8 +21,9 @@ const currentDoc = ref(null)
 const searchQuery = ref('')
 const searchResults = ref([])
 const isLoading = ref(false)
-const isSidebarOpen = ref(true) // Open by default, will close on mobile via handleResize
+const isSidebarOpen = ref(true)
 const error = ref(null)
+const docsAvailable = ref(true)
 
 // Detect if on mobile
 const isMobile = ref(window.innerWidth < 768)
@@ -21,7 +32,6 @@ function handleResize() {
   const wasMobile = isMobile.value
   isMobile.value = window.innerWidth < 768
   
-  // Auto-close sidebar when switching to mobile, auto-open when switching to desktop
   if (isMobile.value && !wasMobile) {
     isSidebarOpen.value = false
   } else if (!isMobile.value && wasMobile) {
@@ -31,7 +41,6 @@ function handleResize() {
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
-  // Initial check - close on mobile
   if (isMobile.value) {
     isSidebarOpen.value = false
   }
@@ -59,9 +68,15 @@ async function fetchDocsTree() {
     })
     if (resp.ok) {
       docsTree.value = await resp.json()
+      docsAvailable.value = docsTree.value.length > 0
+    } else if (resp.status === 404) {
+      // Docs endpoint not available
+      docsAvailable.value = false
+      docsTree.value = []
     }
   } catch (e) {
     console.error('Failed to load docs tree:', e)
+    docsAvailable.value = false
   }
 }
 
@@ -79,21 +94,21 @@ async function fetchDoc(path) {
     if (resp.ok) {
       currentDoc.value = await resp.json()
     } else if (resp.status === 404) {
-      error.value = 'Document not found'
+      error.value = 'not_found'
       currentDoc.value = null
     } else {
-      error.value = 'Failed to load document'
+      error.value = 'load_failed'
       currentDoc.value = null
     }
   } catch (e) {
-    error.value = 'Failed to connect to API'
+    error.value = 'connection_failed'
     currentDoc.value = null
   } finally {
     isLoading.value = false
   }
 }
 
-// Search docs
+// Search docs - use correct endpoint /docs/search
 async function searchDocs() {
   if (!searchQuery.value.trim()) {
     searchResults.value = []
@@ -102,7 +117,7 @@ async function searchDocs() {
   
   try {
     const token = localStorage.getItem('cubeos_access_token')
-    const resp = await fetch(`/api/v1/documentation/search?q=${encodeURIComponent(searchQuery.value)}`, {
+    const resp = await fetch(`/api/v1/docs/search?q=${encodeURIComponent(searchQuery.value)}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (resp.ok) {
@@ -118,7 +133,6 @@ function navigateTo(path) {
   router.push(`/docs/${path}`)
   searchQuery.value = ''
   searchResults.value = []
-  // Close sidebar on mobile after navigation
   if (isMobile.value) {
     isSidebarOpen.value = false
   }
@@ -129,42 +143,33 @@ function renderMarkdown(content) {
   if (!content) return ''
   
   return content
-    // Escape HTML
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    // Code blocks (must be before inline code)
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="code-block"><code>$2</code></pre>')
-    // Headers
     .replace(/^#### (.+)$/gm, '<h4 class="doc-h4">$1</h4>')
     .replace(/^### (.+)$/gm, '<h3 class="doc-h3">$1</h3>')
     .replace(/^## (.+)$/gm, '<h2 class="doc-h2">$1</h2>')
     .replace(/^# (.+)$/gm, '<h1 class="doc-h1">$1</h1>')
-    // Bold
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/__(.+?)__/g, '<strong>$1</strong>')
-    // Italic
     .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
     .replace(/_([^_\n]+)_/g, '<em>$1</em>')
-    // Inline code
     .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-    // Links
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="doc-link">$1</a>')
-    // Unordered lists
     .replace(/^- (.+)$/gm, '<li class="doc-li">$1</li>')
     .replace(/(<li.*<\/li>\n?)+/g, '<ul class="doc-ul">$&</ul>')
-    // Ordered lists
     .replace(/^\d+\. (.+)$/gm, '<li class="doc-li-ordered">$1</li>')
-    // Horizontal rule
     .replace(/^---$/gm, '<hr class="doc-hr">')
-    // Paragraphs (line breaks)
     .replace(/\n\n/g, '</p><p class="doc-p">')
     .replace(/\n/g, '<br>')
 }
 
 // Watch for route changes
 watch(currentPath, (newPath) => {
-  fetchDoc(newPath)
+  if (docsAvailable.value) {
+    fetchDoc(newPath)
+  }
 })
 
 // Debounced search
@@ -237,6 +242,7 @@ function closeSidebar() {
               type="text"
               placeholder="Search docs..."
               class="w-full pl-9 pr-3 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent"
+              :disabled="!docsAvailable"
             />
           </div>
 
@@ -255,9 +261,8 @@ function closeSidebar() {
           </div>
 
           <!-- Tree Navigation -->
-          <nav v-else class="space-y-1">
+          <nav v-else-if="docsAvailable && docsTree.length > 0" class="space-y-1">
             <template v-for="item in docsTree" :key="item.path">
-              <!-- Directory -->
               <div v-if="item.is_dir" class="mb-3">
                 <p class="px-3 py-1 text-xs font-medium text-theme-muted uppercase tracking-wide">
                   {{ item.title }}
@@ -274,7 +279,6 @@ function closeSidebar() {
                   </button>
                 </div>
               </div>
-              <!-- File at root level -->
               <button
                 v-else
                 @click="navigateTo(item.path)"
@@ -285,6 +289,12 @@ function closeSidebar() {
               </button>
             </template>
           </nav>
+
+          <!-- No docs available message -->
+          <div v-else class="text-center py-8">
+            <Icon name="BookOpen" :size="32" class="text-theme-muted mx-auto mb-2" />
+            <p class="text-sm text-theme-muted">No documentation available</p>
+          </div>
         </div>
       </aside>
 
@@ -309,15 +319,53 @@ function closeSidebar() {
             <div class="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
           </div>
 
-          <!-- Error -->
-          <div v-else-if="error" class="text-center py-12">
+          <!-- Docs not available (API doesn't have docs endpoint) -->
+          <div v-else-if="!docsAvailable" class="text-center py-12">
+            <Icon name="BookX" :size="48" class="text-theme-muted mx-auto mb-4" />
+            <h2 class="text-lg font-semibold text-theme-primary mb-2">Documentation Not Available</h2>
+            <p class="text-theme-secondary text-sm mb-4 max-w-md mx-auto">
+              Built-in documentation is not configured for this CubeOS installation. 
+              You can access API documentation directly.
+            </p>
+            <div class="flex items-center justify-center gap-3">
+              <a
+                href="http://cubeos.cube:6010/api/v1/docs/"
+                target="_blank"
+                rel="noopener"
+                class="px-4 py-2 rounded-lg bg-accent text-white text-sm hover:bg-accent-secondary transition-colors"
+              >
+                View API Docs
+              </a>
+              <router-link
+                to="/"
+                class="px-4 py-2 rounded-lg border border-theme-primary text-theme-secondary text-sm hover:bg-theme-tertiary transition-colors"
+              >
+                Go to Dashboard
+              </router-link>
+            </div>
+          </div>
+
+          <!-- Document not found -->
+          <div v-else-if="error === 'not_found'" class="text-center py-12">
             <Icon name="FileX" :size="48" class="text-theme-muted mx-auto mb-4" />
-            <p class="text-theme-secondary">{{ error }}</p>
+            <p class="text-theme-secondary mb-4">Document not found</p>
             <button
               @click="navigateTo('README')"
-              class="mt-4 px-4 py-2 rounded-lg bg-accent text-white text-sm hover:bg-accent-secondary transition-colors"
+              class="px-4 py-2 rounded-lg bg-accent text-white text-sm hover:bg-accent-secondary transition-colors"
             >
               Go to Home
+            </button>
+          </div>
+
+          <!-- Other errors -->
+          <div v-else-if="error" class="text-center py-12">
+            <Icon name="AlertCircle" :size="48" class="text-theme-muted mx-auto mb-4" />
+            <p class="text-theme-secondary">Failed to load document</p>
+            <button
+              @click="fetchDoc(currentPath)"
+              class="mt-4 px-4 py-2 rounded-lg bg-accent text-white text-sm hover:bg-accent-secondary transition-colors"
+            >
+              Try Again
             </button>
           </div>
 
@@ -338,7 +386,6 @@ function closeSidebar() {
 </template>
 
 <style scoped>
-/* Transitions */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
@@ -348,7 +395,6 @@ function closeSidebar() {
   opacity: 0;
 }
 
-/* Document styles */
 .doc-content {
   @apply text-theme-primary leading-relaxed text-sm md:text-base;
 }
