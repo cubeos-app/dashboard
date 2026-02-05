@@ -1,14 +1,14 @@
 <script setup>
 /**
- * StorageView.vue — Sprint 3 G2 Rewrite
+ * StorageView.vue — Sprint 3 G2 Rewrite + G3 Integration
  *
  * Full tab-based storage management view.
  *
  * Tabs:
  *   1. Overview   — Usage summary, health cards, Docker storage
  *   2. Devices    — Block device list with SMART detail expansion
- *   3. USB        — Placeholder for G3 (USBDevices component)
- *   4. Network Mounts — Placeholder for G3 (NetworkMounts component)
+ *   3. USB        — Full USB device management (USBDevices component)
+ *   4. Network Mounts — Full SMB/NFS mount management (NetworkMounts component)
  *   5. SMB Shares — Samba share management with detail panel
  *
  * Stores:
@@ -25,6 +25,8 @@ import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 import DeviceHealth from '@/components/storage/DeviceHealth.vue'
+import USBDevices from '@/components/storage/USBDevices.vue'
+import NetworkMounts from '@/components/storage/NetworkMounts.vue'
 
 const { signal } = useAbortOnUnmount()
 
@@ -698,114 +700,14 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- ==================== USB Tab (G3 Placeholder) ==================== -->
+    <!-- ==================== USB Tab ==================== -->
     <div v-if="activeTab === 'usb'" class="space-y-6">
-      <div v-if="storageHalStore.loading" class="flex items-center justify-center py-12">
-        <Icon name="Loader2" :size="24" class="animate-spin text-theme-muted" />
-        <span class="ml-3 text-theme-muted">Loading USB devices...</span>
-      </div>
-
-      <div v-else-if="storageHalStore.usbDevices.length === 0 && storageHalStore.usbStorage.length === 0" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
-        <Icon name="Usb" :size="40" class="mx-auto text-theme-muted mb-4" />
-        <h3 class="text-lg font-medium text-theme-primary mb-2">No USB Devices</h3>
-        <p class="text-theme-muted">Connect a USB device to manage it here.</p>
-        <button
-          @click="storageHalStore.rescanUSB()"
-          class="mt-4 px-4 py-2 btn-accent rounded-lg text-sm flex items-center gap-2 mx-auto"
-        >
-          <Icon name="RefreshCw" :size="14" />
-          Rescan USB Bus
-        </button>
-      </div>
-
-      <!-- Basic USB device list (G3 will replace with full USBDevices component) -->
-      <template v-else>
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-theme-primary">
-            USB Devices
-            <span class="text-sm font-normal text-theme-muted ml-2">{{ storageHalStore.usbDevices.length }} device{{ storageHalStore.usbDevices.length !== 1 ? 's' : '' }}</span>
-          </h2>
-          <button
-            @click="storageHalStore.rescanUSB()"
-            :disabled="storageHalStore.loading"
-            class="px-3 py-1.5 text-sm bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': storageHalStore.loading }" />
-            Rescan
-          </button>
-        </div>
-
-        <div class="space-y-3">
-          <div
-            v-for="device in storageHalStore.usbDevices"
-            :key="device.device || device.bus + ':' + device.port"
-            class="bg-theme-card rounded-xl border border-theme-primary p-4 flex items-center gap-3"
-          >
-            <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0">
-              <Icon name="Usb" :size="20" class="text-accent" />
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-theme-primary truncate">{{ device.product || device.name || device.description || 'USB Device' }}</p>
-              <p class="text-xs text-theme-muted truncate">
-                {{ device.vendor || '' }}{{ device.vendor && device.device ? ' · ' : '' }}{{ device.device || '' }}
-                <span v-if="device.bus"> · Bus {{ device.bus }}</span>
-              </p>
-            </div>
-            <span
-              class="px-2 py-0.5 text-[10px] font-semibold rounded-full"
-              :class="device.class === 'storage' || device.type === 'storage' ? 'bg-accent-muted text-accent' : 'bg-theme-tertiary text-theme-secondary'"
-            >{{ device.class || device.type || 'device' }}</span>
-          </div>
-        </div>
-        <p class="text-xs text-theme-muted text-center">Full USB management with mount/unmount/eject coming in Group 3</p>
-      </template>
+      <USBDevices />
     </div>
 
-    <!-- ==================== Network Mounts Tab (G3 Placeholder) ==================== -->
+    <!-- ==================== Network Mounts Tab ==================== -->
     <div v-if="activeTab === 'network-mounts'" class="space-y-6">
-      <div v-if="storageHalStore.loading" class="flex items-center justify-center py-12">
-        <Icon name="Loader2" :size="24" class="animate-spin text-theme-muted" />
-        <span class="ml-3 text-theme-muted">Loading network mounts...</span>
-      </div>
-
-      <div v-else-if="storageHalStore.networkMounts.length === 0" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
-        <Icon name="Network" :size="40" class="mx-auto text-theme-muted mb-4" />
-        <h3 class="text-lg font-medium text-theme-primary mb-2">No Network Mounts</h3>
-        <p class="text-theme-muted">Configure SMB or NFS network mounts to access remote storage.</p>
-        <p class="text-xs text-theme-muted mt-2">Full network mount management with SMB/NFS forms coming in Group 3</p>
-      </div>
-
-      <!-- Basic network mount list -->
-      <template v-else>
-        <h2 class="text-lg font-semibold text-theme-primary">
-          Network Mounts
-          <span class="text-sm font-normal text-theme-muted ml-2">{{ storageHalStore.networkMountCount }} mount{{ storageHalStore.networkMountCount !== 1 ? 's' : '' }}</span>
-        </h2>
-
-        <div class="space-y-3">
-          <div
-            v-for="mount in storageHalStore.networkMounts"
-            :key="mount.name || mount.source"
-            class="bg-theme-card rounded-xl border border-theme-primary p-4 flex items-center gap-3"
-          >
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-              :class="mount.mounted || mount.status === 'mounted' ? 'bg-success-muted' : 'bg-theme-tertiary'"
-            >
-              <Icon name="FolderOpen" :size="20"
-                :class="mount.mounted || mount.status === 'mounted' ? 'text-success' : 'text-theme-muted'"
-              />
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-theme-primary truncate">{{ mount.name || mount.mountpoint }}</p>
-              <p class="text-xs text-theme-muted truncate">{{ mount.source || mount.remote }} · {{ mount.type || mount.protocol || 'unknown' }}</p>
-            </div>
-            <span
-              class="px-2 py-0.5 text-[10px] font-semibold rounded-full"
-              :class="mount.mounted || mount.status === 'mounted' ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'"
-            >{{ mount.mounted || mount.status === 'mounted' ? 'Mounted' : 'Disconnected' }}</span>
-          </div>
-        </div>
-      </template>
+      <NetworkMounts />
     </div>
 
     <!-- ==================== SMB Shares Tab ==================== -->
