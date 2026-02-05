@@ -57,6 +57,8 @@ export const useAppStoreStore = defineStore('appstore', () => {
   const installedApps = ref([])
   const proxyHosts = ref([])
   
+  const selectedStore = ref(null)
+  
   const loading = ref(false)
   const syncing = ref(false)
   const installing = ref(null)
@@ -175,6 +177,48 @@ export const useAppStoreStore = defineStore('appstore', () => {
       error.value = e.message
     } finally {
       syncing.value = false
+    }
+  }
+
+  // ==========================================
+  // Store & Installed App Detail
+  // ==========================================
+
+  /**
+   * Get detailed info for a single store
+   * GET /appstore/stores/{storeID}
+   * Returns: URL, description, app count, last sync time, enabled status
+   *
+   * @param {string} storeId - Store identifier
+   */
+  async function getStoreDetail(storeId) {
+    error.value = null
+    try {
+      const response = await api.get(`/appstore/stores/${encodeURIComponent(storeId)}`)
+      selectedStore.value = response
+      return response
+    } catch (e) {
+      error.value = e.message
+      console.error(`Failed to fetch store detail for ${storeId}:`, e)
+      return null
+    }
+  }
+
+  /**
+   * Get detailed info for an installed app
+   * GET /appstore/installed/{appID}
+   * Returns: install date, version, resource usage, config status, web UI link
+   *
+   * @param {string} appId - Installed app identifier
+   */
+  async function getInstalledAppDetail(appId) {
+    error.value = null
+    try {
+      return await api.get(`/appstore/installed/${encodeURIComponent(appId)}`)
+    } catch (e) {
+      error.value = e.message
+      console.error(`Failed to fetch installed app detail for ${appId}:`, e)
+      return null
     }
   }
 
@@ -386,6 +430,7 @@ export const useAppStoreStore = defineStore('appstore', () => {
     categories,
     installedApps,
     proxyHosts,
+    selectedStore,
     loading,
     syncing,
     installing,
@@ -404,6 +449,8 @@ export const useAppStoreStore = defineStore('appstore', () => {
     removeStore,
     syncStores,
     syncStore,
+    getStoreDetail,
+    getInstalledAppDetail,
     
     // Catalog
     fetchCatalog,

@@ -29,6 +29,8 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   const ports = ref([])
   const fqdns = ref([])
   const profiles = ref([])
+  const reservedPorts = ref([])
+  const portStats = ref({ total: 0, used: 0, available: 0 })
   const loading = ref(false)
   const error = ref(null)
   
@@ -42,6 +44,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   // ==========================================
   
   const allocatedPortCount = computed(() => ports.value.length)
+  const reservedPortCount = computed(() => reservedPorts.value.length)
   const fqdnCount = computed(() => fqdns.value.length)
   const systemApps = computed(() => apps.value.filter(a => a.type === 'system'))
   const userApps = computed(() => apps.value.filter(a => a.type === 'user'))
@@ -58,7 +61,9 @@ export const useAppManagerStore = defineStore('appmanager', () => {
         fetchApps(),
         fetchPorts(),
         fetchFQDNs(),
-        fetchProfiles()
+        fetchProfiles(),
+        fetchReservedPorts(),
+        fetchPortStats()
       ])
     } catch (e) {
       error.value = e.message
@@ -367,6 +372,89 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   // ==========================================
+  // Reserved Ports & Port Stats (Sprint 5)
+  // ==========================================
+
+  /**
+   * Fetch reserved system ports
+   * GET /ports/reserved
+   * Returns: list of ports reserved by CubeOS infrastructure
+   */
+  async function fetchReservedPorts() {
+    try {
+      const response = await api.get('/ports/reserved')
+      reservedPorts.value = response.ports || response || []
+    } catch (e) {
+      console.error('Failed to fetch reserved ports:', e)
+      reservedPorts.value = []
+    }
+  }
+
+  /**
+   * Fetch port allocation statistics
+   * GET /ports/stats
+   * Returns: { total, used, available }
+   */
+  async function fetchPortStats() {
+    try {
+      const response = await api.get('/ports/stats')
+      portStats.value = {
+        total: response.total ?? 0,
+        used: response.used ?? 0,
+        available: response.available ?? 0
+      }
+    } catch (e) {
+      console.error('Failed to fetch port stats:', e)
+      portStats.value = { total: 0, used: 0, available: 0 }
+    }
+  }
+
+  // ==========================================
+  // FQDN Detail & Edit (Sprint 5)
+  // ==========================================
+
+  /**
+   * Get detailed info for a single FQDN
+   * GET /fqdns/{fqdn}
+   * Returns: full FQDN, subdomain, backend port, SSL status, NPM proxy ID, etc.
+   *
+   * @param {string} fqdn - The full FQDN string
+   */
+  async function getFQDNDetail(fqdn) {
+    error.value = null
+    try {
+      return await api.get(`/fqdns/${encodeURIComponent(fqdn)}`)
+    } catch (e) {
+      error.value = e.message
+      console.error(`Failed to fetch FQDN detail for ${fqdn}:`, e)
+      return null
+    }
+  }
+
+  /**
+   * Update an existing FQDN
+   * PUT /fqdns/{fqdn}
+   *
+   * @param {string} fqdn - The full FQDN string to update
+   * @param {Object} data - Update data
+   * @param {string} [data.subdomain] - New subdomain
+   * @param {number} [data.backend_port] - New backend port
+   * @param {boolean} [data.ssl_enabled] - SSL toggle
+   */
+  async function updateFQDN(fqdn, data) {
+    error.value = null
+    try {
+      const result = await api.put(`/fqdns/${encodeURIComponent(fqdn)}`, data)
+      await fetchFQDNs()
+      return result
+    } catch (e) {
+      error.value = e.message
+      console.error(`Failed to update FQDN ${fqdn}:`, e)
+      throw e
+    }
+  }
+
+  // ==========================================
   // Export
   // ==========================================
   
@@ -376,6 +464,8 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     ports,
     fqdns,
     profiles,
+    reservedPorts,
+    portStats,
     loading,
     error,
     
@@ -386,6 +476,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     
     // Computed
     allocatedPortCount,
+    reservedPortCount,
     fqdnCount,
     systemApps,
     userApps,
@@ -411,10 +502,18 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     allocatePort,
     releasePort,
     
+    // Ports — reserved & stats (Sprint 5)
+    fetchReservedPorts,
+    fetchPortStats,
+    
     // FQDNs (backend gap)
     fetchFQDNs,
     registerFQDN,
     deregisterFQDN,
+    
+    // FQDNs — detail & edit (Sprint 5)
+    getFQDNDetail,
+    updateFQDN,
     
     // Profiles (working)
     fetchProfiles,

@@ -8,6 +8,7 @@
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppsStore } from '@/stores/apps'
+import { useServicesStore } from '@/stores/services'
 import { confirm } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import TorToggle from '@/components/swarm/TorToggle.vue'
@@ -17,6 +18,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 const route = useRoute()
 const router = useRouter()
 const appsStore = useAppsStore()
+const servicesStore = useServicesStore()
 const { signal } = useAbortOnUnmount()
 
 const app = ref(null)
@@ -25,6 +27,8 @@ const loading = ref(true)
 const logsLoading = ref(false)
 const actionLoading = ref(false)
 const activeTab = ref('overview')
+const dockerLoading = ref(false)
+const dockerDetail = ref(null)
 
 // Uninstall confirmation
 const showUninstallConfirm = ref(false)
@@ -166,7 +170,22 @@ watch(activeTab, async (tab) => {
   if (tab === 'logs' && logs.value.length === 0 && isRunning.value) {
     await fetchLogs()
   }
+  if (tab === 'docker' && !dockerDetail.value) {
+    await fetchDockerDetail()
+  }
 })
+
+async function fetchDockerDetail() {
+  dockerLoading.value = true
+  try {
+    const result = await servicesStore.fetchService(appName.value)
+    dockerDetail.value = result
+  } catch (e) {
+    dockerDetail.value = null
+  } finally {
+    dockerLoading.value = false
+  }
+}
 
 function formatBytes(bytes) {
   if (!bytes) return '0 B'
@@ -255,7 +274,7 @@ function formatBytes(bytes) {
       <!-- Tabs -->
       <div class="flex items-center gap-1 border-b border-theme-primary">
         <button
-          v-for="tab in ['overview', 'logs', 'settings']"
+          v-for="tab in ['overview', 'logs', 'docker', 'settings']"
           :key="tab"
           @click="activeTab = tab"
           class="px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px"
@@ -353,6 +372,144 @@ function formatBytes(bytes) {
           >{{ logs.join('\n') }}</pre>
           <p v-else-if="logsLoading" class="text-code-muted italic">Loading logs...</p>
           <p v-else class="text-code-muted italic">No logs available</p>
+        </div>
+      </div>
+      
+      <!-- Docker Tab -->
+      <div v-if="activeTab === 'docker'" class="space-y-6">
+        <!-- Loading -->
+        <div v-if="dockerLoading" class="flex items-center justify-center py-12">
+          <Icon name="Loader2" :size="24" class="animate-spin text-accent" />
+        </div>
+
+        <!-- Docker Detail -->
+        <template v-else-if="dockerDetail">
+          <!-- Container Info -->
+          <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
+            <h3 class="text-sm font-medium text-theme-secondary mb-3">Container Info</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div v-if="dockerDetail.container_id">
+                <p class="text-xs text-theme-muted mb-1">Container ID</p>
+                <p class="font-mono text-sm text-theme-primary break-all">{{ dockerDetail.container_id }}</p>
+              </div>
+              <div v-if="dockerDetail.image">
+                <p class="text-xs text-theme-muted mb-1">Image</p>
+                <p class="font-mono text-sm text-theme-primary break-all">{{ dockerDetail.image }}</p>
+              </div>
+              <div v-if="dockerDetail.created">
+                <p class="text-xs text-theme-muted mb-1">Created</p>
+                <p class="text-sm text-theme-primary">{{ new Date(dockerDetail.created).toLocaleString() }}</p>
+              </div>
+              <div v-if="dockerDetail.updated_at || dockerDetail.updated">
+                <p class="text-xs text-theme-muted mb-1">Updated</p>
+                <p class="text-sm text-theme-primary">{{ new Date(dockerDetail.updated_at || dockerDetail.updated).toLocaleString() }}</p>
+              </div>
+              <div v-if="dockerDetail.mode || dockerDetail.deploy_mode">
+                <p class="text-xs text-theme-muted mb-1">Deploy Mode</p>
+                <p class="text-sm text-theme-primary capitalize">{{ dockerDetail.mode || dockerDetail.deploy_mode }}</p>
+              </div>
+              <div v-if="dockerDetail.replicas !== undefined">
+                <p class="text-xs text-theme-muted mb-1">Replicas</p>
+                <p class="text-sm text-theme-primary">{{ dockerDetail.replicas_running ?? dockerDetail.replicas }} / {{ dockerDetail.replicas }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resource Limits -->
+          <div 
+            v-if="dockerDetail.resources || dockerDetail.limits" 
+            class="p-4 rounded-xl bg-theme-card border border-theme-primary"
+          >
+            <h3 class="text-sm font-medium text-theme-secondary mb-3">Resource Limits</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div v-if="(dockerDetail.resources?.limits?.memory || dockerDetail.limits?.memory)">
+                <p class="text-xs text-theme-muted mb-1">Memory Limit</p>
+                <p class="text-sm text-theme-primary">{{ dockerDetail.resources?.limits?.memory || dockerDetail.limits?.memory }}</p>
+              </div>
+              <div v-if="(dockerDetail.resources?.limits?.cpus || dockerDetail.limits?.cpus)">
+                <p class="text-xs text-theme-muted mb-1">CPU Limit</p>
+                <p class="text-sm text-theme-primary">{{ dockerDetail.resources?.limits?.cpus || dockerDetail.limits?.cpus }}</p>
+              </div>
+              <div v-if="(dockerDetail.resources?.reservations?.memory || dockerDetail.reservations?.memory)">
+                <p class="text-xs text-theme-muted mb-1">Memory Reservation</p>
+                <p class="text-sm text-theme-primary">{{ dockerDetail.resources?.reservations?.memory || dockerDetail.reservations?.memory }}</p>
+              </div>
+              <div v-if="(dockerDetail.resources?.reservations?.cpus || dockerDetail.reservations?.cpus)">
+                <p class="text-xs text-theme-muted mb-1">CPU Reservation</p>
+                <p class="text-sm text-theme-primary">{{ dockerDetail.resources?.reservations?.cpus || dockerDetail.reservations?.cpus }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Docker Labels -->
+          <div 
+            v-if="dockerDetail.labels && Object.keys(dockerDetail.labels).length > 0" 
+            class="p-4 rounded-xl bg-theme-card border border-theme-primary"
+          >
+            <h3 class="text-sm font-medium text-theme-secondary mb-3">Docker Labels</h3>
+            <div class="space-y-2 max-h-64 overflow-y-auto">
+              <div 
+                v-for="(value, key) in dockerDetail.labels" 
+                :key="key"
+                class="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3 py-1.5 border-b border-theme-secondary last:border-0"
+              >
+                <span class="font-mono text-xs text-accent shrink-0 break-all">{{ key }}</span>
+                <span class="font-mono text-xs text-theme-primary break-all">{{ value }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Networks -->
+          <div 
+            v-if="dockerDetail.networks?.length" 
+            class="p-4 rounded-xl bg-theme-card border border-theme-primary"
+          >
+            <h3 class="text-sm font-medium text-theme-secondary mb-3">Networks</h3>
+            <div class="flex flex-wrap gap-2">
+              <span 
+                v-for="net in dockerDetail.networks" 
+                :key="typeof net === 'string' ? net : net.name"
+                class="px-3 py-1.5 rounded-lg bg-theme-tertiary text-theme-primary font-mono text-sm"
+              >
+                {{ typeof net === 'string' ? net : net.name }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Volumes / Mounts -->
+          <div 
+            v-if="dockerDetail.mounts?.length || dockerDetail.volumes?.length" 
+            class="p-4 rounded-xl bg-theme-card border border-theme-primary"
+          >
+            <h3 class="text-sm font-medium text-theme-secondary mb-3">Mounts</h3>
+            <div class="space-y-2">
+              <div 
+                v-for="(mount, idx) in (dockerDetail.mounts || dockerDetail.volumes)" 
+                :key="idx"
+                class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 py-1.5 border-b border-theme-secondary last:border-0"
+              >
+                <span class="font-mono text-xs text-theme-primary break-all">{{ mount.source || mount.name }}</span>
+                <Icon name="ArrowRight" :size="12" class="text-theme-muted hidden sm:block shrink-0" />
+                <span class="font-mono text-xs text-theme-muted break-all">{{ mount.target || mount.destination }}</span>
+                <span 
+                  v-if="mount.read_only || mount.readonly" 
+                  class="text-xs px-1.5 py-0.5 rounded bg-warning/10 text-warning"
+                >RO</span>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- No Docker Data -->
+        <div v-else class="text-center py-12">
+          <Icon name="Container" :size="32" class="mx-auto text-theme-muted mb-3" />
+          <p class="text-theme-muted text-sm">Docker service details are not available for this app.</p>
+          <button
+            @click="fetchDockerDetail"
+            class="mt-3 px-4 py-2 rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors text-sm"
+          >
+            Retry
+          </button>
         </div>
       </div>
       
