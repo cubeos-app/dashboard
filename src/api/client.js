@@ -13,6 +13,8 @@ class ApiClient {
   constructor() {
     this.accessToken = localStorage.getItem('cubeos_access_token')
     this.refreshToken = localStorage.getItem('cubeos_refresh_token')
+    // Guard against concurrent refresh attempts
+    this._refreshPromise = null
   }
 
   /**
@@ -41,14 +43,26 @@ class ApiClient {
       }
     }
 
-    let response = await fetch(url, config)
+    let response
+    try {
+      response = await fetch(url, config)
+    } catch (err) {
+      // Don't treat aborted requests as errors
+      if (err.name === 'AbortError') return null
+      throw err
+    }
 
     // If unauthorized, try to refresh token
     if (response.status === 401 && this.refreshToken) {
       const refreshed = await this.refreshAccessToken()
       if (refreshed) {
         config.headers = this.getHeaders()
-        response = await fetch(url, config)
+        try {
+          response = await fetch(url, config)
+        } catch (err) {
+          if (err.name === 'AbortError') return null
+          throw err
+        }
       }
     }
 
@@ -85,6 +99,23 @@ class ApiClient {
   async refreshAccessToken() {
     if (!this.refreshToken) return false
 
+    // If a refresh is already in progress, wait for it instead of starting another
+    if (this._refreshPromise) {
+      return this._refreshPromise
+    }
+
+    this._refreshPromise = this._doRefresh()
+    try {
+      return await this._refreshPromise
+    } finally {
+      this._refreshPromise = null
+    }
+  }
+
+  /**
+   * Internal: perform the actual token refresh
+   */
+  async _doRefresh() {
     try {
       const response = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
@@ -211,11 +242,12 @@ class ApiClient {
   // Generic REST helpers (used by stores)
   // ==========================================
 
-  async get(endpoint, params = {}) {
+  async get(endpoint, params = {}, options = {}) {
     const queryString = Object.keys(params).length 
       ? '?' + new URLSearchParams(params).toString()
       : ''
-    const response = await this.request(endpoint + queryString)
+    const response = await this.request(endpoint + queryString, options)
+    if (!response) return null // Request was aborted
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       throw new Error(error.error || error.message || 'Request failed')

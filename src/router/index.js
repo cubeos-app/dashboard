@@ -1,9 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-// Track if setup check has been done
+// Setup status cache - uses in-memory state that resets on full page reload.
+// Call invalidateSetupCache() after setup wizard completes to force re-check.
 let setupChecked = false
 let setupComplete = true
+
+export function invalidateSetupCache() {
+  setupChecked = false
+  setupComplete = true
+}
 
 const routes = [
   {
@@ -172,3 +178,10 @@ router.beforeEach(async (to, from, next) => {
 })
 
 export default router
+
+// Reset setup cache on HMR to prevent stale state during development
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    setupChecked = false
+  })
+}

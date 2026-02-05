@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { invalidateSetupCache } from '@/router'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -221,6 +222,7 @@ async function skipWizard() {
   saving.value = true
   try {
     await api.post('/setup/skip')
+    invalidateSetupCache()
     router.push('/login')
   } catch (e) {
     // If skip endpoint doesnt exist, just mark complete locally
@@ -246,7 +248,8 @@ async function finishSetup() {
     const result = await api.post('/setup/apply', config.value)
     
     if (result.success) {
-      // Setup complete - redirect to login
+      // Setup complete - invalidate cache and redirect to login
+      invalidateSetupCache()
       router.push('/login')
     }
   } catch (e) {

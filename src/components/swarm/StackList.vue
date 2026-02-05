@@ -48,7 +48,7 @@ const stacks = computed(() => {
       stack.runningCount++
     }
     
-    if (app.status?.health === HEALTH_STATUS.HEALTHY || app.status?.health === 'running') {
+    if (appsStore.isHealthy(app)) {
       stack.healthyCount++
     }
   }

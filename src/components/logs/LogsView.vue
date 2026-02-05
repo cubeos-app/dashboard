@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/api/client'
 
 // State
@@ -157,6 +157,10 @@ watch([activeTab, selectedUnit, selectedContainer, logLevel, lineCount], () => {
 onMounted(() => {
   fetchOptions()
   fetchLogs()
+})
+
+onUnmounted(() => {
+  if (refreshInterval) clearInterval(refreshInterval)
 })
 
 // Helpers

@@ -25,7 +25,7 @@ const runningApps = computed(() => appsStore.runningCount)
 const healthStats = computed(() => {
   const apps = appsStore.apps
   return {
-    healthy: apps.filter(a => a.status?.health === HEALTH_STATUS.HEALTHY || a.status?.health === 'running').length,
+    healthy: apps.filter(a => appsStore.isHealthy(a)).length,
     unhealthy: apps.filter(a => a.status?.health === HEALTH_STATUS.UNHEALTHY).length,
     starting: apps.filter(a => a.status?.health === HEALTH_STATUS.STARTING).length,
     stopped: apps.filter(a => !a.status?.running).length

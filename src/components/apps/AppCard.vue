@@ -148,7 +148,7 @@ async function handleAction(action, e) {
 
         <!-- Actions -->
         <div class="flex-shrink-0 flex items-center gap-1">
-          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <!-- Start -->
             <button
               v-if="!running && !isCore"

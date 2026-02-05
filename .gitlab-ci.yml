@@ -2,12 +2,20 @@
 # CubeOS Dashboard Pipeline - Build, Package, Deploy
 # =============================================================================
 #
-# DEPLOY STRATEGY (single-node Swarm + host-mode port):
-#   - Port 6011 in host mode = only ONE container can bind it
-#   - stop-first update order (stop old THEN start new)
-#   - Pre-pulled image: docker pull before any service changes
-#   - Self-healing: detects stuck services and auto-recovers
-#   - ~5s downtime during swap - unavoidable on single-node host-mode
+# DEPLOY STRATEGY:
+#   Always: stack rm -> wait for drain -> stack deploy (with correct image)
+#
+#   Why not docker service update?
+#     - Pi's Docker doesn't support --resolve-image on service update
+#     - Without it, Swarm tries to verify image with GHCR during "Preparing"
+#     - GHCR resolution is slow/flaky on Pi -> tasks fail -> Swarm rolls back
+#     - Result: pipeline "succeeds" but old image is still running
+#
+#   Why stack rm -> stack deploy works:
+#     - stack deploy supports --resolve-image never (uses local image)
+#     - No old container = no port 6011 conflict
+#     - ~10-15s downtime (same as stop-first would give)
+#     - One code path, no edge cases
 #
 # =============================================================================
 
@@ -23,7 +31,7 @@ variables:
   STACK_NAME: "cubeos-dashboard"
   COMPOSE_DIR: "/cubeos/coreapps/cubeos-dashboard/appconfig"
   HEALTH_URL: "http://127.0.0.1:6011/"
-  CONVERGE_TIMEOUT: "180"
+  CONVERGE_TIMEOUT: "120"
   HEALTH_TIMEOUT: "90"
 
 # -----------------------------------------------------------------------------
@@ -72,7 +80,7 @@ package:
     - if: $CI_COMMIT_BRANCH == "main"
 
 # -----------------------------------------------------------------------------
-# DEPLOY - Self-healing Swarm deploy
+# DEPLOY
 # -----------------------------------------------------------------------------
 deploy:
   stage: deploy
@@ -92,125 +100,72 @@ deploy:
         echo "FATAL: ${COMPOSE_DIR}/docker-compose.yml not found"
         exit 1
       fi
-      echo "  Compose file: found"
+      echo "  Compose: found"
 
     # === PULL IMAGE ===
     - |
       echo "=== Pulling image ==="
       docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
       docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${GHCR_IMAGE}:latest
-      echo "  Pulled and tagged: ${CI_COMMIT_SHORT_SHA}"
-      docker image ls ${GHCR_IMAGE} --format "  {{.Tag}}\t{{.Size}}"
+      echo "  Ready: ${CI_COMMIT_SHORT_SHA}"
 
-    # === DIAGNOSE SERVICE STATE ===
+    # === PREPARE COMPOSE ===
+    # Inject the exact commit SHA image tag into a temp copy of the compose.
+    # The original compose uses :latest - we pin to the exact build.
     - |
-      echo "=== Service health check ==="
-      DEPLOY_METHOD="create"
+      echo "=== Preparing compose ==="
+      cp ${COMPOSE_DIR}/docker-compose.yml /tmp/deploy-compose.yml
+      sed -i "s|image:.*dashboard.*|image: ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}|" /tmp/deploy-compose.yml
+      echo "  Image tag in compose:"
+      grep "image:" /tmp/deploy-compose.yml | head -1
 
-      if docker service inspect ${SERVICE_NAME} >/dev/null 2>&1; then
-        RUNNING_COUNT=$(docker service ps ${SERVICE_NAME} \
-          --filter "desired-state=running" \
-          --format "{{.CurrentState}}" 2>/dev/null \
-          | grep -c "Running" || echo "0")
+    # === REMOVE OLD STACK ===
+    - |
+      echo "=== Removing old stack ==="
+      docker stack rm ${STACK_NAME} 2>/dev/null || true
 
-        UPDATE_STATE=$(docker service inspect ${SERVICE_NAME} \
-          --format '{{.UpdateStatus.State}}' 2>/dev/null || echo "none")
-
-        REPLICAS=$(docker service ls --filter "name=${SERVICE_NAME}" \
-          --format "{{.Replicas}}" 2>/dev/null || echo "0/0")
-
-        echo "  Service exists"
-        echo "  Replicas:      ${REPLICAS}"
-        echo "  Running tasks: ${RUNNING_COUNT}"
-        echo "  Update state:  ${UPDATE_STATE}"
-
-        if [ "${RUNNING_COUNT}" -ge 1 ] && echo "${UPDATE_STATE}" | grep -qvE "updating|paused"; then
-          DEPLOY_METHOD="update"
-          echo "  Status: HEALTHY -> will update in-place"
-        else
-          DEPLOY_METHOD="recreate"
-          echo "  Status: STUCK/BROKEN -> will destroy and recreate"
+      # Wait for all containers to drain and port to release
+      set +e
+      WAIT=0
+      while [ $WAIT -lt 30 ]; do
+        REMAINING=$(docker ps -q \
+          --filter "label=com.docker.stack.namespace=${STACK_NAME}" \
+          2>/dev/null | wc -l)
+        if [ "$REMAINING" -eq 0 ]; then
+          echo "  Drained in ${WAIT}s"
+          break
         fi
-      else
-        echo "  Service does not exist -> will create fresh"
+        echo "  ${REMAINING} container(s) draining... (${WAIT}s)"
+        sleep 2
+        WAIT=$((WAIT + 2))
+      done
+
+      # Force-kill stragglers
+      STRAGGLERS=$(docker ps -q \
+        --filter "label=com.docker.stack.namespace=${STACK_NAME}" \
+        2>/dev/null)
+      if [ -n "$STRAGGLERS" ]; then
+        echo "  Force-killing stragglers..."
+        echo "$STRAGGLERS" | xargs docker rm -f 2>/dev/null || true
+        sleep 3
       fi
+      set -e
 
-    # === DEPLOY ===
+      # Verify port is free
+      if ss -tlnp 2>/dev/null | grep -q ":6011 "; then
+        echo "  Port 6011 still bound, waiting..."
+        sleep 5
+      fi
+      echo "  Clean slate"
+
+    # === DEPLOY FRESH STACK ===
     - |
-      echo "=== Deploying (method: ${DEPLOY_METHOD}) ==="
-
-      case "${DEPLOY_METHOD}" in
-        update)
-          # Happy path: service is healthy, update image with stop-first.
-          # Image is already pulled locally; Swarm uses local store for
-          # images that are already present - no registry access needed.
-          # NOTE: --resolve-image is NOT supported on docker service update,
-          #       only on docker stack deploy. Don't add it here.
-          echo "  Updating service image..."
-          docker service update \
-            --image ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} \
-            --update-order stop-first \
-            --update-failure-action rollback \
-            --detach \
-            ${SERVICE_NAME}
-          echo "  Update triggered"
-          ;;
-
-        recreate)
-          # Self-heal: service is stuck, destroy everything and start fresh
-          echo "  Removing stuck stack..."
-          docker stack rm ${STACK_NAME} 2>/dev/null || true
-
-          # Wait for all containers to fully drain
-          echo "  Waiting for full cleanup..."
-          set +e
-          WAIT=0
-          while [ $WAIT -lt 30 ]; do
-            REMAINING=$(docker ps -q --filter "label=com.docker.stack.namespace=${STACK_NAME}" 2>/dev/null | wc -l)
-            if [ "$REMAINING" -eq 0 ]; then
-              echo "  All containers gone after ${WAIT}s"
-              break
-            fi
-            echo "  ${REMAINING} container(s) draining... (${WAIT}s)"
-            sleep 2
-            WAIT=$((WAIT + 2))
-          done
-
-          # Force-kill stragglers
-          STRAGGLERS=$(docker ps -q --filter "label=com.docker.stack.namespace=${STACK_NAME}" 2>/dev/null)
-          if [ -n "$STRAGGLERS" ]; then
-            echo "  Force-killing stragglers..."
-            echo "$STRAGGLERS" | xargs docker rm -f 2>/dev/null || true
-            sleep 3
-          fi
-          set -e
-
-          # Verify port 6011 is free before deploying
-          if ss -tlnp 2>/dev/null | grep -q ":6011 "; then
-            echo "  WARNING: port 6011 still bound, waiting 5s..."
-            sleep 5
-          fi
-
-          echo "  Deploying fresh stack..."
-          cd ${COMPOSE_DIR}
-          docker stack deploy \
-            --compose-file docker-compose.yml \
-            --resolve-image never \
-            ${STACK_NAME}
-          echo "  Fresh stack deployed"
-          ;;
-
-        create)
-          # First-ever deploy
-          echo "  Creating stack..."
-          cd ${COMPOSE_DIR}
-          docker stack deploy \
-            --compose-file docker-compose.yml \
-            --resolve-image never \
-            ${STACK_NAME}
-          echo "  Stack created"
-          ;;
-      esac
+      echo "=== Deploying stack ==="
+      docker stack deploy \
+        --compose-file /tmp/deploy-compose.yml \
+        --resolve-image never \
+        ${STACK_NAME}
+      echo "  Stack deployed"
 
     # === WAIT FOR CONVERGENCE ===
     - |
@@ -229,17 +184,6 @@ deploy:
             CONVERGED=1
             break
             ;;
-          Failed*|Rejected*|Orphaned*)
-            echo "  WARNING: ${STATE} (${ELAPSED}s)"
-            ROLLBACK=$(docker service inspect ${SERVICE_NAME} \
-              --format '{{.UpdateStatus.State}}' 2>/dev/null || echo "unknown")
-            if [ "$ROLLBACK" = "rollback_completed" ]; then
-              echo "  ROLLBACK detected - reverted to previous image"
-              docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null
-              set -e
-              exit 1
-            fi
-            ;;
           "")
             echo "  Scheduling... (${ELAPSED}s)"
             ;;
@@ -257,7 +201,6 @@ deploy:
         echo "ERROR: Did not converge within ${CONVERGE_TIMEOUT}s"
         docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
         docker service logs ${SERVICE_NAME} --tail 30 2>/dev/null || true
-        docker service update --rollback ${SERVICE_NAME} 2>/dev/null || true
         exit 1
       fi
 
@@ -282,57 +225,23 @@ deploy:
 
       if [ "$HEALTHY" -ne 1 ]; then
         echo "ERROR: Health check failed after ${HEALTH_TIMEOUT}s"
-        docker service update --rollback ${SERVICE_NAME} 2>/dev/null || true
         docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
         docker service logs ${SERVICE_NAME} --tail 50 2>/dev/null || true
         exit 1
       fi
 
-    # === VERIFY IMAGE ACTUALLY CHANGED ===
-    # This catches the case where the update silently failed but the
-    # old container kept running, making health checks pass.
+    # === VERIFY IMAGE ===
     - |
-      echo "=== Verifying deployment ==="
+      echo "=== Verifying ==="
       RUNNING_IMAGE=$(docker service inspect ${SERVICE_NAME} \
-        --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' 2>/dev/null)
+        --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' 2>/dev/null || echo "unknown")
       EXPECTED="${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
-
-      echo "  Running: ${RUNNING_IMAGE}"
+      echo "  Running:  ${RUNNING_IMAGE}"
       echo "  Expected: ${EXPECTED}"
-
       if [ "${RUNNING_IMAGE}" != "${EXPECTED}" ]; then
-        echo "  ERROR: Image mismatch! Update did not apply."
-        echo "  Attempting forced recreate..."
-        docker stack rm ${STACK_NAME} 2>/dev/null || true
-        sleep 10
-        cd ${COMPOSE_DIR}
-        # Temporarily patch image in compose to use commit SHA
-        # (compose file uses :latest, we need the specific SHA)
-        docker stack deploy \
-          --compose-file docker-compose.yml \
-          --resolve-image never \
-          ${STACK_NAME}
-        # Then force the correct image
-        sleep 5
-        docker service update \
-          --image ${EXPECTED} \
-          --update-order stop-first \
-          --update-failure-action rollback \
-          --detach \
-          ${SERVICE_NAME}
-        # Wait for it
-        sleep 15
-        RETRY_IMAGE=$(docker service inspect ${SERVICE_NAME} \
-          --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' 2>/dev/null)
-        if [ "${RETRY_IMAGE}" != "${EXPECTED}" ]; then
-          echo "  FATAL: Forced recreate also failed"
-          echo "  Running: ${RETRY_IMAGE}"
-          docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
-          exit 1
-        fi
-        echo "  Recovered via forced recreate"
+        echo "  FATAL: Image mismatch after deploy!"
+        exit 1
       fi
-
       echo "  Image verified"
 
     # === DONE ===

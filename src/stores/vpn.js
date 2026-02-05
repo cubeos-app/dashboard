@@ -197,13 +197,18 @@ export const useVPNStore = defineStore('vpn', () => {
    * Convert a File to base64 string
    */
   function fileToBase64(file) {
+    // VPN config files should be small - reject anything over 1MB
+    const MAX_CONFIG_SIZE = 1024 * 1024
+    if (file.size > MAX_CONFIG_SIZE) {
+      return Promise.reject(new Error('Config file too large (max 1MB)'))
+    }
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => {
         const base64 = reader.result.split(',')[1]
         resolve(base64)
       }
-      reader.onerror = reject
+      reader.onerror = () => reject(new Error('Failed to read config file'))
       reader.readAsDataURL(file)
     })
   }
