@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAppManagerStore } from '@/stores/appmanager'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
@@ -9,6 +9,18 @@ const store = useAppManagerStore()
 const showAllocateModal = ref(false)
 const allocating = ref(false)
 const newPort = ref({ app_name: '', port: null, protocol: 'tcp', description: '' })
+const showReservedPorts = ref(false)
+
+// Stats percentages for proportion bar
+const usedPercent = computed(() => {
+  if (!store.portStats.total) return 0
+  return Math.round((store.portStats.used / store.portStats.total) * 100)
+})
+
+const reservedPercent = computed(() => {
+  if (!store.portStats.total) return 0
+  return Math.round((store.reservedPortCount / store.portStats.total) * 100)
+})
 
 async function allocatePort() {
   allocating.value = true
@@ -51,6 +63,42 @@ async function releasePort(port, protocol) {
       </div>
     </div>
 
+    <!-- Port Stats Header -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+      <!-- Used -->
+      <div class="p-3 rounded-lg border border-theme-primary bg-theme-card">
+        <p class="text-[10px] text-theme-muted uppercase tracking-wider">Used</p>
+        <p class="text-lg font-semibold text-accent">{{ store.portStats.used }}</p>
+        <p class="text-[10px] text-theme-muted" v-if="store.portStats.total > 0">
+          {{ usedPercent }}% of total
+        </p>
+      </div>
+      <!-- Available -->
+      <div class="p-3 rounded-lg border border-theme-primary bg-theme-card">
+        <p class="text-[10px] text-theme-muted uppercase tracking-wider">Available</p>
+        <p class="text-lg font-semibold text-success">{{ store.portStats.available }}</p>
+        <p class="text-[10px] text-theme-muted" v-if="store.portStats.total > 0">
+          {{ Math.round((store.portStats.available / store.portStats.total) * 100) }}% of total
+        </p>
+      </div>
+      <!-- Reserved -->
+      <div class="p-3 rounded-lg border border-theme-primary bg-theme-card">
+        <p class="text-[10px] text-theme-muted uppercase tracking-wider">Reserved</p>
+        <p class="text-lg font-semibold text-warning">{{ store.reservedPortCount }}</p>
+        <p class="text-[10px] text-theme-muted" v-if="store.portStats.total > 0">
+          {{ reservedPercent }}% of total
+        </p>
+      </div>
+    </div>
+
+    <!-- Proportion Bar -->
+    <div v-if="store.portStats.total > 0" class="h-2 rounded-full bg-theme-tertiary overflow-hidden flex mb-4">
+      <div class="h-full bg-accent transition-all duration-300"
+        :style="{ width: usedPercent + '%' }"></div>
+      <div class="h-full bg-warning transition-all duration-300"
+        :style="{ width: reservedPercent + '%' }"></div>
+    </div>
+
     <!-- Toolbar -->
     <div class="flex items-center justify-between mb-6">
       <span class="text-sm text-theme-secondary">{{ store.ports.length }} allocated ports</span>
@@ -68,32 +116,73 @@ async function releasePort(port, protocol) {
 
     <!-- Ports Table -->
     <div v-else class="bg-theme-secondary rounded-lg border border-theme-primary overflow-hidden">
-      <table class="min-w-full divide-y divide-theme-primary">
-        <thead class="bg-theme-tertiary">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Port</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Protocol</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Application</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Description</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-theme-secondary uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-theme-primary">
-          <tr v-for="port in store.ports" :key="`${port.port}-${port.protocol}`" class="hover:bg-theme-tertiary/50">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium text-theme-primary">{{ port.port }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase', port.protocol === 'tcp' ? 'bg-accent-muted text-accent' : 'bg-warning-muted text-warning']">{{ port.protocol }}</span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-theme-primary">{{ port.app_name || '-' }}</td>
-            <td class="px-6 py-4 text-sm text-theme-secondary">{{ port.description || '-' }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right">
-              <button @click="releasePort(port.port, port.protocol)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Release port">
-                <Icon name="Trash2" :size="14" />
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-theme-primary">
+          <thead class="bg-theme-tertiary">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Port</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Protocol</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Application</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider hidden sm:table-cell">Description</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-theme-secondary uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-theme-primary">
+            <tr v-for="port in store.ports" :key="`${port.port}-${port.protocol}`" class="hover:bg-theme-tertiary/50">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium text-theme-primary">{{ port.port }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase', port.protocol === 'tcp' ? 'bg-accent-muted text-accent' : 'bg-warning-muted text-warning']">{{ port.protocol }}</span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-theme-primary">{{ port.app_name || '-' }}</td>
+              <td class="px-6 py-4 text-sm text-theme-secondary hidden sm:table-cell">{{ port.description || '-' }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-right">
+                <button @click="releasePort(port.port, port.protocol)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Release port">
+                  <Icon name="Trash2" :size="14" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Reserved System Ports -->
+    <div v-if="store.reservedPorts.length > 0" class="mt-6">
+      <button
+        @click="showReservedPorts = !showReservedPorts"
+        class="flex items-center gap-2 text-sm text-theme-secondary hover:text-theme-primary transition-colors w-full"
+      >
+        <Icon name="ChevronDown" :size="16"
+          class="transition-transform duration-200"
+          :class="{ 'rotate-180': showReservedPorts }" />
+        <span class="font-medium">Reserved System Ports</span>
+        <span class="text-[10px] text-theme-muted">({{ store.reservedPortCount }})</span>
+      </button>
+
+      <div v-show="showReservedPorts" class="mt-3 bg-theme-secondary rounded-lg border border-theme-primary overflow-hidden transition-all duration-200">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-theme-primary">
+            <thead class="bg-theme-tertiary">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Port</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Protocol</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Service</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider hidden sm:table-cell">Description</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-theme-primary">
+              <tr v-for="rp in store.reservedPorts" :key="`reserved-${rp.port}-${rp.protocol}`" class="bg-theme-tertiary/30">
+                <td class="px-6 py-3 whitespace-nowrap text-sm font-mono text-theme-muted">{{ rp.port }}</td>
+                <td class="px-6 py-3 whitespace-nowrap">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase bg-theme-tertiary text-theme-muted">{{ rp.protocol }}</span>
+                </td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-theme-muted">{{ rp.service || '-' }}</td>
+                <td class="px-6 py-3 text-sm text-theme-muted hidden sm:table-cell">{{ rp.description || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- Allocate Modal -->
