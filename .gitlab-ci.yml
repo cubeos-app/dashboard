@@ -40,16 +40,16 @@ package:
     - docker buildx create --name mybuilder --driver docker-container --use
     - docker buildx inspect --bootstrap
   script:
-    - echo "🔨 Building dashboard image..."
+    - echo "Building dashboard image..."
     - docker buildx build --platform linux/amd64,linux/arm64 --build-arg BUILDER_IMAGE=${BUILDER_IMAGE}:latest --push -t ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} -t ${GHCR_IMAGE}:latest .
-    - echo "✅ Pushed ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+    - echo "Pushed ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
   after_script:
     - docker buildx rm mybuilder || true
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
 # -----------------------------------------------------------------------------
-# DEPLOY - Deploy as Swarm stack on Pi
+# DEPLOY - Deploy as Swarm stack on Pi (rolling update, zero downtime)
 # -----------------------------------------------------------------------------
 deploy:
   stage: deploy
@@ -57,36 +57,36 @@ deploy:
   before_script:
     - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
   script:
-    - echo "🚀 Deploying CubeOS Dashboard as Swarm stack..."
+    - echo "Deploying CubeOS Dashboard as Swarm stack..."
     - docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
     - docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${GHCR_IMAGE}:latest
-    # Remove old stack (only dashboard, not other services)
-    - docker stack rm cubeos-dashboard 2>/dev/null || true
-    - echo "⏳ Waiting for old stack to drain..."
-    - sleep 15
-    # Deploy as Swarm stack with ARM64 workaround
+    # Rolling update - Swarm handles draining old task after new one is healthy
+    # No stack rm needed - deploy on top of existing stack
     - |
       cd /cubeos/coreapps/cubeos-dashboard/appconfig
       docker stack deploy \
         --compose-file docker-compose.yml \
         --resolve-image never \
         cubeos-dashboard
-    - echo "⏳ Waiting for stack to schedule..."
-    - sleep 10
+    - echo "Waiting for stack to schedule..."
+    - sleep 5
+    # Force service update to pick up the new image tag
+    - docker service update --image ${GHCR_IMAGE}:latest --force cubeos-dashboard_cubeos-dashboard
     # Wait for service to be healthy
     - |
-      echo "⏳ Waiting for Dashboard to be healthy..."
-      for i in $(seq 1 45); do
+      echo "Waiting for Dashboard to be healthy..."
+      for i in $(seq 1 60); do
         if curl -sf http://127.0.0.1:6011/ > /dev/null 2>&1; then
-          echo "✅ Health check passed!"
+          echo "Health check passed!"
           docker service ls | grep dashboard || true
           exit 0
         fi
-        echo "  Attempt $i/30..."
-        sleep 2
+        echo "  Attempt $i/60..."
+        sleep 3
       done
-      echo "❌ Health check failed after 30 attempts"
-      docker service logs cubeos-dashboard_dashboard --tail 50 2>/dev/null || true
+      echo "Health check failed after 60 attempts"
+      docker service ps cubeos-dashboard_cubeos-dashboard --no-trunc 2>/dev/null || true
+      docker service logs cubeos-dashboard_cubeos-dashboard --tail 50 2>/dev/null || true
       exit 1
   environment:
     name: production
