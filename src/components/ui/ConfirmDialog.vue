@@ -42,8 +42,8 @@ const props = defineProps({
 const emit = defineEmits(['confirm', 'cancel'])
 
 const variantClasses = {
-  danger: 'bg-red-600 hover:bg-red-500',
-  warning: 'bg-yellow-600 hover:bg-yellow-500',
+  danger: 'btn-error',
+  warning: 'btn-warning',
   info: 'bg-accent hover:bg-accent-secondary'
 }
 
@@ -54,8 +54,8 @@ const iconMap = {
 }
 
 const iconColorMap = {
-  danger: 'text-red-500',
-  warning: 'text-yellow-500',
+  danger: 'text-error',
+  warning: 'text-warning',
   info: 'text-accent'
 }
 </script>

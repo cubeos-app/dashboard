@@ -92,10 +92,10 @@ function getStackHealth(stack) {
 function getHealthClasses(stack) {
   const health = getStackHealth(stack)
   switch (health) {
-    case 'healthy': return 'bg-green-500'
-    case 'unhealthy': return 'bg-red-500'
-    case 'partial': return 'bg-yellow-500'
-    default: return 'bg-gray-500'
+    case 'healthy': return 'bg-success'
+    case 'unhealthy': return 'bg-error'
+    case 'partial': return 'bg-warning'
+    default: return 'bg-neutral'
   }
 }
 
@@ -195,10 +195,10 @@ function formatDeployMode(mode) {
                   v-if="service.status?.health"
                   class="px-1.5 py-0.5 text-[10px] font-medium rounded"
                   :class="{
-                    'bg-green-500/20 text-green-400': service.status.health === 'healthy' || service.status.health === 'running',
-                    'bg-red-500/20 text-red-400': service.status.health === 'unhealthy',
-                    'bg-yellow-500/20 text-yellow-400': service.status.health === 'starting',
-                    'bg-gray-500/20 text-gray-400': service.status.health === 'stopped' || service.status.health === 'unknown'
+                    'bg-success-muted text-success': service.status.health === 'healthy' || service.status.health === 'running',
+                    'bg-error-muted text-error': service.status.health === 'unhealthy',
+                    'bg-warning-muted text-warning': service.status.health === 'starting',
+                    'bg-neutral-muted text-neutral': service.status.health === 'stopped' || service.status.health === 'unknown'
                   }"
                 >
                   {{ service.status.health }}

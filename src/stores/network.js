@@ -239,10 +239,10 @@ export const useNetworkStore = defineStore('network', () => {
    */
   function getSignalColor(dbm) {
     const percent = formatSignal(dbm)
-    if (percent >= 75) return 'text-green-500'
-    if (percent >= 50) return 'text-yellow-500'
-    if (percent >= 25) return 'text-orange-500'
-    return 'text-red-500'
+    if (percent >= 75) return 'text-success'
+    if (percent >= 50) return 'text-warning'
+    if (percent >= 25) return 'text-warning'
+    return 'text-error'
   }
   
   // ==========================================

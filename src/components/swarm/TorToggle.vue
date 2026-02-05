@@ -133,16 +133,16 @@ async function toggle() {
       :aria-label="`${isEnabled ? 'Disable' : 'Enable'} Tor routing for ${appName}`"
       :disabled="disabled || isLoading"
       @click="toggle"
-      class="relative inline-flex items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-theme-secondary"
+      class="relative inline-flex items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[color:var(--tor)] focus:ring-offset-2 focus:ring-offset-theme-secondary"
       :class="[
         sizeClasses.track,
-        isEnabled ? 'bg-purple-600' : 'bg-theme-tertiary',
+        isEnabled ? 'bg-tor' : 'bg-theme-tertiary',
         (disabled || isLoading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'
       ]"
     >
       <!-- Thumb -->
       <span
-        class="inline-flex items-center justify-center rounded-full bg-white shadow transform transition-transform duration-200"
+        class="inline-flex items-center justify-center rounded-full bg-theme-primary shadow transform transition-transform duration-200"
         :class="[
           sizeClasses.thumb,
           isEnabled ? sizeClasses.translate : 'translate-x-1'
@@ -153,14 +153,14 @@ async function toggle() {
           v-if="isLoading" 
           name="Loader2" 
           :size="sizeClasses.icon - 4" 
-          class="animate-spin text-gray-400" 
+          class="animate-spin text-theme-muted" 
         />
         <!-- Tor icon when enabled -->
         <Icon 
           v-else-if="isEnabled" 
           name="Eye" 
           :size="sizeClasses.icon - 4" 
-          class="text-purple-600" 
+          class="text-tor" 
         />
       </span>
     </button>
@@ -176,7 +176,7 @@ async function toggle() {
     </div>
     
     <!-- Error indicator -->
-    <div v-if="error" class="flex items-center gap-1 text-red-500">
+    <div v-if="error" class="flex items-center gap-1 text-error">
       <Icon name="AlertCircle" :size="14" />
       <span class="text-xs">{{ error }}</span>
     </div>

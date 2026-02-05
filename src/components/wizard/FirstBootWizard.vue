@@ -598,7 +598,7 @@ onMounted(() => {
                     class="w-10 h-10 rounded-full border-2 transition-all"
                     :style="{ backgroundColor: color.value }"
                     :class="config.accent_color === color.value 
-                      ? 'border-white ring-2 ring-offset-2 ring-offset-theme-card' 
+                      ? 'border-theme-accent ring-2 ring-offset-2 ring-offset-theme-card' 
                       : 'border-transparent'"
                     :title="color.name"
                   ></button>

@@ -60,7 +60,7 @@ const statusText = computed(() => {
 const statusColor = computed(() => {
   if (!isRunning.value) return 'text-theme-muted'
   if (status.value === 'unhealthy') return 'text-warning'
-  if (status.value === 'starting') return 'text-yellow-500'
+  if (status.value === 'starting') return 'text-warning'
   return 'text-success'
 })
 
@@ -192,13 +192,13 @@ function close() {
                   <Icon name="ScrollText" :size="14" />
                   Recent Logs
                 </h3>
-                <div class="bg-gray-900 rounded-xl p-3 max-h-64 overflow-auto">
+                <div class="bg-code rounded-xl p-3 max-h-64 overflow-auto">
                   <pre 
                     v-if="logs.length > 0"
-                    class="text-xs font-mono text-gray-300 whitespace-pre-wrap"
+                    class="text-xs font-mono text-code whitespace-pre-wrap"
                   >{{ logs.join('\n') }}</pre>
-                  <p v-else-if="error" class="text-xs text-red-400 italic">{{ error }}</p>
-                  <p v-else class="text-xs text-gray-500 italic">No recent logs available</p>
+                  <p v-else-if="error" class="text-xs text-error italic">{{ error }}</p>
+                  <p v-else class="text-xs text-code-muted italic">No recent logs available</p>
                 </div>
               </div>
             </div>

@@ -174,7 +174,7 @@ onMounted(async () => {
               class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transform transition-transform duration-200"
               :class="themeStore.isDark ? 'translate-x-6' : 'translate-x-1'"
             >
-              <Icon :name="themeStore.isDark ? 'Moon' : 'Sun'" :size="12" class="text-gray-600" />
+              <Icon :name="themeStore.isDark ? 'Moon' : 'Sun'" :size="12" class="text-theme-secondary" />
             </span>
           </button>
         </div>

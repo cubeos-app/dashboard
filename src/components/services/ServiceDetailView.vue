@@ -72,9 +72,9 @@ const hasWebUI = computed(() =>
 )
 
 const status = computed(() => {
-  if (!isRunning.value) return { text: 'Stopped', color: 'text-gray-500' }
-  if (!isHealthy.value) return { text: 'Unhealthy', color: 'text-yellow-500' }
-  return { text: 'Running', color: 'text-green-500' }
+  if (!isRunning.value) return { text: 'Stopped', color: 'text-neutral' }
+  if (!isHealthy.value) return { text: 'Unhealthy', color: 'text-warning' }
+  return { text: 'Running', color: 'text-success' }
 })
 
 async function fetchApp() {
@@ -217,7 +217,7 @@ function formatBytes(bytes) {
           v-if="!isRunning && !isCore"
           @click="handleAction('start')"
           :disabled="actionLoading"
-          class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-500 transition-colors disabled:opacity-50 flex items-center gap-2"
+          class="px-4 py-2 rounded-lg btn-success text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
         >
           <Icon name="Play" :size="16" />
           Start
@@ -227,7 +227,7 @@ function formatBytes(bytes) {
           v-if="isRunning && !isCore"
           @click="handleAction('restart')"
           :disabled="actionLoading"
-          class="px-4 py-2 rounded-lg bg-yellow-600 text-white text-sm font-medium hover:bg-yellow-500 transition-colors disabled:opacity-50 flex items-center gap-2"
+          class="px-4 py-2 rounded-lg btn-warning text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
         >
           <Icon name="RotateCw" :size="16" />
           Restart
@@ -237,7 +237,7 @@ function formatBytes(bytes) {
           v-if="isRunning && !isCore"
           @click="handleAction('stop')"
           :disabled="actionLoading"
-          class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-500 transition-colors disabled:opacity-50 flex items-center gap-2"
+          class="px-4 py-2 rounded-lg btn-error text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
         >
           <Icon name="Square" :size="16" />
           Stop
@@ -281,13 +281,13 @@ function formatBytes(bytes) {
           </div>
           <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
             <p class="text-xs text-theme-muted mb-1">Health</p>
-            <p class="font-medium" :class="isHealthy ? 'text-green-500' : 'text-yellow-500'">
+            <p class="font-medium" :class="isHealthy ? 'text-success' : 'text-warning'">
               {{ app.status?.health || 'Unknown' }}
             </p>
           </div>
           <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
             <p class="text-xs text-theme-muted mb-1">Enabled</p>
-            <p class="font-medium" :class="app.enabled ? 'text-green-500' : 'text-gray-500'">
+            <p class="font-medium" :class="app.enabled ? 'text-success' : 'text-neutral'">
               {{ app.enabled ? 'Yes' : 'No' }}
             </p>
           </div>
@@ -346,13 +346,13 @@ function formatBytes(bytes) {
           </button>
         </div>
         
-        <div class="bg-gray-900 rounded-xl p-4 max-h-[500px] overflow-auto">
+        <div class="bg-code rounded-xl p-4 max-h-[500px] overflow-auto">
           <pre 
             v-if="logs.length > 0"
-            class="text-xs font-mono text-gray-300 whitespace-pre-wrap"
+            class="text-xs font-mono text-code whitespace-pre-wrap"
           >{{ logs.join('\n') }}</pre>
-          <p v-else-if="logsLoading" class="text-gray-500 italic">Loading logs...</p>
-          <p v-else class="text-gray-500 italic">No logs available</p>
+          <p v-else-if="logsLoading" class="text-code-muted italic">Loading logs...</p>
+          <p v-else class="text-code-muted italic">No logs available</p>
         </div>
       </div>
       
@@ -365,14 +365,14 @@ function formatBytes(bytes) {
         </div>
         
         <!-- Danger Zone -->
-        <div v-if="!isCore" class="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
-          <h3 class="text-sm font-medium text-red-500 mb-3">Danger Zone</h3>
+        <div v-if="!isCore" class="p-4 rounded-xl bg-error-muted border border-error-subtle">
+          <h3 class="text-sm font-medium text-error mb-3">Danger Zone</h3>
           <p class="text-sm text-theme-muted mb-4">
             Uninstalling this app will remove it from your system. Data may be preserved depending on your settings.
           </p>
           <button
             @click="showUninstallConfirm = true"
-            class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-500 transition-colors"
+            class="px-4 py-2 rounded-lg btn-error text-sm font-medium transition-colors"
           >
             Uninstall App
           </button>

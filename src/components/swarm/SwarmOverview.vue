@@ -61,16 +61,16 @@ const healthPercentage = computed(() => {
 // Health status color
 const healthColor = computed(() => {
   const pct = healthPercentage.value
-  if (pct >= 90) return 'text-green-500'
-  if (pct >= 70) return 'text-yellow-500'
-  return 'text-red-500'
+  if (pct >= 90) return 'text-success'
+  if (pct >= 70) return 'text-warning'
+  return 'text-error'
 })
 
 const healthBgColor = computed(() => {
   const pct = healthPercentage.value
-  if (pct >= 90) return 'bg-green-500'
-  if (pct >= 70) return 'bg-yellow-500'
-  return 'bg-red-500'
+  if (pct >= 90) return 'bg-success'
+  if (pct >= 70) return 'bg-warning'
+  return 'bg-error'
 })
 
 
@@ -95,7 +95,7 @@ const healthBgColor = computed(() => {
       <!-- Running Services -->
       <div class="bg-theme-tertiary rounded-lg p-3">
         <div class="flex items-center gap-2 mb-1">
-          <Icon name="Play" :size="14" class="text-green-500" />
+          <Icon name="Play" :size="14" class="text-success" />
           <span class="text-xs text-theme-secondary">Running</span>
         </div>
         <div class="flex items-baseline gap-1">
@@ -107,19 +107,19 @@ const healthBgColor = computed(() => {
       <!-- Healthy -->
       <div class="bg-theme-tertiary rounded-lg p-3">
         <div class="flex items-center gap-2 mb-1">
-          <Icon name="HeartPulse" :size="14" class="text-green-500" />
+          <Icon name="HeartPulse" :size="14" class="text-success" />
           <span class="text-xs text-theme-secondary">Healthy</span>
         </div>
-        <span class="text-2xl font-bold text-green-500">{{ healthStats.healthy }}</span>
+        <span class="text-2xl font-bold text-success">{{ healthStats.healthy }}</span>
       </div>
       
       <!-- Unhealthy / Issues -->
       <div class="bg-theme-tertiary rounded-lg p-3">
         <div class="flex items-center gap-2 mb-1">
-          <Icon name="AlertTriangle" :size="14" class="text-red-500" />
+          <Icon name="AlertTriangle" :size="14" class="text-error" />
           <span class="text-xs text-theme-secondary">Issues</span>
         </div>
-        <span class="text-2xl font-bold" :class="healthStats.unhealthy > 0 ? 'text-red-500' : 'text-theme-muted'">
+        <span class="text-2xl font-bold" :class="healthStats.unhealthy > 0 ? 'text-error' : 'text-theme-muted'">
           {{ healthStats.unhealthy }}
         </span>
       </div>
@@ -127,10 +127,10 @@ const healthBgColor = computed(() => {
       <!-- Starting -->
       <div class="bg-theme-tertiary rounded-lg p-3">
         <div class="flex items-center gap-2 mb-1">
-          <Icon name="Loader2" :size="14" class="text-yellow-500" />
+          <Icon name="Loader2" :size="14" class="text-warning" />
           <span class="text-xs text-theme-secondary">Starting</span>
         </div>
-        <span class="text-2xl font-bold" :class="healthStats.starting > 0 ? 'text-yellow-500' : 'text-theme-muted'">
+        <span class="text-2xl font-bold" :class="healthStats.starting > 0 ? 'text-warning' : 'text-theme-muted'">
           {{ healthStats.starting }}
         </span>
       </div>
@@ -144,14 +144,14 @@ const healthBgColor = computed(() => {
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <Icon name="Layers" :size="12" class="text-blue-500" />
+              <Icon name="Layers" :size="12" class="text-accent" />
               <span class="text-xs text-theme-secondary">Swarm Stacks</span>
             </div>
             <span class="text-xs font-medium text-theme-primary">{{ deployStats.stacks }}</span>
           </div>
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <Icon name="FileCode" :size="12" class="text-purple-500" />
+              <Icon name="FileCode" :size="12" class="text-accent-secondary" />
               <span class="text-xs text-theme-secondary">Compose</span>
             </div>
             <span class="text-xs font-medium text-theme-primary">{{ deployStats.compose }}</span>
@@ -196,40 +196,40 @@ const healthBgColor = computed(() => {
       <div class="h-2 bg-theme-tertiary rounded-full overflow-hidden flex">
         <div 
           v-if="healthStats.healthy > 0"
-          class="h-full bg-green-500 transition-all duration-300"
+          class="h-full bg-success transition-all duration-300"
           :style="{ width: `${(healthStats.healthy / totalApps) * 100}%` }"
         ></div>
         <div 
           v-if="healthStats.starting > 0"
-          class="h-full bg-yellow-500 transition-all duration-300"
+          class="h-full bg-warning transition-all duration-300"
           :style="{ width: `${(healthStats.starting / totalApps) * 100}%` }"
         ></div>
         <div 
           v-if="healthStats.unhealthy > 0"
-          class="h-full bg-red-500 transition-all duration-300"
+          class="h-full bg-error transition-all duration-300"
           :style="{ width: `${(healthStats.unhealthy / totalApps) * 100}%` }"
         ></div>
         <div 
           v-if="healthStats.stopped > 0"
-          class="h-full bg-gray-500 transition-all duration-300"
+          class="h-full bg-neutral transition-all duration-300"
           :style="{ width: `${(healthStats.stopped / totalApps) * 100}%` }"
         ></div>
       </div>
       <div class="flex items-center gap-4 mt-2">
         <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+          <span class="w-2 h-2 rounded-full bg-success"></span>
           <span class="text-[10px] text-theme-muted">Healthy</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+          <span class="w-2 h-2 rounded-full bg-warning"></span>
           <span class="text-[10px] text-theme-muted">Starting</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-red-500"></span>
+          <span class="w-2 h-2 rounded-full bg-error"></span>
           <span class="text-[10px] text-theme-muted">Issues</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-gray-500"></span>
+          <span class="w-2 h-2 rounded-full bg-neutral"></span>
           <span class="text-[10px] text-theme-muted">Stopped</span>
         </div>
       </div>

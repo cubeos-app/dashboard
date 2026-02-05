@@ -187,19 +187,19 @@ function levelClass(level) {
   if (!level) return 'text-theme-muted'
   const l = level.toString().toLowerCase()
   if (l.includes('err') || l.includes('crit') || l.includes('alert') || l.includes('emerg') || l === '0' || l === '1' || l === '2' || l === '3') {
-    return 'text-red-500'
+    return 'text-error'
   }
   if (l.includes('warn') || l === '4') {
-    return 'text-yellow-500'
+    return 'text-warning'
   }
   if (l.includes('notice') || l === '5') {
-    return 'text-blue-500'
+    return 'text-accent'
   }
   return 'text-theme-muted'
 }
 
 function levelBadgeClass(level) {
-  if (!level) return 'bg-gray-100 text-gray-600'
+  if (!level) return 'bg-theme-tertiary text-theme-secondary'
   const l = level.toString().toLowerCase()
   if (l.includes('err') || l.includes('crit') || l.includes('alert') || l.includes('emerg') || l === '0' || l === '1' || l === '2' || l === '3') {
     return 'bg-error-muted text-error'
@@ -374,7 +374,7 @@ function downloadLogs() {
               </span>
               
               <!-- Unit/container -->
-              <span v-if="log.unit || log.container" class="text-blue-500 text-xs whitespace-nowrap">
+              <span v-if="log.unit || log.container" class="text-accent text-xs whitespace-nowrap">
                 {{ log.unit || log.container }}
               </span>
               

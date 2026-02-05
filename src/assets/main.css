@@ -70,6 +70,18 @@
     --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
     --shadow-glow: 0 0 20px rgba(14, 165, 233, 0.3);
     
+    --neutral-muted: rgba(113, 113, 122, 0.2);
+    --error-subtle-border: rgba(239, 68, 68, 0.3);
+    --success-subtle-border: rgba(34, 197, 94, 0.2);
+    --warning-subtle-border: rgba(245, 158, 11, 0.3);
+    
+    --tor: #a855f7;
+    --tor-muted: rgba(168, 85, 247, 0.15);
+    
+    --bg-code: #111827;
+    --text-code: #d1d5db;
+    --text-code-muted: #6b7280;
+    
     --glass-bg: rgba(255, 255, 255, 0.05);
     --glass-border: rgba(255, 255, 255, 0.1);
     
@@ -118,6 +130,18 @@
     --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
     --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
     --shadow-glow: 0 0 20px rgba(14, 165, 233, 0.15);
+    
+    --neutral-muted: rgba(113, 113, 122, 0.1);
+    --error-subtle-border: rgba(220, 38, 38, 0.2);
+    --success-subtle-border: rgba(22, 163, 74, 0.2);
+    --warning-subtle-border: rgba(217, 119, 6, 0.2);
+    
+    --tor: #9333ea;
+    --tor-muted: rgba(147, 51, 234, 0.1);
+    
+    --bg-code: #1f2937;
+    --text-code: #e5e7eb;
+    --text-code-muted: #9ca3af;
     
     --glass-bg: rgba(255, 255, 255, 0.8);
     --glass-border: rgba(0, 0, 0, 0.06);
@@ -212,6 +236,54 @@ body {
   .bg-success-muted { background-color: var(--success-muted); }
   .bg-warning-muted { background-color: var(--warning-muted); }
   .bg-error-muted { background-color: var(--error-muted); }
+  
+  /* Neutral / stopped status */
+  .text-neutral { color: var(--text-tertiary); }
+  .bg-neutral { background-color: var(--text-tertiary); }
+  .bg-neutral-muted { background-color: var(--neutral-muted); }
+  
+  /* Border status colors */
+  .border-success { border-color: var(--success); }
+  .border-warning { border-color: var(--warning); }
+  .border-error { border-color: var(--error); }
+  .border-error-subtle { border-color: var(--error-subtle-border); }
+  .border-success-subtle { border-color: var(--success-subtle-border); }
+  .border-warning-subtle { border-color: var(--warning-subtle-border); }
+  
+  /* Tor / privacy color */
+  .text-tor { color: var(--tor); }
+  .bg-tor { background-color: var(--tor); }
+  .ring-tor { --tw-ring-color: var(--tor); }
+  
+  /* Code block (always dark bg for readability) */
+  .bg-code { background-color: var(--bg-code); }
+  .text-code { color: var(--text-code); }
+  .text-code-muted { color: var(--text-code-muted); }
+  
+  /* Status button variants */
+  .btn-success {
+    background-color: var(--success);
+    color: white;
+    transition: background-color var(--transition-fast);
+  }
+  .btn-success:hover { filter: brightness(1.1); }
+  .btn-success:disabled { opacity: 0.5; }
+  
+  .btn-warning {
+    background-color: var(--warning);
+    color: white;
+    transition: background-color var(--transition-fast);
+  }
+  .btn-warning:hover { filter: brightness(1.1); }
+  .btn-warning:disabled { opacity: 0.5; }
+  
+  .btn-error {
+    background-color: var(--error);
+    color: white;
+    transition: background-color var(--transition-fast);
+  }
+  .btn-error:hover { filter: brightness(1.1); }
+  .btn-error:disabled { opacity: 0.5; }
   
   /* Shadows */
   .shadow-theme-sm { box-shadow: var(--shadow-sm); }

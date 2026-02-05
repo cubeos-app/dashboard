@@ -126,10 +126,10 @@ async function handleDelete(config) {
     <!-- Status Card -->
     <div 
       v-if="isConnected"
-      class="p-4 rounded-xl bg-success-muted border border-green-500/20"
+      class="p-4 rounded-xl bg-success-muted border border-success-subtle"
     >
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+        <div class="w-10 h-10 rounded-lg bg-success-muted flex items-center justify-center">
           <Icon name="ShieldCheck" :size="20" class="text-success" />
         </div>
         <div class="flex-1">
@@ -164,7 +164,7 @@ async function handleDelete(config) {
           <Icon 
             :name="vpnStore.getTypeIcon(config.type)" 
             :size="20" 
-            :class="config.is_active ? 'text-green-500' : 'text-theme-secondary'"
+            :class="config.is_active ? 'text-success' : 'text-theme-secondary'"
           />
         </div>
         
@@ -174,7 +174,7 @@ async function handleDelete(config) {
             <p class="font-medium text-theme-primary truncate">{{ config.name }}</p>
             <span 
               v-if="config.is_active"
-              class="px-1.5 py-0.5 text-xs rounded-full bg-green-500/20 text-green-500"
+              class="px-1.5 py-0.5 text-xs rounded-full bg-success-muted text-success"
             >
               Active
             </span>
@@ -322,7 +322,7 @@ async function handleDelete(config) {
                   <Icon 
                     :name="addForm.configFile ? 'FileCheck' : 'Upload'" 
                     :size="24" 
-                    :class="addForm.configFile ? 'text-green-500' : 'text-theme-muted'"
+                    :class="addForm.configFile ? 'text-success' : 'text-theme-muted'"
                   />
                   <p class="mt-2 text-sm text-theme-secondary">
                     {{ addForm.configFile?.name || 'Click to upload' }}

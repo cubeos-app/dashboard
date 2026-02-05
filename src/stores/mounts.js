@@ -194,8 +194,8 @@ export const useMountsStore = defineStore('mounts', () => {
    * Get mount status color
    */
   function getStatusColor(mount) {
-    if (!mount) return 'text-gray-500'
-    return mount.is_mounted ? 'text-green-500' : 'text-gray-500'
+    if (!mount) return 'text-neutral'
+    return mount.is_mounted ? 'text-success' : 'text-neutral'
   }
   
   /**

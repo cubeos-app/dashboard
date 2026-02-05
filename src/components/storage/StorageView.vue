@@ -170,22 +170,22 @@ function formatBytes(bytes) {
 }
 
 function usageColor(percent) {
-  if (percent >= 90) return 'bg-red-500'
-  if (percent >= 75) return 'bg-yellow-500'
-  return 'bg-green-500'
+  if (percent >= 90) return 'bg-error'
+  if (percent >= 75) return 'bg-warning'
+  return 'bg-success'
 }
 
 function usageTextColor(percent) {
-  if (percent >= 90) return 'text-red-500'
-  if (percent >= 75) return 'text-yellow-500'
-  return 'text-green-500'
+  if (percent >= 90) return 'text-error'
+  if (percent >= 75) return 'text-warning'
+  return 'text-success'
 }
 
 function healthColor(status) {
-  if (status === 'PASSED') return 'text-green-500'
-  if (status === 'FAILED') return 'text-red-500'
+  if (status === 'PASSED') return 'text-success'
+  if (status === 'FAILED') return 'text-error'
   if (status === 'N/A') return 'text-theme-muted'
-  return 'text-yellow-500'
+  return 'text-warning'
 }
 
 function healthBgColor(status) {
@@ -357,7 +357,7 @@ function formatHours(hours) {
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div class="p-3 bg-theme-secondary/50 rounded-lg">
             <p class="text-xs text-theme-muted mb-1">Temperature</p>
-            <p class="font-semibold text-theme-primary" :class="{ 'text-red-500': disk.temperature > 60 }">{{ disk.temperature ? disk.temperature + '°C' : '-' }}</p>
+            <p class="font-semibold text-theme-primary" :class="{ 'text-error': disk.temperature > 60 }">{{ disk.temperature ? disk.temperature + '°C' : '-' }}</p>
           </div>
           <div class="p-3 bg-theme-secondary/50 rounded-lg">
             <p class="text-xs text-theme-muted mb-1">Power On Time</p>
@@ -405,7 +405,7 @@ function formatHours(hours) {
                 <tr v-for="attr in disk.attributes" :key="attr.id" class="border-b border-theme-primary/50" :class="{ 'bg-error-muted': attr.failing }">
                   <td class="py-1.5 px-2 text-theme-muted">{{ attr.id }}</td>
                   <td class="py-1.5 px-2 text-theme-primary">{{ attr.name }}</td>
-                  <td class="py-1.5 px-2" :class="attr.value <= attr.threshold ? 'text-red-500' : 'text-theme-secondary'">{{ attr.value }}</td>
+                  <td class="py-1.5 px-2" :class="attr.value <= attr.threshold ? 'text-error' : 'text-theme-secondary'">{{ attr.value }}</td>
                   <td class="py-1.5 px-2 text-theme-muted">{{ attr.worst }}</td>
                   <td class="py-1.5 px-2 text-theme-muted">{{ attr.threshold }}</td>
                   <td class="py-1.5 px-2 text-theme-muted font-mono">{{ attr.raw_value }}</td>
@@ -464,7 +464,7 @@ function formatHours(hours) {
               <button @click="openEditShare(share)" class="p-2 text-theme-muted hover:text-theme-secondary">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
               </button>
-              <button @click="deleteShare(share.name)" class="p-2 text-theme-muted hover:text-red-500">
+              <button @click="deleteShare(share.name)" class="p-2 text-theme-muted hover:text-error">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             </div>
@@ -489,7 +489,7 @@ function formatHours(hours) {
         <div class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md">
           <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
             <h3 class="text-lg font-semibold text-theme-primary">{{ shareModalMode === 'create' ? 'Create Share' : 'Edit Share' }}</h3>
-            <button @click="showShareModal = false" class="p-1 text-theme-muted hover:text-gray-500 rounded-lg">
+            <button @click="showShareModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
@@ -508,15 +508,15 @@ function formatHours(hours) {
             </div>
             <div class="space-y-3">
               <label class="flex items-center gap-3">
-                <input v-model="shareForm.guest_ok" type="checkbox" class="w-4 h-4 rounded border-gray-300 text-accent focus:ring-[color:var(--accent-primary)]">
+                <input v-model="shareForm.guest_ok" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
                 <span class="text-sm text-theme-secondary">Allow guest access (no password)</span>
               </label>
               <label class="flex items-center gap-3">
-                <input v-model="shareForm.read_only" type="checkbox" class="w-4 h-4 rounded border-gray-300 text-accent focus:ring-[color:var(--accent-primary)]">
+                <input v-model="shareForm.read_only" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
                 <span class="text-sm text-theme-secondary">Read only</span>
               </label>
               <label class="flex items-center gap-3">
-                <input v-model="shareForm.browseable" type="checkbox" class="w-4 h-4 rounded border-gray-300 text-accent focus:ring-[color:var(--accent-primary)]">
+                <input v-model="shareForm.browseable" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
                 <span class="text-sm text-theme-secondary">Visible in network browser</span>
               </label>
             </div>

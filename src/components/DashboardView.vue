@@ -396,7 +396,7 @@ onUnmounted(() => {
       <!-- Favorites -->
       <section class="animate-fade-in">
         <h2 class="text-xs font-semibold text-theme-tertiary uppercase tracking-wider mb-3 flex items-center gap-2">
-          <Icon name="Star" :size="12" class="text-yellow-500" />
+          <Icon name="Star" :size="12" class="text-warning" />
           Favorites
         </h2>
         <div class="p-4 rounded-2xl border border-theme-primary bg-theme-card min-h-[120px]">
@@ -464,7 +464,7 @@ onUnmounted(() => {
           <button 
             @click.stop="toggleFavorite(app.name)"
             class="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-            :class="isFavorite(app.name) ? 'text-yellow-500' : 'text-theme-muted hover:text-yellow-500'"
+            :class="isFavorite(app.name) ? 'text-warning' : 'text-theme-muted hover:text-warning'"
           >
             <Icon name="Star" :size="14" :fill="isFavorite(app.name) ? 'currentColor' : 'none'" />
           </button>

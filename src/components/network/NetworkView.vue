@@ -365,9 +365,9 @@ function formatRate(bytesPerSec) {
 
 function signalColor(pct) {
   if (!pct) return 'text-theme-muted'
-  if (pct >= 70) return 'text-green-500'
-  if (pct >= 40) return 'text-yellow-500'
-  return 'text-red-500'
+  if (pct >= 70) return 'text-success'
+  if (pct >= 40) return 'text-warning'
+  return 'text-error'
 }
 </script>
 
@@ -457,7 +457,7 @@ function signalColor(pct) {
           </div>
           <div class="flex items-center justify-between text-sm">
             <span class="text-theme-muted">Status</span>
-            <span :class="apIsActive ? 'text-green-500' : 'text-red-500'">
+            <span :class="apIsActive ? 'text-success' : 'text-error'">
               {{ apIsActive ? 'Active' : 'Inactive' }}
             </span>
           </div>
@@ -523,7 +523,7 @@ function signalColor(pct) {
             class="w-full mt-2 px-3 py-2 text-sm rounded-lg transition-colors"
             :class="natStatus?.enabled 
               ? 'bg-[#8b5cf620] text-[#8b5cf6] hover:opacity-80'
-              : 'bg-theme-tertiary text-theme-secondary hover:bg-gray-200'"
+              : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-tertiary'"
           >
             {{ natStatus?.enabled ? 'Disable NAT' : 'Enable NAT' }}
           </button>
@@ -545,7 +545,7 @@ function signalColor(pct) {
           <div class="text-sm">
             <div class="flex items-center justify-between">
               <span class="text-theme-muted">IP Forward</span>
-              <span :class="firewallStatus?.ip_forward ? 'text-green-500' : 'text-theme-muted'">
+              <span :class="firewallStatus?.ip_forward ? 'text-success' : 'text-theme-muted'">
                 {{ firewallStatus?.ip_forward ? 'On' : 'Off' }}
               </span>
             </div>
@@ -679,7 +679,7 @@ function signalColor(pct) {
                 <div class="flex gap-2">
                   <button 
                     @click="kickClient(client.mac_address)"
-                    class="p-2 text-theme-muted hover:text-yellow-500 rounded-lg hover:bg-theme-tertiary"
+                    class="p-2 text-theme-muted hover:text-warning rounded-lg hover:bg-theme-tertiary"
                     title="Disconnect"
                   >
                     <!-- WiFi off icon -->
@@ -690,7 +690,7 @@ function signalColor(pct) {
                   </button>
                   <button 
                     @click="blockClient(client.mac_address)"
-                    class="p-2 text-theme-muted hover:text-red-500 rounded-lg hover:bg-theme-tertiary"
+                    class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-theme-tertiary"
                     title="Block"
                   >
                     <!-- Shield ban icon -->
@@ -843,11 +843,11 @@ function signalColor(pct) {
               :title="`RX: ${formatRate(point.rx_rate_bps)}/s, TX: ${formatRate(point.tx_rate_bps)}/s`"
             >
               <div 
-                class="bg-green-500 rounded-t transition-all"
+                class="bg-success rounded-t transition-all"
                 :style="{ height: `${point.rxHeight}%` }"
               ></div>
               <div 
-                class="bg-blue-500 rounded-t transition-all"
+                class="bg-accent rounded-t transition-all"
                 :style="{ height: `${point.txHeight}%` }"
               ></div>
             </div>
@@ -856,11 +856,11 @@ function signalColor(pct) {
           <!-- Legend -->
           <div class="flex items-center justify-center gap-6 text-sm">
             <div class="flex items-center gap-2">
-              <span class="w-3 h-3 bg-green-500 rounded"></span>
+              <span class="w-3 h-3 bg-success rounded"></span>
               <span class="text-theme-tertiary">Download</span>
             </div>
             <div class="flex items-center gap-2">
-              <span class="w-3 h-3 bg-blue-500 rounded"></span>
+              <span class="w-3 h-3 bg-accent rounded"></span>
               <span class="text-theme-tertiary">Upload</span>
             </div>
           </div>
@@ -902,7 +902,7 @@ function signalColor(pct) {
         <div class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md">
           <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
             <h3 class="text-lg font-semibold text-theme-primary">WiFi Access Point Settings</h3>
-            <button @click="showAPConfigModal = false" class="p-1 text-theme-muted hover:text-gray-500 rounded-lg">
+            <button @click="showAPConfigModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -956,7 +956,7 @@ function signalColor(pct) {
                 v-model="apConfig.hidden"
                 type="checkbox"
                 id="ap-hidden"
-                class="w-4 h-4 rounded border-gray-300 text-accent focus:ring-[color:var(--accent-primary)]"
+                class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]"
               >
               <label for="ap-hidden" class="text-sm text-theme-secondary">
                 Hide network (don't broadcast SSID)

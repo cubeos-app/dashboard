@@ -356,11 +356,11 @@ export const useAppsStore = defineStore('apps', () => {
     switch (health) {
       case HEALTH_STATUS.HEALTHY: 
       case 'running':  // Compose services return "running" instead of "healthy"
-        return 'text-green-500'
-      case HEALTH_STATUS.UNHEALTHY: return 'text-red-500'
-      case HEALTH_STATUS.STARTING: return 'text-yellow-500'
-      case HEALTH_STATUS.STOPPED: return 'text-gray-500'
-      default: return 'text-gray-400'
+        return 'text-success'
+      case HEALTH_STATUS.UNHEALTHY: return 'text-error'
+      case HEALTH_STATUS.STARTING: return 'text-warning'
+      case HEALTH_STATUS.STOPPED: return 'text-neutral'
+      default: return 'text-theme-muted'
     }
   }
 
