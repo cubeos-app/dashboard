@@ -15,7 +15,8 @@ import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useAppsStore } from '@/stores/apps'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
-import { safeGetItem, safeSetItem } from '@/utils/storage'
+import { safeGetItem, safeSetItem } from '@/utils/storage'   // keep for recentApps
+import { useFavoritesStore } from '@/stores/favorites'
 import Icon from '@/components/ui/Icon.vue'
 import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
 import AskCubeOS from '@/components/chat/AskCubeOS.vue'
@@ -26,6 +27,7 @@ const router = useRouter()
 const systemStore = useSystemStore()
 const appsStore = useAppsStore()
 const { signal } = useAbortOnUnmount()
+const favoritesStore = useFavoritesStore()
 
 // State
 const searchQuery = ref('')
@@ -34,7 +36,6 @@ const showHealthModal = ref(false)
 const showChatModal = ref(false)
 const chatQuery = ref('')
 const selectedApp = ref(null)
-const favorites = ref([])
 
 // Quick actions for search (pages user can navigate to)
 const quickActions = [
@@ -59,7 +60,7 @@ const runningCount = computed(() => appsStore.runningCount)
 const totalCount = computed(() => appsStore.appCount)
 
 const favoriteApps = computed(() => {
-  return favorites.value
+  return favoritesStore.favoriteNames()
     .map(name => appsStore.getAppByName(name))
     .filter(Boolean)
 })
@@ -161,17 +162,11 @@ function closeChatModal() {
 
 // App functions
 function toggleFavorite(appName) {
-  const idx = favorites.value.indexOf(appName)
-  if (idx === -1) {
-    favorites.value.push(appName)
-  } else {
-    favorites.value.splice(idx, 1)
-  }
-  safeSetItem('cubeos-favorites', favorites.value)
+  favoritesStore.toggleFavorite(appName)
 }
 
 function isFavorite(appName) {
-  return favorites.value.includes(appName)
+  return favoritesStore.isFavorite(appName)
 }
 
 function trackUsage(appName) {
@@ -215,15 +210,12 @@ function getHealthStatus(app) {
 
 // Lifecycle
 onMounted(async () => {
-  // Load favorites
-  favorites.value = safeGetItem('cubeos-favorites', [])
-  if (!Array.isArray(favorites.value)) favorites.value = []
-  
   // Load data (pass signal for abort on unmount)
   const s = signal()
   await Promise.all([
     systemStore.fetchAll({ signal: s }),
-    appsStore.fetchApps({ signal: s })
+    appsStore.fetchApps({ signal: s }),
+    favoritesStore.fetchAll()
   ])
   
   // Start centralized app polling (stats handled by App.vue WebSocket)

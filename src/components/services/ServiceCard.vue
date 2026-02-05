@@ -5,8 +5,9 @@
  * Reusable service/app card component.
  * Sprint 4: Uses unified apps.js store.
  */
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useAppsStore } from '@/stores/apps'
+import { useFavoritesStore } from '@/stores/favorites'
 import { confirm } from '@/utils/confirmDialog'
 import { safeGetItem, safeSetItem } from '@/utils/storage'
 import Icon from '@/components/ui/Icon.vue'
@@ -26,14 +27,7 @@ const emit = defineEmits(['showHealth'])
 
 const appsStore = useAppsStore()
 const actionLoading = ref(false)
-const favoriteLoading = ref(false)
-const favorites = ref([])
-
-// Load favorites from localStorage
-onMounted(() => {
-  favorites.value = safeGetItem('cubeos-favorites', [])
-  if (!Array.isArray(favorites.value)) favorites.value = []
-})
+const favoritesStore = useFavoritesStore()
 
 // Computed properties
 const displayName = computed(() => appsStore.getDisplayName(props.service))
@@ -54,7 +48,7 @@ const isCore = computed(() => {
          props.service.name.startsWith('cubeos-')
 })
 
-const isFavorite = computed(() => favorites.value.includes(props.service.name))
+const isFavorite = computed(() => favoritesStore.isFavorite(props.service.name))
 
 const hasUI = computed(() => appsStore.hasWebUI(props.service))
 
@@ -133,14 +127,7 @@ async function handleAction(action, e) {
 function handleToggleFavorite(e) {
   e.preventDefault()
   e.stopPropagation()
-  
-  const idx = favorites.value.indexOf(props.service.name)
-  if (idx === -1) {
-    favorites.value.push(props.service.name)
-  } else {
-    favorites.value.splice(idx, 1)
-  }
-  safeSetItem('cubeos-favorites', favorites.value)
+  favoritesStore.toggleFavorite(props.service.name)
 }
 </script>
 
@@ -242,7 +229,6 @@ function handleToggleFavorite(e) {
             <!-- Favorite -->
             <button
               @click="handleToggleFavorite($event)"
-              :disabled="favoriteLoading"
               class="p-1.5 rounded-lg transition-colors"
               :class="isFavorite 
                 ? 'text-warning' 
