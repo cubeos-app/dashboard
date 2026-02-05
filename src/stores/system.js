@@ -5,6 +5,7 @@
  * Uses HAL endpoints for hardware-specific data (battery, Pi model, etc.)
  * 
  * Sprint 2: Added hostname get/set, timezone get/set, timezones list.
+ * Sprint 6: Added quickBackup, getBackupDetail.
  * 
  * API Endpoints used:
  * - /system/info - Basic system info (container-aware)
@@ -14,6 +15,8 @@
  * - /system/hostname - Get/set hostname (Sprint 2)
  * - /system/timezone - Get/set timezone (Sprint 2)
  * - /system/timezones - List available timezones (Sprint 2)
+ * - POST /backups/quick - Quick backup with type/description (Sprint 6)
+ * - GET /backups/{id} - Backup detail (Sprint 6)
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
@@ -259,6 +262,57 @@ export const useSystemStore = defineStore('system', () => {
   }
 
   // ==========================================
+  // Sprint 6: Backup Extension Methods
+  // ==========================================
+
+  /**
+   * Quick backup — creates a backup with minimal configuration
+   * POST /backups/quick?backup_type={type}&description={desc}
+   *
+   * NOTE: api.post() only accepts (endpoint, data) — no query params support.
+   * We must build the URL with URLSearchParams manually.
+   *
+   * @param {string} [backupType='full'] - Backup type: 'full', 'config', 'data'
+   * @param {string} [description] - Optional description for the backup
+   * @returns {Object|null} Created backup data or null on error
+   */
+  async function quickBackup(backupType = 'full', description) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const params = new URLSearchParams({ backup_type: backupType })
+      if (description) {
+        params.set('description', description)
+      }
+      const data = await api.post(`/backups/quick?${params.toString()}`)
+      return data
+    } catch (e) {
+      error.value = e.message
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Get detailed info for a specific backup
+   * GET /backups/{backup_id}
+   *
+   * @param {string} backupId - Backup identifier
+   * @returns {Object|null} Backup detail or null on error
+   */
+  async function getBackupDetail(backupId) {
+    try {
+      const data = await api.get(`/backups/${encodeURIComponent(backupId)}`)
+      return data
+    } catch (e) {
+      error.value = e.message
+      return null
+    }
+  }
+
+  // ==========================================
   // Sprint 2: Hostname & Timezone Methods
   // ==========================================
 
@@ -440,6 +494,10 @@ export const useSystemStore = defineStore('system', () => {
     fetchTimezone,
     setTimezone,
     fetchTimezones,
+
+    // Sprint 6: Backup Extensions
+    quickBackup,
+    getBackupDetail,
     
     // Aliases for backward compatibility
     systemInfo: info,
