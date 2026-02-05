@@ -1,11 +1,12 @@
 <script setup>
 /**
- * WiFiConnector.vue - Sprint 4 Component (S4-09)
+ * WiFiConnector.vue - Sprint 2 Enhanced
  * 
  * Scan and connect to upstream WiFi networks for ONLINE_WIFI mode.
- * Uses the network store and Sprint 3 API.
+ * Sprint 2 additions: disconnect button, saved networks list with forget action,
+ * WiFi status indicator showing connected SSID + signal.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -26,6 +27,7 @@ const password = ref('')
 const showPassword = ref(false)
 const connecting = ref(false)
 const connectError = ref(null)
+const activeView = ref('scan') // 'scan' | 'saved'
 
 // Computed
 const networks = computed(() => networkStore.wifiNetworks)
@@ -34,6 +36,16 @@ const scanning = computed(() => networkStore.scanning)
 // Sort networks by signal strength
 const sortedNetworks = computed(() => {
   return [...networks.value].sort((a, b) => b.signal - a.signal)
+})
+
+// Watch for modal open
+watch(() => props.show, (val) => {
+  if (val) {
+    scanNetworks()
+    networkStore.fetchWiFiStatus()
+    networkStore.fetchSavedNetworks()
+    activeView.value = 'scan'
+  }
 })
 
 // Initial scan on mount
@@ -66,7 +78,6 @@ async function connect() {
   connectError.value = null
   
   try {
-    // Set mode to ONLINE_WIFI with credentials
     const success = await networkStore.setMode(NETWORK_MODES.ONLINE_WIFI, {
       ssid: selectedNetwork.value.ssid,
       password: password.value
@@ -85,11 +96,25 @@ async function connect() {
   }
 }
 
+async function disconnect() {
+  connecting.value = true
+  try {
+    await networkStore.disconnectWiFi()
+  } finally {
+    connecting.value = false
+  }
+}
+
+async function forgetNetwork(ssid) {
+  await networkStore.forgetNetwork(ssid)
+}
+
 function close() {
   emit('close')
   selectedNetwork.value = null
   password.value = ''
   connectError.value = null
+  activeView.value = 'scan'
 }
 
 function getSignalBars(signal) {
@@ -131,8 +156,8 @@ function getSecurityIcon(security) {
                 <Icon name="Wifi" :size="20" class="text-success" />
               </div>
               <div>
-                <h2 class="text-lg font-semibold text-theme-primary">Connect to WiFi</h2>
-                <p class="text-sm text-theme-tertiary">Select an upstream network</p>
+                <h2 class="text-lg font-semibold text-theme-primary">WiFi Manager</h2>
+                <p class="text-sm text-theme-tertiary">Connect, disconnect, and manage networks</p>
               </div>
             </div>
             <button
@@ -142,136 +167,211 @@ function getSecurityIcon(security) {
               <Icon name="X" :size="20" />
             </button>
           </div>
+
+          <!-- WiFi Status Bar (when connected) -->
+          <div v-if="networkStore.isWiFiConnected" class="px-4 py-3 bg-success-muted border-b border-theme-primary">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Icon name="Wifi" :size="16" class="text-success" />
+                <span class="text-sm font-medium text-success">
+                  Connected to {{ networkStore.wifiStatus?.ssid || 'Unknown' }}
+                </span>
+                <span v-if="networkStore.wifiStatus?.signal" class="text-xs text-success/70">
+                  {{ networkStore.wifiStatus.signal }}%
+                </span>
+              </div>
+              <button
+                @click="disconnect"
+                :disabled="connecting"
+                class="px-2.5 py-1 text-xs font-medium rounded-lg bg-error-muted text-error hover:opacity-80 disabled:opacity-50"
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab switcher: Scan / Saved -->
+          <div class="flex border-b border-theme-primary">
+            <button
+              @click="activeView = 'scan'"
+              class="flex-1 px-4 py-2 text-sm font-medium text-center border-b-2 -mb-px transition-colors"
+              :class="activeView === 'scan' 
+                ? 'border-[color:var(--accent-primary)] text-accent' 
+                : 'border-transparent text-theme-muted hover:text-theme-primary'"
+            >
+              Scan Networks
+            </button>
+            <button
+              @click="activeView = 'saved'"
+              class="flex-1 px-4 py-2 text-sm font-medium text-center border-b-2 -mb-px transition-colors flex items-center justify-center gap-1.5"
+              :class="activeView === 'saved' 
+                ? 'border-[color:var(--accent-primary)] text-accent' 
+                : 'border-transparent text-theme-muted hover:text-theme-primary'"
+            >
+              Saved
+              <span 
+                v-if="networkStore.savedNetworks.length"
+                class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-theme-tertiary text-theme-secondary"
+              >
+                {{ networkStore.savedNetworks.length }}
+              </span>
+            </button>
+          </div>
           
           <!-- Content -->
           <div class="p-4 max-h-96 overflow-y-auto">
-            <!-- Loading/Scanning state -->
-            <div v-if="scanning" class="flex flex-col items-center justify-center py-8">
-              <Icon name="Loader2" :size="32" class="animate-spin text-accent mb-3" />
-              <p class="text-theme-tertiary text-sm">Scanning for networks...</p>
-            </div>
-            
-            <!-- Network List -->
-            <div v-else-if="!selectedNetwork" class="space-y-2">
-              <!-- Refresh button -->
-              <button
-                @click="scanNetworks"
-                class="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-sm text-accent hover:bg-accent/10 transition-colors mb-3"
-              >
-                <Icon name="RefreshCw" :size="16" />
-                Refresh
-              </button>
+            <!-- ========== Scan View ========== -->
+            <template v-if="activeView === 'scan'">
+              <!-- Loading/Scanning state -->
+              <div v-if="scanning" class="flex flex-col items-center justify-center py-8">
+                <Icon name="Loader2" :size="32" class="animate-spin text-accent mb-3" />
+                <p class="text-theme-tertiary text-sm">Scanning for networks...</p>
+              </div>
               
-              <!-- Networks -->
-              <button
-                v-for="network in sortedNetworks"
-                :key="network.bssid"
-                @click="selectNetwork(network)"
-                class="w-full flex items-center gap-3 p-3 rounded-xl border border-theme-primary hover:border-theme-secondary hover:bg-theme-tertiary transition-all text-left"
-              >
-                <!-- Signal strength indicator -->
-                <div class="flex items-end gap-0.5 h-4">
-                  <div 
-                    v-for="i in 4" 
-                    :key="i"
-                    :class="[
-                      'w-1 rounded-sm transition-colors',
-                      i <= getSignalBars(network.signal) ? 'bg-success' : 'bg-theme-tertiary'
-                    ]"
-                    :style="{ height: `${i * 4}px` }"
-                  ></div>
-                </div>
-                
-                <!-- Network info -->
-                <div class="flex-1 min-w-0">
-                  <p class="font-medium text-theme-primary truncate">{{ network.ssid }}</p>
-                  <p class="text-xs text-theme-tertiary">
-                    {{ networkStore.getSignalLabel(network.signal) }} · {{ network.frequency }}MHz
-                  </p>
-                </div>
-                
-                <!-- Security indicator -->
-                <Icon 
-                  :name="getSecurityIcon(network.security)" 
-                  :size="16" 
-                  :class="network.security && network.security !== 'open' ? 'text-theme-secondary' : 'text-theme-muted'"
-                />
-              </button>
-              
-              <!-- Empty state -->
-              <div v-if="sortedNetworks.length === 0" class="text-center py-8">
-                <Icon name="WifiOff" :size="32" class="text-theme-muted mx-auto mb-2" />
-                <p class="text-theme-tertiary">No networks found</p>
+              <!-- Network List -->
+              <div v-else-if="!selectedNetwork" class="space-y-2">
                 <button
                   @click="scanNetworks"
-                  class="mt-2 text-sm text-accent hover:underline"
+                  class="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-sm text-accent hover:bg-accent/10 transition-colors mb-3"
                 >
-                  Try again
+                  <Icon name="RefreshCw" :size="16" />
+                  Refresh
                 </button>
-              </div>
-            </div>
-            
-            <!-- Password Entry -->
-            <div v-else class="space-y-4">
-              <button
-                @click="clearSelection"
-                class="flex items-center gap-2 text-sm text-theme-tertiary hover:text-theme-primary transition-colors"
-              >
-                <Icon name="ChevronLeft" :size="16" />
-                Back to networks
-              </button>
-              
-              <div class="p-4 rounded-xl bg-theme-tertiary">
-                <div class="flex items-center gap-3">
+                
+                <button
+                  v-for="network in sortedNetworks"
+                  :key="network.bssid"
+                  @click="selectNetwork(network)"
+                  class="w-full flex items-center gap-3 p-3 rounded-xl border border-theme-primary hover:border-theme-secondary hover:bg-theme-tertiary transition-all text-left"
+                >
                   <div class="flex items-end gap-0.5 h-4">
                     <div 
                       v-for="i in 4" 
                       :key="i"
                       :class="[
-                        'w-1 rounded-sm',
-                        i <= getSignalBars(selectedNetwork.signal) ? 'bg-success' : 'bg-neutral'
+                        'w-1 rounded-sm transition-colors',
+                        i <= getSignalBars(network.signal) ? 'bg-success' : 'bg-theme-tertiary'
                       ]"
                       :style="{ height: `${i * 4}px` }"
                     ></div>
                   </div>
-                  <div>
-                    <p class="font-medium text-theme-primary">{{ selectedNetwork.ssid }}</p>
-                    <p class="text-xs text-theme-tertiary">{{ selectedNetwork.security || 'Open' }}</p>
+                  
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium text-theme-primary truncate">{{ network.ssid }}</p>
+                    <p class="text-xs text-theme-tertiary">
+                      {{ networkStore.getSignalLabel(network.signal) }} · {{ network.frequency }}MHz
+                    </p>
                   </div>
-                </div>
-              </div>
-              
-              <!-- Password field (if secured) -->
-              <div v-if="selectedNetwork.security && selectedNetwork.security !== 'open'">
-                <label class="block text-sm font-medium text-theme-secondary mb-2">
-                  Password
-                </label>
-                <div class="relative">
-                  <input
-                    v-model="password"
-                    :type="showPassword ? 'text' : 'password'"
-                    placeholder="Enter WiFi password"
-                    class="w-full px-4 py-2.5 pr-10 rounded-xl border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                    @keyup.enter="connect"
+                  
+                  <Icon 
+                    :name="getSecurityIcon(network.security)" 
+                    :size="16" 
+                    :class="network.security && network.security !== 'open' ? 'text-theme-secondary' : 'text-theme-muted'"
                   />
+                </button>
+                
+                <div v-if="sortedNetworks.length === 0" class="text-center py-8">
+                  <Icon name="WifiOff" :size="32" class="text-theme-muted mx-auto mb-2" />
+                  <p class="text-theme-tertiary">No networks found</p>
                   <button
-                    @click="showPassword = !showPassword"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-secondary transition-colors"
+                    @click="scanNetworks"
+                    class="mt-2 text-sm text-accent hover:underline"
                   >
-                    <Icon :name="showPassword ? 'EyeOff' : 'Eye'" :size="18" />
+                    Try again
                   </button>
                 </div>
               </div>
               
-              <!-- Error message -->
-              <div 
-                v-if="connectError" 
-                class="flex items-center gap-2 p-3 rounded-lg bg-error/10 text-error text-sm"
-              >
-                <Icon name="AlertCircle" :size="16" />
-                {{ connectError }}
+              <!-- Password Entry -->
+              <div v-else class="space-y-4">
+                <button
+                  @click="clearSelection"
+                  class="flex items-center gap-2 text-sm text-theme-tertiary hover:text-theme-primary transition-colors"
+                >
+                  <Icon name="ChevronLeft" :size="16" />
+                  Back to networks
+                </button>
+                
+                <div class="p-4 rounded-xl bg-theme-tertiary">
+                  <div class="flex items-center gap-3">
+                    <div class="flex items-end gap-0.5 h-4">
+                      <div 
+                        v-for="i in 4" 
+                        :key="i"
+                        :class="[
+                          'w-1 rounded-sm',
+                          i <= getSignalBars(selectedNetwork.signal) ? 'bg-success' : 'bg-neutral'
+                        ]"
+                        :style="{ height: `${i * 4}px` }"
+                      ></div>
+                    </div>
+                    <div>
+                      <p class="font-medium text-theme-primary">{{ selectedNetwork.ssid }}</p>
+                      <p class="text-xs text-theme-tertiary">{{ selectedNetwork.security || 'Open' }}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div v-if="selectedNetwork.security && selectedNetwork.security !== 'open'">
+                  <label class="block text-sm font-medium text-theme-secondary mb-2">
+                    Password
+                  </label>
+                  <div class="relative">
+                    <input
+                      v-model="password"
+                      :type="showPassword ? 'text' : 'password'"
+                      placeholder="Enter WiFi password"
+                      class="w-full px-4 py-2.5 pr-10 rounded-xl border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                      @keyup.enter="connect"
+                    />
+                    <button
+                      @click="showPassword = !showPassword"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-secondary transition-colors"
+                    >
+                      <Icon :name="showPassword ? 'EyeOff' : 'Eye'" :size="18" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div 
+                  v-if="connectError" 
+                  class="flex items-center gap-2 p-3 rounded-lg bg-error/10 text-error text-sm"
+                >
+                  <Icon name="AlertCircle" :size="16" />
+                  {{ connectError }}
+                </div>
               </div>
-            </div>
+            </template>
+
+            <!-- ========== Saved Networks View ========== -->
+            <template v-if="activeView === 'saved'">
+              <div v-if="networkStore.savedNetworks.length" class="space-y-2">
+                <div
+                  v-for="net in networkStore.savedNetworks"
+                  :key="net.ssid"
+                  class="flex items-center justify-between p-3 rounded-xl border border-theme-primary"
+                >
+                  <div class="flex items-center gap-3 min-w-0">
+                    <Icon name="Wifi" :size="16" class="text-theme-muted shrink-0" />
+                    <div class="min-w-0">
+                      <p class="font-medium text-theme-primary text-sm truncate">{{ net.ssid }}</p>
+                      <p v-if="net.last_connected" class="text-xs text-theme-muted">{{ net.last_connected }}</p>
+                    </div>
+                  </div>
+                  <button
+                    @click="forgetNetwork(net.ssid)"
+                    class="px-2.5 py-1 text-xs font-medium text-error hover:bg-error-muted rounded-lg transition-colors shrink-0 ml-2"
+                  >
+                    Forget
+                  </button>
+                </div>
+              </div>
+              <div v-else class="text-center py-8">
+                <Icon name="WifiOff" :size="32" class="text-theme-muted mx-auto mb-2" />
+                <p class="text-theme-tertiary text-sm">No saved networks</p>
+                <p class="text-xs text-theme-muted mt-1">Networks are saved when you connect to them</p>
+              </div>
+            </template>
           </div>
           
           <!-- Footer -->
@@ -283,7 +383,7 @@ function getSecurityIcon(security) {
               Cancel
             </button>
             <button
-              v-if="selectedNetwork"
+              v-if="selectedNetwork && activeView === 'scan'"
               @click="connect"
               :disabled="connecting || (selectedNetwork.security && selectedNetwork.security !== 'open' && !password)"
               :class="[

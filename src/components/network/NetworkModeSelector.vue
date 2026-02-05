@@ -1,11 +1,14 @@
 <script setup>
 /**
- * NetworkModeSelector.vue - Sprint 4 Component (S4-08)
+ * NetworkModeSelector.vue - Sprint 2 Enhanced
  * 
  * UI for selecting network mode (OFFLINE/ONLINE_ETH/ONLINE_WIFI).
- * Uses the network store and Sprint 3 API.
+ * Sprint 2: Fetches available modes from GET /network/modes API instead
+ * of hardcoded list. Shows only modes supported by current hardware
+ * (e.g., no ONLINE_WIFI if no USB WiFi dongle detected).
+ * Falls back to hardcoded modes if API is unavailable.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -13,14 +16,16 @@ const emit = defineEmits(['modeChanged', 'showWifiConnect'])
 
 const networkStore = useNetworkStore()
 
-const modes = [
+// Hardcoded fallback modes (used if API fetch fails)
+const fallbackModes = [
   {
     id: NETWORK_MODES.OFFLINE,
     name: 'Offline',
     description: 'Air-gapped mode. AP only, no internet.',
     icon: 'WifiOff',
     color: 'text-neutral',
-    bgColor: 'bg-theme-tertiary'
+    bgColor: 'bg-theme-tertiary',
+    available: true
   },
   {
     id: NETWORK_MODES.ONLINE_ETH,
@@ -28,7 +33,8 @@ const modes = [
     description: 'Internet via Ethernet. NAT for AP clients.',
     icon: 'Cable',
     color: 'text-accent',
-    bgColor: 'bg-accent-muted'
+    bgColor: 'bg-accent-muted',
+    available: true
   },
   {
     id: NETWORK_MODES.ONLINE_WIFI,
@@ -36,14 +42,52 @@ const modes = [
     description: 'Connect to upstream WiFi via USB dongle.',
     icon: 'Wifi',
     color: 'text-success',
-    bgColor: 'bg-success-muted'
+    bgColor: 'bg-success-muted',
+    available: true
   }
 ]
+
+// Mode metadata for icons/colors (API modes won't have these)
+const modeMetadata = {
+  [NETWORK_MODES.OFFLINE]: { icon: 'WifiOff', color: 'text-neutral', bgColor: 'bg-theme-tertiary' },
+  [NETWORK_MODES.ONLINE_ETH]: { icon: 'Cable', color: 'text-accent', bgColor: 'bg-accent-muted' },
+  [NETWORK_MODES.ONLINE_WIFI]: { icon: 'Wifi', color: 'text-success', bgColor: 'bg-success-muted' }
+}
+
+const modesLoaded = ref(false)
+
+// Compute displayed modes: prefer API modes, fallback to hardcoded
+const displayModes = computed(() => {
+  if (networkStore.modes.length > 0) {
+    return networkStore.modes.map(apiMode => {
+      const id = apiMode.id || apiMode.mode || apiMode
+      const meta = modeMetadata[id] || { icon: 'Network', color: 'text-theme-secondary', bgColor: 'bg-theme-tertiary' }
+      return {
+        id,
+        name: apiMode.name || apiMode.label || id,
+        description: apiMode.description || '',
+        icon: meta.icon,
+        color: meta.color,
+        bgColor: meta.bgColor,
+        available: apiMode.available !== false
+      }
+    })
+  }
+  return fallbackModes
+})
+
+// Only show available modes
+const availableModes = computed(() => displayModes.value.filter(m => m.available))
 
 const selectedMode = ref(null)
 const changingMode = ref(false)
 
 const currentMode = computed(() => networkStore.currentMode)
+
+onMounted(async () => {
+  await networkStore.fetchModes()
+  modesLoaded.value = true
+})
 
 async function selectMode(mode) {
   if (mode.id === currentMode.value) return
@@ -70,10 +114,6 @@ async function selectMode(mode) {
   }
 }
 
-function isSelected(modeId) {
-  return selectedMode.value === modeId || currentMode.value === modeId
-}
-
 function isCurrentMode(modeId) {
   return currentMode.value === modeId
 }
@@ -88,21 +128,23 @@ function isCurrentMode(modeId) {
     
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <button
-        v-for="mode in modes"
+        v-for="mode in availableModes"
         :key="mode.id"
         @click="selectMode(mode)"
-        :disabled="changingMode"
+        :disabled="changingMode || !mode.available"
         :class="[
           'relative p-4 rounded-xl border-2 text-left transition-all duration-200',
           isCurrentMode(mode.id)
             ? 'border-accent bg-accent/5 ring-1 ring-accent/30'
-            : 'border-theme-primary hover:border-theme-secondary hover:bg-theme-tertiary',
-          { 'opacity-50 cursor-not-allowed': changingMode && selectedMode.value === mode.id }
+            : mode.available
+              ? 'border-theme-primary hover:border-theme-secondary hover:bg-theme-tertiary'
+              : 'border-theme-primary opacity-50 cursor-not-allowed',
+          { 'opacity-50 cursor-not-allowed': changingMode && selectedMode === mode.id }
         ]"
       >
         <!-- Loading indicator -->
         <div 
-          v-if="changingMode && selectedMode.value === mode.id"
+          v-if="changingMode && selectedMode === mode.id"
           class="absolute inset-0 flex items-center justify-center bg-theme-card/80 rounded-xl"
         >
           <Icon name="Loader2" :size="24" class="animate-spin text-accent" />
@@ -131,6 +173,15 @@ function isCurrentMode(modeId) {
       </button>
     </div>
     
+    <!-- Unavailable modes hint -->
+    <div 
+      v-if="displayModes.some(m => !m.available)"
+      class="flex items-center gap-2 text-xs text-theme-muted"
+    >
+      <Icon name="Info" :size="14" />
+      <span>Some modes are unavailable due to missing hardware (e.g., no USB WiFi dongle detected)</span>
+    </div>
+
     <!-- Error message -->
     <div 
       v-if="networkStore.error" 
