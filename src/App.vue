@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, onUnmounted, watch } from 'vue'
+import { onMounted, ref, onUnmounted, watch, provide } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useBrandingStore } from '@/stores/branding'
@@ -29,13 +29,18 @@ const FALLBACK_POLL_MS = 5000
  * onStats callback maps WS messages into the system store so all views
  * (AppHeader, DashboardView, SystemView) get live data automatically.
  */
-const { connected: wsConnected, reconnect: wsReconnect } = useWebSocket({
+const { connected: wsConnected, reconnect: wsReconnect, subscribe: wsSubscribe, unsubscribe: wsUnsubscribe } = useWebSocket({
   interval: 2,
   autoConnect: false, // We connect manually after auth check
   onStats: (data) => {
     systemStore.updateFromWebSocket(data)
   }
 })
+
+// Expose WS subscription to child views (MonitoringView, future views)
+provide('wsSubscribe', wsSubscribe)
+provide('wsUnsubscribe', wsUnsubscribe)
+provide('wsConnected', wsConnected)
 
 // Keep system store's wsConnected in sync with the composable
 watch(wsConnected, (isConnected) => {

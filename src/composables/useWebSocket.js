@@ -33,6 +33,29 @@ export function useWebSocket(options = {}) {
     docker: { running: 0, total: 0, containers: [] }
   })
 
+  // Subscriber registry — views can subscribe to WS messages without opening new connections
+  const subscribers = ref(new Map())
+
+  /**
+   * Register a subscriber for WS stats messages.
+   * Views call this on mount and unregister on unmount.
+   *
+   * @param {string} key - Unique subscriber ID
+   * @param {Function} callback - Called with each parsed WS message
+   */
+  function subscribe(key, callback) {
+    subscribers.value.set(key, callback)
+  }
+
+  /**
+   * Remove a subscriber.
+   *
+   * @param {string} key - Subscriber ID to remove
+   */
+  function unsubscribe(key) {
+    subscribers.value.delete(key)
+  }
+
   // Computed values for easy access
   const cpuPercent = computed(() => Math.round(stats.value.cpu?.percent || 0))
   const memoryPercent = computed(() => Math.round(stats.value.memory?.percent || 0))
@@ -111,6 +134,11 @@ export function useWebSocket(options = {}) {
             // Notify callback so App.vue can pipe data into the system store
             if (onStats) {
               onStats(data)
+            }
+
+            // Notify all subscribers (MonitoringView, future views)
+            for (const cb of subscribers.value.values()) {
+              try { cb(data) } catch (e) { /* subscriber error — don't break WS */ }
             }
           }
         } catch (e) {
@@ -214,6 +242,8 @@ export function useWebSocket(options = {}) {
     connect,
     disconnect,
     reconnect,
-    send
+    send,
+    subscribe,
+    unsubscribe
   }
 }

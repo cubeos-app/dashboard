@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, inject } from 'vue'
 import { useMonitoringStore } from '@/stores/monitoring'
 import { useSystemStore } from '@/stores/system'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
@@ -9,6 +9,11 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 const monitoringStore = useMonitoringStore()
 const systemStore = useSystemStore()
 const { signal } = useAbortOnUnmount()
+
+// WebSocket subscription from App.vue (single-connection architecture)
+const wsSubscribe = inject('wsSubscribe', null)
+const wsUnsubscribe = inject('wsUnsubscribe', null)
+const wsConnected = inject('wsConnected', ref(false))
 
 // ==========================================
 // Tabs
@@ -202,6 +207,59 @@ function progressColor(percent) {
 const initialLoaded = ref(false)
 const refreshing = ref(false)
 let pollInterval = null
+const WS_SUBSCRIBER_KEY = 'monitoring-view'
+const POLL_INTERVAL_MS = 5000
+
+// Map WS nested format to monitoring store flat format
+function handleWsMessage(data) {
+  if (!data) return
+
+  const mapped = {}
+  if (data.system) {
+    if (data.system.cpu) mapped.cpu_percent = data.system.cpu.percent
+    if (data.system.memory) {
+      mapped.memory_percent = data.system.memory.percent
+      mapped.memory_used = data.system.memory.used
+      mapped.memory_total = data.system.memory.total
+    }
+    if (data.system.disk) {
+      mapped.disk_percent = data.system.disk.percent
+      mapped.disk_used = data.system.disk.used
+      mapped.disk_total = data.system.disk.total
+    }
+    if (data.system.temperature) {
+      mapped.temperature_cpu = data.system.temperature.cpu_temp_c
+    }
+  }
+
+  // Update monitoring store stats directly (no HTTP round-trip)
+  if (Object.keys(mapped).length > 0) {
+    monitoringStore.stats = { ...(monitoringStore.stats || {}), ...mapped }
+  }
+}
+
+function startPolling() {
+  if (pollInterval) return
+  pollInterval = setInterval(() => {
+    monitoringStore.fetchStats()
+  }, POLL_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+}
+
+// Watch WS connection: stop polling when connected, start when disconnected
+watch(wsConnected, (isConnected) => {
+  if (isConnected) {
+    stopPolling()
+  } else {
+    startPolling()
+  }
+})
 
 onMounted(async () => {
   const s = signal()
@@ -209,13 +267,22 @@ onMounted(async () => {
   await monitoringStore.setPeriod('1h')
   initialLoaded.value = true
 
-  pollInterval = setInterval(() => {
-    monitoringStore.fetchStats()
-  }, 5000)
+  // Subscribe to WS stats if available
+  if (wsSubscribe) {
+    wsSubscribe(WS_SUBSCRIBER_KEY, handleWsMessage)
+  }
+
+  // If WS not connected, start HTTP fallback polling
+  if (!wsConnected.value) {
+    startPolling()
+  }
 })
 
 onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval)
+  stopPolling()
+  if (wsUnsubscribe) {
+    wsUnsubscribe(WS_SUBSCRIBER_KEY)
+  }
 })
 
 async function refresh() {
