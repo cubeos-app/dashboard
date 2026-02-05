@@ -122,7 +122,7 @@ const batteryCharging = computed(() => {
         <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs"
              :class="temperature > 80 ? 'text-error' : temperature > 70 ? 'text-warning' : 'text-theme-secondary'">
           <Icon name="Thermometer" :size="13" class="text-theme-muted" />
-          <span class="font-medium tabular-nums">{{ temperature }}C</span>
+          <span class="font-medium tabular-nums">{{ temperature }}°C</span>
         </div>
 
         <!-- Battery (only if hardware present) -->

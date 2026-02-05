@@ -10,7 +10,21 @@ const interfaces = ref([])
 const natStatus = ref(null)
 const internetStatus = ref(null)
 const firewallStatus = ref(null)
+const networkMode = ref(null)
 const error = ref(null)
+
+// Fix 2: Robust AP status detection - HAL may return different field shapes
+const apIsActive = computed(() => {
+  if (!apStatus.value) return false
+  const s = apStatus.value
+  // Check various HAL response shapes
+  if (s.status === 'up' || s.status === 'active') return true
+  if (s.state === 'active' || s.state === 'up') return true
+  if (s.active === true) return true
+  // If we have an SSID being broadcast, it's running
+  if (s.ssid && s.ssid.length > 0) return true
+  return false
+})
 
 // WiFi AP Config Modal
 const showAPConfigModal = ref(false)
@@ -96,16 +110,18 @@ async function fetchAll() {
   loading.value = true
   error.value = null
   try {
-    const [ap, clientList, ifacesResp, nat, internet, fw] = await Promise.all([
+    const [ap, clientList, ifacesResp, nat, internet, fw, mode] = await Promise.all([
       api.get('/network/wifi/ap/status').catch(() => null),
       api.get('/network/wifi/ap/clients').catch(() => ({ clients: [] })),
       api.get('/network/interfaces/detailed').catch(() => ({ interfaces: [] })),
       api.get('/firewall/nat').catch(() => ({ enabled: false })),
       api.get('/network/internet').catch(() => ({ connected: false })),
-      api.get('/firewall/status').catch(() => null)
+      api.get('/firewall/status').catch(() => null),
+      api.get('/network/mode').catch(() => null)
     ])
     
     apStatus.value = ap
+    networkMode.value = mode
     clients.value = clientList?.clients || []
     // Filter out Docker virtual interfaces - only show physical/relevant ones
     const allIfaces = ifacesResp?.interfaces || []
@@ -342,6 +358,20 @@ function signalColor(pct) {
       <p class="text-error">{{ error }}</p>
     </div>
 
+    <!-- Network Mode Banner -->
+    <div v-if="networkMode" class="bg-theme-secondary rounded-xl p-4 flex items-center justify-between">
+      <div>
+        <span class="text-xs font-medium text-theme-muted uppercase tracking-wide">Network Mode</span>
+        <p class="text-theme-primary font-semibold mt-0.5">
+          {{ networkMode.mode === 'OFFLINE' ? 'Offline (AP Only)' : networkMode.mode === 'ONLINE_ETH' ? 'Online via Ethernet' : networkMode.mode === 'ONLINE_WIFI' ? 'Online via WiFi' : networkMode.mode || 'Unknown' }}
+        </p>
+      </div>
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+        :class="networkMode.mode === 'OFFLINE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'">
+        {{ networkMode.mode === 'OFFLINE' ? 'Air-gapped' : 'Connected' }}
+      </span>
+    </div>
+
     <!-- Tabs -->
     <div class="border-b border-theme-primary">
       <nav class="flex gap-4">
@@ -390,8 +420,8 @@ function signalColor(pct) {
           </div>
           <div class="flex items-center justify-between text-sm">
             <span class="text-theme-muted">Status</span>
-            <span :class="apStatus?.status === 'up' ? 'text-green-500' : 'text-red-500'">
-              {{ apStatus?.status === 'up' ? 'Active' : 'Inactive' }}
+            <span :class="apIsActive ? 'text-green-500' : 'text-red-500'">
+              {{ apIsActive ? 'Active' : 'Inactive' }}
             </span>
           </div>
           <div class="flex items-center justify-between text-sm mt-1">

@@ -75,7 +75,7 @@ class ApiClient {
     }
 
     const data = await response.json()
-    this.setTokens(data.token || data.access_token, data.refresh_token)
+    this.setTokens(data.access_token || data.token, data.refresh_token)
     return data
   }
 
@@ -98,7 +98,7 @@ class ApiClient {
       }
 
       const data = await response.json()
-      this.setTokens(data.token || data.access_token, data.refresh_token)
+      this.setTokens(data.access_token || data.token, data.refresh_token)
       return true
     } catch {
       this.clearTokens()
@@ -232,6 +232,7 @@ class ApiClient {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       throw new Error(error.error || error.message || 'Request failed')
     }
+    if (response.status === 204) return { success: true }
     return response.json()
   }
 
@@ -244,6 +245,7 @@ class ApiClient {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       throw new Error(error.error || error.message || 'Request failed')
     }
+    if (response.status === 204) return { success: true }
     return response.json()
   }
 
@@ -253,6 +255,7 @@ class ApiClient {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       throw new Error(error.error || error.message || 'Request failed')
     }
+    if (response.status === 204) return { success: true }
     return response.json()
   }
 }

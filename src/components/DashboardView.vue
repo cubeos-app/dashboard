@@ -229,8 +229,7 @@ onMounted(async () => {
   
   // Load data
   await Promise.all([
-    systemStore.fetchSystemInfo(),
-    systemStore.fetchStats(),
+    systemStore.fetchAll(),
     appsStore.fetchApps()
   ])
   

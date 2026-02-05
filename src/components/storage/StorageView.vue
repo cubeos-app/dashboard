@@ -42,7 +42,8 @@ async function fetchAll() {
   loading.value = true
   error.value = null
   try {
-    const [stats, dockerInfo, health, smb, shares] = await Promise.all([
+    const [storageInfo, stats, dockerInfo, health, smb, shares] = await Promise.all([
+      api.get('/storage').catch(() => null),
       api.get('/system/stats'),
       api.get('/docker/disk-usage').catch(() => null),
       api.get('/storage/health').catch(() => ({ disks: [] })),
@@ -50,15 +51,21 @@ async function fetchAll() {
       api.get('/smb/shares').catch(() => ({ shares: [] }))
     ])
     
-    disks.value = [{
-      device: '/dev/mmcblk0p2',
-      mountpoint: '/',
-      fstype: 'ext4',
-      total_bytes: stats.disk_total || 0,
-      used_bytes: stats.disk_used || 0,
-      free_bytes: stats.disk_free || 0,
-      percent_used: stats.disk_percent || 0
-    }]
+    // Prefer /storage endpoint which lists all disks (NVMe, USB, SD)
+    if (storageInfo?.disks?.length) {
+      disks.value = storageInfo.disks
+    } else {
+      // Fallback: single SD card from /system/stats
+      disks.value = [{
+        device: '/dev/mmcblk0p2',
+        mountpoint: '/',
+        fstype: 'ext4',
+        total_bytes: stats.disk_total || 0,
+        used_bytes: stats.disk_used || 0,
+        free_bytes: stats.disk_free || 0,
+        percent_used: stats.disk_percent || 0
+      }]
+    }
     
     if (dockerInfo) {
       dockerUsage.value = {

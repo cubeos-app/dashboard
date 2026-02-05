@@ -35,8 +35,12 @@ export const useSystemStore = defineStore('system', () => {
 
   // Getters - system info
   const hostname = computed(() => {
-    // Prefer Pi model name if available, then hostname from info
-    return info.value?.hostname || hardware.value?.model || 'CubeOS'
+    // info.hostname returns container name when running in Docker (e.g. "cubeos-api")
+    // Prefer Pi model from EEPROM, fall back to hostname only if it's a real host name
+    const h = info.value?.hostname
+    const isContainerName = !h || h === 'cubeos-api' || h === 'cubeos_api' || h.startsWith('cubeos-')
+    if (!isContainerName) return h
+    return hardware.value?.model || 'CubeOS'
   })
   
   const cpuUsage = computed(() => Math.round(stats.value?.cpu_percent ?? 0))
