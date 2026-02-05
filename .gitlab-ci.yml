@@ -3,20 +3,22 @@
 # =============================================================================
 #
 # DEPLOY STRATEGY:
-#   Always: stack rm -> wait for drain -> stack deploy (with local image)
+#   1. Stop watchdog timer (prevents interference during deploy)
+#   2. stack rm -> wait for drain
+#   3. stack deploy with local-only image (no registry prefix)
+#   4. Wait for convergence + HTTP health check
+#   5. Restart watchdog timer
 #
 #   Why local image tags?
 #     - Swarm's node worker independently verifies images against registries
 #     - --resolve-image never only skips digest pinning at deploy time
-#     - GHCR resolution is slow/flaky on Pi -> tasks hang in "Preparing"
-#     - Local-only image names (no registry prefix) force Swarm to skip
-#       registry verification entirely
+#     - GHCR resolution is slow on Pi -> tasks hang in "Preparing"
+#     - Local-only names (no registry prefix) skip registry verification
 #
-#   Why stack rm -> stack deploy?
-#     - Pi's Docker doesn't support --resolve-image on service update
-#     - No old container = no port conflict
-#     - ~10-15s downtime (same as stop-first would give)
-#     - One code path, no edge cases
+#   Why stop watchdog?
+#     - Watchdog runs every minute, redeploys struggling stacks
+#     - Uses on-disk compose with ghcr.io image -> re-introduces the problem
+#     - Must be stopped before stack rm, restarted after health check passes
 #
 # =============================================================================
 
@@ -34,7 +36,7 @@ variables:
   STACK_NAME: "cubeos-dashboard"
   COMPOSE_DIR: "/cubeos/coreapps/cubeos-dashboard/appconfig"
   HEALTH_URL: "http://127.0.0.1:6011/"
-  CONVERGE_TIMEOUT: "120"
+  CONVERGE_TIMEOUT: "180"
   HEALTH_TIMEOUT: "90"
 
 # -----------------------------------------------------------------------------
@@ -104,8 +106,13 @@ deploy:
         exit 1
       fi
       echo "  Compose: found"
-      echo "  Disk:"
-      df -h / | awk 'NR==2{printf "    %s used, %s free\n", $3, $4}'
+
+    # === STOP WATCHDOG ===
+    # Prevent watchdog from redeploying during our stack rm/deploy cycle
+    - |
+      echo "=== Stopping watchdog ==="
+      sudo systemctl stop cubeos-watchdog.timer 2>/dev/null || true
+      echo "  Watchdog timer stopped"
 
     # === PULL AND RE-TAG AS LOCAL ===
     - |
@@ -113,8 +120,6 @@ deploy:
       docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
 
       # Re-tag to local-only name (no registry prefix).
-      # This prevents Swarm's node worker from trying to verify
-      # the image against ghcr.io during task scheduling.
       docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}
       echo "  Tagged: ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}"
 
@@ -123,7 +128,6 @@ deploy:
       echo "  Verified: local image present"
 
     # === PREPARE COMPOSE ===
-    # Inject the LOCAL image tag (no registry prefix) into a temp copy.
     - |
       echo "=== Preparing compose ==="
       cp ${COMPOSE_DIR}/docker-compose.yml /tmp/deploy-compose.yml
@@ -134,22 +138,22 @@ deploy:
       echo "  Image tag in compose:"
       grep "image:" /tmp/deploy-compose.yml | head -1
 
-      # Sanity check: verify the image line has NO registry prefix
+      # Sanity check
       if grep "image:" /tmp/deploy-compose.yml | head -1 | grep -q "ghcr.io\|docker.io"; then
         echo "  FATAL: Compose still references remote registry!"
         exit 1
       fi
-      echo "  Confirmed: no remote registry in image reference"
+      echo "  Confirmed: local-only image reference"
 
     # === REMOVE OLD STACK ===
     - |
       echo "=== Removing old stack ==="
       docker stack rm ${STACK_NAME} 2>/dev/null || true
 
-      # Wait for all containers to drain and port to release
+      # Wait for all containers to drain
       set +e
       WAIT=0
-      while [ $WAIT -lt 30 ]; do
+      while [ $WAIT -lt 45 ]; do
         REMAINING=$(docker ps -q \
           --filter "label=com.docker.stack.namespace=${STACK_NAME}" \
           2>/dev/null | wc -l)
@@ -195,7 +199,6 @@ deploy:
       set +e
       ELAPSED=0
       CONVERGED=0
-      LAST_STATE=""
       FAIL_COUNT=0
       while [ $ELAPSED -lt ${CONVERGE_TIMEOUT} ]; do
         STATE=$(docker service ps ${SERVICE_NAME} \
@@ -208,16 +211,18 @@ deploy:
             CONVERGED=1
             break
             ;;
+          Starting*)
+            echo "  ${STATE} (${ELAPSED}s) - container starting..."
+            ;;
           "")
-            echo "  Scheduling... (${ELAPSED}s)"
-            # If we had a non-empty state before and now it's empty,
-            # the task likely failed and is being rescheduled
-            if [ -n "$LAST_STATE" ] && [ "$LAST_STATE" != "" ]; then
+            # Empty state after previously having one = task failed
+            if [ $ELAPSED -gt 0 ]; then
               FAIL_COUNT=$((FAIL_COUNT + 1))
-              echo "  WARNING: Task appears to have failed (attempt ${FAIL_COUNT})"
-              # Show the failed task details
+              echo "  Task rescheduling (attempt ${FAIL_COUNT}) (${ELAPSED}s)"
               docker service ps ${SERVICE_NAME} --no-trunc \
-                --format "    {{.CurrentState}} - {{.Error}}" 2>/dev/null | head -3
+                --format "    {{.CurrentState}} | {{.Error}}" 2>/dev/null | head -3
+            else
+              echo "  Scheduling... (${ELAPSED}s)"
             fi
             ;;
           *)
@@ -225,14 +230,10 @@ deploy:
             ;;
         esac
 
-        LAST_STATE="$STATE"
-
-        # If we've seen 3+ failures, bail early with diagnostics
+        # Bail on repeated failures
         if [ "$FAIL_COUNT" -ge 3 ]; then
-          echo "  ERROR: Task has failed ${FAIL_COUNT} times, bailing out"
-          echo "  === Task history ==="
+          echo "  ERROR: ${FAIL_COUNT} task failures, aborting"
           docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null
-          echo "  === Service logs (last 20 lines) ==="
           docker service logs ${SERVICE_NAME} --tail 20 2>/dev/null || true
           exit 1
         fi
@@ -244,12 +245,8 @@ deploy:
 
       if [ "$CONVERGED" -ne 1 ]; then
         echo "ERROR: Did not converge within ${CONVERGE_TIMEOUT}s"
-        echo "=== All tasks (including failed) ==="
         docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
-        echo "=== Service logs ==="
         docker service logs ${SERVICE_NAME} --tail 30 2>/dev/null || true
-        echo "=== Service inspect ==="
-        docker service inspect ${SERVICE_NAME} --pretty 2>/dev/null | head -30 || true
         exit 1
       fi
 
@@ -288,21 +285,26 @@ deploy:
       echo "  Running:  ${RUNNING_IMAGE}"
       echo "  Expected: ${EXPECTED}"
       if [ "${RUNNING_IMAGE}" != "${EXPECTED}" ]; then
-        echo "  FATAL: Image mismatch after deploy!"
+        echo "  FATAL: Image mismatch - possible watchdog interference"
         exit 1
       fi
       echo "  Image verified"
 
-    # === CLEANUP ===
+    # === DONE ===
     - |
       echo "=== Deploy complete ==="
       docker service ls --filter "name=${SERVICE_NAME}"
       echo "  Dashboard: http://cubeos.cube"
-
-      # Clean up GHCR-prefixed image (keep local-only tag)
       docker rmi ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} 2>/dev/null || true
       docker image prune -f 2>/dev/null || true
       df -h / | awk 'NR==2{printf "  Disk free: %s\n", $4}'
+
+  # ALWAYS restart watchdog, even on failure
+  after_script:
+    - |
+      echo "=== Restarting watchdog ==="
+      sudo systemctl start cubeos-watchdog.timer 2>/dev/null || true
+      echo "  Watchdog timer restarted"
 
   environment:
     name: production
