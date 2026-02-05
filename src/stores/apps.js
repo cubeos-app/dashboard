@@ -397,8 +397,9 @@ export const useAppsStore = defineStore('apps', () => {
 
   /**
    * Fetch all apps from the API
+   * @param {object} options - Optional { signal } for AbortController
    */
-  async function fetchApps() {
+  async function fetchApps(options = {}) {
     loading.value = true
     error.value = null
     
@@ -407,10 +408,12 @@ export const useAppsStore = defineStore('apps', () => {
       if (filterType.value) params.type = filterType.value
       if (filterEnabled.value !== null) params.enabled = filterEnabled.value
       
-      const response = await api.get('/apps', params)
+      const response = await api.get('/apps', params, options)
+      if (response === null) return // Aborted
       apps.value = response.apps || []
       lastUpdated.value = new Date()
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     } finally {
       loading.value = false
@@ -419,11 +422,15 @@ export const useAppsStore = defineStore('apps', () => {
 
   /**
    * Get a single app by name
+   * @param {string} name
+   * @param {object} options - Optional { signal } for AbortController
    */
-  async function getApp(name) {
+  async function getApp(name, options = {}) {
     try {
-      return await api.get(`/apps/${encodeURIComponent(name)}`)
+      const response = await api.get(`/apps/${encodeURIComponent(name)}`, {}, options)
+      return response
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       return null
     }
@@ -501,12 +508,17 @@ export const useAppsStore = defineStore('apps', () => {
 
   /**
    * Get logs for an app
+   * @param {string} name
+   * @param {number} lines
+   * @param {object} options - Optional { signal } for AbortController
    */
-  async function getAppLogs(name, lines = 100) {
+  async function getAppLogs(name, lines = 100, options = {}) {
     try {
-      const response = await api.get(`/apps/${encodeURIComponent(name)}/logs`, { lines })
+      const response = await api.get(`/apps/${encodeURIComponent(name)}/logs`, { lines }, options)
+      if (response === null) return [] // Aborted
       return response.logs || []
     } catch (e) {
+      if (e.name === 'AbortError') return []
       error.value = e.message
       return []
     }
@@ -600,6 +612,7 @@ export const useAppsStore = defineStore('apps', () => {
   
   let _pollInterval = null
   let _pollSubscribers = 0
+  let _pollController = null
   const POLL_INTERVAL_MS = 10000
 
   /**
@@ -610,7 +623,10 @@ export const useAppsStore = defineStore('apps', () => {
     _pollSubscribers++
     if (_pollSubscribers === 1 && !_pollInterval) {
       _pollInterval = setInterval(() => {
-        fetchApps()
+        // Abort any in-flight poll request before starting a new one
+        if (_pollController) _pollController.abort()
+        _pollController = new AbortController()
+        fetchApps({ signal: _pollController.signal })
       }, POLL_INTERVAL_MS)
     }
   }
@@ -623,6 +639,11 @@ export const useAppsStore = defineStore('apps', () => {
     if (_pollSubscribers === 0 && _pollInterval) {
       clearInterval(_pollInterval)
       _pollInterval = null
+      // Abort any in-flight poll request
+      if (_pollController) {
+        _pollController.abort()
+        _pollController = null
+      }
     }
   }
 

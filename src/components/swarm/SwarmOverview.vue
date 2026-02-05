@@ -8,14 +8,13 @@
  * Sprint 4: S4-03
  */
 
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed } from 'vue'
 import { useAppsStore, APP_TYPES, DEPLOY_MODES, HEALTH_STATUS } from '@/stores/apps'
 import Icon from '@/components/ui/Icon.vue'
 
 const appsStore = useAppsStore()
 
-// Refresh interval
-let refreshInterval = null
+// No lifecycle polling — parent view (DashboardView) handles centralized polling
 
 // Computed stats
 const totalApps = computed(() => appsStore.apps.length)
@@ -74,16 +73,7 @@ const healthBgColor = computed(() => {
   return 'bg-red-500'
 })
 
-// Lifecycle
-onMounted(() => {
-  appsStore.fetchApps()
-  // Refresh every 10 seconds
-  refreshInterval = setInterval(() => appsStore.fetchApps(), 10000)
-})
 
-onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
-})
 </script>
 
 <template>

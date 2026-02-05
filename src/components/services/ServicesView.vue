@@ -8,6 +8,7 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppsStore, APP_TYPES } from '@/stores/apps'
+import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import StackList from '@/components/swarm/StackList.vue'
 import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
 import Icon from '@/components/ui/Icon.vue'
@@ -15,6 +16,7 @@ import Icon from '@/components/ui/Icon.vue'
 const route = useRoute()
 const router = useRouter()
 const appsStore = useAppsStore()
+const { signal } = useAbortOnUnmount()
 
 // State
 const searchQuery = ref('')
@@ -27,8 +29,6 @@ const showHealthModal = ref(false)
 const selectedApp = ref(null)
 
 // Refresh interval
-let refreshInterval = null
-
 // Sync search with store
 watch(searchQuery, (value) => {
   appsStore.searchQuery = value
@@ -171,12 +171,12 @@ function getHealthStatus(app) {
 
 // Lifecycle
 onMounted(() => {
-  appsStore.fetchApps()
-  refreshInterval = setInterval(() => appsStore.fetchApps(), 15000)
+  appsStore.fetchApps({ signal: signal() })
+  appsStore.startPolling()
 })
 
 onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
+  appsStore.stopPolling()
 })
 </script>
 

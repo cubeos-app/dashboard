@@ -116,19 +116,23 @@ export const useSystemStore = defineStore('system', () => {
   })
 
   // Actions
-  async function fetchInfo() {
+  async function fetchInfo(options = {}) {
     try {
       info.value = await api.getSystemInfo()
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     }
   }
 
-  async function fetchStats() {
+  async function fetchStats(options = {}) {
     try {
-      stats.value = await api.getSystemStats()
+      const result = await api.get('/system/stats', {}, options)
+      if (result === null) return // Aborted
+      stats.value = result
       lastUpdated.value = new Date()
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     }
   }
@@ -137,11 +141,13 @@ export const useSystemStore = defineStore('system', () => {
    * Fetch battery status from HAL
    * Uses /hardware/battery endpoint
    */
-  async function fetchBattery() {
+  async function fetchBattery(options = {}) {
     try {
-      const data = await api.get('/hardware/battery')
+      const data = await api.get('/hardware/battery', {}, options)
+      if (data === null) return // Aborted
       battery.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
       // Battery/UPS might not be available, that's ok
       // Set available: false so UI knows not to display battery
       battery.value = { available: false }
@@ -152,45 +158,53 @@ export const useSystemStore = defineStore('system', () => {
    * Fetch hardware info from HAL EEPROM
    * Returns Pi model, serial, revision
    */
-  async function fetchHardware() {
+  async function fetchHardware(options = {}) {
     try {
-      hardware.value = await api.get('/hardware/eeprom')
+      const data = await api.get('/hardware/eeprom', {}, options)
+      if (data === null) return // Aborted
+      hardware.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
       // EEPROM read might fail on non-Pi hardware
       hardware.value = null
     }
   }
   
-  async function fetchWifiClients() {
+  async function fetchWifiClients(options = {}) {
     try {
-      wifiClientsData.value = await api.get('/network/wifi/ap/clients')
+      const data = await api.get('/network/wifi/ap/clients', {}, options)
+      if (data === null) return // Aborted
+      wifiClientsData.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
       // AP might not be available
       wifiClientsData.value = { clients: [] }
     }
   }
 
   // Legacy alias for backward compatibility
-  async function fetchPower() {
-    return fetchBattery()
+  async function fetchPower(options = {}) {
+    return fetchBattery(options)
   }
 
   /**
    * Fetch all system data - info, stats, battery, hardware
    * Called on app init for header display
+   * @param {object} options - Optional { signal } for AbortController
    */
-  async function fetchAll() {
+  async function fetchAll(options = {}) {
     loading.value = true
     error.value = null
     try {
       await Promise.all([
-        fetchInfo(),
-        fetchStats(),
-        fetchBattery(),
-        fetchHardware(),
-        fetchWifiClients()
+        fetchInfo(options),
+        fetchStats(options),
+        fetchBattery(options),
+        fetchHardware(options),
+        fetchWifiClients(options)
       ])
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     } finally {
       loading.value = false

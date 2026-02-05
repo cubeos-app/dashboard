@@ -9,7 +9,7 @@
  * Sprint 4: S4-04
  */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useAppsStore, APP_TYPES, DEPLOY_MODES, HEALTH_STATUS } from '@/stores/apps'
 import { useRouter } from 'vue-router'
 import Icon from '@/components/ui/Icon.vue'
@@ -19,9 +19,6 @@ const appsStore = useAppsStore()
 
 // Expanded stacks state
 const expandedStacks = ref(new Set())
-
-// Refresh interval
-let refreshInterval = null
 
 // Group apps by stack
 const stacks = computed(() => {
@@ -129,15 +126,7 @@ function formatDeployMode(mode) {
   return mode || 'Unknown'
 }
 
-// Lifecycle
-onMounted(() => {
-  appsStore.fetchApps()
-  refreshInterval = setInterval(() => appsStore.fetchApps(), 10000)
-})
-
-onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
-})
+// No lifecycle polling — parent view (ServicesView) handles centralized polling
 </script>
 
 <template>

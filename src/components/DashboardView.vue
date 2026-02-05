@@ -14,6 +14,7 @@ import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useAppsStore } from '@/stores/apps'
+import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { safeGetItem, safeSetItem } from '@/utils/storage'
 import Icon from '@/components/ui/Icon.vue'
 import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
@@ -24,6 +25,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 const router = useRouter()
 const systemStore = useSystemStore()
 const appsStore = useAppsStore()
+const { signal } = useAbortOnUnmount()
 
 // State
 const searchQuery = ref('')
@@ -220,16 +222,17 @@ onMounted(async () => {
   favorites.value = safeGetItem('cubeos-favorites', [])
   if (!Array.isArray(favorites.value)) favorites.value = []
   
-  // Load data
+  // Load data (pass signal for abort on unmount)
+  const s = signal()
   await Promise.all([
-    systemStore.fetchAll(),
-    appsStore.fetchApps()
+    systemStore.fetchAll({ signal: s }),
+    appsStore.fetchApps({ signal: s })
   ])
   
   // Auto-refresh stats (apps use centralized store polling)
   appsStore.startPolling()
   refreshInterval = setInterval(() => {
-    systemStore.fetchStats()
+    systemStore.fetchStats({ signal: signal() })
   }, 10000)
 })
 

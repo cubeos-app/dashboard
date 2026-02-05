@@ -12,12 +12,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSystemStore } from '@/stores/system'
 import { useAuthStore } from '@/stores/auth'
+import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
 const systemStore = useSystemStore()
 const authStore = useAuthStore()
+const { signal } = useAbortOnUnmount()
 
 const showChangePassword = ref(false)
 const currentPassword = ref('')
@@ -54,7 +56,8 @@ let powerInterval = null
  */
 async function fetchPowerStatus() {
   try {
-    const data = await api.get('/hardware/battery')
+    const data = await api.get('/hardware/battery', {}, { signal: signal() })
+    if (data === null) return // Aborted
     
     // Map HAL response to UI expected format
     let status = 'unknown'
@@ -81,9 +84,11 @@ async function fetchPowerStatus() {
 async function fetchBackups() {
   backupLoading.value = true
   try {
-    const data = await api.get('/backups')
+    const s = signal()
+    const data = await api.get('/backups', {}, { signal: s })
+    if (data === null) return // Aborted
     backups.value = data.backups || []
-    backupStats.value = await api.get('/backups/stats')
+    backupStats.value = await api.get('/backups/stats', {}, { signal: s })
   } catch (e) {
     // Backups fetch failed
   } finally {
@@ -139,7 +144,7 @@ function downloadBackup(backupId) {
 }
 
 onMounted(async () => {
-  await systemStore.fetchAll()
+  await systemStore.fetchAll({ signal: signal() })
   await fetchPowerStatus()
   await fetchBackups()
   // Stats already polled by App.vue; only poll power (unique to this view)

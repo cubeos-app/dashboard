@@ -8,6 +8,7 @@
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppsStore } from '@/stores/apps'
+import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import TorToggle from '@/components/swarm/TorToggle.vue'
 import Icon from '@/components/ui/Icon.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
@@ -15,6 +16,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 const route = useRoute()
 const router = useRouter()
 const appsStore = useAppsStore()
+const { signal } = useAbortOnUnmount()
 
 const app = ref(null)
 const logs = ref([])
@@ -77,7 +79,7 @@ const status = computed(() => {
 async function fetchApp() {
   loading.value = true
   try {
-    const result = await appsStore.getApp(appName.value)
+    const result = await appsStore.getApp(appName.value, { signal: signal() })
     if (result) {
       app.value = result
     } else {
@@ -94,7 +96,7 @@ async function fetchApp() {
 async function fetchLogs() {
   logsLoading.value = true
   try {
-    const result = await appsStore.getAppLogs(appName.value, 200)
+    const result = await appsStore.getAppLogs(appName.value, 200, { signal: signal() })
     logs.value = result || []
   } catch (e) {
     logs.value = []
@@ -124,13 +126,11 @@ function openWebUI() {
   }
 }
 
-let refreshInterval = null
-
 onMounted(async () => {
   // First try to get from store cache
   app.value = appsStore.getAppByName(appName.value)
   if (!app.value) {
-    await appsStore.fetchApps()
+    await appsStore.fetchApps({ signal: signal() })
     app.value = appsStore.getAppByName(appName.value)
   }
   loading.value = false
@@ -139,19 +139,21 @@ onMounted(async () => {
     await fetchLogs()
   }
   
-  // Use centralized polling; update local ref from store on each cycle
+  // Use centralized polling
   appsStore.startPolling()
-  refreshInterval = setInterval(() => {
-    if (isRunning.value) {
-      app.value = appsStore.getAppByName(appName.value)
-    }
-  }, 15000)
 })
 
 onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
   appsStore.stopPolling()
 })
+
+// Sync local app ref when store data updates from polling
+watch(() => appsStore.apps, () => {
+  const updated = appsStore.getAppByName(appName.value)
+  if (updated) {
+    app.value = updated
+  }
+}, { deep: true })
 
 // Fetch logs when switching to logs tab
 watch(activeTab, async (tab) => {

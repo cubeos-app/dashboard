@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/api/client'
+import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+
+const { signal, abort } = useAbortOnUnmount()
 
 // State
 const loading = ref(false)
@@ -41,9 +44,10 @@ const logLevels = [
 // Fetch log units and containers
 async function fetchOptions() {
   try {
+    const s = signal()
     const [unitsResp, servicesResp] = await Promise.all([
-      api.get('/logs/units').catch(() => ({ units: [] })),
-      api.get('/apps').catch(() => ({ apps: [] }))
+      api.get('/logs/units', {}, { signal: s }).catch(() => ({ units: [] })),
+      api.get('/apps', {}, { signal: s }).catch(() => ({ apps: [] }))
     ])
     
     units.value = unitsResp.units || []
@@ -61,6 +65,10 @@ async function fetchOptions() {
 async function fetchLogs() {
   loading.value = true
   error.value = null
+  
+  // Abort previous in-flight log fetch
+  abort()
+  const s = signal()
   
   try {
     let endpoint = '/logs/journal'
@@ -98,7 +106,8 @@ async function fetchLogs() {
         break
     }
     
-    const response = await api.get(endpoint, params)
+    const response = await api.get(endpoint, params, { signal: s })
+    if (response === null) return // Aborted
     // Handle different response formats
     if (activeTab.value === 'container') {
       // Container logs return { container: "name", entries: [...], count: N }
