@@ -4,9 +4,8 @@
  * 
  * Documentation browser for CubeOS built-in docs.
  * 
- * Fetches docs from the cubeos-docsindex service via:
- * - docs.{hostname} subdomain when accessing via FQDN
- * - {ip}:6032 when accessing via IP address
+ * Fetches docs from the cubeos-docsindex service via same-origin
+ * NPM location routing: /api/v1/docs/* → port 6032 (docsindex)
  */
 import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -23,16 +22,6 @@ const isLoading = ref(false)
 const isSidebarOpen = ref(true)
 const error = ref(null)
 const docsAvailable = ref(true)
-
-// Dynamic docs service base URL
-// Uses docs.cubeos.cube subdomain when accessed via FQDN, or direct port when via IP
-const docsBaseUrl = computed(() => {
-  const h = window.location.hostname
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(h)) {
-    return `http://${h}:6032`
-  }
-  return `${window.location.protocol}//docs.${h}`
-})
 
 // Detect if on mobile
 const isMobile = ref(window.innerWidth < 768)
@@ -71,7 +60,7 @@ const currentPath = computed(() => {
 // Fetch docs tree structure
 async function fetchDocsTree() {
   try {
-    const resp = await fetch(`${docsBaseUrl.value}/api/v1/docs/tree`)
+    const resp = await fetch('/api/v1/docs/tree')
     if (resp.ok) {
       docsTree.value = await resp.json()
       docsAvailable.value = docsTree.value.length > 0
@@ -91,7 +80,7 @@ async function fetchDoc(path) {
   error.value = null
   
   try {
-    const resp = await fetch(`${docsBaseUrl.value}/api/v1/docs/${path}`)
+    const resp = await fetch(`/api/v1/docs/${path}`)
     
     if (resp.ok) {
       currentDoc.value = await resp.json()
@@ -118,7 +107,7 @@ async function searchDocs() {
   }
   
   try {
-    const resp = await fetch(`${docsBaseUrl.value}/api/v1/docs/search?q=${encodeURIComponent(searchQuery.value)}`)
+    const resp = await fetch(`/api/v1/docs/search?q=${encodeURIComponent(searchQuery.value)}`)
     if (resp.ok) {
       searchResults.value = await resp.json()
     }
@@ -328,7 +317,7 @@ function closeSidebar() {
             </p>
             <div class="flex items-center justify-center gap-3">
               <a
-                :href="`${docsBaseUrl}/api/v1/docs/`"
+                href="/api/v1/docs/"
                 target="_blank"
                 rel="noopener"
                 class="px-4 py-2 rounded-lg bg-accent text-white text-sm hover:bg-accent-secondary transition-colors"
