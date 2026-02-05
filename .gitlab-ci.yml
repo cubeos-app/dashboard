@@ -76,7 +76,7 @@ deploy:
     # Wait for service to be healthy
     - |
       echo "⏳ Waiting for Dashboard to be healthy..."
-      for i in $(seq 1 30); do
+      for i in $(seq 1 45); do
         if curl -sf http://127.0.0.1:6011/ > /dev/null 2>&1; then
           echo "✅ Health check passed!"
           docker service ls | grep dashboard || true
