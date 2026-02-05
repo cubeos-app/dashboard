@@ -2,16 +2,21 @@
 /**
  * SettingsView.vue
  * 
- * User settings: Appearance, Account, System Configuration, System Info, Session.
+ * User settings: Appearance, Account (with profile), System Configuration, System Info, Session, Administration.
  * 
- * Sprint 2 G4: Added System Configuration section with hostname and timezone management.
+ * Sprint 6 G2:
+ * - Added auth profile display (username, role, last_login, created_at) in Account section
+ * - Added Preferences reset button in Appearance section
+ * - Added admin-only Administration section with Setup Reset
+ * - Imports usePreferencesStore and useSetupStore from G1
  * 
  * Sections (in order):
- * 1. Appearance — theme toggle (dark/light)
- * 2. Account — user info + change password
- * 3. System Configuration — hostname edit, timezone dropdown (NEW in G4)
+ * 1. Appearance — theme toggle + preferences reset
+ * 2. Account — auth profile + change password
+ * 3. System Configuration — hostname edit, timezone dropdown
  * 4. System Information — host info, Pi serial, version
  * 5. Session — sign out
+ * 6. Administration — setup reset (admin only)
  */
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -19,14 +24,17 @@ import { useThemeStore } from '@/stores/theme'
 import { useSystemStore } from '@/stores/system'
 import { useAuthStore } from '@/stores/auth'
 import { useBrandingStore } from '@/stores/branding'
+import { usePreferencesStore } from '@/stores/preferences'
+import { useSetupStore } from '@/stores/setup'
 import Icon from '@/components/ui/Icon.vue'
-import api from '@/api/client'
 
 const router = useRouter()
 const themeStore = useThemeStore()
 const systemStore = useSystemStore()
 const authStore = useAuthStore()
 const brandingStore = useBrandingStore()
+const preferencesStore = usePreferencesStore()
+const setupStore = useSetupStore()
 
 // Password change
 const passwordForm = ref({
@@ -43,6 +51,15 @@ const versionInfo = ref({
   version: '0.0.11',
   api_version: 'v1'
 })
+
+// Sprint 6 G2: Preferences reset feedback
+const prefsResetSuccess = ref(false)
+const prefsResetError = ref('')
+
+// Sprint 6 G2: Setup reset feedback
+const setupResetSuccess = ref(false)
+const setupResetError = ref('')
+const setupStatusLoaded = ref(false)
 
 // ==========================================
 // System Configuration — Hostname
@@ -190,19 +207,68 @@ async function changePassword() {
   }
   
   passwordLoading.value = true
-  try {
-    await api.post('/auth/password', {
-      current_password: passwordForm.value.current,
-      new_password: passwordForm.value.new
-    })
+  const success = await authStore.changePassword(passwordForm.value.current, passwordForm.value.new)
+  passwordLoading.value = false
+
+  if (success) {
     passwordSuccess.value = 'Password changed successfully'
     passwordForm.value = { current: '', new: '', confirm: '' }
-  } catch (err) {
-    passwordError.value = err.response?.data?.error || err.message || 'Failed to change password'
-  } finally {
-    passwordLoading.value = false
+  } else {
+    passwordError.value = authStore.error || 'Failed to change password'
   }
 }
+
+// ==========================================
+// Sprint 6 G2: Preferences Reset
+// ==========================================
+
+async function handleResetPreferences() {
+  prefsResetError.value = ''
+  prefsResetSuccess.value = false
+  const result = await preferencesStore.resetPreferences()
+  if (result) {
+    prefsResetSuccess.value = true
+    setTimeout(() => { prefsResetSuccess.value = false }, 3000)
+  } else if (preferencesStore.error) {
+    prefsResetError.value = preferencesStore.error
+  }
+}
+
+// ==========================================
+// Sprint 6 G2: Setup Reset (admin only)
+// ==========================================
+
+async function handleResetSetup() {
+  setupResetError.value = ''
+  setupResetSuccess.value = false
+  const result = await setupStore.resetSetup()
+  if (result) {
+    setupResetSuccess.value = true
+    setTimeout(() => { setupResetSuccess.value = false }, 3000)
+  } else if (setupStore.error) {
+    setupResetError.value = setupStore.error
+  }
+}
+
+/** Format setup completion date for display */
+function formatSetupDate(dateStr) {
+  if (!dateStr) return null
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('en-GB', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+/** Computed: setup completion date from status */
+const setupCompletedDate = computed(() => {
+  const s = setupStore.status
+  if (!s) return null
+  return formatSetupDate(s.completed_at || s.updated_at)
+})
 
 // Logout with redirect
 async function logout() {
@@ -249,8 +315,47 @@ const piInfo = computed(() => ({
   revision: systemStore.piRevision
 }))
 
+/** Sprint 6 G2: Format last login date */
+const lastLoginDisplay = computed(() => {
+  const lastLogin = authStore.user?.last_login
+  if (!lastLogin) return null
+  try {
+    const d = new Date(lastLogin)
+    return d.toLocaleString('en-GB', {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
+  } catch {
+    return lastLogin
+  }
+})
+
+/** Sprint 6 G2: Format account creation date */
+const createdAtDisplay = computed(() => {
+  const created = authStore.user?.created_at
+  if (!created) return null
+  try {
+    const d = new Date(created)
+    return d.toLocaleDateString('en-GB', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    })
+  } catch {
+    return created
+  }
+})
+
+/** Sprint 6 G2: First letter of username for avatar */
+const avatarLetter = computed(() => {
+  const name = authStore.user?.username || authStore.username || 'A'
+  return name.charAt(0).toUpperCase()
+})
+
 onMounted(async () => {
+  // Fetch system info
   await systemStore.fetchAll()
+  
+  // Sprint 6 G2: Ensure fresh auth user data
+  await authStore.fetchUser()
   
   // Fetch hostname and timezone for System Configuration section
   await Promise.all([
@@ -262,6 +367,13 @@ onMounted(async () => {
   // Initialize local inputs from store
   hostnameInput.value = systemStore.hostnameValue || ''
   timezoneInput.value = systemStore.timezone || ''
+
+  // Sprint 6 G2: Load setup status for admin section (non-blocking)
+  if (authStore.isAdmin) {
+    setupStore.fetchStatus().then(() => {
+      setupStatusLoaded.value = true
+    })
+  }
 })
 
 // Sync store values to local inputs when they change
@@ -293,7 +405,8 @@ watch(() => systemStore.timezone, (val) => {
         </div>
       </div>
 
-      <div class="p-4 rounded-xl border border-theme-primary bg-theme-card">
+      <div class="p-4 rounded-xl border border-theme-primary bg-theme-card space-y-4">
+        <!-- Theme toggle -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <Icon :name="themeStore.isDark ? 'Moon' : 'Sun'" :size="20" class="text-accent" />
@@ -316,10 +429,34 @@ watch(() => systemStore.timezone, (val) => {
             </span>
           </button>
         </div>
+
+        <!-- Preferences Reset (Sprint 6 G2) -->
+        <div class="pt-4 border-t border-theme-primary">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-theme-primary">Reset Preferences</p>
+              <p class="text-xs text-theme-muted">Restore all preferences to their default values</p>
+            </div>
+            <button
+              @click="handleResetPreferences"
+              :disabled="preferencesStore.loading"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+              :class="prefsResetSuccess
+                ? 'bg-success text-white'
+                : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-elevated'"
+            >
+              <Icon v-if="preferencesStore.loading" name="Loader2" :size="12" class="animate-spin" />
+              <Icon v-else-if="prefsResetSuccess" name="Check" :size="12" />
+              <Icon v-else name="RotateCcw" :size="12" />
+              {{ prefsResetSuccess ? 'Reset' : 'Reset' }}
+            </button>
+          </div>
+          <p v-if="prefsResetError" class="text-xs text-error mt-2">{{ prefsResetError }}</p>
+        </div>
       </div>
     </section>
 
-    <!-- Account Section -->
+    <!-- Account Section (with Auth Profile — Sprint 6 G2) -->
     <section class="animate-fade-in" style="animation-delay: 50ms">
       <div class="flex items-center gap-2.5 mb-3">
         <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center">
@@ -327,19 +464,33 @@ watch(() => systemStore.timezone, (val) => {
         </div>
         <div>
           <h2 class="text-sm font-semibold text-theme-primary">Account</h2>
-          <p class="text-xs text-theme-tertiary">Manage your account settings</p>
+          <p class="text-xs text-theme-tertiary">Your profile and account settings</p>
         </div>
       </div>
 
       <div class="p-4 rounded-xl border border-theme-primary bg-theme-card">
-        <!-- User info -->
-        <div class="flex items-center gap-3 pb-4 border-b border-theme-primary">
-          <div class="w-12 h-12 rounded-xl bg-accent-muted flex items-center justify-center">
-            <span class="text-lg font-bold text-accent">A</span>
+        <!-- Auth Profile (Sprint 6 G2) -->
+        <div class="pb-4 border-b border-theme-primary">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-12 h-12 rounded-xl bg-accent-muted flex items-center justify-center">
+              <span class="text-lg font-bold text-accent">{{ avatarLetter }}</span>
+            </div>
+            <div>
+              <h3 class="font-semibold text-theme-primary">{{ authStore.user?.username || authStore.username || 'admin' }}</h3>
+              <p class="text-xs text-theme-tertiary capitalize">{{ authStore.user?.role || (authStore.isAdmin ? 'admin' : 'user') }}</p>
+            </div>
           </div>
-          <div>
-            <h3 class="font-semibold text-theme-primary">admin</h3>
-            <p class="text-xs text-theme-tertiary">Administrator</p>
+
+          <!-- Profile details grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+            <div v-if="lastLoginDisplay" class="p-2.5 rounded-lg bg-theme-tertiary">
+              <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Last Login</p>
+              <p class="text-xs font-medium text-theme-primary">{{ lastLoginDisplay }}</p>
+            </div>
+            <div v-if="createdAtDisplay" class="p-2.5 rounded-lg bg-theme-tertiary">
+              <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Account Created</p>
+              <p class="text-xs font-medium text-theme-primary">{{ createdAtDisplay }}</p>
+            </div>
           </div>
         </div>
 
@@ -395,7 +546,7 @@ watch(() => systemStore.timezone, (val) => {
       </div>
     </section>
 
-    <!-- ==================== System Configuration (G4) ==================== -->
+    <!-- ==================== System Configuration ==================== -->
     <section class="animate-fade-in" style="animation-delay: 75ms">
       <div class="flex items-center gap-2.5 mb-3">
         <div class="w-8 h-8 rounded-lg bg-accent-muted flex items-center justify-center">
@@ -612,6 +763,60 @@ watch(() => systemStore.timezone, (val) => {
           >
             Sign Out
           </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Administration (Admin Only — Sprint 6 G2) -->
+    <section v-if="authStore.isAdmin" class="animate-fade-in" style="animation-delay: 200ms">
+      <div class="flex items-center gap-2.5 mb-3">
+        <div class="w-8 h-8 rounded-lg bg-warning-muted flex items-center justify-center">
+          <Icon name="Shield" :size="16" class="text-warning" />
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-theme-primary">Administration</h2>
+          <p class="text-xs text-theme-tertiary">System-level actions (admin only)</p>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-xl border border-warning/20 bg-warning-muted/30 space-y-4">
+        <!-- Setup Reset -->
+        <div>
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="text-xs font-semibold text-theme-primary">Reset Setup Wizard</h4>
+              <p class="text-xs text-theme-tertiary">This will require re-running the setup wizard on next boot</p>
+            </div>
+            <button
+              @click="handleResetSetup"
+              :disabled="setupStore.loading"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+              :class="setupResetSuccess
+                ? 'bg-success text-white'
+                : 'bg-warning/20 text-warning hover:bg-warning/30'"
+            >
+              <Icon v-if="setupStore.loading" name="Loader2" :size="12" class="animate-spin" />
+              <Icon v-else-if="setupResetSuccess" name="Check" :size="12" />
+              <Icon v-else name="RotateCcw" :size="12" />
+              {{ setupResetSuccess ? 'Reset' : 'Reset Setup' }}
+            </button>
+          </div>
+
+          <!-- Current status -->
+          <div v-if="setupStatusLoaded && setupStore.isComplete && setupCompletedDate" class="mt-2">
+            <p class="text-xs text-theme-muted">
+              <Icon name="CheckCircle" :size="12" class="inline text-success mr-1" />
+              Setup completed on {{ setupCompletedDate }}
+            </p>
+          </div>
+          <div v-else-if="setupStatusLoaded && !setupStore.isComplete" class="mt-2">
+            <p class="text-xs text-warning">
+              <Icon name="AlertTriangle" :size="12" class="inline mr-1" />
+              Setup is not yet complete
+            </p>
+          </div>
+
+          <p v-if="setupResetError" class="text-xs text-error mt-2">{{ setupResetError }}</p>
         </div>
       </div>
     </section>

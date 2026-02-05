@@ -4,6 +4,10 @@
  * 
  * System information, resource usage, backups, and power controls.
  * 
+ * Sprint 6 G2:
+ * - Added Quick Backup button (one-click, no modal)
+ * - Added expandable Backup Detail panel (accordion, lazy-loaded)
+ * 
  * Fixes:
  * - Changed /power/status to /hardware/battery (HAL endpoint)
  * - Maps HAL battery response correctly (percentage vs battery_percent)
@@ -45,6 +49,15 @@ const backupRestoring = ref(false)
 const showCreateBackup = ref(false)
 const newBackupType = ref('config')
 const newBackupDescription = ref('')
+
+// Sprint 6 G2: Quick backup state
+const quickBackupLoading = ref(false)
+const quickBackupSuccess = ref(false)
+
+// Sprint 6 G2: Backup detail state (accordion pattern — max 1 open)
+const expandedBackupId = ref(null)
+const backupDetailCache = ref({})    // { [id]: detailData }
+const backupDetailLoading = ref(null) // id currently loading
 
 // Note: systemStore stats are updated in real-time via WebSocket in App.vue
 // (with HTTP polling fallback). Only powerInterval is needed here (unique to system page).
@@ -115,6 +128,54 @@ async function createBackup() {
   }
 }
 
+/**
+ * Sprint 6 G2: Quick backup — one-click, no modal
+ * Uses default type 'config' for fast operation
+ */
+async function handleQuickBackup() {
+  quickBackupLoading.value = true
+  quickBackupSuccess.value = false
+  try {
+    await systemStore.quickBackup('config')
+    quickBackupSuccess.value = true
+    await fetchBackups()
+    setTimeout(() => { quickBackupSuccess.value = false }, 2000)
+  } catch (e) {
+    // Error handled by store
+  } finally {
+    quickBackupLoading.value = false
+  }
+}
+
+/**
+ * Sprint 6 G2: Toggle backup detail panel (accordion)
+ * Lazy loads detail on first expand, caches for subsequent toggles
+ */
+async function toggleBackupDetail(backupId) {
+  // If already expanded, collapse
+  if (expandedBackupId.value === backupId) {
+    expandedBackupId.value = null
+    return
+  }
+
+  // Expand this row (collapses any other)
+  expandedBackupId.value = backupId
+
+  // If already cached, no need to fetch
+  if (backupDetailCache.value[backupId]) return
+
+  // Lazy load detail
+  backupDetailLoading.value = backupId
+  try {
+    const detail = await systemStore.getBackupDetail(backupId)
+    if (detail) {
+      backupDetailCache.value[backupId] = detail
+    }
+  } finally {
+    backupDetailLoading.value = null
+  }
+}
+
 async function restoreBackup(backupId) {
   if (!await confirm({
     title: 'Restore Backup',
@@ -144,6 +205,9 @@ async function deleteBackup(backupId) {
   
   try {
     await api.delete(`/backups/${backupId}`)
+    // Clear detail cache for deleted backup
+    delete backupDetailCache.value[backupId]
+    if (expandedBackupId.value === backupId) expandedBackupId.value = null
     await fetchBackups()
   } catch (e) {
     // Delete failed
@@ -209,6 +273,20 @@ function formatPowerStatus(status) {
     'unavailable': 'Unavailable'
   }
   return labels[status] || status || 'Unknown'
+}
+
+/** Format a timestamp for display in detail panel */
+function formatDate(dateStr) {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleString('en-GB', {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
+  } catch {
+    return dateStr
+  }
 }
 
 async function handleChangePassword() {
@@ -535,19 +613,36 @@ const uptimeDisplay = computed(() => {
 
     <!-- Backups -->
     <div class="rounded-xl border border-theme-primary bg-theme-card overflow-hidden">
-      <div class="px-6 py-4 bg-theme-secondary border-b border-theme-primary flex items-center justify-between">
+      <div class="px-6 py-4 bg-theme-secondary border-b border-theme-primary flex flex-wrap items-center justify-between gap-2">
         <h2 class="font-semibold text-theme-primary">Backups</h2>
-        <button
-          @click="showCreateBackup = true"
-          class="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-secondary transition-colors flex items-center gap-1.5"
-        >
-          <Icon name="Plus" :size="14" />
-          Create Backup
-        </button>
+        <div class="flex items-center gap-2">
+          <!-- Quick Backup button (Sprint 6 G2) -->
+          <button
+            @click="handleQuickBackup"
+            :disabled="quickBackupLoading"
+            class="px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 transition-colors"
+            :class="quickBackupSuccess
+              ? 'bg-success text-white'
+              : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-elevated'"
+          >
+            <Icon v-if="quickBackupLoading" name="Loader2" :size="14" class="animate-spin" />
+            <Icon v-else-if="quickBackupSuccess" name="Check" :size="14" />
+            <Icon v-else name="Zap" :size="14" />
+            <span class="hidden sm:inline">{{ quickBackupSuccess ? 'Done' : 'Quick Backup' }}</span>
+          </button>
+          <!-- Create Backup button -->
+          <button
+            @click="showCreateBackup = true"
+            class="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-secondary transition-colors flex items-center gap-1.5"
+          >
+            <Icon name="Plus" :size="14" />
+            Create Backup
+          </button>
+        </div>
       </div>
       <div class="p-6">
         <!-- Stats -->
-        <div v-if="backupStats" class="grid grid-cols-3 gap-4 mb-6">
+        <div v-if="backupStats" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div class="p-3 rounded-lg bg-theme-tertiary">
             <p class="text-xs text-theme-muted">Total Backups</p>
             <p class="text-lg font-semibold text-theme-primary">{{ backupStats.total_count || 0 }}</p>
@@ -574,35 +669,105 @@ const uptimeDisplay = computed(() => {
           <div
             v-for="backup in backups"
             :key="backup.id"
-            class="flex items-center justify-between p-3 rounded-lg bg-theme-tertiary"
+            class="rounded-lg bg-theme-tertiary overflow-hidden"
           >
-            <div>
-              <p class="font-medium text-theme-primary text-sm">{{ backup.description || backup.type }}</p>
-              <p class="text-xs text-theme-muted">{{ backup.created_at }} · {{ backup.size_human }}</p>
+            <!-- Backup row (clickable to expand) -->
+            <div
+              class="flex items-center justify-between p-3 cursor-pointer hover:bg-theme-elevated/50 transition-colors"
+              @click="toggleBackupDetail(backup.id)"
+            >
+              <div class="flex items-center gap-2 min-w-0">
+                <Icon
+                  name="ChevronRight"
+                  :size="14"
+                  class="text-theme-muted flex-shrink-0 transition-transform duration-200"
+                  :class="{ 'rotate-90': expandedBackupId === backup.id }"
+                />
+                <div class="min-w-0">
+                  <p class="font-medium text-theme-primary text-sm truncate">{{ backup.description || backup.type }}</p>
+                  <p class="text-xs text-theme-muted">{{ backup.created_at }} · {{ backup.size_human }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0" @click.stop>
+                <button
+                  @click="downloadBackup(backup.id)"
+                  class="p-1.5 text-theme-secondary hover:text-accent rounded transition-colors"
+                  title="Download"
+                >
+                  <Icon name="Download" :size="16" />
+                </button>
+                <button
+                  @click="restoreBackup(backup.id)"
+                  :disabled="backupRestoring"
+                  class="p-1.5 text-theme-secondary hover:text-warning rounded transition-colors disabled:opacity-50"
+                  title="Restore"
+                >
+                  <Icon name="RotateCcw" :size="16" />
+                </button>
+                <button
+                  @click="deleteBackup(backup.id)"
+                  class="p-1.5 text-theme-secondary hover:text-error rounded transition-colors"
+                  title="Delete"
+                >
+                  <Icon name="Trash2" :size="16" />
+                </button>
+              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <button
-                @click="downloadBackup(backup.id)"
-                class="p-1.5 text-theme-secondary hover:text-accent rounded transition-colors"
-                title="Download"
-              >
-                <Icon name="Download" :size="16" />
-              </button>
-              <button
-                @click="restoreBackup(backup.id)"
-                :disabled="backupRestoring"
-                class="p-1.5 text-theme-secondary hover:text-warning rounded transition-colors disabled:opacity-50"
-                title="Restore"
-              >
-                <Icon name="RotateCcw" :size="16" />
-              </button>
-              <button
-                @click="deleteBackup(backup.id)"
-                class="p-1.5 text-theme-secondary hover:text-error rounded transition-colors"
-                title="Delete"
-              >
-                <Icon name="Trash2" :size="16" />
-              </button>
+
+            <!-- Expandable Detail Panel (Sprint 6 G2) -->
+            <div
+              v-show="expandedBackupId === backup.id"
+              class="border-t border-theme-primary transition-all duration-200"
+            >
+              <!-- Loading skeleton -->
+              <div v-if="backupDetailLoading === backup.id" class="p-4 space-y-3">
+                <div class="h-3 w-1/3 bg-theme-elevated rounded animate-pulse"></div>
+                <div class="h-3 w-2/3 bg-theme-elevated rounded animate-pulse"></div>
+                <div class="h-3 w-1/2 bg-theme-elevated rounded animate-pulse"></div>
+              </div>
+
+              <!-- Detail content -->
+              <div v-else-if="backupDetailCache[backup.id]" class="p-4">
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                  <div v-if="backupDetailCache[backup.id].filename">
+                    <dt class="text-xs text-theme-muted">Filename</dt>
+                    <dd class="text-sm text-theme-primary font-mono truncate">{{ backupDetailCache[backup.id].filename }}</dd>
+                  </div>
+                  <div v-if="backupDetailCache[backup.id].type">
+                    <dt class="text-xs text-theme-muted">Type</dt>
+                    <dd class="text-sm text-theme-primary capitalize">{{ backupDetailCache[backup.id].type }}</dd>
+                  </div>
+                  <div v-if="backupDetailCache[backup.id].size_human">
+                    <dt class="text-xs text-theme-muted">Size</dt>
+                    <dd class="text-sm text-theme-primary">{{ backupDetailCache[backup.id].size_human }}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs text-theme-muted">Compressed</dt>
+                    <dd class="text-sm text-theme-primary">{{ backupDetailCache[backup.id].compressed ? 'Yes' : 'No' }}</dd>
+                  </div>
+                  <div v-if="backupDetailCache[backup.id].created_at" class="sm:col-span-2">
+                    <dt class="text-xs text-theme-muted">Created</dt>
+                    <dd class="text-sm text-theme-primary">{{ formatDate(backupDetailCache[backup.id].created_at) }}</dd>
+                  </div>
+                  <div v-if="backupDetailCache[backup.id].includes?.length" class="sm:col-span-2">
+                    <dt class="text-xs text-theme-muted mb-1">Includes</dt>
+                    <dd class="flex flex-wrap gap-1">
+                      <span
+                        v-for="item in backupDetailCache[backup.id].includes"
+                        :key="item"
+                        class="inline-block px-2 py-0.5 text-xs rounded-full bg-accent/10 text-accent"
+                      >
+                        {{ item }}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <!-- Error fallback -->
+              <div v-else class="p-4">
+                <p class="text-xs text-theme-muted">Unable to load backup details</p>
+              </div>
             </div>
           </div>
         </div>
