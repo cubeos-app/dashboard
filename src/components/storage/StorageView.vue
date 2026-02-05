@@ -1,34 +1,90 @@
 <script setup>
+/**
+ * StorageView.vue — Sprint 3 G2 Rewrite
+ *
+ * Full tab-based storage management view.
+ *
+ * Tabs:
+ *   1. Overview   — Usage summary, health cards, Docker storage
+ *   2. Devices    — Block device list with SMART detail expansion
+ *   3. USB        — Placeholder for G3 (USBDevices component)
+ *   4. Network Mounts — Placeholder for G3 (NetworkMounts component)
+ *   5. SMB Shares — Samba share management with detail panel
+ *
+ * Stores:
+ *   - useStorageHalStore  → HAL devices, usage, SMART data
+ *   - useStorageStore     → Storage overview, health, mounts
+ *   - useSMBStore         → SMB status, shares, CRUD
+ */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import api from '@/api/client'
+import { useStorageHalStore } from '@/stores/storage-hal'
+import { useStorageStore } from '@/stores/storage'
+import { useSMBStore } from '@/stores/smb'
 import { confirm } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import api from '@/api/client'
+import Icon from '@/components/ui/Icon.vue'
+import DeviceHealth from '@/components/storage/DeviceHealth.vue'
 
 const { signal } = useAbortOnUnmount()
 
-// Tabs
-const activeTab = ref('overview')
-const tabs = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'health', label: 'Disk Health' },
-  { id: 'shares', label: 'SMB Shares' }
-]
+const storageHalStore = useStorageHalStore()
+const storageStore = useStorageStore()
+const smbStore = useSMBStore()
 
+// ==========================================
+// Tabs
+// ==========================================
+
+const activeTab = ref('overview')
+const tabs = computed(() => [
+  { id: 'overview', label: 'Overview' },
+  { id: 'devices', label: 'Devices', badge: storageHalStore.deviceCount || null },
+  { id: 'usb', label: 'USB', badge: storageHalStore.usbDeviceCount || null },
+  { id: 'network-mounts', label: 'Network Mounts', badge: storageHalStore.networkMountCount || null },
+  { id: 'smb', label: 'SMB Shares', badge: smbStore.shareCount || null }
+])
+
+// Track which tabs have been loaded (lazy loading)
+const tabsLoaded = ref({ overview: false })
+
+function onTabChange(tabId) {
+  activeTab.value = tabId
+
+  if (tabId === 'devices' && !tabsLoaded.value.devices) {
+    tabsLoaded.value.devices = true
+    storageHalStore.fetchDevices()
+  }
+  if (tabId === 'usb' && !tabsLoaded.value.usb) {
+    tabsLoaded.value.usb = true
+    storageHalStore.fetchUSBDevices()
+    storageHalStore.fetchUSBStorage()
+  }
+  if (tabId === 'network-mounts' && !tabsLoaded.value['network-mounts']) {
+    tabsLoaded.value['network-mounts'] = true
+    storageHalStore.fetchNetworkMounts()
+  }
+  if (tabId === 'smb' && !tabsLoaded.value.smb) {
+    tabsLoaded.value.smb = true
+    smbStore.fetchAll()
+  }
+}
+
+// ==========================================
 // State
+// ==========================================
+
 const loading = ref(true)
-const disks = ref([])
-const dockerUsage = ref(null)
-const dataDirectories = ref([])
-const serviceDataTotal = ref(0)
-const diskHealth = ref([])
-const smbStatus = ref(null)
-const smbShares = ref([])
 const error = ref(null)
 
-// Actions state
+// Docker usage (fetched directly — not in a store)
+const dockerUsage = ref(null)
 const cleanupLoading = ref(false)
 
-// SMB Share Modal
+// Devices tab — expanded device
+const expandedDevice = ref(null)
+
+// SMB modal state
 const showShareModal = ref(false)
 const shareModalMode = ref('create')
 const shareForm = ref({
@@ -41,37 +97,26 @@ const shareForm = ref({
 })
 const shareLoading = ref(false)
 
-// Fetch all storage data
+// SMB detail expansion
+const expandedShare = ref(null)
+const shareDetailLoading = ref(false)
+
+// ==========================================
+// Data Fetching
+// ==========================================
+
 async function fetchAll() {
   loading.value = true
   error.value = null
   try {
     const s = signal()
-    const [storageInfo, stats, dockerInfo, health, smb, shares] = await Promise.all([
-      api.get('/storage', {}, { signal: s }).catch(() => null),
-      api.get('/system/stats', {}, { signal: s }),
-      api.get('/docker/disk-usage', {}, { signal: s }).catch(() => null),
-      api.get('/storage/health', {}, { signal: s }).catch(() => ({ disks: [] })),
-      api.get('/smb/status', {}, { signal: s }).catch(() => null),
-      api.get('/smb/shares', {}, { signal: s }).catch(() => ({ shares: [] }))
+    // Parallel fetch of overview data
+    const [, , dockerInfo] = await Promise.all([
+      storageHalStore.fetchUsage(),
+      storageStore.fetchAll(),
+      api.get('/docker/disk-usage', {}, { signal: s }).catch(() => null)
     ])
-    
-    // Prefer /storage endpoint which lists all disks (NVMe, USB, SD)
-    if (storageInfo?.disks?.length) {
-      disks.value = storageInfo.disks
-    } else {
-      // Fallback: single SD card from /system/stats
-      disks.value = [{
-        device: '/dev/mmcblk0p2',
-        mountpoint: '/',
-        fstype: 'ext4',
-        total_bytes: stats.disk_total || 0,
-        used_bytes: stats.disk_used || 0,
-        free_bytes: stats.disk_free || 0,
-        percent_used: stats.disk_percent || 0
-      }]
-    }
-    
+
     if (dockerInfo) {
       dockerUsage.value = {
         images_size: dockerInfo.images_size,
@@ -84,11 +129,8 @@ async function fetchAll() {
         volumes_count: dockerInfo.volumes_count
       }
     }
-    
-    diskHealth.value = health?.disks || []
-    smbStatus.value = smb
-    smbShares.value = shares?.shares || []
-    
+
+    tabsLoaded.value.overview = true
   } catch (e) {
     error.value = e.message
   } finally {
@@ -103,10 +145,13 @@ async function dockerPrune() {
     confirmText: 'Clean Up',
     variant: 'warning'
   })) return
+
   cleanupLoading.value = true
   try {
     await api.post('/docker/prune')
-    await fetchAll()
+    // Re-fetch docker usage
+    const dockerInfo = await api.get('/docker/disk-usage').catch(() => null)
+    if (dockerInfo) dockerUsage.value = dockerInfo
   } catch (e) {
     error.value = e.message
   } finally {
@@ -114,9 +159,32 @@ async function dockerPrune() {
   }
 }
 
+// ==========================================
+// Devices Tab
+// ==========================================
+
+function toggleDeviceExpand(device) {
+  if (expandedDevice.value === device) {
+    expandedDevice.value = null
+  } else {
+    expandedDevice.value = device
+  }
+}
+
+// ==========================================
+// SMB Tab Actions
+// ==========================================
+
 function openCreateShare() {
   shareModalMode.value = 'create'
-  shareForm.value = { name: '', path: '/cubeos/shares/', comment: '', browseable: true, read_only: false, guest_ok: true }
+  shareForm.value = {
+    name: '',
+    path: '/cubeos/shares/',
+    comment: '',
+    browseable: true,
+    read_only: false,
+    guest_ok: true
+  }
   showShareModal.value = true
 }
 
@@ -127,18 +195,17 @@ function openEditShare(share) {
 }
 
 async function saveShare() {
-  if (!shareForm.value.name || !shareForm.value.path) { alert('Name and path are required'); return }
+  if (!shareForm.value.name || !shareForm.value.path) return
   shareLoading.value = true
   try {
     if (shareModalMode.value === 'create') {
-      await api.post('/smb/shares', shareForm.value)
+      await smbStore.createShare(shareForm.value)
     } else {
-      await api.put(`/smb/shares/${shareForm.value.name}`, shareForm.value)
+      await smbStore.updateShare(shareForm.value.name, shareForm.value)
     }
     showShareModal.value = false
-    await fetchAll()
   } catch (e) {
-    alert('Failed to save share: ' + e.message)
+    error.value = 'Failed to save share: ' + e.message
   } finally {
     shareLoading.value = false
   }
@@ -151,22 +218,43 @@ async function deleteShare(name) {
     confirmText: 'Delete',
     variant: 'danger'
   })) return
+
   try {
-    await api.delete(`/smb/shares/${name}`)
-    await fetchAll()
+    await smbStore.deleteShare(name)
+    if (expandedShare.value === name) expandedShare.value = null
   } catch (e) {
-    alert('Failed to delete share: ' + e.message)
+    error.value = 'Failed to delete share: ' + e.message
   }
 }
 
-onMounted(fetchAll)
+async function toggleShareDetail(name) {
+  if (expandedShare.value === name) {
+    expandedShare.value = null
+    smbStore.clearSelectedShare()
+    return
+  }
+  expandedShare.value = name
+  shareDetailLoading.value = true
+  try {
+    await smbStore.fetchShareDetail(name)
+  } catch (e) {
+    // Detail fetch failed — still show the share row
+  } finally {
+    shareDetailLoading.value = false
+  }
+}
+
+// ==========================================
+// Helpers
+// ==========================================
 
 function formatBytes(bytes) {
-  if (!bytes) return '0 B'
+  if (!bytes && bytes !== 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   let i = 0
-  while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++ }
-  return `${bytes.toFixed(1)} ${units[i]}`
+  let value = Number(bytes)
+  while (value >= 1024 && i < units.length - 1) { value /= 1024; i++ }
+  return `${value.toFixed(1)} ${units[i]}`
 }
 
 function usageColor(percent) {
@@ -181,101 +269,227 @@ function usageTextColor(percent) {
   return 'text-success'
 }
 
-function healthColor(status) {
-  if (status === 'PASSED') return 'text-success'
-  if (status === 'FAILED') return 'text-error'
-  if (status === 'N/A') return 'text-theme-muted'
-  return 'text-warning'
+function healthBadgeClass(status) {
+  if (!status) return 'bg-theme-tertiary text-theme-muted'
+  const s = String(status).toUpperCase()
+  if (s === 'PASSED' || s === 'OK' || s === 'HEALTHY') return 'bg-success-muted text-success'
+  if (s === 'FAILED' || s === 'FAILING') return 'bg-error-muted text-error'
+  return 'bg-warning-muted text-warning'
 }
 
-function healthBgColor(status) {
-  if (status === 'PASSED') return 'bg-success-muted'
-  if (status === 'FAILED') return 'bg-error-muted'
-  if (status === 'N/A') return 'bg-theme-tertiary'
-  return 'bg-warning-muted'
+function deviceTypeIcon(type) {
+  if (!type) return 'HardDrive'
+  const t = String(type).toLowerCase()
+  if (t.includes('ssd') || t.includes('nvme')) return 'Cpu'
+  if (t.includes('usb')) return 'Usb'
+  if (t.includes('sd') || t.includes('mmc')) return 'CreditCard'
+  return 'HardDrive'
 }
 
-function formatHours(hours) {
-  if (!hours) return '-'
-  const days = Math.floor(hours / 24)
-  const years = Math.floor(days / 365)
-  if (years > 0) return `${years}y ${days % 365}d`
-  if (days > 0) return `${days}d ${hours % 24}h`
-  return `${hours}h`
-}
+// Compute disks for overview from store or HAL
+const overviewDisks = computed(() => {
+  // Prefer HAL usage data
+  if (storageHalStore.usage?.filesystems?.length) {
+    return storageHalStore.usage.filesystems
+  }
+  // Fallback to storage overview
+  if (storageStore.overview?.disks?.length) {
+    return storageStore.overview.disks
+  }
+  return []
+})
+
+// Compute health list
+const healthDisks = computed(() => {
+  if (storageStore.health?.disks?.length) return storageStore.health.disks
+  if (Array.isArray(storageStore.health)) return storageStore.health
+  return []
+})
+
+// Mounts list
+const storageMounts = computed(() => storageStore.mounts || [])
+
+// ==========================================
+// Polling
+// ==========================================
+
+let pollInterval = null
+onMounted(() => {
+  fetchAll()
+  pollInterval = setInterval(fetchAll, 15000)
+})
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval)
+})
 </script>
 
 <template>
   <div class="space-y-6">
+    <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-theme-primary">Storage</h1>
-        <p class="text-theme-tertiary mt-1">Manage disk space, health monitoring, and network shares</p>
+        <p class="text-theme-tertiary mt-1">Manage disks, USB devices, network mounts, and file shares</p>
       </div>
-      <button @click="fetchAll" :disabled="loading" class="px-4 py-2 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary disabled:opacity-50">
-        <svg class="w-5 h-5" :class="{ 'animate-spin': loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
+      <button
+        @click="fetchAll"
+        :disabled="loading"
+        class="p-2 bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 disabled:opacity-50"
+        title="Refresh"
+      >
+        <Icon name="RefreshCw" :size="18" :class="{ 'animate-spin': loading }" class="text-theme-secondary" />
       </button>
     </div>
 
-    <div class="border-b border-theme-primary">
-      <nav class="flex gap-4">
-        <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
-          class="py-3 px-1 text-sm font-medium border-b-2 transition-colors"
-          :class="activeTab === tab.id ? 'border-[color:var(--accent-primary)] text-accent' : 'border-transparent text-theme-muted hover:text-theme-primary'">
+    <!-- Tabs -->
+    <div class="border-b border-theme-primary overflow-x-auto">
+      <nav class="flex gap-1 sm:gap-4 min-w-max">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          @click="onTabChange(tab.id)"
+          class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap flex items-center gap-2"
+          :class="activeTab === tab.id
+            ? 'border-[color:var(--accent-primary)] text-accent'
+            : 'border-transparent text-theme-muted hover:text-theme-primary'"
+        >
           {{ tab.label }}
+          <span
+            v-if="tab.badge"
+            class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full"
+            :class="activeTab === tab.id ? 'bg-accent text-white' : 'bg-theme-tertiary text-theme-secondary'"
+          >
+            {{ tab.badge }}
+          </span>
         </button>
       </nav>
     </div>
 
-    <div v-if="error" class="bg-error-muted border border-error rounded-lg p-4">
-      <p class="text-error">{{ error }}</p>
+    <!-- Error banner -->
+    <div v-if="error" class="bg-error-muted border border-error rounded-lg p-4 flex items-start gap-2">
+      <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
+      <div class="flex-1">
+        <p class="text-sm text-error">{{ error }}</p>
+        <button @click="error = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">Dismiss</button>
+      </div>
     </div>
 
-    <!-- Overview Tab -->
+    <!-- ==================== Overview Tab ==================== -->
     <div v-if="activeTab === 'overview'" class="space-y-6">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div v-for="disk in disks" :key="disk.mountpoint" class="bg-theme-card rounded-xl border border-theme-primary p-6">
+
+      <!-- Storage Usage Cards -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- HAL Usage Summary -->
+        <div v-if="storageHalStore.usage" class="bg-theme-card rounded-xl border border-theme-primary p-6">
           <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
-                <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                </svg>
+                <Icon name="Database" :size="20" class="text-accent" />
               </div>
               <div>
-                <h3 class="font-semibold text-theme-primary">{{ disk.mountpoint }}</h3>
-                <p class="text-sm text-theme-muted">{{ disk.device }} · {{ disk.fstype }}</p>
+                <h3 class="font-semibold text-theme-primary">System Storage</h3>
+                <p class="text-sm text-theme-muted">
+                  {{ formatBytes(storageHalStore.usedSpace) }} of {{ formatBytes(storageHalStore.totalSpace) }}
+                </p>
               </div>
             </div>
-            <span :class="usageTextColor(disk.percent_used)" class="text-lg font-bold">{{ disk.percent_used.toFixed(0) }}%</span>
+            <span :class="usageTextColor(storageHalStore.usagePercent)" class="text-lg font-bold">
+              {{ storageHalStore.usagePercent }}%
+            </span>
           </div>
           <div class="h-3 bg-theme-tertiary rounded-full overflow-hidden mb-3">
+            <div
+              :class="usageColor(storageHalStore.usagePercent)"
+              class="h-full transition-all"
+              :style="{ width: storageHalStore.usagePercent + '%' }"
+            ></div>
+          </div>
+          <div class="flex justify-between text-xs text-theme-muted">
+            <span>Used: {{ formatBytes(storageHalStore.usedSpace) }}</span>
+            <span>Free: {{ formatBytes(storageHalStore.freeSpace) }}</span>
+          </div>
+        </div>
+
+        <!-- Per-disk cards from overview -->
+        <div
+          v-for="disk in overviewDisks"
+          :key="disk.mountpoint || disk.device"
+          class="bg-theme-card rounded-xl border border-theme-primary p-6"
+        >
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
+                <Icon :name="deviceTypeIcon(disk.type || disk.fstype)" :size="20" class="text-accent" />
+              </div>
+              <div>
+                <h3 class="font-semibold text-theme-primary">{{ disk.mountpoint || disk.device }}</h3>
+                <p class="text-sm text-theme-muted">{{ disk.device }} · {{ disk.fstype || disk.type || 'unknown' }}</p>
+              </div>
+            </div>
+            <span
+              v-if="disk.percent_used != null"
+              :class="usageTextColor(disk.percent_used)"
+              class="text-lg font-bold"
+            >{{ Number(disk.percent_used).toFixed(0) }}%</span>
+          </div>
+          <div v-if="disk.percent_used != null" class="h-3 bg-theme-tertiary rounded-full overflow-hidden mb-3">
             <div :class="usageColor(disk.percent_used)" class="h-full transition-all" :style="{ width: disk.percent_used + '%' }"></div>
           </div>
-          <div class="flex justify-between text-sm text-theme-muted">
-            <span>Used: {{ formatBytes(disk.used_bytes) }}</span>
-            <span>Free: {{ formatBytes(disk.free_bytes) }}</span>
-            <span>Total: {{ formatBytes(disk.total_bytes) }}</span>
+          <div class="flex justify-between text-xs text-theme-muted">
+            <span>Used: {{ formatBytes(disk.used_bytes || disk.used) }}</span>
+            <span>Free: {{ formatBytes(disk.free_bytes || disk.free) }}</span>
+            <span>Total: {{ formatBytes(disk.total_bytes || disk.total) }}</span>
           </div>
         </div>
       </div>
 
+      <!-- Health Quick Cards -->
+      <div v-if="healthDisks.length > 0" class="space-y-4">
+        <h2 class="text-lg font-semibold text-theme-primary">Disk Health</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="disk in healthDisks"
+            :key="disk.device"
+            class="bg-theme-card rounded-xl border border-theme-primary p-4 flex items-center gap-3 cursor-pointer hover:bg-theme-secondary/30 transition-colors"
+            @click="onTabChange('devices')"
+          >
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center" :class="healthBadgeClass(disk.health)">
+              <Icon
+                :name="disk.health === 'PASSED' ? 'CheckCircle' : disk.health === 'FAILED' ? 'XCircle' : 'AlertCircle'"
+                :size="20"
+              />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-theme-primary truncate">{{ disk.model || disk.device }}</p>
+              <p class="text-xs text-theme-muted truncate">{{ disk.device }} · {{ disk.type }} · {{ disk.capacity }}</p>
+            </div>
+            <span
+              class="px-2 py-0.5 text-[10px] font-semibold rounded-full uppercase"
+              :class="healthBadgeClass(disk.health)"
+            >{{ disk.health || 'N/A' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Docker Storage -->
       <div v-if="dockerUsage" class="bg-theme-card rounded-xl border border-theme-primary p-6">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
-              <svg class="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.186.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.186.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.186.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.185-.186h-2.12a.186.186 0 00-.185.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z"/>
-              </svg>
+              <Icon name="Container" :size="20" class="text-accent" />
             </div>
             <div>
               <h3 class="font-semibold text-theme-primary">Docker Storage</h3>
               <p class="text-sm text-theme-muted">{{ formatBytes(dockerUsage.total_size) }} total</p>
             </div>
           </div>
-          <button @click="dockerPrune" :disabled="cleanupLoading" class="px-3 py-1.5 text-sm bg-error-muted text-error rounded-lg hover:opacity-80 disabled:opacity-50">
+          <button
+            @click="dockerPrune"
+            :disabled="cleanupLoading"
+            class="px-3 py-1.5 text-sm bg-error-muted text-error rounded-lg hover:opacity-80 disabled:opacity-50 flex items-center gap-1.5"
+          >
+            <Icon v-if="cleanupLoading" name="Loader2" :size="14" class="animate-spin" />
+            <Icon v-else name="Trash2" :size="14" />
             {{ cleanupLoading ? 'Cleaning...' : 'Clean Up' }}
           </button>
         </div>
@@ -299,237 +513,521 @@ function formatHours(hours) {
         </div>
       </div>
 
-      <div v-if="dataDirectories.length > 0" class="bg-theme-card rounded-xl border border-theme-primary p-6">
+      <!-- Storage Mounts -->
+      <div v-if="storageMounts.length > 0" class="bg-theme-card rounded-xl border border-theme-primary p-6">
         <div class="flex items-center gap-3 mb-4">
-          <div class="w-10 h-10 rounded-lg bg-[#8b5cf620] flex items-center justify-center">
-            <svg class="w-5 h-5 text-[#8b5cf6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-            </svg>
+          <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
+            <Icon name="FolderOpen" :size="20" class="text-accent" />
           </div>
           <div>
-            <h3 class="font-semibold text-theme-primary">Service Data</h3>
-            <p class="text-sm text-theme-muted">{{ formatBytes(serviceDataTotal) }} across {{ dataDirectories.length }} services</p>
+            <h3 class="font-semibold text-theme-primary">Mounts</h3>
+            <p class="text-sm text-theme-muted">{{ storageMounts.length }} configured mount{{ storageMounts.length !== 1 ? 's' : '' }}</p>
           </div>
         </div>
-        <div class="space-y-2 max-h-64 overflow-y-auto">
-          <div v-for="dir in dataDirectories" :key="dir.name" class="flex items-center justify-between p-2 hover:bg-theme-tertiary/50 rounded-lg">
+        <div class="space-y-2">
+          <div
+            v-for="mount in storageMounts"
+            :key="mount.id || mount.name"
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-theme-tertiary/50"
+          >
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <Icon name="HardDrive" :size="14" class="text-theme-muted flex-shrink-0" />
+              <div class="min-w-0">
+                <p class="text-sm text-theme-primary truncate">{{ mount.mountpoint || mount.name }}</p>
+                <p class="text-xs text-theme-muted truncate">{{ mount.device || mount.source || mount.type }}</p>
+              </div>
+            </div>
+            <span
+              class="px-2 py-0.5 text-[10px] font-semibold rounded-full"
+              :class="mount.active || mount.mounted ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'"
+            >{{ mount.active || mount.mounted ? 'Mounted' : 'Unmounted' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== Devices Tab ==================== -->
+    <div v-if="activeTab === 'devices'" class="space-y-6">
+      <!-- Loading -->
+      <div v-if="storageHalStore.loading" class="flex items-center justify-center py-12">
+        <Icon name="Loader2" :size="24" class="animate-spin text-theme-muted" />
+        <span class="ml-3 text-theme-muted">Loading devices...</span>
+      </div>
+
+      <!-- Empty state -->
+      <div v-else-if="storageHalStore.devices.length === 0" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
+        <Icon name="HardDrive" :size="40" class="mx-auto text-theme-muted mb-4" />
+        <h3 class="text-lg font-medium text-theme-primary mb-2">No Block Devices Found</h3>
+        <p class="text-theme-muted">Block devices will appear here when detected by HAL.</p>
+      </div>
+
+      <!-- Device list — desktop table -->
+      <div v-else class="hidden md:block">
+        <div class="bg-theme-card rounded-xl border border-theme-primary overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-theme-muted border-b border-theme-primary bg-theme-tertiary/30">
+                <th class="py-3 px-4">Device</th>
+                <th class="py-3 px-4">Model</th>
+                <th class="py-3 px-4">Size</th>
+                <th class="py-3 px-4">Type</th>
+                <th class="py-3 px-4">Mount</th>
+                <th class="py-3 px-4">Health</th>
+                <th class="py-3 px-4 w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="device in storageHalStore.devices" :key="device.name || device.device">
+                <tr
+                  class="border-b border-theme-primary/50 hover:bg-theme-tertiary/30 cursor-pointer transition-colors"
+                  @click="toggleDeviceExpand(device.name || device.device)"
+                >
+                  <td class="py-3 px-4">
+                    <div class="flex items-center gap-2">
+                      <Icon :name="deviceTypeIcon(device.type)" :size="16" class="text-accent" />
+                      <span class="text-theme-primary font-medium">{{ device.name || device.device }}</span>
+                    </div>
+                  </td>
+                  <td class="py-3 px-4 text-theme-secondary">{{ device.model || '-' }}</td>
+                  <td class="py-3 px-4 text-theme-secondary">{{ device.size || device.capacity || '-' }}</td>
+                  <td class="py-3 px-4">
+                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded bg-theme-tertiary text-theme-secondary uppercase">
+                      {{ device.type || device.tran || '-' }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-4 text-theme-muted text-xs">{{ device.mountpoint || device.mount || '-' }}</td>
+                  <td class="py-3 px-4">
+                    <DeviceHealth :device="device.name || device.device" :inline="true" />
+                  </td>
+                  <td class="py-3 px-4">
+                    <Icon
+                      name="ChevronDown"
+                      :size="16"
+                      class="text-theme-muted transition-transform"
+                      :class="{ 'rotate-180': expandedDevice === (device.name || device.device) }"
+                    />
+                  </td>
+                </tr>
+                <!-- Expanded detail panel -->
+                <tr v-if="expandedDevice === (device.name || device.device)">
+                  <td colspan="7" class="p-4 bg-theme-tertiary/20">
+                    <div class="space-y-4">
+                      <!-- Device info grid -->
+                      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="p-3 bg-theme-secondary/50 rounded-lg">
+                          <p class="text-xs text-theme-muted mb-1">Serial</p>
+                          <p class="text-xs font-mono text-theme-primary truncate">{{ device.serial || '-' }}</p>
+                        </div>
+                        <div class="p-3 bg-theme-secondary/50 rounded-lg">
+                          <p class="text-xs text-theme-muted mb-1">Firmware</p>
+                          <p class="text-xs font-mono text-theme-primary">{{ device.firmware || device.rev || '-' }}</p>
+                        </div>
+                        <div class="p-3 bg-theme-secondary/50 rounded-lg">
+                          <p class="text-xs text-theme-muted mb-1">Transport</p>
+                          <p class="text-xs text-theme-primary">{{ device.tran || device.transport || '-' }}</p>
+                        </div>
+                        <div class="p-3 bg-theme-secondary/50 rounded-lg">
+                          <p class="text-xs text-theme-muted mb-1">Filesystem</p>
+                          <p class="text-xs text-theme-primary">{{ device.fstype || '-' }}</p>
+                        </div>
+                      </div>
+                      <!-- SMART Data -->
+                      <DeviceHealth :device="device.name || device.device" />
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Device list — mobile cards -->
+      <div v-if="storageHalStore.devices.length > 0" class="md:hidden space-y-3">
+        <div
+          v-for="device in storageHalStore.devices"
+          :key="'m-' + (device.name || device.device)"
+          class="bg-theme-card rounded-xl border border-theme-primary overflow-hidden"
+        >
+          <div
+            class="p-4 flex items-center gap-3 cursor-pointer"
+            @click="toggleDeviceExpand(device.name || device.device)"
+          >
+            <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0">
+              <Icon :name="deviceTypeIcon(device.type)" :size="20" class="text-accent" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-theme-primary">{{ device.name || device.device }}</p>
+              <p class="text-xs text-theme-muted truncate">{{ device.model || '-' }} · {{ device.size || device.capacity || '-' }}</p>
+            </div>
             <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-theme-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-              <span class="text-sm text-theme-secondary">{{ dir.name }}</span>
+              <DeviceHealth :device="device.name || device.device" :inline="true" />
+              <Icon
+                name="ChevronDown"
+                :size="16"
+                class="text-theme-muted transition-transform flex-shrink-0"
+                :class="{ 'rotate-180': expandedDevice === (device.name || device.device) }"
+              />
             </div>
-            <span class="text-sm font-medium text-theme-primary">{{ formatBytes(dir.size_bytes) }}</span>
+          </div>
+          <!-- Mobile expanded -->
+          <div v-if="expandedDevice === (device.name || device.device)" class="px-4 pb-4 border-t border-theme-primary/50">
+            <div class="pt-4 space-y-3">
+              <div class="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span class="text-theme-muted block">Mount</span>
+                  <span class="text-theme-primary">{{ device.mountpoint || device.mount || '-' }}</span>
+                </div>
+                <div>
+                  <span class="text-theme-muted block">Type</span>
+                  <span class="text-theme-primary">{{ device.type || device.tran || '-' }}</span>
+                </div>
+                <div>
+                  <span class="text-theme-muted block">Serial</span>
+                  <span class="text-theme-primary font-mono truncate block">{{ device.serial || '-' }}</span>
+                </div>
+                <div>
+                  <span class="text-theme-muted block">Filesystem</span>
+                  <span class="text-theme-primary">{{ device.fstype || '-' }}</span>
+                </div>
+              </div>
+              <DeviceHealth :device="device.name || device.device" />
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Disk Health Tab -->
-    <div v-if="activeTab === 'health'" class="space-y-6">
-      <div v-if="diskHealth.length === 0" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
-        <svg class="w-12 h-12 mx-auto text-theme-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-        <h3 class="text-lg font-medium text-theme-primary mb-2">No Disks Found</h3>
-        <p class="text-theme-muted">S.M.A.R.T. monitoring requires smartmontools to be installed.</p>
-        <p class="text-sm text-theme-muted mt-2">Run: <code class="bg-theme-tertiary px-2 py-1 rounded">apt install smartmontools</code></p>
+    <!-- ==================== USB Tab (G3 Placeholder) ==================== -->
+    <div v-if="activeTab === 'usb'" class="space-y-6">
+      <div v-if="storageHalStore.loading" class="flex items-center justify-center py-12">
+        <Icon name="Loader2" :size="24" class="animate-spin text-theme-muted" />
+        <span class="ml-3 text-theme-muted">Loading USB devices...</span>
       </div>
-      
-      <div v-for="disk in diskHealth" :key="disk.device" class="bg-theme-card rounded-xl border border-theme-primary p-6">
-        <div class="flex items-start justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-lg flex items-center justify-center" :class="healthBgColor(disk.health)">
-              <svg class="w-6 h-6" :class="healthColor(disk.health)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path v-if="disk.health === 'PASSED'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                <path v-else-if="disk.health === 'FAILED'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="font-semibold text-theme-primary">{{ disk.model || disk.device }}</h3>
-              <p class="text-sm text-theme-muted">{{ disk.device }} · {{ disk.type }} · {{ disk.capacity }}</p>
-            </div>
-          </div>
-          <span :class="healthColor(disk.health)" class="text-lg font-bold">{{ disk.health }}</span>
-        </div>
-        
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div class="p-3 bg-theme-secondary/50 rounded-lg">
-            <p class="text-xs text-theme-muted mb-1">Temperature</p>
-            <p class="font-semibold text-theme-primary" :class="{ 'text-error': disk.temperature > 60 }">{{ disk.temperature ? disk.temperature + '°C' : '-' }}</p>
-          </div>
-          <div class="p-3 bg-theme-secondary/50 rounded-lg">
-            <p class="text-xs text-theme-muted mb-1">Power On Time</p>
-            <p class="font-semibold text-theme-primary">{{ formatHours(disk.power_on_hours) }}</p>
-          </div>
-          <div class="p-3 bg-theme-secondary/50 rounded-lg">
-            <p class="text-xs text-theme-muted mb-1">Power Cycles</p>
-            <p class="font-semibold text-theme-primary">{{ disk.power_cycles || '-' }}</p>
-          </div>
-          <div class="p-3 bg-theme-secondary/50 rounded-lg">
-            <p class="text-xs text-theme-muted mb-1">Serial</p>
-            <p class="font-semibold text-theme-primary text-xs truncate">{{ disk.serial || '-' }}</p>
-          </div>
-        </div>
-        
-        <div v-if="disk.warnings && disk.warnings.length > 0" class="mb-4">
-          <div v-for="warning in disk.warnings" :key="warning" class="flex items-center gap-2 p-2 bg-warning-muted border border-warning rounded-lg mb-2 text-sm text-warning">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            {{ warning }}
-          </div>
-        </div>
-        
-        <details v-if="disk.attributes && disk.attributes.length > 0" class="group">
-          <summary class="cursor-pointer text-sm text-theme-muted hover:text-theme-primary flex items-center gap-1">
-            <svg class="w-4 h-4 transform group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-            Show {{ disk.attributes.length }} S.M.A.R.T. attributes
-          </summary>
-          <div class="mt-3 overflow-x-auto">
-            <table class="w-full text-xs">
-              <thead>
-                <tr class="text-left text-theme-muted border-b border-theme-primary">
-                  <th class="py-2 px-2">ID</th>
-                  <th class="py-2 px-2">Attribute</th>
-                  <th class="py-2 px-2">Value</th>
-                  <th class="py-2 px-2">Worst</th>
-                  <th class="py-2 px-2">Thresh</th>
-                  <th class="py-2 px-2">Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="attr in disk.attributes" :key="attr.id" class="border-b border-theme-primary/50" :class="{ 'bg-error-muted': attr.failing }">
-                  <td class="py-1.5 px-2 text-theme-muted">{{ attr.id }}</td>
-                  <td class="py-1.5 px-2 text-theme-primary">{{ attr.name }}</td>
-                  <td class="py-1.5 px-2" :class="attr.value <= attr.threshold ? 'text-error' : 'text-theme-secondary'">{{ attr.value }}</td>
-                  <td class="py-1.5 px-2 text-theme-muted">{{ attr.worst }}</td>
-                  <td class="py-1.5 px-2 text-theme-muted">{{ attr.threshold }}</td>
-                  <td class="py-1.5 px-2 text-theme-muted font-mono">{{ attr.raw_value }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </details>
+
+      <div v-else-if="storageHalStore.usbDevices.length === 0 && storageHalStore.usbStorage.length === 0" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
+        <Icon name="Usb" :size="40" class="mx-auto text-theme-muted mb-4" />
+        <h3 class="text-lg font-medium text-theme-primary mb-2">No USB Devices</h3>
+        <p class="text-theme-muted">Connect a USB device to manage it here.</p>
+        <button
+          @click="storageHalStore.rescanUSB()"
+          class="mt-4 px-4 py-2 btn-accent rounded-lg text-sm flex items-center gap-2 mx-auto"
+        >
+          <Icon name="RefreshCw" :size="14" />
+          Rescan USB Bus
+        </button>
       </div>
+
+      <!-- Basic USB device list (G3 will replace with full USBDevices component) -->
+      <template v-else>
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-theme-primary">
+            USB Devices
+            <span class="text-sm font-normal text-theme-muted ml-2">{{ storageHalStore.usbDevices.length }} device{{ storageHalStore.usbDevices.length !== 1 ? 's' : '' }}</span>
+          </h2>
+          <button
+            @click="storageHalStore.rescanUSB()"
+            :disabled="storageHalStore.loading"
+            class="px-3 py-1.5 text-sm bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': storageHalStore.loading }" />
+            Rescan
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <div
+            v-for="device in storageHalStore.usbDevices"
+            :key="device.device || device.bus + ':' + device.port"
+            class="bg-theme-card rounded-xl border border-theme-primary p-4 flex items-center gap-3"
+          >
+            <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0">
+              <Icon name="Usb" :size="20" class="text-accent" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-theme-primary truncate">{{ device.product || device.name || device.description || 'USB Device' }}</p>
+              <p class="text-xs text-theme-muted truncate">
+                {{ device.vendor || '' }}{{ device.vendor && device.device ? ' · ' : '' }}{{ device.device || '' }}
+                <span v-if="device.bus"> · Bus {{ device.bus }}</span>
+              </p>
+            </div>
+            <span
+              class="px-2 py-0.5 text-[10px] font-semibold rounded-full"
+              :class="device.class === 'storage' || device.type === 'storage' ? 'bg-accent-muted text-accent' : 'bg-theme-tertiary text-theme-secondary'"
+            >{{ device.class || device.type || 'device' }}</span>
+          </div>
+        </div>
+        <p class="text-xs text-theme-muted text-center">Full USB management with mount/unmount/eject coming in Group 3</p>
+      </template>
     </div>
 
-    <!-- SMB Shares Tab -->
-    <div v-if="activeTab === 'shares'" class="space-y-6">
+    <!-- ==================== Network Mounts Tab (G3 Placeholder) ==================== -->
+    <div v-if="activeTab === 'network-mounts'" class="space-y-6">
+      <div v-if="storageHalStore.loading" class="flex items-center justify-center py-12">
+        <Icon name="Loader2" :size="24" class="animate-spin text-theme-muted" />
+        <span class="ml-3 text-theme-muted">Loading network mounts...</span>
+      </div>
+
+      <div v-else-if="storageHalStore.networkMounts.length === 0" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
+        <Icon name="Network" :size="40" class="mx-auto text-theme-muted mb-4" />
+        <h3 class="text-lg font-medium text-theme-primary mb-2">No Network Mounts</h3>
+        <p class="text-theme-muted">Configure SMB or NFS network mounts to access remote storage.</p>
+        <p class="text-xs text-theme-muted mt-2">Full network mount management with SMB/NFS forms coming in Group 3</p>
+      </div>
+
+      <!-- Basic network mount list -->
+      <template v-else>
+        <h2 class="text-lg font-semibold text-theme-primary">
+          Network Mounts
+          <span class="text-sm font-normal text-theme-muted ml-2">{{ storageHalStore.networkMountCount }} mount{{ storageHalStore.networkMountCount !== 1 ? 's' : '' }}</span>
+        </h2>
+
+        <div class="space-y-3">
+          <div
+            v-for="mount in storageHalStore.networkMounts"
+            :key="mount.name || mount.source"
+            class="bg-theme-card rounded-xl border border-theme-primary p-4 flex items-center gap-3"
+          >
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+              :class="mount.mounted || mount.status === 'mounted' ? 'bg-success-muted' : 'bg-theme-tertiary'"
+            >
+              <Icon name="FolderOpen" :size="20"
+                :class="mount.mounted || mount.status === 'mounted' ? 'text-success' : 'text-theme-muted'"
+              />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-theme-primary truncate">{{ mount.name || mount.mountpoint }}</p>
+              <p class="text-xs text-theme-muted truncate">{{ mount.source || mount.remote }} · {{ mount.type || mount.protocol || 'unknown' }}</p>
+            </div>
+            <span
+              class="px-2 py-0.5 text-[10px] font-semibold rounded-full"
+              :class="mount.mounted || mount.status === 'mounted' ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'"
+            >{{ mount.mounted || mount.status === 'mounted' ? 'Mounted' : 'Disconnected' }}</span>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ==================== SMB Shares Tab ==================== -->
+    <div v-if="activeTab === 'smb'" class="space-y-6">
+
+      <!-- SMB Status Card -->
       <div class="bg-theme-card rounded-xl border border-theme-primary p-6">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center" :class="smbStatus?.running ? 'bg-success-muted' : 'bg-theme-tertiary'">
-              <svg class="w-5 h-5" :class="smbStatus?.running ? 'text-success' : 'text-theme-muted'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-              </svg>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center"
+              :class="smbStore.isRunning ? 'bg-success-muted' : 'bg-theme-tertiary'"
+            >
+              <Icon name="Server" :size="20"
+                :class="smbStore.isRunning ? 'text-success' : 'text-theme-muted'"
+              />
             </div>
             <div>
               <h3 class="font-semibold text-theme-primary">Samba File Server</h3>
-              <p class="text-sm text-theme-muted">{{ smbStatus?.installed ? (smbStatus?.running ? 'Running' : 'Stopped') : 'Not installed' }}<span v-if="smbStatus?.version"> · {{ smbStatus.version }}</span></p>
+              <p class="text-sm text-theme-muted">
+                {{ smbStore.status?.installed ? (smbStore.isRunning ? 'Running' : 'Stopped') : 'Not installed' }}
+                <span v-if="smbStore.status?.version"> · {{ smbStore.status.version }}</span>
+              </p>
             </div>
           </div>
-          <button @click="openCreateShare" :disabled="!smbStatus?.installed" class="px-4 py-2 btn-accent rounded-lg hover:bg-[color:var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+          <button
+            @click="openCreateShare"
+            :disabled="!smbStore.status?.installed"
+            class="px-4 py-2 btn-accent rounded-lg hover:bg-[color:var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+          >
+            <Icon name="Plus" :size="16" />
             Add Share
           </button>
         </div>
       </div>
 
-      <div v-if="smbStatus && !smbStatus.installed" class="bg-warning-muted border border-warning rounded-lg p-4">
-        <p class="text-warning">Samba is not installed. Install it to create network shares:</p>
-        <code class="block mt-2 p-2 bg-warning-muted rounded text-sm">apt install samba</code>
+      <!-- Not installed warning -->
+      <div v-if="smbStore.status && !smbStore.status.installed" class="bg-warning-muted border border-warning rounded-lg p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <Icon name="AlertCircle" :size="16" class="text-warning" />
+          <p class="text-sm font-medium text-warning">Samba is not installed</p>
+        </div>
+        <p class="text-sm text-theme-muted">Install Samba to create network file shares.</p>
+        <code class="block mt-2 p-2 bg-code text-code rounded text-xs font-mono">apt install samba</code>
       </div>
 
-      <div v-if="smbShares.length > 0" class="space-y-4">
-        <div v-for="share in smbShares" :key="share.name" class="bg-theme-card rounded-xl border border-theme-primary p-4">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
-                <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-              </div>
-              <div>
-                <h4 class="font-medium text-theme-primary">{{ share.name }}</h4>
-                <p class="text-sm text-theme-muted">{{ share.path }}</p>
-              </div>
+      <!-- Shares list -->
+      <div v-if="smbStore.shares.length > 0" class="space-y-3">
+        <div
+          v-for="share in smbStore.shares"
+          :key="share.name"
+          class="bg-theme-card rounded-xl border border-theme-primary overflow-hidden"
+        >
+          <!-- Share header row -->
+          <div class="p-4 flex items-center gap-3">
+            <div
+              class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0 cursor-pointer"
+              @click="toggleShareDetail(share.name)"
+            >
+              <Icon name="FolderOpen" :size="20" class="text-accent" />
             </div>
-            <div class="flex items-center gap-2">
-              <span v-if="share.read_only" class="px-2 py-0.5 text-xs bg-theme-tertiary text-theme-tertiary rounded">Read Only</span>
-              <span v-if="share.guest_ok" class="px-2 py-0.5 text-xs bg-success-muted text-success rounded">Guest OK</span>
-              <button @click="openEditShare(share)" class="p-2 text-theme-muted hover:text-theme-secondary">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+            <div
+              class="flex-1 min-w-0 cursor-pointer"
+              @click="toggleShareDetail(share.name)"
+            >
+              <h4 class="font-medium text-theme-primary">{{ share.name }}</h4>
+              <p class="text-sm text-theme-muted truncate">{{ share.path }}</p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span v-if="share.read_only" class="hidden sm:inline px-2 py-0.5 text-[10px] font-semibold bg-theme-tertiary text-theme-secondary rounded">Read Only</span>
+              <span v-if="share.guest_ok" class="hidden sm:inline px-2 py-0.5 text-[10px] font-semibold bg-success-muted text-success rounded">Guest</span>
+              <button @click="openEditShare(share)" class="p-2 text-theme-muted hover:text-theme-secondary rounded-lg hover:bg-theme-tertiary" title="Edit share">
+                <Icon name="Pencil" :size="14" />
               </button>
-              <button @click="deleteShare(share.name)" class="p-2 text-theme-muted hover:text-error">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              <button @click="deleteShare(share.name)" class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted" title="Delete share">
+                <Icon name="Trash2" :size="14" />
+              </button>
+              <button @click="toggleShareDetail(share.name)" class="p-2 text-theme-muted hover:text-theme-secondary rounded-lg">
+                <Icon
+                  name="ChevronDown"
+                  :size="14"
+                  class="transition-transform"
+                  :class="{ 'rotate-180': expandedShare === share.name }"
+                />
               </button>
             </div>
           </div>
-          <p v-if="share.comment" class="text-sm text-theme-muted mt-2">{{ share.comment }}</p>
+
+          <p v-if="share.comment && expandedShare !== share.name" class="px-4 pb-3 text-sm text-theme-muted -mt-1">{{ share.comment }}</p>
+
+          <!-- Expanded detail panel -->
+          <div v-if="expandedShare === share.name" class="px-4 pb-4 border-t border-theme-primary/50">
+            <div v-if="shareDetailLoading" class="py-4 flex items-center justify-center">
+              <Icon name="Loader2" :size="16" class="animate-spin text-theme-muted" />
+              <span class="ml-2 text-sm text-theme-muted">Loading details...</span>
+            </div>
+            <div v-else class="pt-4">
+              <p v-if="share.comment" class="text-sm text-theme-muted mb-3">{{ share.comment }}</p>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <span class="text-xs text-theme-muted block">Path</span>
+                  <span class="text-theme-primary font-mono text-xs">{{ smbStore.selectedShare?.path || share.path }}</span>
+                </div>
+                <div>
+                  <span class="text-xs text-theme-muted block">Browseable</span>
+                  <span class="text-theme-primary">{{ (smbStore.selectedShare?.browseable ?? share.browseable) ? 'Yes' : 'No' }}</span>
+                </div>
+                <div>
+                  <span class="text-xs text-theme-muted block">Read Only</span>
+                  <span class="text-theme-primary">{{ (smbStore.selectedShare?.read_only ?? share.read_only) ? 'Yes' : 'No' }}</span>
+                </div>
+                <div>
+                  <span class="text-xs text-theme-muted block">Guest Access</span>
+                  <span class="text-theme-primary">{{ (smbStore.selectedShare?.guest_ok ?? share.guest_ok) ? 'Yes' : 'No' }}</span>
+                </div>
+                <div v-if="smbStore.selectedShare?.valid_users">
+                  <span class="text-xs text-theme-muted block">Valid Users</span>
+                  <span class="text-theme-primary">{{ smbStore.selectedShare.valid_users }}</span>
+                </div>
+                <div v-if="smbStore.selectedShare?.write_list">
+                  <span class="text-xs text-theme-muted block">Write List</span>
+                  <span class="text-theme-primary">{{ smbStore.selectedShare.write_list }}</span>
+                </div>
+              </div>
+              <!-- Mobile badges that were hidden on sm -->
+              <div class="flex gap-2 mt-3 sm:hidden">
+                <span v-if="share.read_only" class="px-2 py-0.5 text-[10px] font-semibold bg-theme-tertiary text-theme-secondary rounded">Read Only</span>
+                <span v-if="share.guest_ok" class="px-2 py-0.5 text-[10px] font-semibold bg-success-muted text-success rounded">Guest</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div v-else-if="smbStatus?.installed" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
-        <svg class="w-12 h-12 mx-auto text-theme-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-        </svg>
+      <!-- Empty state -->
+      <div v-else-if="smbStore.status?.installed && !smbStore.loading" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
+        <Icon name="FolderOpen" :size="40" class="mx-auto text-theme-muted mb-4" />
         <h3 class="text-lg font-medium text-theme-primary mb-2">No Shares Configured</h3>
         <p class="text-theme-muted mb-4">Create a network share to access files from other devices.</p>
-        <button @click="openCreateShare" class="px-4 py-2 btn-accent rounded-lg hover:bg-[color:var(--accent-hover)]">Create First Share</button>
+        <button @click="openCreateShare" class="px-4 py-2 btn-accent rounded-lg text-sm">Create First Share</button>
       </div>
     </div>
 
-    <!-- Share Modal -->
+    <!-- ==================== Share Modal ==================== -->
     <Teleport to="body">
-      <div v-if="showShareModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="showShareModal = false">
-        <div class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
-            <h3 class="text-lg font-semibold text-theme-primary">{{ shareModalMode === 'create' ? 'Create Share' : 'Edit Share' }}</h3>
-            <button @click="showShareModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-          <div class="p-6 space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Share Name</label>
-              <input v-model="shareForm.name" type="text" :disabled="shareModalMode === 'edit'" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent disabled:opacity-50" placeholder="documents">
+      <Transition name="fade">
+        <div
+          v-if="showShareModal"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="shareModalMode === 'create' ? 'Create Share' : 'Edit Share'"
+        >
+          <div class="absolute inset-0 bg-black/50" @click="showShareModal = false"></div>
+          <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
+              <h3 class="text-lg font-semibold text-theme-primary">
+                {{ shareModalMode === 'create' ? 'Create Share' : 'Edit Share' }}
+              </h3>
+              <button @click="showShareModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg">
+                <Icon name="X" :size="18" />
+              </button>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Folder Path</label>
-              <input v-model="shareForm.path" type="text" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent" placeholder="/cubeos/shares/documents">
+            <div class="p-6 space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-theme-secondary mb-1">Share Name</label>
+                <input
+                  v-model="shareForm.name"
+                  type="text"
+                  :disabled="shareModalMode === 'edit'"
+                  class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent disabled:opacity-50"
+                  placeholder="documents"
+                >
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-theme-secondary mb-1">Folder Path</label>
+                <input
+                  v-model="shareForm.path"
+                  type="text"
+                  class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
+                  placeholder="/cubeos/shares/documents"
+                >
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-theme-secondary mb-1">Description (optional)</label>
+                <input
+                  v-model="shareForm.comment"
+                  type="text"
+                  class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
+                  placeholder="My documents"
+                >
+              </div>
+              <div class="space-y-3">
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input v-model="shareForm.guest_ok" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
+                  <span class="text-sm text-theme-secondary">Allow guest access (no password)</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input v-model="shareForm.read_only" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
+                  <span class="text-sm text-theme-secondary">Read only</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input v-model="shareForm.browseable" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
+                  <span class="text-sm text-theme-secondary">Visible in network browser</span>
+                </label>
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Description (optional)</label>
-              <input v-model="shareForm.comment" type="text" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent" placeholder="My documents">
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-theme-primary">
+              <button @click="showShareModal = false" class="px-4 py-2 text-theme-secondary hover:bg-theme-tertiary rounded-lg text-sm">
+                Cancel
+              </button>
+              <button
+                @click="saveShare"
+                :disabled="shareLoading || !shareForm.name || !shareForm.path"
+                class="px-4 py-2 btn-accent rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Icon v-if="shareLoading" name="Loader2" :size="14" class="animate-spin" />
+                {{ shareModalMode === 'create' ? 'Create' : 'Save' }}
+              </button>
             </div>
-            <div class="space-y-3">
-              <label class="flex items-center gap-3">
-                <input v-model="shareForm.guest_ok" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
-                <span class="text-sm text-theme-secondary">Allow guest access (no password)</span>
-              </label>
-              <label class="flex items-center gap-3">
-                <input v-model="shareForm.read_only" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
-                <span class="text-sm text-theme-secondary">Read only</span>
-              </label>
-              <label class="flex items-center gap-3">
-                <input v-model="shareForm.browseable" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
-                <span class="text-sm text-theme-secondary">Visible in network browser</span>
-              </label>
-            </div>
-          </div>
-          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-theme-primary">
-            <button @click="showShareModal = false" class="px-4 py-2 text-theme-secondary hover:bg-theme-tertiary rounded-lg">Cancel</button>
-            <button @click="saveShare" :disabled="shareLoading || !shareForm.name || !shareForm.path" class="px-4 py-2 btn-accent rounded-lg hover:bg-[color:var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-              <svg v-if="shareLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-              {{ shareModalMode === 'create' ? 'Create' : 'Save' }}
-            </button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>
