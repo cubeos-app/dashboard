@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/api/client'
+import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+
+const { signal, abort } = useAbortOnUnmount()
 
 // State
 const loading = ref(true)
@@ -45,7 +48,7 @@ const availableChannels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 async function openAPConfigModal() {
   apConfigLoading.value = true
   try {
-    const cfg = await api.get('/network/ap/config')
+    const cfg = await api.get('/network/ap/config', {}, { signal: signal() })
     apConfig.value = {
       ssid: cfg.ssid || 'CubeOS',
       password: cfg.password || '',
@@ -114,22 +117,23 @@ async function fetchAll() {
   loading.value = true
   error.value = null
   try {
+    const s = signal()
     // Build fetch promises — skip AP calls if hardware not present
     const apPromise = apHardwarePresent.value
-      ? api.get('/network/wifi/ap/status').catch(() => null)
+      ? api.get('/network/wifi/ap/status', {}, { signal: s }).catch(() => null)
       : Promise.resolve(null)
     const clientsPromise = apHardwarePresent.value
-      ? api.get('/network/wifi/ap/clients').catch(() => ({ clients: [] }))
+      ? api.get('/network/wifi/ap/clients', {}, { signal: s }).catch(() => ({ clients: [] }))
       : Promise.resolve({ clients: [] })
 
     const [ap, clientList, ifacesResp, nat, internet, fw, mode] = await Promise.all([
       apPromise,
       clientsPromise,
-      api.get('/network/interfaces/detailed').catch(() => ({ interfaces: [] })),
-      api.get('/firewall/nat').catch(() => ({ enabled: false })),
-      api.get('/network/internet').catch(() => ({ connected: false })),
-      api.get('/firewall/status').catch(() => null),
-      api.get('/network/mode').catch(() => null)
+      api.get('/network/interfaces/detailed', {}, { signal: s }).catch(() => ({ interfaces: [] })),
+      api.get('/firewall/nat', {}, { signal: s }).catch(() => ({ enabled: false })),
+      api.get('/network/internet', {}, { signal: s }).catch(() => ({ connected: false })),
+      api.get('/firewall/status', {}, { signal: s }).catch(() => null),
+      api.get('/network/mode', {}, { signal: s }).catch(() => null)
     ])
     
     // Cache AP hardware detection result on first check
@@ -255,8 +259,9 @@ const physicalInterfaces = computed(() => {
 // Fetch traffic history
 async function fetchTrafficHistory() {
   try {
+    const s = signal()
     // Get current stats first
-    const stats = await api.get('/network/traffic')
+    const stats = await api.get('/network/traffic', {}, { signal: s })
     if (stats?.stats?.length > 0) {
       // Auto-select first physical interface if not selected
       if (!selectedTrafficInterface.value) {
@@ -275,7 +280,7 @@ async function fetchTrafficHistory() {
     
     // Get history for selected interface
     if (selectedTrafficInterface.value) {
-      const history = await api.get(`/network/traffic/${selectedTrafficInterface.value}/history`, { minutes: 60 })
+      const history = await api.get(`/network/traffic/${selectedTrafficInterface.value}/history`, { minutes: 60 }, { signal: s })
       trafficHistory.value = history?.history || []
     }
   } catch (e) {

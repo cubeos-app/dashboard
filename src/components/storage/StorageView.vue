@@ -1,6 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/api/client'
+import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+
+const { signal } = useAbortOnUnmount()
 
 // Tabs
 const activeTab = ref('overview')
@@ -42,13 +45,14 @@ async function fetchAll() {
   loading.value = true
   error.value = null
   try {
+    const s = signal()
     const [storageInfo, stats, dockerInfo, health, smb, shares] = await Promise.all([
-      api.get('/storage').catch(() => null),
-      api.get('/system/stats'),
-      api.get('/docker/disk-usage').catch(() => null),
-      api.get('/storage/health').catch(() => ({ disks: [] })),
-      api.get('/smb/status').catch(() => null),
-      api.get('/smb/shares').catch(() => ({ shares: [] }))
+      api.get('/storage', {}, { signal: s }).catch(() => null),
+      api.get('/system/stats', {}, { signal: s }),
+      api.get('/docker/disk-usage', {}, { signal: s }).catch(() => null),
+      api.get('/storage/health', {}, { signal: s }).catch(() => ({ disks: [] })),
+      api.get('/smb/status', {}, { signal: s }).catch(() => null),
+      api.get('/smb/shares', {}, { signal: s }).catch(() => ({ shares: [] }))
     ])
     
     // Prefer /storage endpoint which lists all disks (NVMe, USB, SD)
