@@ -8,6 +8,7 @@ import FQDNsTab from './FQDNsTab.vue'
 import ProfilesTab from './ProfilesTab.vue'
 import RegistryTab from './RegistryTab.vue'
 import CasaOSTab from './CasaOSTab.vue'
+import NPMTab from './NPMTab.vue'
 
 const store = useAppManagerStore()
 
@@ -17,6 +18,7 @@ const tabs = [
   { id: 'fqdns', name: 'Domains', icon: 'Globe' },
   { id: 'profiles', name: 'Profiles', icon: 'Layers' },
   { id: 'registry', name: 'Registry', icon: 'Container' },
+  { id: 'npm', name: 'Proxy', icon: 'Shield' },
   { id: 'casaos', name: 'Import', icon: 'Download' }
 ]
 
@@ -104,6 +106,7 @@ onMounted(() => {
         <FQDNsTab v-else-if="activeTab === 'fqdns'" />
         <ProfilesTab v-else-if="activeTab === 'profiles'" />
         <RegistryTab v-else-if="activeTab === 'registry'" />
+        <NPMTab v-else-if="activeTab === 'npm'" />
         <CasaOSTab v-else-if="activeTab === 'casaos'" />
       </template>
     </div>
