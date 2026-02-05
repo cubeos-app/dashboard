@@ -17,6 +17,18 @@ const newStoreName = ref('')
 const addingStore = ref(false)
 const addStoreError = ref('')
 
+// Store detail expand state (Sources tab)
+const expandedStoreId = ref(null)
+const storeDetail = ref(null)
+const storeDetailLoading = ref(false)
+const storeDetailError = ref(null)
+
+// Installed app detail expand state (Installed tab)
+const expandedInstalledId = ref(null)
+const installedDetail = ref(null)
+const installedDetailLoading = ref(false)
+const installedDetailError = ref(null)
+
 // Computed
 const hasApps = computed(() => appStore.catalog.length > 0)
 
@@ -87,6 +99,81 @@ async function handleAddStore() {
     addStoreError.value = e.message
   } finally {
     addingStore.value = false
+  }
+}
+
+// Store detail expand/collapse (Sources tab — accordion)
+async function toggleStoreDetail(storeId) {
+  if (expandedStoreId.value === storeId) {
+    expandedStoreId.value = null
+    storeDetail.value = null
+    storeDetailError.value = null
+  } else {
+    expandedStoreId.value = storeId
+    storeDetail.value = null
+    storeDetailError.value = null
+    await loadStoreDetail(storeId)
+  }
+}
+
+async function loadStoreDetail(storeId) {
+  storeDetailLoading.value = true
+  storeDetailError.value = null
+  try {
+    const data = await appStore.getStoreDetail(storeId)
+    if (data) {
+      storeDetail.value = data
+    } else {
+      storeDetailError.value = appStore.error || 'Failed to load store details'
+    }
+  } catch (e) {
+    storeDetailError.value = e.message
+  } finally {
+    storeDetailLoading.value = false
+  }
+}
+
+// Installed app detail expand/collapse (Installed tab — accordion)
+async function toggleInstalledDetail(appId) {
+  if (expandedInstalledId.value === appId) {
+    expandedInstalledId.value = null
+    installedDetail.value = null
+    installedDetailError.value = null
+  } else {
+    expandedInstalledId.value = appId
+    installedDetail.value = null
+    installedDetailError.value = null
+    await loadInstalledDetail(appId)
+  }
+}
+
+async function loadInstalledDetail(appId) {
+  installedDetailLoading.value = true
+  installedDetailError.value = null
+  try {
+    const data = await appStore.getInstalledAppDetail(appId)
+    if (data) {
+      installedDetail.value = data
+    } else {
+      installedDetailError.value = appStore.error || 'Failed to load app details'
+    }
+  } catch (e) {
+    installedDetailError.value = e.message
+  } finally {
+    installedDetailLoading.value = false
+  }
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return 'Unknown'
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
+  } catch {
+    return dateStr
   }
 }
 
@@ -261,83 +348,224 @@ onMounted(async () => {
         <div
           v-for="app in appStore.installedApps"
           :key="app.id"
-          class="flex items-center gap-4 p-4 rounded-xl border border-theme-primary bg-theme-card"
         >
-          <!-- Icon -->
-          <div class="w-12 h-12 rounded-xl bg-theme-tertiary flex items-center justify-center flex-shrink-0">
-            <img v-if="app.icon" :src="app.icon" :alt="app.title" class="w-8 h-8 rounded-lg object-contain" />
-            <Icon v-else name="Package" :size="24" class="text-theme-muted" />
-          </div>
-
-          <!-- Info -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <h3 class="font-medium text-theme-primary text-sm truncate">{{ app.title || app.name }}</h3>
-              <span 
-                class="px-1.5 py-0.5 text-[10px] font-medium rounded"
-                :class="app.status === 'running' 
-                  ? 'bg-success-muted text-success' 
-                  : 'bg-theme-tertiary text-theme-muted'"
-              >
-                {{ app.status }}
-              </span>
+          <!-- App Row -->
+          <div class="flex items-center gap-4 p-4 rounded-xl border border-theme-primary bg-theme-card"
+            :class="{ 'rounded-b-none border-b-0': expandedInstalledId === app.id }"
+          >
+            <!-- Icon -->
+            <div class="w-12 h-12 rounded-xl bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+              <img v-if="app.icon" :src="app.icon" :alt="app.title" class="w-8 h-8 rounded-lg object-contain" />
+              <Icon v-else name="Package" :size="24" class="text-theme-muted" />
             </div>
-            <p class="text-xs text-theme-tertiary truncate">{{ app.category }} | v{{ app.version }}</p>
+
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <h3 class="font-medium text-theme-primary text-sm truncate">{{ app.title || app.name }}</h3>
+                <span 
+                  class="px-1.5 py-0.5 text-[10px] font-medium rounded"
+                  :class="app.status === 'running' 
+                    ? 'bg-success-muted text-success' 
+                    : 'bg-theme-tertiary text-theme-muted'"
+                >
+                  {{ app.status }}
+                </span>
+              </div>
+              <p class="text-xs text-theme-tertiary truncate">{{ app.category }} | v{{ app.version }}</p>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2">
+              <a
+                v-if="app.webui && app.status === 'running'"
+                :href="app.webui"
+                target="_blank"
+                @click.stop
+                class="p-2 rounded-lg text-accent hover:bg-accent-muted transition-colors"
+                title="Open Web UI"
+              >
+                <Icon name="ExternalLink" :size="16" />
+              </a>
+
+              <router-link
+                :to="{ name: 'app-config', params: { appId: app.id } }"
+                @click.stop
+                class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
+                title="Edit Config"
+              >
+                <Icon name="Settings" :size="16" />
+              </router-link>
+
+              <button
+                v-if="app.status === 'stopped'"
+                @click.stop="appStore.startApp(app.id)"
+                class="p-2 rounded-lg text-success hover:bg-success-muted transition-colors"
+                title="Start"
+              >
+                <Icon name="Play" :size="16" />
+              </button>
+              
+              <button
+                v-if="app.status === 'running'"
+                @click.stop="appStore.stopApp(app.id)"
+                class="p-2 rounded-lg text-warning hover:bg-warning-muted transition-colors"
+                title="Stop"
+              >
+                <Icon name="Square" :size="16" />
+              </button>
+
+              <button
+                @click.stop="appStore.restartApp(app.id)"
+                class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
+                title="Restart"
+              >
+                <Icon name="RotateCw" :size="16" />
+              </button>
+
+              <button
+                @click.stop="toggleInstalledDetail(app.id)"
+                class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
+                :class="{ 'bg-theme-tertiary text-theme-primary': expandedInstalledId === app.id }"
+                title="Details"
+              >
+                <Icon name="Info" :size="16" />
+              </button>
+
+              <button
+                @click.stop="appStore.removeApp(app.id, false)"
+                class="p-2 rounded-lg text-error hover:bg-error-muted transition-colors"
+                title="Remove"
+              >
+                <Icon name="Trash2" :size="16" />
+              </button>
+            </div>
           </div>
 
-          <!-- Actions -->
-          <div class="flex items-center gap-2">
-            <a
-              v-if="app.webui && app.status === 'running'"
-              :href="app.webui"
-              target="_blank"
-              class="p-2 rounded-lg text-accent hover:bg-accent-muted transition-colors"
-              title="Open Web UI"
-            >
-              <Icon name="ExternalLink" :size="16" />
-            </a>
+          <!-- Installed App Detail Panel (expandable) -->
+          <div
+            v-if="expandedInstalledId === app.id"
+            class="rounded-b-xl border border-t-0 border-theme-primary bg-theme-card overflow-hidden transition-all duration-200"
+          >
+            <!-- Loading skeleton -->
+            <div v-if="installedDetailLoading" class="p-4 space-y-3">
+              <div class="h-4 w-48 bg-theme-tertiary animate-pulse rounded-lg"></div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="h-10 bg-theme-tertiary animate-pulse rounded-lg"></div>
+                <div class="h-10 bg-theme-tertiary animate-pulse rounded-lg"></div>
+                <div class="h-10 bg-theme-tertiary animate-pulse rounded-lg"></div>
+                <div class="h-10 bg-theme-tertiary animate-pulse rounded-lg"></div>
+              </div>
+            </div>
 
-            <router-link
-              :to="{ name: 'app-config', params: { appId: app.id } }"
-              class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
-              title="Edit Config"
-            >
-              <Icon name="Settings" :size="16" />
-            </router-link>
+            <!-- Error state -->
+            <div v-else-if="installedDetailError" class="p-4">
+              <div class="flex items-center gap-3 text-error">
+                <Icon name="AlertCircle" :size="16" class="flex-shrink-0" />
+                <span class="text-sm">{{ installedDetailError }}</span>
+                <button
+                  @click="loadInstalledDetail(app.id)"
+                  class="ml-auto px-3 py-1 rounded-lg border border-error/30 text-xs text-error hover:bg-error-muted transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
 
-            <button
-              v-if="app.status === 'stopped'"
-              @click="appStore.startApp(app.id)"
-              class="p-2 rounded-lg text-success hover:bg-success-muted transition-colors"
-              title="Start"
-            >
-              <Icon name="Play" :size="16" />
-            </button>
-            
-            <button
-              v-if="app.status === 'running'"
-              @click="appStore.stopApp(app.id)"
-              class="p-2 rounded-lg text-warning hover:bg-warning-muted transition-colors"
-              title="Stop"
-            >
-              <Icon name="Square" :size="16" />
-            </button>
+            <!-- Detail content -->
+            <div v-else-if="installedDetail" class="p-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Version -->
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Tag" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">Version</p>
+                    <p class="text-sm text-theme-primary">{{ installedDetail.version || 'Unknown' }}</p>
+                  </div>
+                </div>
 
-            <button
-              @click="appStore.restartApp(app.id)"
-              class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
-              title="Restart"
-            >
-              <Icon name="RotateCw" :size="16" />
-            </button>
+                <!-- Status -->
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Activity" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">Status</p>
+                    <p class="text-sm text-theme-primary">{{ installedDetail.status || app.status }}</p>
+                  </div>
+                </div>
 
-            <button
-              @click="appStore.removeApp(app.id, false)"
-              class="p-2 rounded-lg text-error hover:bg-error-muted transition-colors"
-              title="Remove"
-            >
-              <Icon name="Trash2" :size="16" />
-            </button>
+                <!-- Install Date -->
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Clock" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">Installed</p>
+                    <p class="text-sm text-theme-primary">{{ formatDate(installedDetail.installed_at) }}</p>
+                  </div>
+                </div>
+
+                <!-- Store Source -->
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Store" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">Source</p>
+                    <p class="text-sm text-theme-primary">{{ installedDetail.store_id || 'Manual' }}</p>
+                  </div>
+                </div>
+
+                <!-- Resources (if available) -->
+                <div v-if="installedDetail.resources" class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Cpu" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">Resources</p>
+                    <p class="text-sm text-theme-primary">
+                      <span v-if="installedDetail.resources.cpu_percent != null">CPU {{ installedDetail.resources.cpu_percent }}%</span>
+                      <span v-if="installedDetail.resources.cpu_percent != null && installedDetail.resources.memory_mb != null"> / </span>
+                      <span v-if="installedDetail.resources.memory_mb != null">{{ installedDetail.resources.memory_mb }} MB</span>
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Config Status -->
+                <div v-if="installedDetail.config_status" class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Settings" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">Config</p>
+                    <p class="text-sm text-theme-primary capitalize">{{ installedDetail.config_status }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Actions Row -->
+              <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-theme-primary">
+                <a
+                  v-if="installedDetail.webui && (installedDetail.status === 'running' || app.status === 'running')"
+                  :href="installedDetail.webui"
+                  target="_blank"
+                  class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-accent hover:bg-accent-muted transition-colors border border-accent/30"
+                >
+                  <Icon name="ExternalLink" :size="12" />
+                  Open Web UI
+                </a>
+                <router-link
+                  :to="{ name: 'app-config', params: { appId: app.id } }"
+                  class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-theme-secondary hover:bg-theme-tertiary transition-colors border border-theme-primary"
+                >
+                  <Icon name="Settings" :size="12" />
+                  Edit Config
+                </router-link>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -401,38 +629,152 @@ onMounted(async () => {
         <div
           v-for="store in appStore.stores"
           :key="store.id"
-          class="flex items-center gap-4 p-4 rounded-xl border border-theme-primary bg-theme-card"
         >
-          <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0">
-            <Icon name="Store" :size="20" class="text-accent" />
+          <!-- Store Row (clickable to expand) -->
+          <div
+            class="flex items-center gap-4 p-4 rounded-xl border border-theme-primary bg-theme-card cursor-pointer hover:bg-theme-secondary transition-colors"
+            :class="{ 'rounded-b-none border-b-0': expandedStoreId === store.id }"
+            @click="toggleStoreDetail(store.id)"
+          >
+            <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0">
+              <Icon name="Store" :size="20" class="text-accent" />
+            </div>
+
+            <div class="flex-1 min-w-0">
+              <h3 class="font-medium text-theme-primary text-sm">{{ store.name }}</h3>
+              <p class="text-xs text-theme-tertiary truncate">{{ store.description }}</p>
+              <p class="text-[10px] text-theme-muted mt-1">
+                {{ store.app_count }} apps | Last sync: {{ store.last_sync ? new Date(store.last_sync).toLocaleDateString() : 'Never' }}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                @click.stop="appStore.syncStore(store.id)"
+                :disabled="appStore.syncing"
+                class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
+                title="Sync"
+              >
+                <Icon name="RefreshCw" :size="16" :class="appStore.syncing ? 'animate-spin' : ''" />
+              </button>
+              
+              <button
+                v-if="store.id !== 'casaos-official'"
+                @click.stop="appStore.removeStore(store.id)"
+                class="p-2 rounded-lg text-error hover:bg-error-muted transition-colors"
+                title="Remove"
+              >
+                <Icon name="Trash2" :size="16" />
+              </button>
+
+              <Icon
+                name="ChevronDown"
+                :size="16"
+                class="text-theme-muted transition-transform duration-200"
+                :class="{ 'rotate-180': expandedStoreId === store.id }"
+              />
+            </div>
           </div>
 
-          <div class="flex-1 min-w-0">
-            <h3 class="font-medium text-theme-primary text-sm">{{ store.name }}</h3>
-            <p class="text-xs text-theme-tertiary truncate">{{ store.description }}</p>
-            <p class="text-[10px] text-theme-muted mt-1">
-              {{ store.app_count }} apps | Last sync: {{ store.last_sync ? new Date(store.last_sync).toLocaleDateString() : 'Never' }}
-            </p>
-          </div>
+          <!-- Store Detail Panel (expandable) -->
+          <div
+            v-if="expandedStoreId === store.id"
+            class="rounded-b-xl border border-t-0 border-theme-primary bg-theme-card overflow-hidden transition-all duration-200"
+          >
+            <!-- Loading skeleton -->
+            <div v-if="storeDetailLoading" class="p-4 space-y-3">
+              <div class="h-4 w-40 bg-theme-tertiary animate-pulse rounded-lg"></div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="h-10 bg-theme-tertiary animate-pulse rounded-lg"></div>
+                <div class="h-10 bg-theme-tertiary animate-pulse rounded-lg"></div>
+              </div>
+            </div>
 
-          <div class="flex items-center gap-2">
-            <button
-              @click="appStore.syncStore(store.id)"
-              :disabled="appStore.syncing"
-              class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
-              title="Sync"
-            >
-              <Icon name="RefreshCw" :size="16" :class="appStore.syncing ? 'animate-spin' : ''" />
-            </button>
-            
-            <button
-              v-if="store.id !== 'casaos-official'"
-              @click="appStore.removeStore(store.id)"
-              class="p-2 rounded-lg text-error hover:bg-error-muted transition-colors"
-              title="Remove"
-            >
-              <Icon name="Trash2" :size="16" />
-            </button>
+            <!-- Error state -->
+            <div v-else-if="storeDetailError" class="p-4">
+              <div class="flex items-center gap-3 text-error">
+                <Icon name="AlertCircle" :size="16" class="flex-shrink-0" />
+                <span class="text-sm">{{ storeDetailError }}</span>
+                <button
+                  @click.stop="loadStoreDetail(store.id)"
+                  class="ml-auto px-3 py-1 rounded-lg border border-error/30 text-xs text-error hover:bg-error-muted transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+
+            <!-- Detail content -->
+            <div v-else-if="storeDetail" class="p-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- URL -->
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Globe" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">URL</p>
+                    <p class="text-sm text-theme-primary truncate">{{ storeDetail.url }}</p>
+                  </div>
+                </div>
+
+                <!-- App Count -->
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Package" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">Apps</p>
+                    <p class="text-sm text-theme-primary">{{ storeDetail.app_count ?? 0 }}</p>
+                  </div>
+                </div>
+
+                <!-- Last Sync -->
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Clock" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">Last Sync</p>
+                    <p class="text-sm text-theme-primary">{{ formatDate(storeDetail.last_sync) }}</p>
+                  </div>
+                </div>
+
+                <!-- Status -->
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="Activity" :size="14" class="text-theme-muted" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider">Status</p>
+                    <span
+                      class="px-2 py-0.5 text-[10px] font-medium rounded"
+                      :class="storeDetail.enabled !== false
+                        ? 'bg-success-muted text-success'
+                        : 'bg-theme-tertiary text-theme-muted'"
+                    >
+                      {{ storeDetail.enabled !== false ? 'Enabled' : 'Disabled' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Description -->
+              <p v-if="storeDetail.description" class="mt-4 pt-4 border-t border-theme-primary text-sm text-theme-secondary">
+                {{ storeDetail.description }}
+              </p>
+
+              <!-- View Apps button -->
+              <div class="flex items-center gap-2 mt-4 pt-4 border-t border-theme-primary">
+                <button
+                  @click.stop="activeTab = 'browse'"
+                  class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-accent hover:bg-accent-muted transition-colors border border-accent/30"
+                >
+                  <Icon name="Package" :size="12" />
+                  View Apps
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

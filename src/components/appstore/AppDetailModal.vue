@@ -1,6 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
+import { useAppStoreStore } from '@/stores/appstore'
 import Icon from '@/components/ui/Icon.vue'
+
+const appStore = useAppStoreStore()
 
 const props = defineProps({
   app: {
@@ -14,6 +17,14 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'install'])
+
+// Install options state
+const showInstallOptions = ref(false)
+const installPort = ref('')
+const installFqdn = ref('')
+
+// Carousel ref
+const carouselRef = ref(null)
 
 const title = computed(() => {
   return props.app.title?.en_us || props.app.title?.en_US || props.app.name || ''
@@ -40,7 +51,70 @@ const appName = computed(() => {
   return props.app.name || props.app.id?.split('/')[1] || ''
 })
 
-function handleInstall() {
+// Screenshots: prefer API-proxied URLs, fall back to raw
+const screenshots = computed(() => {
+  const count = props.app.screenshot_count || props.app.screenshots?.length || 0
+  if (storeId.value && appName.value && count > 0) {
+    return Array.from(
+      { length: count },
+      (_, i) => appStore.getAppScreenshotUrl(storeId.value, appName.value, i)
+    )
+  }
+  return props.app.screenshots || []
+})
+
+// Track failed screenshots to hide them
+const failedScreenshots = ref(new Set())
+
+function handleScreenshotError(index) {
+  // If API-proxied URL fails, try raw fallback
+  if (props.app.screenshots && props.app.screenshots[index]) {
+    // The raw URL is already available, but since we're using computed screenshots
+    // just mark it as failed and hide
+    failedScreenshots.value = new Set([...failedScreenshots.value, index])
+  } else {
+    failedScreenshots.value = new Set([...failedScreenshots.value, index])
+  }
+}
+
+const visibleScreenshots = computed(() => {
+  return screenshots.value
+    .map((url, index) => ({ url, index }))
+    .filter(s => !failedScreenshots.value.has(s.index))
+})
+
+// Carousel scroll
+function scrollCarousel(direction) {
+  if (!carouselRef.value) return
+  const scrollAmount = carouselRef.value.clientWidth * 0.7
+  carouselRef.value.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' })
+}
+
+// Scroll to specific thumbnail
+function scrollToScreenshot(index) {
+  if (!carouselRef.value) return
+  const children = carouselRef.value.children
+  if (children[index]) {
+    children[index].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }
+}
+
+// ARM64 badge check
+function isArmArch(arch) {
+  const lower = (arch || '').toLowerCase()
+  return lower === 'arm64' || lower === 'aarch64'
+}
+
+function handleInstallClick() {
+  if (!showInstallOptions.value) {
+    showInstallOptions.value = true
+    return
+  }
+  // Confirm install (with options if set)
+  emit('install', storeId.value, appName.value)
+}
+
+function handleSkipInstall() {
   emit('install', storeId.value, appName.value)
 }
 
@@ -58,9 +132,9 @@ function handleClose() {
     ></div>
 
     <!-- Modal -->
-    <div class="relative w-full max-w-lg bg-theme-card rounded-2xl border border-theme-primary shadow-theme-xl overflow-hidden animate-fade-in">
+    <div class="relative w-full max-w-lg max-h-[90vh] bg-theme-card rounded-2xl border border-theme-primary shadow-theme-xl overflow-hidden animate-fade-in flex flex-col">
       <!-- Header -->
-      <div class="flex items-start gap-4 p-5 border-b border-theme-primary">
+      <div class="flex items-start gap-4 p-5 border-b border-theme-primary flex-shrink-0">
         <!-- App Icon -->
         <div class="w-16 h-16 rounded-xl bg-theme-tertiary flex items-center justify-center flex-shrink-0">
           <img 
@@ -109,53 +183,136 @@ function handleClose() {
         </button>
       </div>
 
-      <!-- Screenshots (if available) -->
-      <div v-if="app.screenshots?.length > 0" class="px-5 pt-4">
-        <div class="flex gap-2 overflow-x-auto pb-2">
-          <img
-            v-for="(ss, index) in app.screenshots"
-            :key="index"
-            :src="ss"
-            :alt="`Screenshot ${index + 1}`"
-            class="h-32 rounded-lg object-cover flex-shrink-0"
-          />
+      <!-- Scrollable Content -->
+      <div class="overflow-y-auto flex-1">
+        <!-- Screenshots Carousel -->
+        <div v-if="visibleScreenshots.length > 0" class="px-5 pt-4">
+          <div class="relative group">
+            <!-- Scroll container -->
+            <div
+              ref="carouselRef"
+              class="flex gap-3 overflow-x-auto scroll-smooth pb-3"
+              style="-webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory;"
+            >
+              <div
+                v-for="ss in visibleScreenshots"
+                :key="ss.index"
+                class="shrink-0"
+                style="scroll-snap-align: center;"
+              >
+                <img
+                  :src="ss.url"
+                  :alt="`Screenshot ${ss.index + 1}`"
+                  loading="lazy"
+                  class="h-40 sm:h-48 rounded-lg object-cover bg-theme-tertiary"
+                  @error="handleScreenshotError(ss.index)"
+                />
+              </div>
+            </div>
+
+            <!-- Left arrow (desktop only) -->
+            <button
+              v-if="visibleScreenshots.length > 1"
+              @click="scrollCarousel(-1)"
+              class="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 items-center justify-center rounded-full bg-theme-card/90 border border-theme-primary text-theme-secondary hover:text-theme-primary shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Icon name="ChevronLeft" :size="16" />
+            </button>
+
+            <!-- Right arrow (desktop only) -->
+            <button
+              v-if="visibleScreenshots.length > 1"
+              @click="scrollCarousel(1)"
+              class="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 items-center justify-center rounded-full bg-theme-card/90 border border-theme-primary text-theme-secondary hover:text-theme-primary shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Icon name="ChevronRight" :size="16" />
+            </button>
+          </div>
+
+          <!-- Thumbnail strip (if >3 screenshots) -->
+          <div v-if="visibleScreenshots.length > 3" class="flex gap-1.5 mt-2 overflow-x-auto pb-1">
+            <button
+              v-for="ss in visibleScreenshots"
+              :key="'thumb-' + ss.index"
+              @click="scrollToScreenshot(ss.index)"
+              class="shrink-0 rounded overflow-hidden border border-theme-primary hover:border-accent transition-colors"
+            >
+              <img
+                :src="ss.url"
+                :alt="`Thumbnail ${ss.index + 1}`"
+                loading="lazy"
+                class="h-8 w-12 object-cover bg-theme-tertiary"
+              />
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- Description -->
-      <div class="p-5">
-        <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">Description</h3>
-        <p class="text-sm text-theme-secondary leading-relaxed">
-          {{ description || 'No description available.' }}
-        </p>
-      </div>
+        <!-- Description -->
+        <div class="p-5">
+          <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">Description</h3>
+          <p class="text-sm text-theme-secondary leading-relaxed">
+            {{ description || 'No description available.' }}
+          </p>
+        </div>
 
-      <!-- Tips -->
-      <div v-if="tips" class="px-5 pb-4">
-        <div class="p-3 rounded-lg bg-warning-muted border border-warning/20">
-          <div class="flex items-start gap-2">
-            <Icon name="AlertTriangle" :size="14" class="text-warning mt-0.5 flex-shrink-0" />
-            <p class="text-xs text-warning">{{ tips }}</p>
+        <!-- Tips -->
+        <div v-if="tips" class="px-5 pb-4">
+          <div class="p-3 rounded-lg bg-warning-muted border border-warning/20">
+            <div class="flex items-start gap-2">
+              <Icon name="AlertTriangle" :size="14" class="text-warning mt-0.5 flex-shrink-0" />
+              <p class="text-xs text-warning">{{ tips }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Architectures (with ARM64 highlighting) -->
+        <div v-if="app.architectures?.length > 0" class="px-5 pb-4">
+          <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">Supported Architectures</h3>
+          <div class="flex flex-wrap gap-1.5">
+            <span
+              v-for="arch in app.architectures"
+              :key="arch"
+              class="px-2 py-0.5 text-[10px] font-medium rounded"
+              :class="isArmArch(arch)
+                ? 'bg-success-muted text-success'
+                : 'bg-theme-tertiary text-theme-secondary'"
+            >
+              {{ arch }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Install Options (expandable, shown before install) -->
+        <div v-if="showInstallOptions && !app.installed" class="px-5 pb-4">
+          <div class="p-4 rounded-lg border border-theme-primary bg-theme-secondary">
+            <h4 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Install Options</h4>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <div class="flex-1">
+                <label class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">Port (optional)</label>
+                <input
+                  v-model="installPort"
+                  type="text"
+                  placeholder="e.g. 6100"
+                  class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                />
+              </div>
+              <div class="flex-1">
+                <label class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">FQDN (optional)</label>
+                <input
+                  v-model="installFqdn"
+                  type="text"
+                  placeholder="e.g. myapp.cubeos.cube"
+                  class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                />
+              </div>
+            </div>
+            <p class="mt-2 text-[10px] text-theme-muted">Leave blank to use defaults.</p>
           </div>
         </div>
       </div>
 
-      <!-- Architectures -->
-      <div v-if="app.architectures?.length > 0" class="px-5 pb-4">
-        <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">Supported Architectures</h3>
-        <div class="flex flex-wrap gap-1.5">
-          <span
-            v-for="arch in app.architectures"
-            :key="arch"
-            class="px-2 py-0.5 text-[10px] font-medium rounded bg-theme-tertiary text-theme-secondary"
-          >
-            {{ arch }}
-          </span>
-        </div>
-      </div>
-
       <!-- Footer -->
-      <div class="flex items-center justify-between gap-3 p-5 border-t border-theme-primary bg-theme-secondary">
+      <div class="flex items-center justify-between gap-3 p-5 border-t border-theme-primary bg-theme-secondary flex-shrink-0">
         <button
           @click="handleClose"
           class="px-4 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
@@ -163,16 +320,30 @@ function handleClose() {
           Cancel
         </button>
 
-        <button
-          v-if="!app.installed"
-          @click="handleInstall"
-          :disabled="installing"
-          class="flex items-center gap-2 px-5 py-2 rounded-lg btn-accent text-sm font-medium disabled:opacity-50"
-        >
-          <Icon v-if="installing" name="Loader2" :size="16" class="animate-spin" />
-          <Icon v-else name="Download" :size="16" />
-          <span>{{ installing ? 'Installing...' : 'Install' }}</span>
-        </button>
+        <div v-if="!app.installed" class="flex items-center gap-2">
+          <!-- Skip (use defaults) — only when options are shown -->
+          <button
+            v-if="showInstallOptions"
+            @click="handleSkipInstall"
+            :disabled="installing"
+            class="px-4 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
+          >
+            Skip
+          </button>
+
+          <!-- Install / Confirm Install -->
+          <button
+            @click="handleInstallClick"
+            :disabled="installing"
+            class="flex items-center gap-2 px-5 py-2 rounded-lg btn-accent text-sm font-medium disabled:opacity-50"
+          >
+            <Icon v-if="installing" name="Loader2" :size="16" class="animate-spin" />
+            <Icon v-else name="Download" :size="16" />
+            <span v-if="installing">Installing...</span>
+            <span v-else-if="showInstallOptions">Confirm Install</span>
+            <span v-else>Install</span>
+          </button>
+        </div>
 
         <span v-else class="flex items-center gap-2 text-sm text-success">
           <Icon name="CheckCircle" :size="16" />
