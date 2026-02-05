@@ -34,6 +34,8 @@ const navItems = [
   { path: '/vpn', name: 'VPN', icon: 'Lock' },
   { path: '/storage', name: 'Storage', icon: 'HardDrive' },
   { path: '/logs', name: 'Logs', icon: 'ScrollText' },
+  { path: '/monitoring', name: 'Monitoring', icon: 'Activity' },
+  { path: '/processes', name: 'Processes', icon: 'Cpu' },
   { path: '/docs', name: 'Docs', icon: 'BookOpen' },
   { path: '/system', name: 'System', icon: 'Settings2' }
 ]

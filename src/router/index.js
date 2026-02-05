@@ -80,6 +80,19 @@ const routes = [
     component: () => import('@/components/storage/StorageView.vue'),
     meta: { requiresAuth: true }
   },
+  // Sprint 4: Monitoring & Processes
+  {
+    path: '/monitoring',
+    name: 'monitoring',
+    component: () => import('@/components/monitoring/MonitoringView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/processes',
+    name: 'processes',
+    component: () => import('@/components/processes/ProcessesView.vue'),
+    meta: { requiresAuth: true }
+  },
   {
     path: '/system',
     name: 'system',
