@@ -43,7 +43,8 @@ const showCreateBackup = ref(false)
 const newBackupType = ref('config')
 const newBackupDescription = ref('')
 
-let statsInterval = null
+// Note: systemStore.fetchStats() is polled globally by App.vue every 5s
+// Only powerInterval is needed here (unique to system page)
 let powerInterval = null
 
 /**
@@ -141,12 +142,11 @@ onMounted(async () => {
   await systemStore.fetchAll()
   await fetchPowerStatus()
   await fetchBackups()
-  statsInterval = setInterval(() => systemStore.fetchStats(), 5000)
+  // Stats already polled by App.vue; only poll power (unique to this view)
   powerInterval = setInterval(fetchPowerStatus, 10000)
 })
 
 onUnmounted(() => {
-  if (statsInterval) clearInterval(statsInterval)
   if (powerInterval) clearInterval(powerInterval)
 })
 

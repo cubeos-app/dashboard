@@ -40,8 +40,8 @@ let refreshInterval = null
 const quickActions = [
   { name: 'Settings', icon: 'Settings', route: '/settings', keywords: ['settings', 'preferences', 'theme', 'appearance', 'account', 'password'] },
   { name: 'Services', icon: 'Server', route: '/services', keywords: ['services', 'containers', 'docker', 'swarm'] },
-  { name: 'App Store', icon: 'Store', route: '/store', keywords: ['store', 'apps', 'install', 'marketplace'] },
-  { name: 'App Manager', icon: 'Package', route: '/manager', keywords: ['manager', 'installed', 'apps', 'manage'] },
+  { name: 'App Store', icon: 'Store', route: '/appstore', keywords: ['store', 'apps', 'install', 'marketplace'] },
+  { name: 'App Manager', icon: 'Package', route: '/appmanager', keywords: ['manager', 'installed', 'apps', 'manage'] },
   { name: 'Network', icon: 'Wifi', route: '/network', keywords: ['network', 'wifi', 'ap', 'firewall', 'internet', 'clients'] },
   { name: 'Storage', icon: 'HardDrive', route: '/storage', keywords: ['storage', 'disk', 'usb', 'smb', 'backup'] },
   { name: 'Logs', icon: 'FileText', route: '/logs', keywords: ['logs', 'journal', 'debug', 'errors'] },
