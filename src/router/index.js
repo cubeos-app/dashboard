@@ -57,6 +57,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/firewall',
+    name: 'firewall',
+    component: () => import('@/components/firewall/FirewallView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/vpn',
+    name: 'vpn',
+    component: () => import('@/components/vpn/VPNManager.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/logs',
     name: 'logs',
     component: () => import('@/components/logs/LogsView.vue'),

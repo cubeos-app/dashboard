@@ -1,8 +1,13 @@
 /**
  * CubeOS Network Store
  * 
- * Sprint 4: Manages network state using Sprint 3 API endpoints.
- * Handles network modes, WiFi scanning/connection, and AP configuration.
+ * Sprint 2: Extended with 16 new API methods for DNS, interfaces, settings,
+ * modes, connectivity, VPN mode, warning dismiss, WiFi management, and AP controls.
+ * 
+ * Original Sprint 4 methods: fetchStatus, setMode, scanWiFi, connectWiFi, fetchAPConfig, updateAPConfig
+ * New Sprint 2 methods: fetchDNS, saveDNS, fetchInterfaces, fetchSettings, updateSettings,
+ *   fetchModes, checkConnectivity, getVPNMode, setVPNMode, dismissWarning,
+ *   disconnectWiFi, fetchSavedNetworks, forgetNetwork, fetchWiFiStatus, startAP, stopAP
  */
 
 import { defineStore } from 'pinia'
@@ -50,6 +55,16 @@ export const useNetworkStore = defineStore('network', () => {
   const scanning = ref(false)
   const connecting = ref(false)
   
+  // Sprint 2: New state refs
+  const dns = ref(null)
+  const interfaces = ref([])
+  const networkSettings = ref(null)
+  const modes = ref([])
+  const connectivity = ref(null)
+  const vpnMode = ref(null)
+  const savedNetworks = ref([])
+  const wifiStatus = ref(null)
+  
   // ==========================================
   // Computed
   // ==========================================
@@ -64,8 +79,14 @@ export const useNetworkStore = defineStore('network', () => {
   const gatewayIP = computed(() => status.value?.gateway_ip || '10.42.24.1')
   const subnet = computed(() => status.value?.subnet || '10.42.24.0/24')
   
+  // Sprint 2: New computed properties
+  const isOnline = computed(() => connectivity.value?.online === true)
+  const primaryDNS = computed(() => dns.value?.primary || '')
+  const secondaryDNS = computed(() => dns.value?.secondary || '')
+  const isWiFiConnected = computed(() => wifiStatus.value?.connected === true)
+  
   // ==========================================
-  // API Methods
+  // API Methods (Original)
   // ==========================================
   
   /**
@@ -80,7 +101,6 @@ export const useNetworkStore = defineStore('network', () => {
       status.value = response
     } catch (e) {
       error.value = e.message
-      // Network status fetch failed
     } finally {
       loading.value = false
     }
@@ -190,6 +210,277 @@ export const useNetworkStore = defineStore('network', () => {
   }
   
   // ==========================================
+  // API Methods (Sprint 2: New)
+  // ==========================================
+  
+  /**
+   * Fetch DNS configuration
+   */
+  async function fetchDNS() {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await api.get('/network/dns')
+      dns.value = response
+    } catch (e) {
+      error.value = e.message
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Save DNS configuration
+   * @param {object} config - DNS config (primary, secondary)
+   */
+  async function saveDNS(config) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.post('/network/dns', config)
+      dns.value = config
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Fetch network interfaces
+   */
+  async function fetchInterfaces() {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await api.get('/network/interfaces')
+      interfaces.value = response.interfaces || []
+    } catch (e) {
+      error.value = e.message
+      interfaces.value = []
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Fetch network settings
+   */
+  async function fetchSettings() {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await api.get('/network/settings')
+      networkSettings.value = response
+    } catch (e) {
+      error.value = e.message
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Update network settings
+   * @param {object} data - Settings to update
+   */
+  async function updateSettings(data) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.put('/network/settings', data)
+      networkSettings.value = { ...networkSettings.value, ...data }
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Fetch available network modes from API
+   */
+  async function fetchModes() {
+    try {
+      const response = await api.get('/network/modes')
+      modes.value = response.modes || []
+    } catch (e) {
+      error.value = e.message
+      modes.value = []
+    }
+  }
+  
+  /**
+   * Check internet connectivity
+   */
+  async function checkConnectivity() {
+    try {
+      const response = await api.get('/network/connectivity')
+      connectivity.value = response
+    } catch (e) {
+      error.value = e.message
+      connectivity.value = { online: false }
+    }
+  }
+  
+  /**
+   * Get current VPN mode
+   */
+  async function getVPNMode() {
+    try {
+      const response = await api.get('/network/vpn/mode')
+      vpnMode.value = response
+    } catch (e) {
+      error.value = e.message
+    }
+  }
+  
+  /**
+   * Set VPN mode
+   * @param {string} mode - VPN mode to set
+   */
+  async function setVPNMode(mode) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.post('/network/vpn/mode', { mode })
+      vpnMode.value = { ...vpnMode.value, mode }
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Dismiss a network warning banner
+   */
+  async function dismissWarning() {
+    try {
+      await api.post('/network/warning/dismiss')
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    }
+  }
+  
+  /**
+   * Disconnect from current WiFi network
+   */
+  async function disconnectWiFi() {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.post('/network/wifi/disconnect')
+      await fetchStatus()
+      await fetchWiFiStatus()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Fetch saved WiFi networks
+   */
+  async function fetchSavedNetworks() {
+    try {
+      const response = await api.get('/network/wifi/saved')
+      savedNetworks.value = response.networks || []
+    } catch (e) {
+      error.value = e.message
+      savedNetworks.value = []
+    }
+  }
+  
+  /**
+   * Forget a saved WiFi network
+   * @param {string} ssid - Network SSID to forget
+   */
+  async function forgetNetwork(ssid) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.delete(`/network/wifi/saved/${encodeURIComponent(ssid)}`)
+      await fetchSavedNetworks()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Fetch WiFi connection status
+   */
+  async function fetchWiFiStatus() {
+    try {
+      const response = await api.get('/network/wifi/status')
+      wifiStatus.value = response
+    } catch (e) {
+      error.value = e.message
+      wifiStatus.value = null
+    }
+  }
+  
+  /**
+   * Start the Access Point
+   */
+  async function startAP() {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.post('/network/ap/start')
+      await fetchStatus()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Stop the Access Point
+   */
+  async function stopAP() {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.post('/network/ap/stop')
+      await fetchStatus()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  // ==========================================
   // Helper Methods
   // ==========================================
   
@@ -258,6 +549,14 @@ export const useNetworkStore = defineStore('network', () => {
     wifiNetworks,
     scanning,
     connecting,
+    dns,
+    interfaces,
+    networkSettings,
+    modes,
+    connectivity,
+    vpnMode,
+    savedNetworks,
+    wifiStatus,
     
     // Computed
     currentMode,
@@ -269,14 +568,36 @@ export const useNetworkStore = defineStore('network', () => {
     upstreamIP,
     gatewayIP,
     subnet,
+    isOnline,
+    primaryDNS,
+    secondaryDNS,
+    isWiFiConnected,
     
-    // API Methods
+    // API Methods (Original)
     fetchStatus,
     setMode,
     scanWiFi,
     connectWiFi,
     fetchAPConfig,
     updateAPConfig,
+    
+    // API Methods (Sprint 2)
+    fetchDNS,
+    saveDNS,
+    fetchInterfaces,
+    fetchSettings,
+    updateSettings,
+    fetchModes,
+    checkConnectivity,
+    getVPNMode,
+    setVPNMode,
+    dismissWarning,
+    disconnectWiFi,
+    fetchSavedNetworks,
+    forgetNetwork,
+    fetchWiFiStatus,
+    startAP,
+    stopAP,
     
     // Helper Methods
     getModeLabel,

@@ -4,11 +4,16 @@
  * Manages system information, stats, and hardware status.
  * Uses HAL endpoints for hardware-specific data (battery, Pi model, etc.)
  * 
+ * Sprint 2: Added hostname get/set, timezone get/set, timezones list.
+ * 
  * API Endpoints used:
  * - /system/info - Basic system info (container-aware)
  * - /system/stats - CPU, memory, disk, temperature
  * - /hardware/battery - Battery status from HAL (UPS/PiJuice)
  * - /hardware/eeprom - Pi model, serial, revision from EEPROM
+ * - /system/hostname - Get/set hostname (Sprint 2)
+ * - /system/timezone - Get/set timezone (Sprint 2)
+ * - /system/timezones - List available timezones (Sprint 2)
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
@@ -28,6 +33,11 @@ export const useSystemStore = defineStore('system', () => {
   const lastUpdated = ref(null)
   const wsConnected = ref(false)  // WebSocket connection status
 
+  // Sprint 2: New state refs
+  const hostnameValue = ref(null)
+  const timezone = ref(null)
+  const timezonesList = ref([])
+
   // Uptime - can come from info or be fetched separately
   const uptime = computed(() => {
     return {
@@ -38,6 +48,8 @@ export const useSystemStore = defineStore('system', () => {
 
   // Getters - system info
   const hostname = computed(() => {
+    // If we have a hostname from the dedicated endpoint, prefer it
+    if (hostnameValue.value) return hostnameValue.value
     // info.hostname returns container name when running in Docker (e.g. "cubeos-api")
     // Prefer Pi model from EEPROM, fall back to hostname only if it's a real host name
     const h = info.value?.hostname
@@ -246,6 +258,87 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
 
+  // ==========================================
+  // Sprint 2: Hostname & Timezone Methods
+  // ==========================================
+
+  /**
+   * Fetch current hostname
+   */
+  async function fetchHostname() {
+    try {
+      const response = await api.get('/system/hostname')
+      hostnameValue.value = response.hostname || null
+    } catch (e) {
+      error.value = e.message
+    }
+  }
+
+  /**
+   * Set hostname
+   * @param {string} name - New hostname (DNS-safe characters)
+   */
+  async function setHostname(name) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.post('/system/hostname', { hostname: name })
+      hostnameValue.value = name
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Fetch current timezone
+   */
+  async function fetchTimezone() {
+    try {
+      const response = await api.get('/system/timezone')
+      timezone.value = response.timezone || null
+    } catch (e) {
+      error.value = e.message
+    }
+  }
+
+  /**
+   * Set timezone
+   * @param {string} tz - Timezone identifier (e.g., 'Europe/Amsterdam')
+   */
+  async function setTimezone(tz) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.post('/system/timezone', { timezone: tz })
+      timezone.value = tz
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Fetch list of available timezones
+   */
+  async function fetchTimezones() {
+    try {
+      const response = await api.get('/system/timezones')
+      timezonesList.value = response.timezones || []
+    } catch (e) {
+      error.value = e.message
+      timezonesList.value = []
+    }
+  }
+
   /**
    * Update stats from WebSocket message.
    * Maps the WS payload format to the flat format used by the store.
@@ -307,6 +400,9 @@ export const useSystemStore = defineStore('system', () => {
     error,
     lastUpdated,
     wsConnected,
+    hostnameValue,
+    timezone,
+    timezonesList,
     
     // Computed getters
     hostname,
@@ -337,6 +433,13 @@ export const useSystemStore = defineStore('system', () => {
     setWsConnected,
     reboot,
     shutdown,
+    
+    // Sprint 2: Hostname & Timezone
+    fetchHostname,
+    setHostname,
+    fetchTimezone,
+    setTimezone,
+    fetchTimezones,
     
     // Aliases for backward compatibility
     systemInfo: info,

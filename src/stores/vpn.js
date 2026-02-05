@@ -1,8 +1,11 @@
 /**
  * CubeOS VPN Store
  * 
- * Sprint 4: Manages VPN configurations using Sprint 3 API endpoints.
+ * Sprint 2: Extended with config detail, auto-connect, and public IP methods.
  * Handles WireGuard, OpenVPN, and Tor configurations.
+ * 
+ * Original methods: fetchConfigs, fetchStatus, addConfig, deleteConfig, connect, disconnect
+ * New Sprint 2 methods: fetchConfigDetail, setAutoConnect, fetchPublicIP
  */
 
 import { defineStore } from 'pinia'
@@ -37,13 +40,16 @@ export const useVPNStore = defineStore('vpn', () => {
   const configs = ref([])
   const status = ref(null)
   
+  // Sprint 2: New state refs
+  const selectedConfig = ref(null)
+  const publicIP = ref(null)
+  
   // ==========================================
   // Computed
   // ==========================================
   
   const activeConfig = computed(() => configs.value.find(c => c.is_active))
   const isConnected = computed(() => status.value?.connected === true)
-  const publicIP = computed(() => status.value?.public_ip || '')
   const connectedSince = computed(() => status.value?.connected_since || '')
   
   const wireguardConfigs = computed(() => 
@@ -55,7 +61,7 @@ export const useVPNStore = defineStore('vpn', () => {
   )
   
   // ==========================================
-  // API Methods
+  // API Methods (Original)
   // ==========================================
   
   /**
@@ -69,7 +75,6 @@ export const useVPNStore = defineStore('vpn', () => {
       const response = await api.get('/vpn/configs')
       configs.value = response.configs || []
     } catch (e) {
-      error.value = e.message
       error.value = e.message
     } finally {
       loading.value = false
@@ -176,6 +181,74 @@ export const useVPNStore = defineStore('vpn', () => {
   }
   
   // ==========================================
+  // API Methods (Sprint 2: New)
+  // ==========================================
+  
+  /**
+   * Fetch detailed info for a single VPN config
+   * @param {string} name - Config name
+   */
+  async function fetchConfigDetail(name) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await api.get(`/vpn/configs/${encodeURIComponent(name)}`)
+      selectedConfig.value = response
+      return response
+    } catch (e) {
+      error.value = e.message
+      selectedConfig.value = null
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Set auto-connect for a VPN config
+   * @param {string} name - Config name
+   * @param {boolean} enabled - Whether auto-connect is enabled
+   */
+  async function setAutoConnect(name, enabled) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.put(`/vpn/configs/${encodeURIComponent(name)}/auto-connect`, { enabled })
+      // Update local config list to reflect the change
+      const idx = configs.value.findIndex(c => c.name === name)
+      if (idx !== -1) {
+        configs.value[idx] = { ...configs.value[idx], auto_connect: enabled }
+      }
+      if (selectedConfig.value?.name === name) {
+        selectedConfig.value = { ...selectedConfig.value, auto_connect: enabled }
+      }
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Fetch public IP address (useful to verify VPN is working)
+   */
+  async function fetchPublicIP() {
+    try {
+      const response = await api.get('/vpn/public-ip')
+      publicIP.value = response.ip || response.public_ip || null
+      return publicIP.value
+    } catch (e) {
+      error.value = e.message
+      publicIP.value = null
+      return null
+    }
+  }
+  
+  // ==========================================
   // Helper Methods
   // ==========================================
   
@@ -242,22 +315,28 @@ export const useVPNStore = defineStore('vpn', () => {
     error,
     configs,
     status,
+    selectedConfig,
+    publicIP,
     
     // Computed
     activeConfig,
     isConnected,
-    publicIP,
     connectedSince,
     wireguardConfigs,
     openvpnConfigs,
     
-    // API Methods
+    // API Methods (Original)
     fetchConfigs,
     fetchStatus,
     addConfig,
     deleteConfig,
     connect,
     disconnect,
+    
+    // API Methods (Sprint 2)
+    fetchConfigDetail,
+    setAutoConnect,
+    fetchPublicIP,
     
     // Helper Methods
     getTypeLabel,

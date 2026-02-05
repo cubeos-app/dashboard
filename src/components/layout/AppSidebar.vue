@@ -30,6 +30,8 @@ const navItems = [
   { path: '/appstore', name: 'App Store', icon: 'Store' },
   { path: '/appmanager', name: 'App Manager', icon: 'Boxes' },
   { path: '/network', name: 'Network', icon: 'Wifi' },
+  { path: '/firewall', name: 'Firewall', icon: 'Shield' },
+  { path: '/vpn', name: 'VPN', icon: 'Lock' },
   { path: '/storage', name: 'Storage', icon: 'HardDrive' },
   { path: '/logs', name: 'Logs', icon: 'ScrollText' },
   { path: '/docs', name: 'Docs', icon: 'BookOpen' },
