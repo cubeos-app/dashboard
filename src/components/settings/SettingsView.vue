@@ -2,16 +2,18 @@
 /**
  * SettingsView.vue
  * 
- * User settings: Appearance, Account, System Info, Session.
+ * User settings: Appearance, Account, System Configuration, System Info, Session.
  * 
- * Fixes applied:
- * - Removed /system/version call (endpoint doesn't exist)
- * - System info properly detects Pi from kernel/EEPROM
- * - Shows "Raspberry Pi OS" when Alpine container detected
- * - Theme switching via themeStore.setTheme()
- * - Sign out redirects to login
+ * Sprint 2 G4: Added System Configuration section with hostname and timezone management.
+ * 
+ * Sections (in order):
+ * 1. Appearance — theme toggle (dark/light)
+ * 2. Account — user info + change password
+ * 3. System Configuration — hostname edit, timezone dropdown (NEW in G4)
+ * 4. System Information — host info, Pi serial, version
+ * 5. Session — sign out
  */
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
 import { useSystemStore } from '@/stores/system'
@@ -41,6 +43,137 @@ const versionInfo = ref({
   version: '0.0.11',
   api_version: 'v1'
 })
+
+// ==========================================
+// System Configuration — Hostname
+// ==========================================
+
+const hostnameInput = ref('')
+const hostnameLoading = ref(false)
+const hostnameSuccess = ref(false)
+const hostnameError = ref('')
+
+// DNS-safe hostname validation: lowercase letters, digits, hyphens, no leading/trailing hyphen
+function isValidHostname(name) {
+  if (!name || name.length === 0 || name.length > 63) return false
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name.toLowerCase())
+}
+
+const hostnameValid = computed(() => {
+  if (!hostnameInput.value) return false
+  return isValidHostname(hostnameInput.value)
+})
+
+const hostnameDirty = computed(() => {
+  return hostnameInput.value !== (systemStore.hostnameValue || '')
+})
+
+async function saveHostname() {
+  if (!hostnameValid.value) {
+    hostnameError.value = 'Invalid hostname. Use lowercase letters, digits, and hyphens only.'
+    return
+  }
+  
+  hostnameLoading.value = true
+  hostnameError.value = ''
+  hostnameSuccess.value = false
+  
+  try {
+    const success = await systemStore.setHostname(hostnameInput.value.toLowerCase())
+    if (success) {
+      hostnameSuccess.value = true
+      setTimeout(() => { hostnameSuccess.value = false }, 3000)
+    } else {
+      hostnameError.value = systemStore.error || 'Failed to set hostname'
+    }
+  } catch (e) {
+    hostnameError.value = e.message || 'Failed to set hostname'
+  } finally {
+    hostnameLoading.value = false
+  }
+}
+
+// ==========================================
+// System Configuration — Timezone
+// ==========================================
+
+const timezoneInput = ref('')
+const timezoneLoading = ref(false)
+const timezoneSuccess = ref(false)
+const timezoneError = ref('')
+const timezoneSearch = ref('')
+const showTimezoneDropdown = ref(false)
+
+// Filtered timezones based on search
+const filteredTimezones = computed(() => {
+  const list = systemStore.timezonesList || []
+  if (!timezoneSearch.value) return list.slice(0, 50)
+  const q = timezoneSearch.value.toLowerCase()
+  return list.filter(tz => tz.toLowerCase().includes(q)).slice(0, 50)
+})
+
+const timezoneDirty = computed(() => {
+  return timezoneInput.value !== (systemStore.timezone || '')
+})
+
+// Format current time in selected timezone
+const currentTimeInZone = computed(() => {
+  if (!timezoneInput.value) return ''
+  try {
+    const now = new Date()
+    return now.toLocaleString('en-GB', {
+      timeZone: timezoneInput.value,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    })
+  } catch {
+    return ''
+  }
+})
+
+function selectTimezone(tz) {
+  timezoneInput.value = tz
+  timezoneSearch.value = ''
+  showTimezoneDropdown.value = false
+}
+
+async function saveTimezone() {
+  if (!timezoneInput.value) {
+    timezoneError.value = 'Please select a timezone'
+    return
+  }
+  
+  timezoneLoading.value = true
+  timezoneError.value = ''
+  timezoneSuccess.value = false
+  
+  try {
+    const success = await systemStore.setTimezone(timezoneInput.value)
+    if (success) {
+      timezoneSuccess.value = true
+      setTimeout(() => { timezoneSuccess.value = false }, 3000)
+    } else {
+      timezoneError.value = systemStore.error || 'Failed to set timezone'
+    }
+  } catch (e) {
+    timezoneError.value = e.message || 'Failed to set timezone'
+  } finally {
+    timezoneLoading.value = false
+  }
+}
+
+// Close timezone dropdown when clicking outside
+function handleTimezoneBlur() {
+  setTimeout(() => { showTimezoneDropdown.value = false }, 150)
+}
+
+// ==========================================
+// Password Change
+// ==========================================
 
 async function changePassword() {
   passwordError.value = ''
@@ -81,34 +214,23 @@ async function logout() {
  * System info computed - intelligently merges data from multiple sources:
  * - /system/info (may show container data like Alpine)
  * - /hardware/eeprom (Pi model from EEPROM)
- * 
- * Logic:
- * - Hostname: Use actual hostname, or Pi model, or fallback to 'CubeOS'
- * - Platform: If kernel contains 'raspi', show 'Raspberry Pi OS' instead of container OS
- * - Architecture: From system info
- * - Kernel: From system info (shows real host kernel even from container)
  */
 const hostInfo = computed(() => {
   const info = systemStore.info
   const kernel = info?.kernel || ''
   const osName = info?.os_name || ''
   
-  // Detect if running on Raspberry Pi by checking kernel
   const isRaspberryPi = kernel.includes('raspi') || kernel.includes('rpi')
   
-  // Determine platform - if Alpine container on Pi, show "Raspberry Pi OS"
   let platform = osName
   if (isRaspberryPi && (osName.includes('Alpine') || osName === '')) {
     platform = 'Raspberry Pi OS'
   }
-  // Or use Pi model from EEPROM if available
   if (systemStore.piModel) {
     platform = systemStore.piModel
   }
   
-  // Hostname - prefer Pi model display, then actual hostname
   let hostname = info?.hostname || 'CubeOS'
-  // If hostname is the container name (cubeos-api), use something better
   if (hostname === 'cubeos-api' || hostname === 'cubeos_api') {
     hostname = systemStore.piModel || 'CubeOS'
   }
@@ -121,7 +243,6 @@ const hostInfo = computed(() => {
   }
 })
 
-// Pi-specific info from EEPROM
 const piInfo = computed(() => ({
   model: systemStore.piModel,
   serial: systemStore.piSerial,
@@ -129,8 +250,26 @@ const piInfo = computed(() => ({
 }))
 
 onMounted(async () => {
-  // Fetch all system data including hardware info from HAL
   await systemStore.fetchAll()
+  
+  // Fetch hostname and timezone for System Configuration section
+  await Promise.all([
+    systemStore.fetchHostname(),
+    systemStore.fetchTimezone(),
+    systemStore.fetchTimezones()
+  ])
+  
+  // Initialize local inputs from store
+  hostnameInput.value = systemStore.hostnameValue || ''
+  timezoneInput.value = systemStore.timezone || ''
+})
+
+// Sync store values to local inputs when they change
+watch(() => systemStore.hostnameValue, (val) => {
+  if (val && !hostnameDirty.value) hostnameInput.value = val
+})
+watch(() => systemStore.timezone, (val) => {
+  if (val && !timezoneDirty.value) timezoneInput.value = val
 })
 </script>
 
@@ -142,7 +281,7 @@ onMounted(async () => {
       <p class="text-theme-tertiary text-sm">Customize your experience</p>
     </div>
 
-    <!-- Theme Selection (Appearance) - FIRST -->
+    <!-- Theme Selection (Appearance) -->
     <section class="animate-fade-in">
       <div class="flex items-center gap-2.5 mb-3">
         <div class="w-8 h-8 rounded-lg bg-accent-muted flex items-center justify-center">
@@ -164,7 +303,6 @@ onMounted(async () => {
             </div>
           </div>
           
-          <!-- Toggle switch -->
           <button
             @click="themeStore.setTheme(themeStore.isDark ? 'light' : 'dark')"
             class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200"
@@ -253,6 +391,130 @@ onMounted(async () => {
               {{ passwordLoading ? 'Changing...' : 'Change Password' }}
             </button>
           </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== System Configuration (G4) ==================== -->
+    <section class="animate-fade-in" style="animation-delay: 75ms">
+      <div class="flex items-center gap-2.5 mb-3">
+        <div class="w-8 h-8 rounded-lg bg-accent-muted flex items-center justify-center">
+          <Icon name="Settings" :size="16" class="text-accent" />
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-theme-primary">System Configuration</h2>
+          <p class="text-xs text-theme-tertiary">Device name and regional settings</p>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-xl border border-theme-primary bg-theme-card space-y-5">
+        <!-- Hostname -->
+        <div>
+          <label class="block text-xs font-semibold text-theme-primary mb-2">Hostname</label>
+          
+          <div v-if="hostnameError" class="mb-2 p-2 rounded-lg bg-error-muted border border-error/20">
+            <p class="text-xs text-error">{{ hostnameError }}</p>
+          </div>
+          
+          <div class="flex gap-2">
+            <div class="flex-1">
+              <input
+                v-model="hostnameInput"
+                type="text"
+                class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm font-mono focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                placeholder="cubeos"
+                maxlength="63"
+                @keydown.enter="saveHostname"
+              />
+            </div>
+            <button
+              @click="saveHostname"
+              :disabled="hostnameLoading || !hostnameValid || !hostnameDirty"
+              class="px-4 py-2 rounded-lg btn-accent text-xs font-medium disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Icon v-if="hostnameLoading" name="Loader2" :size="12" class="animate-spin" />
+              <Icon v-else-if="hostnameSuccess" name="Check" :size="12" />
+              {{ hostnameSuccess ? 'Saved' : 'Save' }}
+            </button>
+          </div>
+          <p class="text-xs text-theme-muted mt-1.5">Device name on the network. Letters, digits, and hyphens only.</p>
+        </div>
+
+        <div class="border-t border-theme-primary"></div>
+
+        <!-- Timezone -->
+        <div>
+          <label class="block text-xs font-semibold text-theme-primary mb-2">Timezone</label>
+          
+          <div v-if="timezoneError" class="mb-2 p-2 rounded-lg bg-error-muted border border-error/20">
+            <p class="text-xs text-error">{{ timezoneError }}</p>
+          </div>
+          
+          <div class="flex gap-2">
+            <div class="flex-1 relative">
+              <input
+                v-model="timezoneSearch"
+                type="text"
+                class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                :placeholder="timezoneInput || 'Search timezones...'"
+                @focus="showTimezoneDropdown = true"
+                @blur="handleTimezoneBlur"
+              />
+              
+              <!-- Selected timezone overlay (when not searching) -->
+              <div
+                v-if="timezoneInput && !showTimezoneDropdown && !timezoneSearch"
+                class="absolute inset-0 flex items-center px-3 pointer-events-none"
+              >
+                <span class="text-sm text-theme-primary">{{ timezoneInput }}</span>
+              </div>
+
+              <!-- Dropdown -->
+              <div
+                v-if="showTimezoneDropdown && filteredTimezones.length > 0"
+                class="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg border border-theme-primary bg-theme-card shadow-theme-lg"
+              >
+                <button
+                  v-for="tz in filteredTimezones"
+                  :key="tz"
+                  @mousedown.prevent="selectTimezone(tz)"
+                  :class="[
+                    'w-full text-left px-3 py-2 text-sm transition-colors',
+                    tz === timezoneInput
+                      ? 'bg-accent/10 text-accent font-medium'
+                      : 'text-theme-primary hover:bg-theme-tertiary'
+                  ]"
+                >
+                  {{ tz }}
+                </button>
+              </div>
+
+              <!-- No results -->
+              <div
+                v-if="showTimezoneDropdown && timezoneSearch && filteredTimezones.length === 0"
+                class="absolute z-20 top-full left-0 right-0 mt-1 rounded-lg border border-theme-primary bg-theme-card shadow-theme-lg p-3"
+              >
+                <p class="text-xs text-theme-muted text-center">No matching timezones</p>
+              </div>
+            </div>
+            
+            <button
+              @click="saveTimezone"
+              :disabled="timezoneLoading || !timezoneInput || !timezoneDirty"
+              class="px-4 py-2 rounded-lg btn-accent text-xs font-medium disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Icon v-if="timezoneLoading" name="Loader2" :size="12" class="animate-spin" />
+              <Icon v-else-if="timezoneSuccess" name="Check" :size="12" />
+              {{ timezoneSuccess ? 'Saved' : 'Save' }}
+            </button>
+          </div>
+          
+          <p v-if="currentTimeInZone" class="text-xs text-theme-muted mt-1.5">
+            Current: {{ currentTimeInZone }}
+          </p>
+          <p v-else class="text-xs text-theme-muted mt-1.5">
+            System clock and log timestamps
+          </p>
         </div>
       </div>
     </section>
