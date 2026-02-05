@@ -3,17 +3,18 @@
 # =============================================================================
 #
 # DEPLOY STRATEGY:
-#   Always: stack rm -> wait for drain -> stack deploy (with correct image)
+#   Always: stack rm -> wait for drain -> stack deploy (with local image)
 #
-#   Why not docker service update?
+#   Why local image tags?
+#     - Swarm's node worker independently verifies images against registries
+#     - --resolve-image never only skips digest pinning at deploy time
+#     - GHCR resolution is slow/flaky on Pi -> tasks hang in "Preparing"
+#     - Local-only image names (no registry prefix) force Swarm to skip
+#       registry verification entirely
+#
+#   Why stack rm -> stack deploy?
 #     - Pi's Docker doesn't support --resolve-image on service update
-#     - Without it, Swarm tries to verify image with GHCR during "Preparing"
-#     - GHCR resolution is slow/flaky on Pi -> tasks fail -> Swarm rolls back
-#     - Result: pipeline "succeeds" but old image is still running
-#
-#   Why stack rm -> stack deploy works:
-#     - stack deploy supports --resolve-image never (uses local image)
-#     - No old container = no port 6011 conflict
+#     - No old container = no port conflict
 #     - ~10-15s downtime (same as stop-first would give)
 #     - One code path, no edge cases
 #
@@ -27,6 +28,8 @@ stages:
 variables:
   GHCR_IMAGE: "ghcr.io/cubeos-app/dashboard"
   BUILDER_IMAGE: "ghcr.io/cubeos-app/dashboard-builder"
+  # Local image name - NO registry prefix so Swarm won't try to resolve remotely
+  LOCAL_IMAGE: "cubeos-dashboard"
   SERVICE_NAME: "cubeos-dashboard_cubeos-dashboard"
   STACK_NAME: "cubeos-dashboard"
   COMPOSE_DIR: "/cubeos/coreapps/cubeos-dashboard/appconfig"
@@ -101,23 +104,42 @@ deploy:
         exit 1
       fi
       echo "  Compose: found"
+      echo "  Disk:"
+      df -h / | awk 'NR==2{printf "    %s used, %s free\n", $3, $4}'
 
-    # === PULL IMAGE ===
+    # === PULL AND RE-TAG AS LOCAL ===
     - |
       echo "=== Pulling image ==="
       docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
-      docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${GHCR_IMAGE}:latest
-      echo "  Ready: ${CI_COMMIT_SHORT_SHA}"
+
+      # Re-tag to local-only name (no registry prefix).
+      # This prevents Swarm's node worker from trying to verify
+      # the image against ghcr.io during task scheduling.
+      docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}
+      echo "  Tagged: ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+
+      # Verify local image exists
+      docker image inspect ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA} > /dev/null 2>&1
+      echo "  Verified: local image present"
 
     # === PREPARE COMPOSE ===
-    # Inject the exact commit SHA image tag into a temp copy of the compose.
-    # The original compose uses :latest - we pin to the exact build.
+    # Inject the LOCAL image tag (no registry prefix) into a temp copy.
     - |
       echo "=== Preparing compose ==="
       cp ${COMPOSE_DIR}/docker-compose.yml /tmp/deploy-compose.yml
-      sed -i "s|image:.*dashboard.*|image: ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}|" /tmp/deploy-compose.yml
+
+      # Replace image line with local-only name
+      sed -i "s|image:.*dashboard.*|image: ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}|" /tmp/deploy-compose.yml
+
       echo "  Image tag in compose:"
       grep "image:" /tmp/deploy-compose.yml | head -1
+
+      # Sanity check: verify the image line has NO registry prefix
+      if grep "image:" /tmp/deploy-compose.yml | head -1 | grep -q "ghcr.io\|docker.io"; then
+        echo "  FATAL: Compose still references remote registry!"
+        exit 1
+      fi
+      echo "  Confirmed: no remote registry in image reference"
 
     # === REMOVE OLD STACK ===
     - |
@@ -173,6 +195,8 @@ deploy:
       set +e
       ELAPSED=0
       CONVERGED=0
+      LAST_STATE=""
+      FAIL_COUNT=0
       while [ $ELAPSED -lt ${CONVERGE_TIMEOUT} ]; do
         STATE=$(docker service ps ${SERVICE_NAME} \
           --filter "desired-state=running" \
@@ -186,11 +210,32 @@ deploy:
             ;;
           "")
             echo "  Scheduling... (${ELAPSED}s)"
+            # If we had a non-empty state before and now it's empty,
+            # the task likely failed and is being rescheduled
+            if [ -n "$LAST_STATE" ] && [ "$LAST_STATE" != "" ]; then
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              echo "  WARNING: Task appears to have failed (attempt ${FAIL_COUNT})"
+              # Show the failed task details
+              docker service ps ${SERVICE_NAME} --no-trunc \
+                --format "    {{.CurrentState}} - {{.Error}}" 2>/dev/null | head -3
+            fi
             ;;
           *)
             echo "  ${STATE} (${ELAPSED}s)"
             ;;
         esac
+
+        LAST_STATE="$STATE"
+
+        # If we've seen 3+ failures, bail early with diagnostics
+        if [ "$FAIL_COUNT" -ge 3 ]; then
+          echo "  ERROR: Task has failed ${FAIL_COUNT} times, bailing out"
+          echo "  === Task history ==="
+          docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null
+          echo "  === Service logs (last 20 lines) ==="
+          docker service logs ${SERVICE_NAME} --tail 20 2>/dev/null || true
+          exit 1
+        fi
 
         sleep 3
         ELAPSED=$((ELAPSED + 3))
@@ -199,8 +244,12 @@ deploy:
 
       if [ "$CONVERGED" -ne 1 ]; then
         echo "ERROR: Did not converge within ${CONVERGE_TIMEOUT}s"
+        echo "=== All tasks (including failed) ==="
         docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
+        echo "=== Service logs ==="
         docker service logs ${SERVICE_NAME} --tail 30 2>/dev/null || true
+        echo "=== Service inspect ==="
+        docker service inspect ${SERVICE_NAME} --pretty 2>/dev/null | head -30 || true
         exit 1
       fi
 
@@ -235,7 +284,7 @@ deploy:
       echo "=== Verifying ==="
       RUNNING_IMAGE=$(docker service inspect ${SERVICE_NAME} \
         --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' 2>/dev/null || echo "unknown")
-      EXPECTED="${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+      EXPECTED="${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}"
       echo "  Running:  ${RUNNING_IMAGE}"
       echo "  Expected: ${EXPECTED}"
       if [ "${RUNNING_IMAGE}" != "${EXPECTED}" ]; then
@@ -244,11 +293,14 @@ deploy:
       fi
       echo "  Image verified"
 
-    # === DONE ===
+    # === CLEANUP ===
     - |
       echo "=== Deploy complete ==="
       docker service ls --filter "name=${SERVICE_NAME}"
       echo "  Dashboard: http://cubeos.cube"
+
+      # Clean up GHCR-prefixed image (keep local-only tag)
+      docker rmi ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} 2>/dev/null || true
       docker image prune -f 2>/dev/null || true
       df -h / | awk 'NR==2{printf "  Disk free: %s\n", $4}'
 
