@@ -120,21 +120,21 @@ async function handleDelete(config) {
     <!-- Status Card -->
     <div 
       v-if="isConnected"
-      class="p-4 rounded-xl bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800"
+      class="p-4 rounded-xl bg-success-muted border border-green-500/20"
     >
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-          <Icon name="ShieldCheck" :size="20" class="text-green-500" />
+          <Icon name="ShieldCheck" :size="20" class="text-success" />
         </div>
         <div class="flex-1">
-          <p class="font-medium text-green-700 dark:text-green-400">VPN Connected</p>
-          <p class="text-sm text-green-600 dark:text-green-500">
+          <p class="font-medium text-success">VPN Connected</p>
+          <p class="text-sm text-success">
             {{ status?.active_config }} · {{ vpnStore.formatDuration(status?.connected_since) }}
           </p>
         </div>
         <div class="text-right">
-          <p class="text-xs text-green-600 dark:text-green-500">Public IP</p>
-          <p class="font-mono text-sm text-green-700 dark:text-green-400">{{ vpnStore.publicIP }}</p>
+          <p class="text-xs text-success">Public IP</p>
+          <p class="font-mono text-sm text-success">{{ vpnStore.publicIP }}</p>
         </div>
       </div>
     </div>
@@ -151,7 +151,7 @@ async function handleDelete(config) {
           :class="[
             'w-10 h-10 rounded-lg flex items-center justify-center',
             config.is_active 
-              ? 'bg-green-100 dark:bg-green-900/30' 
+              ? 'bg-success-muted' 
               : 'bg-theme-tertiary'
           ]"
         >
@@ -185,7 +185,7 @@ async function handleDelete(config) {
             v-if="config.is_active"
             @click="handleDisconnect(config)"
             :disabled="vpnStore.loading"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+            class="px-3 py-1.5 rounded-lg text-sm font-medium bg-error-muted text-error hover:opacity-80 transition-colors"
           >
             Disconnect
           </button>

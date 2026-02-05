@@ -20,7 +20,7 @@ const modes = [
     description: 'Air-gapped mode. AP only, no internet.',
     icon: 'WifiOff',
     color: 'text-gray-500',
-    bgColor: 'bg-gray-100 dark:bg-gray-800'
+    bgColor: 'bg-theme-tertiary'
   },
   {
     id: NETWORK_MODES.ONLINE_ETH,
@@ -28,7 +28,7 @@ const modes = [
     description: 'Internet via Ethernet. NAT for AP clients.',
     icon: 'Cable',
     color: 'text-blue-500',
-    bgColor: 'bg-blue-100 dark:bg-blue-900/30'
+    bgColor: 'bg-accent-muted'
   },
   {
     id: NETWORK_MODES.ONLINE_WIFI,
@@ -36,7 +36,7 @@ const modes = [
     description: 'Connect to upstream WiFi via USB dongle.',
     icon: 'Wifi',
     color: 'text-green-500',
-    bgColor: 'bg-green-100 dark:bg-green-900/30'
+    bgColor: 'bg-success-muted'
   }
 ]
 

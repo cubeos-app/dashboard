@@ -127,7 +127,7 @@ function getSecurityIcon(security) {
           <!-- Header -->
           <div class="flex items-center justify-between p-4 border-b border-theme-primary">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <div class="w-10 h-10 rounded-xl bg-success-muted flex items-center justify-center">
                 <Icon name="Wifi" :size="20" class="text-green-500" />
               </div>
               <div>
@@ -176,7 +176,7 @@ function getSecurityIcon(security) {
                     :key="i"
                     :class="[
                       'w-1 rounded-sm transition-colors',
-                      i <= getSignalBars(network.signal) ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                      i <= getSignalBars(network.signal) ? 'bg-green-500' : 'bg-theme-tertiary'
                     ]"
                     :style="{ height: `${i * 4}px` }"
                   ></div>
