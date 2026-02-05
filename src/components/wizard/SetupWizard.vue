@@ -229,17 +229,17 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+  <div class="min-h-screen wizard-gradient flex items-center justify-center p-4">
     <div class="w-full max-w-2xl">
       <!-- Progress bar -->
       <div class="mb-8">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-sm text-gray-400">Step {{ currentStep + 1 }} of {{ steps.length }}</span>
-          <span class="text-sm text-gray-400">{{ currentStepData.title }}</span>
+          <span class="text-sm text-theme-tertiary">Step {{ currentStep + 1 }} of {{ steps.length }}</span>
+          <span class="text-sm text-theme-tertiary">{{ currentStepData.title }}</span>
         </div>
-        <div class="h-1 bg-gray-700 rounded-full overflow-hidden">
+        <div class="h-1 bg-theme-tertiary rounded-full overflow-hidden">
           <div 
-            class="h-full bg-teal-500 transition-all duration-500"
+            class="h-full bg-accent transition-all duration-500"
             :style="{ width: progress + '%' }"
           ></div>
         </div>
@@ -251,43 +251,43 @@ onMounted(async () => {
           v-for="(step, idx) in steps" 
           :key="step.id"
           class="w-10 h-10 rounded-full flex items-center justify-center transition-all"
-          :class="idx === currentStep ? 'bg-teal-500 text-white' : idx < currentStep ? 'bg-teal-600/20 text-teal-500' : 'bg-gray-700 text-gray-500'"
+          :class="idx === currentStep ? 'bg-accent text-white' : idx < currentStep ? 'bg-accent-muted text-accent' : 'bg-theme-tertiary text-theme-muted'"
         >
           <Icon :name="step.icon" :size="20" />
         </div>
       </div>
       
       <!-- Card -->
-      <div class="bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-700">
+      <div class="bg-theme-card rounded-2xl shadow-2xl overflow-hidden border border-theme-primary">
         <!-- Step Content -->
         <div class="p-8">
           <!-- Step 0: Welcome -->
           <div v-if="currentStep === 0" class="space-y-6">
             <div class="text-center">
-              <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
+              <div class="w-20 h-20 mx-auto mb-6 rounded-2xl accent-gradient flex items-center justify-center">
                 <Icon name="Box" :size="40" class="text-white" />
               </div>
-              <h1 class="text-3xl font-bold text-white mb-2">Welcome to CubeOS</h1>
-              <p class="text-gray-400">Let's set up your offline server in just a few steps.</p>
+              <h1 class="text-3xl font-bold text-theme-primary mb-2">Welcome to CubeOS</h1>
+              <p class="text-theme-tertiary">Let's set up your offline server in just a few steps.</p>
             </div>
             
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">Device Name</label>
+                <label class="block text-sm font-medium text-theme-secondary mb-2">Device Name</label>
                 <input
                   v-model="hostname"
                   type="text"
                   placeholder="cubeos"
-                  class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
                 />
-                <p class="text-xs text-gray-500 mt-1">This will be the network name of your device</p>
+                <p class="text-xs text-theme-muted mt-1">This will be the network name of your device</p>
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">Timezone</label>
+                <label class="block text-sm font-medium text-theme-secondary mb-2">Timezone</label>
                 <select
                   v-model="timezone"
-                  class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary focus:ring-2 ring-accent focus:border-transparent"
                 >
                   <option v-for="tz in timezones" :key="tz" :value="tz">{{ tz }}</option>
                 </select>
@@ -298,19 +298,19 @@ onMounted(async () => {
           <!-- Step 1: Network -->
           <div v-if="currentStep === 1" class="space-y-6">
             <div class="text-center mb-6">
-              <h2 class="text-2xl font-bold text-white mb-2">WiFi Access Point</h2>
-              <p class="text-gray-400">Configure how devices will connect to CubeOS</p>
+              <h2 class="text-2xl font-bold text-theme-primary mb-2">WiFi Access Point</h2>
+              <p class="text-theme-tertiary">Configure how devices will connect to CubeOS</p>
             </div>
             
-            <div class="flex items-center justify-between p-4 bg-gray-700/50 rounded-xl">
+            <div class="flex items-center justify-between p-4 bg-theme-tertiary rounded-xl">
               <div>
-                <p class="font-medium text-white">Enable WiFi Access Point</p>
-                <p class="text-sm text-gray-400">Allow devices to connect directly</p>
+                <p class="font-medium text-theme-primary">Enable WiFi Access Point</p>
+                <p class="text-sm text-theme-tertiary">Allow devices to connect directly</p>
               </div>
               <button 
                 @click="wifiEnabled = !wifiEnabled"
                 class="relative w-12 h-6 rounded-full transition-colors"
-                :class="wifiEnabled ? 'bg-teal-500' : 'bg-gray-600'"
+                :class="wifiEnabled ? 'bg-accent' : 'bg-theme-muted'"
               >
                 <div 
                   class="absolute top-1 w-4 h-4 bg-white rounded-full transition-transform"
@@ -321,30 +321,30 @@ onMounted(async () => {
             
             <div v-if="wifiEnabled" class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">Network Name (SSID)</label>
+                <label class="block text-sm font-medium text-theme-secondary mb-2">Network Name (SSID)</label>
                 <input
                   v-model="wifiSSID"
                   type="text"
                   placeholder="CubeOS"
-                  class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
                 />
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                <label class="block text-sm font-medium text-theme-secondary mb-2">Password</label>
                 <input
                   v-model="wifiPassword"
                   type="password"
                   placeholder="Minimum 8 characters"
-                  class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
                 />
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">Channel</label>
+                <label class="block text-sm font-medium text-theme-secondary mb-2">Channel</label>
                 <select
                   v-model="wifiChannel"
-                  class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary focus:ring-2 ring-accent focus:border-transparent"
                 >
                   <option v-for="ch in [1,2,3,4,5,6,7,8,9,10,11]" :key="ch" :value="ch">Channel {{ ch }}</option>
                 </select>
@@ -355,8 +355,8 @@ onMounted(async () => {
           <!-- Step 2: Profile -->
           <div v-if="currentStep === 2" class="space-y-6">
             <div class="text-center mb-6">
-              <h2 class="text-2xl font-bold text-white mb-2">Choose Your Profile</h2>
-              <p class="text-gray-400">Select a preset that matches your use case</p>
+              <h2 class="text-2xl font-bold text-theme-primary mb-2">Choose Your Profile</h2>
+              <p class="text-theme-tertiary">Select a preset that matches your use case</p>
             </div>
             
             <div class="space-y-3">
@@ -366,20 +366,20 @@ onMounted(async () => {
                 @click="selectedProfile = profile.id"
                 class="w-full p-4 rounded-xl border-2 text-left transition-all"
                 :class="selectedProfile === profile.id 
-                  ? 'border-teal-500 bg-teal-500/10' 
-                  : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'"
+                  ? 'border-theme-accent bg-accent-muted' 
+                  : 'border-theme-secondary bg-theme-tertiary hover:border-theme-primary'"
               >
                 <div class="flex items-start justify-between">
                   <div>
-                    <h3 class="font-semibold text-white">{{ profile.name }}</h3>
-                    <p class="text-sm text-gray-400 mt-1">{{ profile.description }}</p>
-                    <p class="text-xs text-gray-500 mt-2">
+                    <h3 class="font-semibold text-theme-primary">{{ profile.name }}</h3>
+                    <p class="text-sm text-theme-tertiary mt-1">{{ profile.description }}</p>
+                    <p class="text-xs text-theme-muted mt-2">
                       {{ profile.services?.length || 0 }} services • ~{{ profile.ram_estimate }}MB RAM
                     </p>
                   </div>
                   <div 
                     class="w-6 h-6 rounded-full border-2 flex items-center justify-center"
-                    :class="selectedProfile === profile.id ? 'border-teal-500 bg-teal-500' : 'border-gray-500'"
+                    :class="selectedProfile === profile.id ? 'border-theme-accent bg-accent' : 'border-theme-secondary'"
                   >
                     <svg v-if="selectedProfile === profile.id" class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -393,20 +393,20 @@ onMounted(async () => {
           <!-- Step 3: Services -->
           <div v-if="currentStep === 3" class="space-y-6">
             <div class="text-center mb-6">
-              <h2 class="text-2xl font-bold text-white mb-2">Customize Services</h2>
-              <p class="text-gray-400">Fine-tune which services to enable</p>
+              <h2 class="text-2xl font-bold text-theme-primary mb-2">Customize Services</h2>
+              <p class="text-theme-tertiary">Fine-tune which services to enable</p>
             </div>
             
-            <div class="bg-gray-700/50 rounded-xl p-4 mb-4">
+            <div class="bg-theme-tertiary rounded-xl p-4 mb-4">
               <div class="flex items-center justify-between">
-                <span class="text-gray-300">Estimated RAM Usage</span>
-                <span class="font-semibold text-teal-400">~{{ estimatedRAM }}MB</span>
+                <span class="text-theme-secondary">Estimated RAM Usage</span>
+                <span class="font-semibold text-accent">~{{ estimatedRAM }}MB</span>
               </div>
             </div>
             
             <div class="space-y-4 max-h-80 overflow-y-auto pr-2">
               <div v-for="category in categories" :key="category.id" class="space-y-2">
-                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">{{ category.name }}</h3>
+                <h3 class="text-sm font-semibold text-theme-tertiary uppercase tracking-wider">{{ category.name }}</h3>
                 <div class="grid grid-cols-2 gap-2">
                   <button
                     v-for="service in category.services"
@@ -414,11 +414,11 @@ onMounted(async () => {
                     @click="toggleService(service.name)"
                     class="p-3 rounded-lg border text-left transition-all"
                     :class="isServiceSelected(service.name) 
-                      ? 'border-teal-500 bg-teal-500/10' 
-                      : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'"
+                      ? 'border-theme-accent bg-accent-muted' 
+                      : 'border-theme-secondary bg-theme-tertiary hover:border-theme-primary'"
                   >
-                    <p class="text-sm font-medium text-white truncate">{{ service.display_name || service.name }}</p>
-                    <p class="text-xs text-gray-500">~{{ service.ram_estimate }}MB</p>
+                    <p class="text-sm font-medium text-theme-primary truncate">{{ service.display_name || service.name }}</p>
+                    <p class="text-xs text-theme-muted">~{{ service.ram_estimate }}MB</p>
                   </button>
                 </div>
               </div>
@@ -428,37 +428,37 @@ onMounted(async () => {
           <!-- Step 4: Account -->
           <div v-if="currentStep === 4" class="space-y-6">
             <div class="text-center mb-6">
-              <h2 class="text-2xl font-bold text-white mb-2">Secure Your Device</h2>
-              <p class="text-gray-400">Set a strong password for the admin account</p>
+              <h2 class="text-2xl font-bold text-theme-primary mb-2">Secure Your Device</h2>
+              <p class="text-theme-tertiary">Set a strong password for the admin account</p>
             </div>
             
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">New Password</label>
+                <label class="block text-sm font-medium text-theme-secondary mb-2">New Password</label>
                 <input
                   v-model="adminPassword"
                   type="password"
                   placeholder="Minimum 8 characters"
-                  class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
                 />
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">Confirm Password</label>
+                <label class="block text-sm font-medium text-theme-secondary mb-2">Confirm Password</label>
                 <input
                   v-model="confirmPassword"
                   type="password"
                   placeholder="Repeat password"
-                  class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  :class="confirmPassword && confirmPassword !== adminPassword ? 'border-red-500' : ''"
+                  class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
+                  :class="confirmPassword && confirmPassword !== adminPassword ? 'border-error' : ''"
                 />
-                <p v-if="confirmPassword && confirmPassword !== adminPassword" class="text-xs text-red-400 mt-1">
+                <p v-if="confirmPassword && confirmPassword !== adminPassword" class="text-xs text-error mt-1">
                   Passwords do not match
                 </p>
               </div>
               
-              <div class="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                <p class="text-sm text-yellow-400">
+              <div class="p-4 bg-warning-muted border border-warning-subtle rounded-xl">
+                <p class="text-sm text-warning">
                   <strong>Important:</strong> Remember this password. You'll need it to access the dashboard.
                 </p>
               </div>
@@ -467,48 +467,48 @@ onMounted(async () => {
           
           <!-- Step 5: Complete -->
           <div v-if="currentStep === 5" class="text-center space-y-6">
-            <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center">
-              <Icon name="CheckCircle" :size="48" class="text-green-500" />
+            <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-success-muted flex items-center justify-center">
+              <Icon name="CheckCircle" :size="48" class="text-success" />
             </div>
-            <h2 class="text-2xl font-bold text-white">Setup Complete!</h2>
-            <p class="text-gray-400">Your CubeOS device is ready to use.</p>
+            <h2 class="text-2xl font-bold text-theme-primary">Setup Complete!</h2>
+            <p class="text-theme-tertiary">Your CubeOS device is ready to use.</p>
             
-            <div class="bg-gray-700/50 rounded-xl p-6 text-left space-y-3">
+            <div class="bg-theme-tertiary rounded-xl p-6 text-left space-y-3">
               <div class="flex items-center justify-between">
-                <span class="text-gray-400">Device Name</span>
-                <span class="text-white font-medium">{{ hostname }}</span>
+                <span class="text-theme-tertiary">Device Name</span>
+                <span class="text-theme-primary font-medium">{{ hostname }}</span>
               </div>
               <div v-if="wifiEnabled" class="flex items-center justify-between">
-                <span class="text-gray-400">WiFi Network</span>
-                <span class="text-white font-medium">{{ wifiSSID }}</span>
+                <span class="text-theme-tertiary">WiFi Network</span>
+                <span class="text-theme-primary font-medium">{{ wifiSSID }}</span>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-gray-400">Profile</span>
-                <span class="text-white font-medium">{{ selectedProfileInfo?.name }}</span>
+                <span class="text-theme-tertiary">Profile</span>
+                <span class="text-theme-primary font-medium">{{ selectedProfileInfo?.name }}</span>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-gray-400">Services</span>
-                <span class="text-white font-medium">{{ selectedServices.length }} enabled</span>
+                <span class="text-theme-tertiary">Services</span>
+                <span class="text-theme-primary font-medium">{{ selectedServices.length }} enabled</span>
               </div>
             </div>
             
-            <p class="text-sm text-gray-500">
-              Connect to <strong class="text-teal-400">{{ wifiSSID }}</strong> and open <strong class="text-teal-400">http://{{ hostname }}.local</strong>
+            <p class="text-sm text-theme-muted">
+              Connect to <strong class="text-accent">{{ wifiSSID }}</strong> and open <strong class="text-accent">http://{{ hostname }}.local</strong>
             </p>
           </div>
           
           <!-- Error message -->
-          <div v-if="error" class="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-            <p class="text-sm text-red-400">{{ error }}</p>
+          <div v-if="error" class="mt-4 p-4 bg-error-muted border border-error-subtle rounded-xl">
+            <p class="text-sm text-error">{{ error }}</p>
           </div>
         </div>
         
         <!-- Footer -->
-        <div class="px-8 py-4 bg-gray-900/50 border-t border-gray-700 flex items-center justify-between">
+        <div class="px-8 py-4 bg-theme-secondary border-t border-theme-primary flex items-center justify-between">
           <button
             v-if="!isFirstStep && !isLastStep"
             @click="prevStep"
-            class="px-6 py-2 text-gray-400 hover:text-white transition-colors"
+            class="px-6 py-2 text-theme-tertiary hover:text-theme-primary transition-colors"
           >
             Back
           </button>
@@ -518,7 +518,7 @@ onMounted(async () => {
             v-if="!isLastStep"
             @click="nextStep"
             :disabled="!canProceed || loading"
-            class="px-6 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            class="btn-accent px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -530,7 +530,7 @@ onMounted(async () => {
           <button
             v-if="isLastStep"
             @click="finishWizard"
-            class="px-6 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-400"
+            class="btn-accent px-6 py-2 rounded-lg"
           >
             Go to Dashboard
           </button>

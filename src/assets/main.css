@@ -255,6 +255,19 @@ body {
   .bg-tor { background-color: var(--tor); }
   .ring-tor { --tw-ring-color: var(--tor); }
   
+  /* Accent extras */
+  .bg-accent { background-color: var(--accent-primary); }
+  .ring-accent { --tw-ring-color: var(--accent-primary); }
+  .placeholder-theme-muted::placeholder { color: var(--text-muted); }
+  
+  /* Wizard page gradient */
+  .wizard-gradient {
+    background: linear-gradient(to bottom right, var(--bg-primary), var(--bg-secondary), var(--bg-primary));
+  }
+  .accent-gradient {
+    background: linear-gradient(to bottom right, var(--accent-secondary), var(--accent-primary));
+  }
+  
   /* Code block (always dark bg for readability) */
   .bg-code { background-color: var(--bg-code); }
   .text-code { color: var(--text-code); }
