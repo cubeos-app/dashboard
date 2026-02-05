@@ -30,17 +30,11 @@ export const useThemeStore = defineStore('theme', () => {
     }
   ])
 
-  // Migrate old theme IDs to new ones
-  function migrateThemeId(id) {
-    if (id === 'obsidian' || id === 'midnight') return 'dark'
-    if (id === 'snow' || id === 'pearl') return 'light'
-    if (id === 'dark' || id === 'light') return id
-    return 'dark'
-  }
-
-  // Current theme ID
+  // Current theme ID — only 'dark' and 'light' are valid
   const storedTheme = localStorage.getItem('cubeos-theme')
-  const currentThemeId = ref(migrateThemeId(storedTheme || 'dark'))
+  const currentThemeId = ref(
+    storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : 'dark'
+  )
 
   // Current theme object
   const currentTheme = computed(() => {
@@ -87,10 +81,11 @@ export const useThemeStore = defineStore('theme', () => {
 
   // Initialize theme on load
   function initTheme() {
-    const saved = migrateThemeId(localStorage.getItem('cubeos-theme') || 'dark')
-    currentThemeId.value = saved
-    localStorage.setItem('cubeos-theme', saved)
-    applyTheme(saved)
+    const saved = localStorage.getItem('cubeos-theme')
+    const themeId = (saved === 'dark' || saved === 'light') ? saved : 'dark'
+    currentThemeId.value = themeId
+    localStorage.setItem('cubeos-theme', themeId)
+    applyTheme(themeId)
   }
 
   // Watch for theme changes

@@ -6,8 +6,14 @@ import { useBrandingStore } from '@/stores/branding'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
-  collapsed: Boolean,
-  mobileOpen: Boolean
+  collapsed: {
+    type: Boolean,
+    default: false
+  },
+  mobileOpen: {
+    type: Boolean,
+    default: false
+  }
 })
 
 const emit = defineEmits(['close-mobile'])
@@ -96,6 +102,8 @@ function navigate(path) {
         v-for="item in navItems"
         :key="item.path"
         @click="navigate(item.path)"
+        :aria-label="item.name"
+        :aria-current="isActive(item.path) ? 'page' : undefined"
         class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
         :class="[
           isActive(item.path)

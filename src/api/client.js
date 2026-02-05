@@ -31,7 +31,7 @@ class ApiClient {
   }
 
   /**
-   * Make an authenticated API request
+   * Make an authenticated API request with optional retry
    */
   async request(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`
@@ -67,6 +67,41 @@ class ApiClient {
     }
 
     return response
+  }
+
+  /**
+   * Make a request with automatic retry for transient failures.
+   * Retries up to maxRetries times with exponential backoff.
+   * Does NOT retry auth endpoints or aborted requests.
+   */
+  async requestWithRetry(endpoint, options = {}, maxRetries = 2) {
+    // Skip retry for auth endpoints
+    if (endpoint.startsWith('/auth')) {
+      return this.request(endpoint, options)
+    }
+
+    let lastError
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await this.request(endpoint, options)
+        // Don't retry on client errors (4xx) except 408/429
+        if (response && response.ok) return response
+        if (response && response.status < 500 && response.status !== 408 && response.status !== 429) {
+          return response
+        }
+        // Server error or rate-limited — retry
+        lastError = new Error(`HTTP ${response?.status}`)
+      } catch (err) {
+        if (err.name === 'AbortError') return null
+        lastError = err
+      }
+
+      // Exponential backoff: 500ms, 1500ms
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 500 * Math.pow(3, attempt)))
+      }
+    }
+    throw lastError
   }
 
   // ==========================================
@@ -246,7 +281,7 @@ class ApiClient {
     const queryString = Object.keys(params).length 
       ? '?' + new URLSearchParams(params).toString()
       : ''
-    const response = await this.request(endpoint + queryString, options)
+    const response = await this.requestWithRetry(endpoint + queryString, options)
     if (!response) return null // Request was aborted
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))

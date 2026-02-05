@@ -68,7 +68,6 @@ export const useProfilesStore = defineStore('profiles', () => {
       activeProfile.value = response.active_profile || ''
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch profiles:', e)
     } finally {
       loading.value = false
     }

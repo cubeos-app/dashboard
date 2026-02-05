@@ -92,7 +92,7 @@ async function fetchProfiles() {
     const data = await api.get('/wizard/profiles')
     profiles.value = data.profiles || data || []
   } catch (e) {
-    console.error('Failed to fetch profiles:', e)
+    // Profiles fetch failed
   }
 }
 
@@ -106,7 +106,7 @@ async function fetchServices() {
       selectedServices.value = [...selectedProfileInfo.value.services]
     }
   } catch (e) {
-    console.error('Failed to fetch services:', e)
+    // Services fetch failed
   }
 }
 
@@ -196,7 +196,6 @@ async function applyConfiguration() {
     
   } catch (e) {
     error.value = e.message || 'Failed to apply configuration'
-    console.error('Setup error:', e)
   } finally {
     loading.value = false
   }

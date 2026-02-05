@@ -1,9 +1,21 @@
 <script setup>
 const props = defineProps({
-  title: String,
-  value: [String, Number],
-  subtitle: String,
-  icon: String,
+  title: {
+    type: String,
+    required: true
+  },
+  value: {
+    type: [String, Number],
+    required: true
+  },
+  subtitle: {
+    type: String,
+    default: ''
+  },
+  icon: {
+    type: String,
+    required: true
+  },
   color: {
     type: String,
     default: 'cube'

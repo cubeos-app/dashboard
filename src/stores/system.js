@@ -120,7 +120,6 @@ export const useSystemStore = defineStore('system', () => {
     try {
       info.value = await api.getSystemInfo()
     } catch (e) {
-      console.error('Failed to fetch system info:', e)
       error.value = e.message
     }
   }
@@ -130,7 +129,6 @@ export const useSystemStore = defineStore('system', () => {
       stats.value = await api.getSystemStats()
       lastUpdated.value = new Date()
     } catch (e) {
-      console.error('Failed to fetch system stats:', e)
       error.value = e.message
     }
   }

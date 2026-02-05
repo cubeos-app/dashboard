@@ -69,7 +69,6 @@ async function fetchDocsTree() {
       docsTree.value = []
     }
   } catch (e) {
-    console.error('Failed to load docs tree:', e)
     docsAvailable.value = false
   }
 }
@@ -112,7 +111,7 @@ async function searchDocs() {
       searchResults.value = await resp.json()
     }
   } catch (e) {
-    console.error('Search failed:', e)
+    // Search failed silently
   }
 }
 

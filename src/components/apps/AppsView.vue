@@ -11,6 +11,7 @@ import { useAppsStore } from '@/stores/apps'
 import AppCard from '@/components/apps/AppCard.vue'
 import AppHealthModal from '@/components/apps/AppHealthModal.vue'
 import Icon from '@/components/ui/Icon.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -82,15 +83,11 @@ function clearCategory() {
 
 onMounted(() => {
   appsStore.fetchApps()
-})
-
-let refreshInterval = null
-onMounted(() => {
-  refreshInterval = setInterval(() => appsStore.fetchApps(), 30000)
+  appsStore.startPolling()
 })
 
 onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
+  appsStore.stopPolling()
 })
 </script>
 
@@ -127,6 +124,7 @@ onUnmounted(() => {
           v-model="searchQuery"
           type="text"
           placeholder="Search apps..."
+          aria-label="Search apps"
           class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
         />
       </div>
@@ -171,11 +169,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Loading state -->
-    <div v-if="appsStore.loading && appsStore.apps.length === 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-      <div v-for="i in 10" :key="i" class="animate-pulse">
-        <div class="h-20 bg-theme-tertiary rounded-xl"></div>
-      </div>
-    </div>
+    <SkeletonLoader v-if="appsStore.loading && appsStore.apps.length === 0" variant="grid" :count="10" />
 
     <!-- Apps grid -->
     <div v-else-if="displayedApps.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">

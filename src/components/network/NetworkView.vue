@@ -13,6 +13,10 @@ const firewallStatus = ref(null)
 const networkMode = ref(null)
 const error = ref(null)
 
+// AP hardware detection — check once, cache result
+const apHardwareChecked = ref(false)
+const apHardwarePresent = ref(true) // assume present until checked
+
 // Fix 2: Robust AP status detection - HAL may return different field shapes
 const apIsActive = computed(() => {
   if (!apStatus.value) return false
@@ -51,7 +55,7 @@ async function openAPConfigModal() {
     }
     showAPConfigModal.value = true
   } catch (e) {
-    console.error('Failed to load AP config:', e)
+    error.value = 'Failed to load AP config'
   } finally {
     apConfigLoading.value = false
   }
@@ -110,15 +114,32 @@ async function fetchAll() {
   loading.value = true
   error.value = null
   try {
+    // Build fetch promises — skip AP calls if hardware not present
+    const apPromise = apHardwarePresent.value
+      ? api.get('/network/wifi/ap/status').catch(() => null)
+      : Promise.resolve(null)
+    const clientsPromise = apHardwarePresent.value
+      ? api.get('/network/wifi/ap/clients').catch(() => ({ clients: [] }))
+      : Promise.resolve({ clients: [] })
+
     const [ap, clientList, ifacesResp, nat, internet, fw, mode] = await Promise.all([
-      api.get('/network/wifi/ap/status').catch(() => null),
-      api.get('/network/wifi/ap/clients').catch(() => ({ clients: [] })),
+      apPromise,
+      clientsPromise,
       api.get('/network/interfaces/detailed').catch(() => ({ interfaces: [] })),
       api.get('/firewall/nat').catch(() => ({ enabled: false })),
       api.get('/network/internet').catch(() => ({ connected: false })),
       api.get('/firewall/status').catch(() => null),
       api.get('/network/mode').catch(() => null)
     ])
+    
+    // Cache AP hardware detection result on first check
+    if (!apHardwareChecked.value) {
+      apHardwareChecked.value = true
+      // If AP status returned null/error or explicitly indicates no hardware, mark as absent
+      if (!ap || ap.error === 'no_hardware' || ap.error === 'not_found') {
+        apHardwarePresent.value = false
+      }
+    }
     
     apStatus.value = ap
     networkMode.value = mode
@@ -258,7 +279,7 @@ async function fetchTrafficHistory() {
       trafficHistory.value = history?.history || []
     }
   } catch (e) {
-    console.error('Failed to fetch traffic history:', e)
+    // Traffic history fetch failed silently
   }
 }
 

@@ -330,7 +330,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
       const response = await api.get('/casaos/stores', { url })
       return response.apps || []
     } catch (e) {
-      console.warn('CasaOS import not implemented')
+      // CasaOS import not implemented yet
       return []
     }
   }

@@ -14,6 +14,7 @@ import { useSystemStore } from '@/stores/system'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
 const systemStore = useSystemStore()
 const authStore = useAuthStore()
@@ -24,6 +25,10 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
 const passwordSuccess = ref(false)
+
+// Confirmation dialog state
+const confirmAction = ref(null) // 'reboot' | 'shutdown' | null
+const showConfirm = ref(false)
 
 // Power/UPS status from HAL
 const powerStatus = ref(null)
@@ -79,7 +84,7 @@ async function fetchBackups() {
     backups.value = data.backups || []
     backupStats.value = await api.get('/backups/stats')
   } catch (e) {
-    console.error('Failed to fetch backups:', e)
+    // Backups fetch failed
   } finally {
     backupLoading.value = false
   }
@@ -97,7 +102,7 @@ async function createBackup() {
     newBackupDescription.value = ''
     await fetchBackups()
   } catch (e) {
-    console.error('Failed to create backup:', e)
+    // Backup creation failed
   } finally {
     backupCreating.value = false
   }
@@ -111,7 +116,6 @@ async function restoreBackup(backupId) {
     await api.post(`/backups/${backupId}/restore`, { restart_services: true })
     alert('Backup restored successfully. Some services may need to be restarted.')
   } catch (e) {
-    console.error('Failed to restore backup:', e)
     alert('Failed to restore backup: ' + e.message)
   } finally {
     backupRestoring.value = false
@@ -125,7 +129,7 @@ async function deleteBackup(backupId) {
     await api.delete(`/backups/${backupId}`)
     await fetchBackups()
   } catch (e) {
-    console.error('Failed to delete backup:', e)
+    // Delete failed
   }
 }
 
@@ -221,11 +225,26 @@ async function handleChangePassword() {
 }
 
 async function handleReboot() {
-  await systemStore.reboot()
+  confirmAction.value = 'reboot'
+  showConfirm.value = true
 }
 
 async function handleShutdown() {
-  await systemStore.shutdown()
+  confirmAction.value = 'shutdown'
+  showConfirm.value = true
+}
+
+async function executeConfirmedAction() {
+  const action = confirmAction.value
+  showConfirm.value = false
+  confirmAction.value = null
+  if (action === 'reboot') await systemStore.reboot()
+  else if (action === 'shutdown') await systemStore.shutdown()
+}
+
+function cancelConfirm() {
+  showConfirm.value = false
+  confirmAction.value = null
 }
 
 // Uptime display
@@ -628,5 +647,18 @@ const uptimeDisplay = computed(() => {
         </div>
       </div>
     </Teleport>
+
+    <!-- Reboot/Shutdown Confirmation -->
+    <ConfirmDialog
+      :show="showConfirm"
+      :title="confirmAction === 'reboot' ? 'Reboot System' : 'Shut Down System'"
+      :message="confirmAction === 'reboot' 
+        ? 'The system will restart. All active connections will be interrupted.' 
+        : 'The system will power off. You will need physical access to turn it back on.'"
+      :confirm-text="confirmAction === 'reboot' ? 'Reboot' : 'Shut Down'"
+      :variant="confirmAction === 'shutdown' ? 'danger' : 'warning'"
+      @confirm="executeConfirmedAction"
+      @cancel="cancelConfirm"
+    />
   </div>
 </template>

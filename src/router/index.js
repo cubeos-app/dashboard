@@ -38,9 +38,7 @@ const routes = [
   },
   {
     path: '/apps',
-    name: 'apps',
-    component: () => import('@/components/apps/AppsView.vue'),
-    meta: { requiresAuth: true }
+    redirect: '/services'
   },
   {
     path: '/services/:name',
@@ -50,9 +48,7 @@ const routes = [
   },
   {
     path: '/apps/:name',
-    name: 'app-detail',
-    component: () => import('@/components/services/ServiceDetailView.vue'),
-    meta: { requiresAuth: true }
+    redirect: to => `/services/${to.params.name}`
   },
   {
     path: '/network',
@@ -111,7 +107,9 @@ const routes = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/'
+    name: 'not-found',
+    component: () => import('@/components/NotFoundView.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

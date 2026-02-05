@@ -37,11 +37,23 @@ export function useWebSocket(options = {}) {
   const totalContainers = computed(() => stats.value.docker?.total || 0)
   
   let reconnectTimeout = null
+  let visibilityHandler = null
+  let onlineHandler = null
   
   function getWebSocketUrl() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = window.location.host
     return `${protocol}//${host}/api/v1/ws/stats?interval=${interval}`
+  }
+  
+  /**
+   * Force reconnect — resets attempt counter and reconnects immediately.
+   * Useful after network mode changes or manual recovery.
+   */
+  function reconnect() {
+    disconnect()
+    reconnectAttempts.value = 0
+    connect()
   }
   
   function connect() {
@@ -57,7 +69,6 @@ export function useWebSocket(options = {}) {
       ws.value.onopen = () => {
         connected.value = true
         reconnectAttempts.value = 0
-        console.log('[WebSocket] Connected')
       }
       
       ws.value.onmessage = (event) => {
@@ -81,29 +92,25 @@ export function useWebSocket(options = {}) {
             }
           }
         } catch (e) {
-          console.error('[WebSocket] Parse error:', e)
+          // Parse error — ignore malformed messages
         }
       }
       
       ws.value.onerror = (e) => {
         error.value = 'WebSocket error'
-        console.error('[WebSocket] Error:', e)
       }
       
       ws.value.onclose = (e) => {
         connected.value = false
-        console.log('[WebSocket] Disconnected:', e.code, e.reason)
         
         // Attempt reconnect if not intentionally closed
         if (e.code !== 1000 && reconnectAttempts.value < maxReconnectAttempts) {
           reconnectAttempts.value++
-          console.log(`[WebSocket] Reconnecting in ${reconnectDelay}ms (attempt ${reconnectAttempts.value}/${maxReconnectAttempts})`)
           reconnectTimeout = setTimeout(connect, reconnectDelay)
         }
       }
     } catch (e) {
       error.value = e.message
-      console.error('[WebSocket] Connection error:', e)
     }
   }
   
@@ -132,10 +139,35 @@ export function useWebSocket(options = {}) {
     if (autoConnect) {
       connect()
     }
+    
+    // Reconnect when tab becomes visible again
+    visibilityHandler = () => {
+      if (document.visibilityState === 'visible' && !connected.value) {
+        reconnectAttempts.value = 0
+        connect()
+      }
+    }
+    document.addEventListener('visibilitychange', visibilityHandler)
+    
+    // Reconnect when browser comes back online (e.g. after network mode change)
+    onlineHandler = () => {
+      if (!connected.value) {
+        reconnectAttempts.value = 0
+        // Small delay to let network stabilize after mode change
+        setTimeout(connect, 1000)
+      }
+    }
+    window.addEventListener('online', onlineHandler)
   })
   
   onUnmounted(() => {
     disconnect()
+    if (visibilityHandler) {
+      document.removeEventListener('visibilitychange', visibilityHandler)
+    }
+    if (onlineHandler) {
+      window.removeEventListener('online', onlineHandler)
+    }
   })
   
   return {
@@ -158,6 +190,7 @@ export function useWebSocket(options = {}) {
     // Methods
     connect,
     disconnect,
+    reconnect,
     send
   }
 }

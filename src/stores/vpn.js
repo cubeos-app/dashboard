@@ -70,7 +70,7 @@ export const useVPNStore = defineStore('vpn', () => {
       configs.value = response.configs || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch VPN configs:', e)
+      error.value = e.message
     } finally {
       loading.value = false
     }

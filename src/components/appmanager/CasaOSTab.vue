@@ -28,7 +28,7 @@ async function fetchStore(url) {
     const apps = await store.fetchCasaOSStore(url)
     storeApps.value = apps || []
   } catch (e) {
-    console.error('Failed to fetch store:', e)
+    // Store fetch failed
   }
   finally { loadingStore.value = false }
 }

@@ -412,7 +412,6 @@ export const useAppsStore = defineStore('apps', () => {
       lastUpdated.value = new Date()
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch apps:', e)
     } finally {
       loading.value = false
     }
@@ -596,6 +595,38 @@ export const useAppsStore = defineStore('apps', () => {
   }
 
   // ==========================================
+  // Centralized Polling
+  // ==========================================
+  
+  let _pollInterval = null
+  let _pollSubscribers = 0
+  const POLL_INTERVAL_MS = 10000
+
+  /**
+   * Start shared polling. Multiple callers share the same interval.
+   * Call stopPolling() on unmount.
+   */
+  function startPolling() {
+    _pollSubscribers++
+    if (_pollSubscribers === 1 && !_pollInterval) {
+      _pollInterval = setInterval(() => {
+        fetchApps()
+      }, POLL_INTERVAL_MS)
+    }
+  }
+
+  /**
+   * Decrement subscriber count. Stops polling when no one is listening.
+   */
+  function stopPolling() {
+    _pollSubscribers = Math.max(0, _pollSubscribers - 1)
+    if (_pollSubscribers === 0 && _pollInterval) {
+      clearInterval(_pollInterval)
+      _pollInterval = null
+    }
+  }
+
+  // ==========================================
   // Export
   // ==========================================
   
@@ -659,6 +690,10 @@ export const useAppsStore = defineStore('apps', () => {
     setFilterType,
     setFilterEnabled,
     toggleShowSystemApps,
-    clearFilters
+    clearFilters,
+    
+    // Polling
+    startPolling,
+    stopPolling
   }
 })

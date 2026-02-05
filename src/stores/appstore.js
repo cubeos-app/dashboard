@@ -112,7 +112,6 @@ export const useAppStoreStore = defineStore('appstore', () => {
       const data = await api.get('/appstore/stores')
       stores.value = data.stores || []
     } catch (e) {
-      console.error('Failed to fetch stores:', e)
       stores.value = []
     }
   }
@@ -195,7 +194,6 @@ export const useAppStoreStore = defineStore('appstore', () => {
       const data = await api.get('/appstore/apps', params)
       catalog.value = data.apps || []
     } catch (e) {
-      console.error('Failed to fetch catalog:', e)
       catalog.value = []
     } finally {
       loading.value = false

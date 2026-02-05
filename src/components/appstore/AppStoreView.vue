@@ -38,7 +38,7 @@ async function fetchCoreApps() {
     const data = await api.get('/appstore/coreapps')
     coreApps.value = data.apps || []
   } catch (e) {
-    console.error('Failed to fetch core apps:', e)
+    // Core apps fetch failed
   }
 }
 

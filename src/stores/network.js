@@ -80,7 +80,7 @@ export const useNetworkStore = defineStore('network', () => {
       status.value = response
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch network status:', e)
+      // Network status fetch failed
     } finally {
       loading.value = false
     }

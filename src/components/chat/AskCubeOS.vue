@@ -3,7 +3,10 @@ import { ref, nextTick, onMounted, watch } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
-  show: Boolean,
+  show: {
+    type: Boolean,
+    required: true
+  },
   initialQuery: {
     type: String,
     default: ''

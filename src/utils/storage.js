@@ -18,8 +18,7 @@ export function safeSetItem(key, value) {
     return true
   } catch (err) {
     if (err.name === 'QuotaExceededError' || err.code === 22) {
-      console.warn(`[storage] Quota exceeded writing "${key}", clearing old data`)
-      // Try to free space by removing non-critical items
+      // Quota exceeded — try to free space by removing non-critical items
       try {
         localStorage.removeItem('cubeos-recent')
         localStorage.setItem(key, JSON.stringify(value))

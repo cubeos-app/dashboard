@@ -43,17 +43,17 @@ async function fetchOptions() {
   try {
     const [unitsResp, servicesResp] = await Promise.all([
       api.get('/logs/units').catch(() => ({ units: [] })),
-      api.get('/services').catch(() => ({ services: [] }))
+      api.get('/apps').catch(() => ({ apps: [] }))
     ])
     
     units.value = unitsResp.units || []
-    // Services response is { services: [...], total, running } - extract the array
-    const services = servicesResp?.services || []
-    containers.value = services
-      .filter(s => s.state === 'running' || s.state === 'Running' || s.status?.includes('Up'))
+    // Apps response is { apps: [...] } - extract running containers
+    const appsList = servicesResp?.apps || []
+    containers.value = appsList
+      .filter(s => s.status?.running || s.state === 'running')
       .map(s => s.name)
   } catch (e) {
-    console.error('Failed to fetch options:', e)
+    // Options fetch failed silently
   }
 }
 

@@ -10,6 +10,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAppsStore } from '@/stores/apps'
 import TorToggle from '@/components/swarm/TorToggle.vue'
 import Icon from '@/components/ui/Icon.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +22,20 @@ const loading = ref(true)
 const logsLoading = ref(false)
 const actionLoading = ref(false)
 const activeTab = ref('overview')
+
+// Uninstall confirmation
+const showUninstallConfirm = ref(false)
+
+async function handleUninstall() {
+  showUninstallConfirm.value = false
+  actionLoading.value = true
+  try {
+    await appsStore.uninstallApp(appName.value)
+    router.push('/services')
+  } finally {
+    actionLoading.value = false
+  }
+}
 
 const appName = computed(() => route.params.name)
 
@@ -70,7 +85,6 @@ async function fetchApp() {
       app.value = appsStore.getAppByName(appName.value)
     }
   } catch (e) {
-    console.error('Failed to fetch app:', e)
     app.value = appsStore.getAppByName(appName.value)
   } finally {
     loading.value = false
@@ -83,7 +97,6 @@ async function fetchLogs() {
     const result = await appsStore.getAppLogs(appName.value, 200)
     logs.value = result || []
   } catch (e) {
-    console.error('Failed to fetch logs:', e)
     logs.value = []
   } finally {
     logsLoading.value = false
@@ -126,9 +139,10 @@ onMounted(async () => {
     await fetchLogs()
   }
   
-  refreshInterval = setInterval(async () => {
+  // Use centralized polling; update local ref from store on each cycle
+  appsStore.startPolling()
+  refreshInterval = setInterval(() => {
     if (isRunning.value) {
-      await appsStore.fetchApps()
       app.value = appsStore.getAppByName(appName.value)
     }
   }, 15000)
@@ -136,6 +150,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (refreshInterval) clearInterval(refreshInterval)
+  appsStore.stopPolling()
 })
 
 // Fetch logs when switching to logs tab
@@ -163,6 +178,7 @@ function formatBytes(bytes) {
     <div class="flex items-center gap-4">
       <button 
         @click="router.push('/services')"
+        aria-label="Back to services"
         class="p-2 rounded-lg hover:bg-theme-tertiary transition-colors"
       >
         <Icon name="ChevronLeft" :size="20" class="text-theme-secondary" />
@@ -347,12 +363,24 @@ function formatBytes(bytes) {
             Uninstalling this app will remove it from your system. Data may be preserved depending on your settings.
           </p>
           <button
+            @click="showUninstallConfirm = true"
             class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-500 transition-colors"
           >
             Uninstall App
           </button>
         </div>
       </div>
+      
+      <!-- Uninstall Confirmation -->
+      <ConfirmDialog
+        :show="showUninstallConfirm"
+        title="Uninstall App"
+        :message="`This will remove ${displayName} from your system. Data may be preserved depending on your settings.`"
+        confirm-text="Uninstall"
+        variant="danger"
+        @confirm="handleUninstall"
+        @cancel="showUninstallConfirm = false"
+      />
     </div>
     
     <!-- Not Found -->

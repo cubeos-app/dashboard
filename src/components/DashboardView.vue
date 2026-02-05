@@ -18,6 +18,7 @@ import Icon from '@/components/ui/Icon.vue'
 import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
 import AskCubeOS from '@/components/chat/AskCubeOS.vue'
 import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const router = useRouter()
 const systemStore = useSystemStore()
@@ -233,15 +234,16 @@ onMounted(async () => {
     appsStore.fetchApps()
   ])
   
-  // Auto-refresh stats and apps
+  // Auto-refresh stats (apps use centralized store polling)
+  appsStore.startPolling()
   refreshInterval = setInterval(() => {
     systemStore.fetchStats()
-    appsStore.fetchApps()
   }, 10000)
 })
 
 onUnmounted(() => {
   if (refreshInterval) clearInterval(refreshInterval)
+  appsStore.stopPolling()
 })
 </script>
 
@@ -312,11 +314,13 @@ onUnmounted(() => {
           @focus="showSearchResults = searchQuery.trim().length > 0"
           type="text" 
           placeholder="Search services, apps, settings..."
+          aria-label="Quick search services, apps, and settings"
           class="w-full pl-11 pr-10 py-3 rounded-xl border border-theme-primary bg-theme-card text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
         />
         <button
           v-if="searchQuery"
           @click="clearSearch"
+          aria-label="Clear search"
           class="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded text-theme-muted hover:text-theme-primary transition-colors"
         >
           <Icon name="X" :size="16" />
@@ -453,7 +457,8 @@ onUnmounted(() => {
         <Icon name="Box" :size="12" class="text-accent" />
         CubeOS Core Apps
       </h2>
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <SkeletonLoader v-if="appsStore.loading && coreApps.length === 0" variant="grid" :count="6" />
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div 
           v-for="app in coreApps" 
           :key="app.name"

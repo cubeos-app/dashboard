@@ -74,6 +74,7 @@ const batteryCharging = computed(() => {
         <!-- Mobile menu button -->
         <button
           @click="$emit('toggle-sidebar')"
+          aria-label="Toggle navigation menu"
           class="lg:hidden p-2 -ml-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
         >
           <Icon name="Menu" :size="20" />

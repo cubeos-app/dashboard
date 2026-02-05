@@ -3,11 +3,26 @@ import { ref, watch } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
-  show: Boolean,
-  appName: String,
-  compose: String,
-  env: String,
-  loading: Boolean
+  show: {
+    type: Boolean,
+    default: false
+  },
+  appName: {
+    type: String,
+    required: true
+  },
+  compose: {
+    type: String,
+    default: ''
+  },
+  env: {
+    type: String,
+    default: ''
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  }
 })
 
 const emit = defineEmits(['close', 'save'])

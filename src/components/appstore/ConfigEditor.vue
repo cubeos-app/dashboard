@@ -8,7 +8,10 @@ const route = useRoute()
 const router = useRouter()
 
 const props = defineProps({
-  appId: String,
+  appId: {
+    type: String,
+    required: true
+  },
   isCoreApp: {
     type: Boolean,
     default: false

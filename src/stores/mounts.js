@@ -63,7 +63,6 @@ export const useMountsStore = defineStore('mounts', () => {
       mounts.value = response.mounts || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch mounts:', e)
     } finally {
       loading.value = false
     }
