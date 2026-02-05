@@ -2,11 +2,12 @@
 # CubeOS Dashboard Pipeline - Build, Package, Deploy
 # =============================================================================
 #
-# DEPLOY STRATEGY (single-node Swarm + host-mode networking):
-#   - network_mode: host = only ONE container can bind port 6011 at a time
-#   - Use stop-first update order (stop old, THEN start new)
+# DEPLOY STRATEGY (single-node Swarm + host-mode port):
+#   - Port 6011 in host mode = only ONE container can bind it
+#   - stop-first update order (stop old THEN start new)
+#   - resolve-image never (use pre-pulled local image)
+#   - Self-healing: detects stuck services and auto-recovers
 #   - ~5s downtime during swap - unavoidable on single-node host-mode
-#   - Auto-rollback if new container fails health checks
 #
 # =============================================================================
 
@@ -71,7 +72,7 @@ package:
     - if: $CI_COMMIT_BRANCH == "main"
 
 # -----------------------------------------------------------------------------
-# DEPLOY - Swarm deploy with stop-first + auto-rollback
+# DEPLOY - Self-healing Swarm deploy
 # -----------------------------------------------------------------------------
 deploy:
   stage: deploy
@@ -79,11 +80,11 @@ deploy:
   before_script:
     - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
   script:
-    # === PRE-FLIGHT CHECKS ===
+    # === PRE-FLIGHT ===
     - |
-      echo "=== Pre-flight checks ==="
+      echo "=== Pre-flight ==="
       if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "active"; then
-        echo "FATAL: Docker Swarm is not active"
+        echo "FATAL: Docker Swarm not active"
         exit 1
       fi
       echo "  Swarm: active"
@@ -98,36 +99,127 @@ deploy:
       echo "=== Pulling image ==="
       docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
       docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${GHCR_IMAGE}:latest
-      echo "  Image ready: ${CI_COMMIT_SHORT_SHA}"
+      echo "  Pulled and tagged: ${CI_COMMIT_SHORT_SHA}"
+      docker image ls ${GHCR_IMAGE} --format "  {{.Tag}}\t{{.Size}}"
+
+    # === DIAGNOSE + HEAL SERVICE STATE ===
+    # Check if service exists and whether it's healthy or stuck.
+    # Stuck = no task in "Running" state, or update stuck in progress.
+    # If stuck: nuke the stack and recreate from scratch.
+    # If healthy: do a clean service update.
+    # If absent: create via stack deploy.
+    - |
+      echo "=== Service health check ==="
+      set +e
+      DEPLOY_METHOD="create"
+
+      if docker service inspect ${SERVICE_NAME} >/dev/null 2>&1; then
+        # Service exists - check if it's actually healthy
+        RUNNING_COUNT=$(docker service ps ${SERVICE_NAME} \
+          --filter "desired-state=running" \
+          --format "{{.CurrentState}}" 2>/dev/null \
+          | grep -c "Running" || true)
+
+        UPDATE_STATE=$(docker service inspect ${SERVICE_NAME} \
+          --format '{{.UpdateStatus.State}}' 2>/dev/null || echo "unknown")
+
+        REPLICAS=$(docker service ls --filter "name=${SERVICE_NAME}" \
+          --format "{{.Replicas}}" 2>/dev/null || echo "0/0")
+
+        echo "  Service exists"
+        echo "  Replicas:     ${REPLICAS}"
+        echo "  Running tasks: ${RUNNING_COUNT}"
+        echo "  Update state: ${UPDATE_STATE}"
+
+        if [ "${RUNNING_COUNT}" -ge 1 ] && echo "${UPDATE_STATE}" | grep -qvE "updating|paused"; then
+          # Service is healthy and not mid-update -> clean update
+          DEPLOY_METHOD="update"
+          echo "  Status: HEALTHY -> will update in-place"
+        else
+          # Service is stuck/broken/mid-update -> nuke and recreate
+          DEPLOY_METHOD="recreate"
+          echo "  Status: STUCK/BROKEN -> will destroy and recreate"
+        fi
+      else
+        echo "  Service does not exist -> will create fresh"
+      fi
+      set -e
 
     # === DEPLOY ===
-    # Use ONE update path only - never stack deploy + service update together.
-    # If service exists: service update (changes image, triggers stop-first).
-    # If service doesn't exist: stack deploy (creates everything from scratch).
     - |
-      echo "=== Deploying ==="
-      if docker service inspect ${SERVICE_NAME} >/dev/null 2>&1; then
-        echo "  Service exists - updating image (stop-first)..."
-        docker service update \
-          --image ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} \
-          --update-order stop-first \
-          --update-failure-action rollback \
-          --detach \
-          ${SERVICE_NAME}
-        echo "  Update triggered"
-      else
-        echo "  Service not found - creating via stack deploy..."
-        cd ${COMPOSE_DIR}
-        docker stack deploy \
-          --compose-file docker-compose.yml \
-          --resolve-image never \
-          ${STACK_NAME}
-        echo "  Stack created"
-      fi
+      echo "=== Deploying (method: ${DEPLOY_METHOD}) ==="
+      set +e
 
-    # === WAIT FOR SWARM CONVERGENCE ===
-    # Disable set -e for the polling loop - transient states cause
-    # non-zero exits from grep/docker that would kill the script.
+      case "${DEPLOY_METHOD}" in
+        update)
+          # Happy path: service is healthy, update image with stop-first
+          echo "  Updating service image..."
+          docker service update \
+            --image ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} \
+            --update-order stop-first \
+            --resolve-image never \
+            --update-failure-action rollback \
+            --detach \
+            ${SERVICE_NAME}
+          echo "  Update triggered"
+          ;;
+
+        recreate)
+          # Self-heal: service is stuck, destroy everything and start fresh
+          echo "  Removing stuck stack..."
+          docker stack rm ${STACK_NAME} 2>/dev/null || true
+
+          # Wait for all containers and port bindings to fully release
+          echo "  Waiting for full cleanup..."
+          WAIT=0
+          while [ $WAIT -lt 30 ]; do
+            REMAINING=$(docker ps -q --filter "label=com.docker.stack.namespace=${STACK_NAME}" 2>/dev/null | wc -l)
+            if [ "$REMAINING" -eq 0 ]; then
+              echo "  All containers gone after ${WAIT}s"
+              break
+            fi
+            echo "  ${REMAINING} container(s) draining... (${WAIT}s)"
+            sleep 2
+            WAIT=$((WAIT + 2))
+          done
+
+          # Force-kill anything still hanging around
+          STRAGGLERS=$(docker ps -q --filter "label=com.docker.stack.namespace=${STACK_NAME}" 2>/dev/null)
+          if [ -n "$STRAGGLERS" ]; then
+            echo "  Force-killing stragglers..."
+            echo "$STRAGGLERS" | xargs docker rm -f 2>/dev/null || true
+            sleep 3
+          fi
+
+          # Verify port 6011 is actually free
+          if ss -tlnp | grep -q ":6011 "; then
+            echo "  WARNING: port 6011 still bound, waiting 5s..."
+            sleep 5
+          fi
+
+          echo "  Deploying fresh stack..."
+          cd ${COMPOSE_DIR}
+          docker stack deploy \
+            --compose-file docker-compose.yml \
+            --resolve-image never \
+            ${STACK_NAME}
+          echo "  Fresh stack deployed"
+          ;;
+
+        create)
+          # First-ever deploy
+          echo "  Creating stack..."
+          cd ${COMPOSE_DIR}
+          docker stack deploy \
+            --compose-file docker-compose.yml \
+            --resolve-image never \
+            ${STACK_NAME}
+          echo "  Stack created"
+          ;;
+      esac
+      set -e
+
+    # === WAIT FOR CONVERGENCE ===
     - |
       echo "=== Waiting for convergence (max ${CONVERGE_TIMEOUT}s) ==="
       set +e
@@ -149,14 +241,14 @@ deploy:
             ROLLBACK=$(docker service inspect ${SERVICE_NAME} \
               --format '{{.UpdateStatus.State}}' 2>/dev/null || echo "unknown")
             if [ "$ROLLBACK" = "rollback_completed" ]; then
-              echo "  ROLLBACK completed - new image failed, reverted"
+              echo "  ROLLBACK detected - reverted to previous image"
               docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null
               set -e
               exit 1
             fi
             ;;
           "")
-            echo "  Waiting for task scheduling... (${ELAPSED}s)"
+            echo "  Scheduling... (${ELAPSED}s)"
             ;;
           *)
             echo "  ${STATE} (${ELAPSED}s)"
@@ -172,7 +264,6 @@ deploy:
         echo "ERROR: Did not converge within ${CONVERGE_TIMEOUT}s"
         docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
         docker service logs ${SERVICE_NAME} --tail 30 2>/dev/null || true
-        echo "Triggering rollback..."
         docker service update --rollback ${SERVICE_NAME} 2>/dev/null || true
         exit 1
       fi
@@ -198,30 +289,23 @@ deploy:
 
       if [ "$HEALTHY" -ne 1 ]; then
         echo "ERROR: Health check failed after ${HEALTH_TIMEOUT}s"
-        echo "Triggering rollback..."
         docker service update --rollback ${SERVICE_NAME} 2>/dev/null || true
         docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
         docker service logs ${SERVICE_NAME} --tail 50 2>/dev/null || true
         exit 1
       fi
 
-    # === VERIFY ===
+    # === DONE ===
     - |
-      echo "=== Deployment verified ==="
+      echo "=== Deploy complete ==="
       docker service ls --filter "name=${SERVICE_NAME}"
       RUNNING_IMAGE=$(docker service inspect ${SERVICE_NAME} \
         --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' 2>/dev/null || echo "unknown")
       echo "  Image:     ${RUNNING_IMAGE}"
       echo "  Expected:  ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
       echo "  Dashboard: http://cubeos.cube"
-
-    # === CLEANUP ===
-    - |
-      echo "=== Cleanup ==="
       docker image prune -f 2>/dev/null || true
-      DISK_FREE=$(df -h / | awk 'NR==2{print $4}')
-      echo "  Disk free: ${DISK_FREE}"
-      echo "=== Deploy complete ==="
+      df -h / | awk 'NR==2{printf "  Disk free: %s\n", $4}'
 
   environment:
     name: production
