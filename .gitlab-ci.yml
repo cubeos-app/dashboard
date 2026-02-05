@@ -1,6 +1,15 @@
 # =============================================================================
 # CubeOS Dashboard Pipeline - Build, Package, Deploy
 # =============================================================================
+#
+# DEPLOY STRATEGY (single-node Swarm + host-mode networking):
+#   - network_mode: host means only ONE container can bind port 6011 at a time
+#   - Therefore we MUST use stop-first update order (stop old, then start new)
+#   - Brief ~5s downtime during swap is unavoidable and acceptable
+#   - Auto-rollback if new container fails health checks
+#
+# =============================================================================
+
 stages:
   - build
   - package
@@ -9,6 +18,13 @@ stages:
 variables:
   GHCR_IMAGE: "ghcr.io/cubeos-app/dashboard"
   BUILDER_IMAGE: "ghcr.io/cubeos-app/dashboard-builder"
+  SERVICE_NAME: "cubeos-dashboard_cubeos-dashboard"
+  STACK_NAME: "cubeos-dashboard"
+  COMPOSE_DIR: "/cubeos/coreapps/cubeos-dashboard/appconfig"
+  HEALTH_URL: "http://127.0.0.1:6011/"
+  # Timeouts
+  CONVERGE_TIMEOUT: "120"   # seconds to wait for Swarm convergence
+  HEALTH_TIMEOUT: "90"      # seconds to wait for HTTP health check
 
 # -----------------------------------------------------------------------------
 # BUILD - Build static files (for MR validation)
@@ -37,19 +53,26 @@ package:
   image: docker:24
   before_script:
     - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-    - docker buildx create --name mybuilder --driver docker-container --use
+    - docker buildx create --name mybuilder --driver docker-container --use 2>/dev/null || docker buildx use mybuilder
     - docker buildx inspect --bootstrap
   script:
     - echo "Building dashboard image..."
-    - docker buildx build --platform linux/amd64,linux/arm64 --build-arg BUILDER_IMAGE=${BUILDER_IMAGE}:latest --push -t ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} -t ${GHCR_IMAGE}:latest .
+    - >-
+      docker buildx build
+      --platform linux/amd64,linux/arm64
+      --build-arg BUILDER_IMAGE=${BUILDER_IMAGE}:latest
+      --push
+      -t ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
+      -t ${GHCR_IMAGE}:latest
+      .
     - echo "Pushed ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
   after_script:
-    - docker buildx rm mybuilder || true
+    - docker buildx rm mybuilder 2>/dev/null || true
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
 # -----------------------------------------------------------------------------
-# DEPLOY - Deploy as Swarm stack on Pi (rolling update, zero downtime)
+# DEPLOY - Bulletproof Swarm deploy with stop-first + auto-rollback
 # -----------------------------------------------------------------------------
 deploy:
   stage: deploy
@@ -57,37 +80,169 @@ deploy:
   before_script:
     - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
   script:
-    - echo "Deploying CubeOS Dashboard as Swarm stack..."
-    - docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
-    - docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${GHCR_IMAGE}:latest
-    # Rolling update - Swarm handles draining old task after new one is healthy
-    # No stack rm needed - deploy on top of existing stack
+    # === PRE-FLIGHT CHECKS ===
     - |
-      cd /cubeos/coreapps/cubeos-dashboard/appconfig
+      echo "=== Pre-flight checks ==="
+
+      # 1. Verify Swarm is active
+      if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "active"; then
+        echo "FATAL: Docker Swarm is not active"
+        echo "Run: docker swarm init --advertise-addr 10.42.24.1 --task-history-limit 1"
+        exit 1
+      fi
+      echo "  Swarm: active"
+
+      # 2. Verify compose file exists
+      if [ ! -f "${COMPOSE_DIR}/docker-compose.yml" ]; then
+        echo "FATAL: Compose file not found at ${COMPOSE_DIR}/docker-compose.yml"
+        exit 1
+      fi
+      echo "  Compose file: found"
+
+    # === PULL IMAGE ===
+    - |
+      echo "=== Pulling image ==="
+      if ! docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}; then
+        echo "FATAL: Failed to pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+        exit 1
+      fi
+      docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${GHCR_IMAGE}:latest
+      echo "  Image ready: ${CI_COMMIT_SHORT_SHA}"
+
+    # === CLEAN STUCK TASKS ===
+    - |
+      echo "=== Cleaning stuck tasks ==="
+      if docker service inspect ${SERVICE_NAME} >/dev/null 2>&1; then
+        # Check for tasks stuck in non-running states
+        STUCK=$(docker service ps ${SERVICE_NAME} \
+          --filter "desired-state=running" \
+          --format "{{.CurrentState}}" 2>/dev/null \
+          | grep -civ "running" || true)
+        if [ "${STUCK}" -gt "0" ]; then
+          echo "  Found ${STUCK} stuck task(s), forcing cleanup..."
+          docker service update --force --update-order stop-first --detach ${SERVICE_NAME} 2>/dev/null || true
+          sleep 10
+          echo "  Cleanup done"
+        else
+          echo "  Service healthy, proceeding with update"
+        fi
+      else
+        echo "  No existing service, fresh deploy"
+      fi
+
+    # === DEPLOY STACK ===
+    - |
+      echo "=== Deploying stack ==="
+      # Ensures stack definition (networks, deploy config) is current.
+      # Compose file MUST have deploy.update_config.order: stop-first
+      cd ${COMPOSE_DIR}
       docker stack deploy \
         --compose-file docker-compose.yml \
         --resolve-image never \
-        cubeos-dashboard
-    - echo "Waiting for stack to schedule..."
-    - sleep 5
-    # Force service update to pick up the new image tag
-    - docker service update --image ${GHCR_IMAGE}:latest --force cubeos-dashboard_cubeos-dashboard
-    # Wait for service to be healthy
+        ${STACK_NAME}
+      echo "  Stack deployed"
+
+    # === UPDATE SERVICE IMAGE (stop-first) ===
+    # stack deploy won't re-deploy if compose hasn't changed, so we
+    # explicitly update the image. stop-first ensures old container
+    # releases port 6011 BEFORE new container tries to bind it.
     - |
-      echo "Waiting for Dashboard to be healthy..."
-      for i in $(seq 1 60); do
-        if curl -sf http://127.0.0.1:6011/ > /dev/null 2>&1; then
-          echo "Health check passed!"
-          docker service ls | grep dashboard || true
-          exit 0
+      echo "=== Updating service image (stop-first) ==="
+      docker service update \
+        --image ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} \
+        --update-order stop-first \
+        --update-failure-action rollback \
+        --detach \
+        ${SERVICE_NAME}
+      echo "  Update triggered (commit: ${CI_COMMIT_SHORT_SHA})"
+
+    # === WAIT FOR SWARM CONVERGENCE ===
+    - |
+      echo "=== Waiting for Swarm convergence (max ${CONVERGE_TIMEOUT}s) ==="
+      ELAPSED=0
+      while [ $ELAPSED -lt ${CONVERGE_TIMEOUT} ]; do
+        # Get current state of the newest running-desired task
+        STATE=$(docker service ps ${SERVICE_NAME} \
+          --filter "desired-state=running" \
+          --format "{{.CurrentState}}" 2>/dev/null | head -1)
+
+        if echo "$STATE" | grep -q "Running"; then
+          echo "  Task converged: ${STATE}"
+          break
+        elif echo "$STATE" | grep -qiE "failed|rejected|complete"; then
+          echo "  WARNING: Task in bad state: ${STATE}"
+          # Check if Swarm auto-rollback kicked in
+          ROLLBACK=$(docker service inspect ${SERVICE_NAME} \
+            --format '{{.UpdateStatus.State}}' 2>/dev/null)
+          if [ "$ROLLBACK" = "rollback_completed" ]; then
+            echo "  ROLLBACK detected - new image failed, reverted to previous"
+            echo "--- Task history ---"
+            docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
+            exit 1
+          fi
+        else
+          echo "  Waiting... state=${STATE:-pending} (${ELAPSED}s)"
         fi
-        echo "  Attempt $i/60..."
+
         sleep 3
+        ELAPSED=$((ELAPSED + 3))
       done
-      echo "Health check failed after 60 attempts"
-      docker service ps cubeos-dashboard_cubeos-dashboard --no-trunc 2>/dev/null || true
-      docker service logs cubeos-dashboard_cubeos-dashboard --tail 50 2>/dev/null || true
-      exit 1
+
+      if [ $ELAPSED -ge ${CONVERGE_TIMEOUT} ]; then
+        echo "ERROR: Swarm did not converge within ${CONVERGE_TIMEOUT}s"
+        echo "--- Service status ---"
+        docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
+        echo "--- Recent logs ---"
+        docker service logs ${SERVICE_NAME} --tail 30 2>/dev/null || true
+        echo "Triggering rollback..."
+        docker service update --rollback ${SERVICE_NAME} 2>/dev/null || true
+        exit 1
+      fi
+
+    # === HTTP HEALTH CHECK ===
+    - |
+      echo "=== HTTP health check (max ${HEALTH_TIMEOUT}s) ==="
+      ELAPSED=0
+      while [ $ELAPSED -lt ${HEALTH_TIMEOUT} ]; do
+        HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" ${HEALTH_URL} 2>/dev/null || echo "000")
+        if [ "$HTTP_CODE" = "200" ]; then
+          echo "  Health check passed (HTTP ${HTTP_CODE}) at ${ELAPSED}s"
+          break
+        fi
+        echo "  HTTP ${HTTP_CODE} (${ELAPSED}s)"
+        sleep 3
+        ELAPSED=$((ELAPSED + 3))
+      done
+
+      if [ $ELAPSED -ge ${HEALTH_TIMEOUT} ]; then
+        echo "ERROR: HTTP health check failed after ${HEALTH_TIMEOUT}s"
+        echo "Triggering rollback..."
+        docker service update --rollback ${SERVICE_NAME} 2>/dev/null || true
+        echo "--- Diagnostics ---"
+        docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
+        docker service logs ${SERVICE_NAME} --tail 50 2>/dev/null || true
+        exit 1
+      fi
+
+    # === VERIFY DEPLOYMENT ===
+    - |
+      echo "=== Deployment verified ==="
+      docker service ls --filter "name=${SERVICE_NAME}" 2>/dev/null
+      RUNNING_IMAGE=$(docker service inspect ${SERVICE_NAME} \
+        --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' 2>/dev/null)
+      echo "  Running image: ${RUNNING_IMAGE}"
+      echo "  Expected SHA:  ${CI_COMMIT_SHORT_SHA}"
+      echo "  Dashboard:     http://cubeos.cube"
+
+    # === CLEANUP ===
+    - |
+      echo "=== Cleanup ==="
+      # Remove dangling images to free SD card space
+      docker image prune -f 2>/dev/null || true
+      DISK_FREE=$(df -h / | awk 'NR==2{print $4}')
+      echo "  Disk free: ${DISK_FREE}"
+      echo "=== Deploy complete ==="
+
   environment:
     name: production
     url: http://cubeos.cube
