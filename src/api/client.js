@@ -7,12 +7,14 @@
  * All service operations should use the apps.js store instead.
  */
 
+import { safeGetRaw, safeSetRaw, safeRemoveItem } from '@/utils/storage'
+
 const API_BASE = '/api/v1'
 
 class ApiClient {
   constructor() {
-    this.accessToken = localStorage.getItem('cubeos_access_token')
-    this.refreshToken = localStorage.getItem('cubeos_refresh_token')
+    this.accessToken = safeGetRaw('cubeos_access_token')
+    this.refreshToken = safeGetRaw('cubeos_refresh_token')
     // Guard against concurrent refresh attempts
     this._refreshPromise = null
   }
@@ -178,11 +180,11 @@ class ApiClient {
   setTokens(accessToken, refreshToken) {
     this.accessToken = accessToken
     if (accessToken) {
-      localStorage.setItem('cubeos_access_token', accessToken)
+      safeSetRaw('cubeos_access_token', accessToken)
     }
     if (refreshToken) {
       this.refreshToken = refreshToken
-      localStorage.setItem('cubeos_refresh_token', refreshToken)
+      safeSetRaw('cubeos_refresh_token', refreshToken)
     }
   }
 
@@ -192,8 +194,8 @@ class ApiClient {
   clearTokens() {
     this.accessToken = null
     this.refreshToken = null
-    localStorage.removeItem('cubeos_access_token')
-    localStorage.removeItem('cubeos_refresh_token')
+    safeRemoveItem('cubeos_access_token')
+    safeRemoveItem('cubeos_refresh_token')
   }
 
   /**

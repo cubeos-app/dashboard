@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/client'
+import { safeGetRaw } from '@/utils/storage'
 
 export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref(null)
-  const token = ref(localStorage.getItem('cubeos_access_token') || null)
+  const token = ref(safeGetRaw('cubeos_access_token'))
   const loading = ref(false)
   const error = ref(null)
 

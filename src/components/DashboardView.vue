@@ -14,6 +14,7 @@ import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useAppsStore } from '@/stores/apps'
+import { safeGetItem, safeSetItem } from '@/utils/storage'
 import Icon from '@/components/ui/Icon.vue'
 import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
 import AskCubeOS from '@/components/chat/AskCubeOS.vue'
@@ -66,17 +67,12 @@ const favoriteApps = computed(() => {
 
 // Recently used (stored in localStorage)
 const recentApps = computed(() => {
-  try {
-    const stored = localStorage.getItem('cubeos-recent')
-    if (!stored) return []
-    const names = JSON.parse(stored)
-    return names
-      .map(name => appsStore.getAppByName(name))
-      .filter(Boolean)
-      .slice(0, 6)
-  } catch (e) {
-    return []
-  }
+  const names = safeGetItem('cubeos-recent', [])
+  if (!Array.isArray(names)) return []
+  return names
+    .map(name => appsStore.getAppByName(name))
+    .filter(Boolean)
+    .slice(0, 6)
 })
 
 /**
@@ -172,7 +168,7 @@ function toggleFavorite(appName) {
   } else {
     favorites.value.splice(idx, 1)
   }
-  localStorage.setItem('cubeos-favorites', JSON.stringify(favorites.value))
+  safeSetItem('cubeos-favorites', favorites.value)
 }
 
 function isFavorite(appName) {
@@ -180,16 +176,14 @@ function isFavorite(appName) {
 }
 
 function trackUsage(appName) {
-  try {
-    const stored = localStorage.getItem('cubeos-recent')
-    let recent = stored ? JSON.parse(stored) : []
-    // Remove if exists, add to front
-    recent = recent.filter(n => n !== appName)
-    recent.unshift(appName)
-    // Keep only last 10
-    recent = recent.slice(0, 10)
-    localStorage.setItem('cubeos-recent', JSON.stringify(recent))
-  } catch (e) {}
+  let recent = safeGetItem('cubeos-recent', [])
+  if (!Array.isArray(recent)) recent = []
+  // Remove if exists, add to front
+  recent = recent.filter(n => n !== appName)
+  recent.unshift(appName)
+  // Keep only last 10
+  recent = recent.slice(0, 10)
+  safeSetItem('cubeos-recent', recent)
 }
 
 function openApp(app) {
@@ -223,10 +217,8 @@ function getHealthStatus(app) {
 // Lifecycle
 onMounted(async () => {
   // Load favorites
-  try {
-    const stored = localStorage.getItem('cubeos-favorites')
-    if (stored) favorites.value = JSON.parse(stored)
-  } catch (e) {}
+  favorites.value = safeGetItem('cubeos-favorites', [])
+  if (!Array.isArray(favorites.value)) favorites.value = []
   
   // Load data
   await Promise.all([

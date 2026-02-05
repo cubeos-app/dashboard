@@ -1,5 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
+import { safeGetRaw, safeSetRaw } from '@/utils/storage'
 
 export const useThemeStore = defineStore('theme', () => {
   // Two themes: one dark, one light
@@ -31,7 +32,7 @@ export const useThemeStore = defineStore('theme', () => {
   ])
 
   // Current theme ID — only 'dark' and 'light' are valid
-  const storedTheme = localStorage.getItem('cubeos-theme')
+  const storedTheme = safeGetRaw('cubeos-theme')
   const currentThemeId = ref(
     storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : 'dark'
   )
@@ -61,7 +62,7 @@ export const useThemeStore = defineStore('theme', () => {
     const theme = themes.value.find(t => t.id === themeId)
     if (theme) {
       currentThemeId.value = themeId
-      localStorage.setItem('cubeos-theme', themeId)
+      safeSetRaw('cubeos-theme', themeId)
       applyTheme(themeId)
     }
   }
@@ -81,10 +82,10 @@ export const useThemeStore = defineStore('theme', () => {
 
   // Initialize theme on load
   function initTheme() {
-    const saved = localStorage.getItem('cubeos-theme')
+    const saved = safeGetRaw('cubeos-theme')
     const themeId = (saved === 'dark' || saved === 'light') ? saved : 'dark'
     currentThemeId.value = themeId
-    localStorage.setItem('cubeos-theme', themeId)
+    safeSetRaw('cubeos-theme', themeId)
     applyTheme(themeId)
   }
 

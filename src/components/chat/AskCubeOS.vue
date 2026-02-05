@@ -1,5 +1,6 @@
 <script setup>
 import { ref, nextTick, onMounted, watch } from 'vue'
+import { safeGetRaw } from '@/utils/storage'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
@@ -72,7 +73,7 @@ function parseMarkdown(text) {
 
 async function checkStatus() {
   try {
-    const token = localStorage.getItem('cubeos_access_token')
+    const token = safeGetRaw('cubeos_access_token')
     const resp = await fetch('/api/v1/chat/status', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -87,7 +88,7 @@ async function checkStatus() {
 async function pullModel() {
   isPullingModel.value = true
   try {
-    const token = localStorage.getItem('cubeos_access_token')
+    const token = safeGetRaw('cubeos_access_token')
     await fetch('/api/v1/chat/pull-model', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` }
@@ -125,7 +126,7 @@ async function sendMessage(text = null) {
   messages.value.push({ role: 'assistant', content: '', loading: true, sources: [] })
 
   try {
-    const token = localStorage.getItem('cubeos_access_token')
+    const token = safeGetRaw('cubeos_access_token')
     // Send last 6 messages as history (matches API limit)
     const history = messages.value.slice(0, -2).slice(-6)
 

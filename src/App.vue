@@ -6,6 +6,7 @@ import { useBrandingStore } from '@/stores/branding'
 import { useSystemStore } from '@/stores/system'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
+import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -75,7 +76,9 @@ onUnmounted(() => {
           class="flex-1 min-h-[calc(100vh-3.5rem)] p-4 lg:p-5 transition-all duration-300"
           :class="sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-60'"
         >
-          <router-view />
+          <ErrorBoundary>
+            <router-view />
+          </ErrorBoundary>
         </main>
       </div>
     </template>

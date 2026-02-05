@@ -7,6 +7,7 @@
  */
 import { computed, ref, onMounted } from 'vue'
 import { useAppsStore } from '@/stores/apps'
+import { safeGetItem, safeSetItem } from '@/utils/storage'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
@@ -29,10 +30,8 @@ const favorites = ref([])
 
 // Load favorites from localStorage
 onMounted(() => {
-  try {
-    const stored = localStorage.getItem('cubeos-favorites')
-    if (stored) favorites.value = JSON.parse(stored)
-  } catch (e) {}
+  favorites.value = safeGetItem('cubeos-favorites', [])
+  if (!Array.isArray(favorites.value)) favorites.value = []
 })
 
 // Computed properties
@@ -90,14 +89,12 @@ const extraPortCount = computed(() => {
 
 // Track usage in localStorage
 function trackUsage(name) {
-  try {
-    const stored = localStorage.getItem('cubeos-recent')
-    let recent = stored ? JSON.parse(stored) : []
-    recent = recent.filter(n => n !== name)
-    recent.unshift(name)
-    recent = recent.slice(0, 10)
-    localStorage.setItem('cubeos-recent', JSON.stringify(recent))
-  } catch (e) {}
+  let recent = safeGetItem('cubeos-recent', [])
+  if (!Array.isArray(recent)) recent = []
+  recent = recent.filter(n => n !== name)
+  recent.unshift(name)
+  recent = recent.slice(0, 10)
+  safeSetItem('cubeos-recent', recent)
 }
 
 function handleClick() {
@@ -137,7 +134,7 @@ function handleToggleFavorite(e) {
   } else {
     favorites.value.splice(idx, 1)
   }
-  localStorage.setItem('cubeos-favorites', JSON.stringify(favorites.value))
+  safeSetItem('cubeos-favorites', favorites.value)
 }
 </script>
 
