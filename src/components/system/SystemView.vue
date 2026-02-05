@@ -46,8 +46,8 @@ const showCreateBackup = ref(false)
 const newBackupType = ref('config')
 const newBackupDescription = ref('')
 
-// Note: systemStore.fetchStats() is polled globally by App.vue every 5s
-// Only powerInterval is needed here (unique to system page)
+// Note: systemStore stats are updated in real-time via WebSocket in App.vue
+// (with HTTP polling fallback). Only powerInterval is needed here (unique to system page).
 let powerInterval = null
 
 /**
@@ -178,7 +178,7 @@ const batteryBarClass = computed(() => {
   const pct = powerStatus.value?.battery_percent || 0
   if (pct < 10) return 'bg-error'
   if (pct < 20) return 'bg-warning'
-  if (pct < 50) return 'bg-yellow-400'
+  if (pct < 50) return 'bg-warning'
   return 'bg-success'
 })
 

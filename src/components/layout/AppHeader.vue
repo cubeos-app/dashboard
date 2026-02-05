@@ -64,6 +64,9 @@ const batteryPercent = computed(() => {
 const batteryCharging = computed(() => {
   return systemStore.power?.is_charging || systemStore.power?.charging || false
 })
+
+// WebSocket connection status for the live indicator
+const wsConnected = computed(() => systemStore.wsConnected)
 </script>
 
 <template>
@@ -91,6 +94,20 @@ const batteryCharging = computed(() => {
 
       <!-- Center: System stats (desktop only) -->
       <div class="hidden lg:flex items-center gap-0.5">
+        <!-- Connection mode indicator -->
+        <div 
+          class="flex items-center gap-1 px-2 py-1 rounded-md text-xs"
+          :title="wsConnected ? 'Real-time WebSocket connection' : 'Polling (HTTP fallback)'"
+        >
+          <span 
+            class="w-1.5 h-1.5 rounded-full"
+            :class="wsConnected ? 'bg-success animate-pulse' : 'bg-warning'"
+          ></span>
+          <span class="text-theme-muted font-medium">{{ wsConnected ? 'LIVE' : 'POLL' }}</span>
+        </div>
+
+        <div class="w-px h-3 bg-theme-primary mx-1"></div>
+
         <!-- Uptime -->
         <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-theme-secondary text-xs">
           <Icon name="Clock" :size="13" class="text-theme-muted" />

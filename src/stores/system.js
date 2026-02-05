@@ -26,6 +26,7 @@ export const useSystemStore = defineStore('system', () => {
   const loading = ref(false)
   const error = ref(null)
   const lastUpdated = ref(null)
+  const wsConnected = ref(false)  // WebSocket connection status
 
   // Uptime - can come from info or be fetched separately
   const uptime = computed(() => {
@@ -245,6 +246,55 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
 
+  /**
+   * Update stats from WebSocket message.
+   * Maps the WS payload format to the flat format used by the store.
+   * Called by App.vue's onStats callback.
+   *
+   * WS format:  { system: { cpu: { percent }, memory: { percent, used, total }, ... }, network, docker }
+   * Store format: { cpu_percent, memory_percent, memory_used, memory_total, ... }
+   */
+  function updateFromWebSocket(data) {
+    if (!data) return
+
+    const sys = data.system
+    if (sys) {
+      // Build the flat stats object the store and AppHeader expect
+      const updated = { ...(stats.value || {}) }
+      if (sys.cpu) {
+        updated.cpu_percent = sys.cpu.percent ?? updated.cpu_percent
+      }
+      if (sys.memory) {
+        updated.memory_percent = sys.memory.percent ?? updated.memory_percent
+        updated.memory_used = sys.memory.used ?? updated.memory_used
+        updated.memory_total = sys.memory.total ?? updated.memory_total
+      }
+      if (sys.disk) {
+        updated.disk_percent = sys.disk.percent ?? updated.disk_percent
+        updated.disk_used = sys.disk.used ?? updated.disk_used
+        updated.disk_total = sys.disk.total ?? updated.disk_total
+      }
+      if (sys.temperature) {
+        updated.temperature_cpu = sys.temperature.cpu_temp_c ?? updated.temperature_cpu
+      }
+      stats.value = updated
+    }
+
+    // Network → wifi client count
+    if (data.network && data.network.clients_connected !== undefined) {
+      wifiClientsData.value = { clients: new Array(data.network.clients_connected) }
+    }
+
+    lastUpdated.value = new Date()
+  }
+
+  /**
+   * Set WebSocket connection status — called by App.vue
+   */
+  function setWsConnected(value) {
+    wsConnected.value = value
+  }
+
   return {
     // State
     info,
@@ -256,6 +306,7 @@ export const useSystemStore = defineStore('system', () => {
     loading,
     error,
     lastUpdated,
+    wsConnected,
     
     // Computed getters
     hostname,
@@ -282,6 +333,8 @@ export const useSystemStore = defineStore('system', () => {
     fetchPower,  // Legacy alias
     fetchWifiClients,
     fetchAll,
+    updateFromWebSocket,
+    setWsConnected,
     reboot,
     shutdown,
     

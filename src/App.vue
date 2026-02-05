@@ -1,9 +1,10 @@
 <script setup>
-import { onMounted, ref, onUnmounted } from 'vue'
+import { onMounted, ref, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useBrandingStore } from '@/stores/branding'
 import { useSystemStore } from '@/stores/system'
+import { useWebSocket } from '@/composables/useWebSocket'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
@@ -19,8 +20,49 @@ const systemStore = useSystemStore()
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
 
-// Stats refresh interval
-let statsInterval = null
+// HTTP fallback polling interval
+let fallbackInterval = null
+const FALLBACK_POLL_MS = 5000
+
+/**
+ * WebSocket connection for real-time stats.
+ * onStats callback maps WS messages into the system store so all views
+ * (AppHeader, DashboardView, SystemView) get live data automatically.
+ */
+const { connected: wsConnected, reconnect: wsReconnect } = useWebSocket({
+  interval: 2,
+  autoConnect: false, // We connect manually after auth check
+  onStats: (data) => {
+    systemStore.updateFromWebSocket(data)
+  }
+})
+
+// Keep system store's wsConnected in sync with the composable
+watch(wsConnected, (isConnected) => {
+  systemStore.setWsConnected(isConnected)
+
+  if (isConnected) {
+    // WS connected — stop HTTP fallback polling
+    stopFallbackPolling()
+  } else {
+    // WS disconnected — start HTTP fallback polling
+    startFallbackPolling()
+  }
+})
+
+function startFallbackPolling() {
+  if (fallbackInterval) return // Already running
+  fallbackInterval = setInterval(() => {
+    systemStore.fetchStats()
+  }, FALLBACK_POLL_MS)
+}
+
+function stopFallbackPolling() {
+  if (fallbackInterval) {
+    clearInterval(fallbackInterval)
+    fallbackInterval = null
+  }
+}
 
 function toggleSidebar() {
   if (window.innerWidth < 1024) {
@@ -42,22 +84,18 @@ onMounted(async () => {
   // Initialize auth
   await authStore.init()
   
-  // If authenticated, fetch system data for header display
+  // If authenticated, fetch system data and connect WebSocket
   if (authStore.isAuthenticated) {
     // Fetch all system data including battery from HAL
     systemStore.fetchAll()
     
-    // Refresh stats every 5 seconds for live header display
-    statsInterval = setInterval(() => {
-      systemStore.fetchStats()
-    }, 5000)
+    // Try WebSocket first — if it fails, the watcher above starts HTTP fallback
+    wsReconnect()
   }
 })
 
 onUnmounted(() => {
-  if (statsInterval) {
-    clearInterval(statsInterval)
-  }
+  stopFallbackPolling()
 })
 </script>
 

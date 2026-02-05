@@ -36,9 +36,6 @@ const chatQuery = ref('')
 const selectedApp = ref(null)
 const favorites = ref([])
 
-// Refresh interval
-let refreshInterval = null
-
 // Quick actions for search (pages user can navigate to)
 const quickActions = [
   { name: 'Settings', icon: 'Settings', route: '/settings', keywords: ['settings', 'preferences', 'theme', 'appearance', 'account', 'password'] },
@@ -229,15 +226,11 @@ onMounted(async () => {
     appsStore.fetchApps({ signal: s })
   ])
   
-  // Auto-refresh stats (apps use centralized store polling)
+  // Start centralized app polling (stats handled by App.vue WebSocket)
   appsStore.startPolling()
-  refreshInterval = setInterval(() => {
-    systemStore.fetchStats({ signal: signal() })
-  }, 10000)
 })
 
 onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
   appsStore.stopPolling()
 })
 </script>
