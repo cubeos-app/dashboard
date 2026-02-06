@@ -10,6 +10,7 @@
  */
 import { computed, ref, onMounted } from 'vue'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
+import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const emit = defineEmits(['modeChanged', 'showWifiConnect'])
@@ -92,16 +93,21 @@ onMounted(async () => {
 async function selectMode(mode) {
   if (mode.id === currentMode.value) return
   
-  selectedMode.value = mode.id
-  
   // For WiFi client mode, show the WiFi connector
   if (mode.id === NETWORK_MODES.ONLINE_WIFI) {
     emit('showWifiConnect')
-    selectedMode.value = null
     return
   }
   
-  // For other modes, apply directly
+  // Confirm mode switch — disconnects all AP clients
+  if (!await confirm({
+    title: 'Switch Network Mode',
+    message: `Switch to ${mode.name} mode? This will reconfigure networking and may disconnect all connected clients.`,
+    confirmText: 'Switch Mode',
+    variant: 'warning'
+  })) return
+  
+  selectedMode.value = mode.id
   changingMode.value = true
   try {
     const success = await networkStore.setMode(mode.id)

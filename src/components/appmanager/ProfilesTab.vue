@@ -28,13 +28,28 @@ async function createProfile() {
 
 async function activateProfile(profile) {
   if (profile.is_active) return
+  if (!await confirm({
+    title: 'Activate Profile',
+    message: `Activate profile "${profile.name}"? This will start/stop containers to match the profile configuration.`,
+    confirmText: 'Activate',
+    variant: 'warning'
+  })) return
   activating.value = profile.name
   try { await store.activateProfile(profile.name) } catch (e) {}
   finally { activating.value = null }
 }
 
 async function deleteProfile(profile) {
-  if (profile.is_active) { alert('Cannot delete active profile. Activate another profile first.'); return }
+  if (profile.is_active) {
+    await confirm({
+      title: 'Cannot Delete Active Profile',
+      message: 'Activate another profile first before deleting this one.',
+      confirmText: 'OK',
+      cancelText: '',
+      variant: 'info'
+    })
+    return
+  }
   if (!await confirm({
     title: 'Delete Profile',
     message: `Delete profile "${profile.name}"?`,

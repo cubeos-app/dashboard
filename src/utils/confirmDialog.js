@@ -48,6 +48,10 @@ export function confirm({
   variant = 'danger'
 } = {}) {
   return new Promise((resolve) => {
+    // If a previous dialog is still pending, resolve it as cancelled
+    if (confirmState._resolve) {
+      confirmState._resolve(false)
+    }
     confirmState.title = title
     confirmState.message = message
     confirmState.confirmText = confirmText

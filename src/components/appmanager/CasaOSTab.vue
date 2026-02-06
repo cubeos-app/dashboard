@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useAppManagerStore } from '@/stores/appmanager'
+import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const store = useAppManagerStore()
@@ -50,7 +51,13 @@ async function previewAppJson(json) {
     previewApp.value = result.app
     showPreviewModal.value = true
   } catch (e) {
-    alert('Failed to parse CasaOS JSON: ' + e.message)
+    await confirm({
+      title: 'Parse Error',
+      message: 'Failed to parse CasaOS JSON: ' + e.message,
+      confirmText: 'OK',
+      cancelText: '',
+      variant: 'danger'
+    })
   }
 }
 
@@ -74,7 +81,13 @@ async function importApp() {
     previewCompose.value = ''
     pastedJson.value = ''
   } catch (e) {
-    alert('Failed to import app: ' + e.message)
+    await confirm({
+      title: 'Import Failed',
+      message: 'Failed to import app: ' + e.message,
+      confirmText: 'OK',
+      cancelText: '',
+      variant: 'danger'
+    })
   }
   finally { importing.value = false }
 }

@@ -10,6 +10,7 @@
 
 import { ref, computed, watch } from 'vue'
 import { useAppsStore } from '@/stores/apps'
+import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
@@ -98,10 +99,20 @@ const sizeClasses = computed(() => {
 async function toggle() {
   if (props.disabled || isLoading.value) return
   
+  const newState = !isEnabled.value
+  
+  // Confirm Tor routing change
+  if (!await confirm({
+    title: newState ? 'Enable Tor Routing' : 'Disable Tor Routing',
+    message: newState
+      ? `Route all traffic for ${props.appName} through Tor? This may slow down the connection.`
+      : `Disable Tor routing for ${props.appName}? Traffic will use a direct connection.`,
+    confirmText: newState ? 'Enable Tor' : 'Disable Tor',
+    variant: 'warning'
+  })) return
+  
   isLoading.value = true
   error.value = null
-  
-  const newState = !isEnabled.value
   
   try {
     const result = await appsStore.setAppTor(props.appName, newState)

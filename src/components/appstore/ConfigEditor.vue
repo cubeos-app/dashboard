@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { confirm } from '@/utils/confirmDialog'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
@@ -217,6 +217,19 @@ function goBack() {
 
 onMounted(() => {
   loadConfig()
+})
+
+onBeforeRouteLeave(async () => {
+  if (hasChanges.value) {
+    const leave = await confirm({
+      title: 'Unsaved Changes',
+      message: 'You have unsaved configuration changes. Leave without saving?',
+      confirmText: 'Leave',
+      cancelText: 'Stay',
+      variant: 'warning'
+    })
+    if (!leave) return false
+  }
 })
 
 watch(() => route.params.appId, () => {

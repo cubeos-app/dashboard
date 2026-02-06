@@ -211,6 +211,29 @@ async function copyBootConfig() {
   }
 }
 
+async function handleToggleCharging() {
+  const enabling = !isCharging.value
+  if (!await confirm({
+    title: enabling ? 'Enable Charging' : 'Disable Charging',
+    message: enabling
+      ? 'Enable battery charging? Make sure the correct power source is connected.'
+      : 'Disable battery charging? The system will run on battery power only.',
+    confirmText: enabling ? 'Enable' : 'Disable',
+    variant: 'warning'
+  })) return
+  hardwareStore.setCharging(enabling)
+}
+
+async function handleBatteryQuickStart() {
+  if (!await confirm({
+    title: 'Battery Quick Start',
+    message: 'Run battery quick start? This will briefly pulse the charging circuit to initialize the battery.',
+    confirmText: 'Quick Start',
+    variant: 'warning'
+  })) return
+  hardwareStore.batteryQuickStart()
+}
+
 // Track which tabs have been auto-loaded
 const tabsLoaded = ref({ overview: true })
 
@@ -419,7 +442,7 @@ onMounted(() => {
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-theme-secondary">Charging</span>
                   <button
-                    @click="hardwareStore.setCharging(!isCharging)"
+                    @click="handleToggleCharging()"
                     :class="[
                       'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                       isCharging ? 'bg-success' : 'bg-theme-tertiary'
@@ -436,7 +459,7 @@ onMounted(() => {
 
                 <!-- Quick start button -->
                 <button
-                  @click="hardwareStore.batteryQuickStart()"
+                  @click="handleBatteryQuickStart()"
                   class="w-full px-3 py-2 text-sm font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors"
                 >
                   <Icon name="Zap" :size="14" class="inline-block mr-1.5 -mt-0.5" />

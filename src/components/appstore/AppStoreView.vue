@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAppStoreStore } from '@/stores/appstore'
+import { confirm } from '@/utils/confirmDialog'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 import AppCard from './AppCard.vue'
@@ -175,6 +176,26 @@ function formatDate(dateStr) {
   } catch {
     return dateStr
   }
+}
+
+async function handleRemoveApp(appId) {
+  if (!await confirm({
+    title: 'Uninstall App',
+    message: 'Uninstall this app? All associated data and volumes may be removed.',
+    confirmText: 'Uninstall',
+    variant: 'danger'
+  })) return
+  appStore.removeApp(appId, false)
+}
+
+async function handleRemoveStore(storeId) {
+  if (!await confirm({
+    title: 'Remove Store',
+    message: 'Remove this app store source? You can re-add it later.',
+    confirmText: 'Remove',
+    variant: 'danger'
+  })) return
+  appStore.removeStore(storeId)
 }
 
 onMounted(async () => {
@@ -433,7 +454,7 @@ onMounted(async () => {
               </button>
 
               <button
-                @click.stop="appStore.removeApp(app.id, false)"
+                @click.stop="handleRemoveApp(app.id)"
                 class="p-2 rounded-lg text-error hover:bg-error-muted transition-colors"
                 title="Remove"
               >
@@ -660,7 +681,7 @@ onMounted(async () => {
               
               <button
                 v-if="store.id !== 'casaos-official'"
-                @click.stop="appStore.removeStore(store.id)"
+                @click.stop="handleRemoveStore(store.id)"
                 class="p-2 rounded-lg text-error hover:bg-error-muted transition-colors"
                 title="Remove"
               >

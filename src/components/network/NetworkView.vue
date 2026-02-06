@@ -78,7 +78,7 @@ async function openAPConfigModal() {
 
 async function saveAPConfig() {
   if (apConfig.value.password && apConfig.value.password.length < 8) {
-    alert('Password must be at least 8 characters')
+    error.value = 'Password must be at least 8 characters'
     return
   }
   
@@ -89,7 +89,7 @@ async function saveAPConfig() {
     showAPConfigModal.value = false
     setTimeout(() => fetchAll(), 2000)
   } catch (e) {
-    alert('Failed to save AP config: ' + e.message)
+    error.value = 'Failed to save AP config: ' + e.message
   } finally {
     apConfigLoading.value = false
   }
@@ -265,6 +265,16 @@ async function fetchAll() {
 
 // Actions — uses firewall store (FS-03b provided methods)
 async function toggleNAT() {
+  const enabling = !natStatus.value?.enabled
+  if (!await confirm({
+    title: enabling ? 'Enable NAT' : 'Disable NAT',
+    message: enabling
+      ? 'Enable NAT to share internet with AP clients?'
+      : 'Disabling NAT will cut internet access for all AP clients. Continue?',
+    confirmText: enabling ? 'Enable' : 'Disable',
+    variant: enabling ? 'info' : 'warning'
+  })) return
+
   try {
     if (natStatus.value?.enabled) {
       await firewallStore.disableNat()
@@ -276,6 +286,26 @@ async function toggleNAT() {
   } catch (e) {
     error.value = e.message
   }
+}
+
+async function handleForgetNetwork(ssid) {
+  if (!await confirm({
+    title: 'Forget Network',
+    message: `Forget saved network "${ssid}"? You will need to re-enter the password to connect again.`,
+    confirmText: 'Forget',
+    variant: 'danger'
+  })) return
+  networkStore.forgetNetwork(ssid)
+}
+
+async function handleBlockClient(mac) {
+  if (!await confirm({
+    title: 'Block Client',
+    message: `Block device ${mac}? This will disconnect the client and prevent it from reconnecting.`,
+    confirmText: 'Block',
+    variant: 'danger'
+  })) return
+  clientsStore.blockClient(mac)
 }
 
 // Tab change handler: load tab-specific data
@@ -823,7 +853,7 @@ function formatDuration(seconds) {
               </div>
             </div>
             <button
-              @click="networkStore.forgetNetwork(net.ssid)"
+              @click="handleForgetNetwork(net.ssid)"
               class="px-2.5 py-1 text-xs text-error hover:bg-error-muted rounded-lg transition-colors"
             >
               Forget
@@ -986,7 +1016,7 @@ function formatDuration(seconds) {
                 
                 <!-- Block action -->
                 <button 
-                  @click="clientsStore.blockClient(client.mac || client.mac_address)"
+                  @click="handleBlockClient(client.mac || client.mac_address)"
                   class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-theme-tertiary transition-colors"
                   title="Block client"
                 >

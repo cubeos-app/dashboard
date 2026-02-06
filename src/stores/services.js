@@ -59,7 +59,6 @@ export const useServicesStore = defineStore('services', () => {
       dockerServices.value = response.services || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch Docker services:', e)
       dockerServices.value = []
     } finally {
       loading.value = false
@@ -83,7 +82,6 @@ export const useServicesStore = defineStore('services', () => {
       return response
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch service ${name}:`, e)
       return null
     }
   }
@@ -101,7 +99,6 @@ export const useServicesStore = defineStore('services', () => {
       await fetchAll()
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to start service ${name}:`, e)
       throw e
     }
   }
@@ -119,7 +116,6 @@ export const useServicesStore = defineStore('services', () => {
       await fetchAll()
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to stop service ${name}:`, e)
       throw e
     }
   }
@@ -137,7 +133,6 @@ export const useServicesStore = defineStore('services', () => {
       await fetchAll()
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to restart service ${name}:`, e)
       throw e
     }
   }

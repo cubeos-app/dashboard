@@ -5,7 +5,10 @@
  * Modal confirmation dialog for destructive actions.
  * Replaces native confirm() with a themed, accessible modal.
  */
+import { ref, watch, nextTick } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
+
+const dialogRef = ref(null)
 
 const props = defineProps({
   show: {
@@ -58,6 +61,13 @@ const iconColorMap = {
   warning: 'text-warning',
   info: 'text-accent'
 }
+
+// Auto-focus dialog when shown so it receives keyboard events
+watch(() => props.show, (visible) => {
+  if (visible) {
+    nextTick(() => dialogRef.value?.focus())
+  }
+})
 </script>
 
 <template>
@@ -65,10 +75,13 @@ const iconColorMap = {
     <Transition name="fade">
       <div
         v-if="show"
+        ref="dialogRef"
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
         role="dialog"
         aria-modal="true"
         :aria-label="title"
+        tabindex="-1"
+        @keydown.escape="emit('cancel')"
       >
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50" @click="emit('cancel')"></div>
