@@ -110,12 +110,15 @@ function handleInstallClick() {
     showInstallOptions.value = true
     return
   }
-  // Confirm install (with options if set)
-  emit('install', storeId.value, appName.value)
+  // Confirm install with options
+  const options = {}
+  if (installPort.value) options.port = parseInt(installPort.value, 10)
+  if (installFqdn.value) options.fqdn = installFqdn.value
+  emit('install', storeId.value, appName.value, options)
 }
 
 function handleSkipInstall() {
-  emit('install', storeId.value, appName.value)
+  emit('install', storeId.value, appName.value, {})
 }
 
 function handleClose() {

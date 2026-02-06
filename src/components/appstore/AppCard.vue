@@ -23,7 +23,7 @@ const tagline = computed(() => {
 <template>
   <button
     @click="emit('click', app)"
-    class="group flex flex-col items-center p-3 rounded-xl border border-theme-primary bg-theme-card transition-all duration-150 hover:border-accent/40 hover:shadow-theme-md hover:-translate-y-0.5 text-left"
+    class="group relative flex flex-col items-center p-3 rounded-xl border border-theme-primary bg-theme-card transition-all duration-150 hover:border-accent/40 hover:shadow-theme-md hover:-translate-y-0.5 text-left"
   >
     <!-- Installed badge -->
     <div v-if="app.installed" class="absolute top-2 right-2">

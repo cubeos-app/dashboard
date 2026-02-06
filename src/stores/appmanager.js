@@ -1,19 +1,16 @@
 /**
  * CubeOS App Manager Store
  * 
- * Sprint 4: Updated to handle backend gaps gracefully.
+ * Manages apps, ports, FQDNs, profiles, and registry operations.
  * 
- * Working endpoints (verified):
+ * Verified endpoints:
  * - GET/POST/DELETE /apps, /apps/{name}, /apps/{name}/start|stop|restart
  * - GET /profiles, POST /profiles/{name}/apply
+ * - GET /ports, /ports/reserved, /ports/stats
+ * - GET /registry/status, /registry/images, /registry/disk-usage
  * 
- * Backend gaps (return 404, need implementation):
- * - GET/POST/DELETE /ports - Port management
- * - GET/POST/DELETE /fqdns - Domain management  
- * - GET /registry/status, /registry/images - Registry status
- * - GET/PUT /apps/{name}/config - App configuration
- * - GET/POST /casaos/* - CasaOS import
- * - GET/POST /npm/* - NPM integration
+ * NOTE: Some methods (initRegistry, cacheImage, setProfileApp, getAvailablePort)
+ * are stubs awaiting backend implementation. See TODO markers.
  */
 
 import { defineStore } from 'pinia'
@@ -73,12 +70,12 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   // ==========================================
-  // Apps (Working - verified)
+  // Apps
   // ==========================================
   
   /**
    * Fetch all apps
-   * GET /api/v1/apps - verified working, returns 8 apps
+   * GET /api/v1/apps
    */
   async function fetchApps() {
     const response = await api.get('/apps')
@@ -123,12 +120,13 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   // ==========================================
-  // Ports (Backend gap - returns 404)
+  // Ports
   // ==========================================
   
   /**
-   * Fetch ports - NOT IMPLEMENTED in backend
-   * GET /api/v1/ports returns 404
+   * Fetch ports
+   * GET /api/v1/ports
+   * Falls back to extracting ports from apps if endpoint unavailable
    */
   async function fetchPorts() {
     try {
@@ -136,7 +134,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
       ports.value = response.ports || []
       portsAvailable.value = true
     } catch (e) {
-      // Expected - endpoint not implemented
+      // Endpoint may not be available — extract ports from apps as fallback
       ports.value = []
       portsAvailable.value = false
       
@@ -176,12 +174,13 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   // ==========================================
-  // FQDNs/Domains (Backend gap - returns 404)
+  // FQDNs/Domains
   // ==========================================
   
   /**
-   * Fetch FQDNs - NOT IMPLEMENTED in backend
-   * GET /api/v1/fqdns returns 404
+   * Fetch FQDNs
+   * GET /api/v1/fqdns
+   * Falls back to extracting FQDNs from apps if endpoint unavailable
    */
   async function fetchFQDNs() {
     try {
@@ -189,7 +188,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
       fqdns.value = response.fqdns || []
       fqdnsAvailable.value = true
     } catch (e) {
-      // Expected - endpoint not implemented
+      // Endpoint may not be available — extract FQDNs from apps as fallback
       fqdns.value = []
       fqdnsAvailable.value = false
       
@@ -229,12 +228,12 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   // ==========================================
-  // Profiles (Working - verified)
+  // Profiles
   // ==========================================
   
   /**
    * Fetch profiles
-   * GET /api/v1/profiles - verified working, returns 3 profiles
+   * GET /api/v1/profiles
    */
   async function fetchProfiles() {
     const response = await api.get('/profiles')
@@ -258,19 +257,40 @@ export const useAppManagerStore = defineStore('appmanager', () => {
 
   /**
    * Activate profile
-   * POST /api/v1/profiles/{name}/apply - verified working
+   * POST /api/v1/profiles/{name}/apply
    */
   async function activateProfile(name) {
     await api.post(`/profiles/${name}/apply`)
     await fetchProfiles()
   }
 
+  /**
+   * Enable/disable an app within a profile
+   * TODO: ⚡ Backend endpoint not yet implemented — needs PUT /profiles/{name}/apps/{appId} or similar
+   * Called by ProfilesTab.vue:62
+   *
+   * @param {string} profileName - Profile name (not ID)
+   * @param {string} appId - App identifier
+   * @param {boolean} enabled - Whether the app should be enabled in this profile
+   */
+  async function setProfileApp(profileName, appId, enabled) {
+    error.value = null
+    try {
+      await api.put(`/profiles/${encodeURIComponent(profileName)}/apps/${encodeURIComponent(appId)}`, { enabled })
+      await fetchProfiles()
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
   // ==========================================
-  // Registry (Backend gap - returns 404)
+  // Registry
   // ==========================================
   
   /**
-   * Get registry status - NOT IMPLEMENTED in backend
+   * Get registry status
+   * GET /api/v1/registry/status
    */
   async function getRegistryStatus() {
     try {
@@ -281,7 +301,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
       registryAvailable.value = false
       return { 
         online: false, 
-        error: 'Registry status endpoint not implemented',
+        error: 'Registry status endpoint not available',
         _unavailable: true
       }
     }
@@ -293,6 +313,61 @@ export const useAppManagerStore = defineStore('appmanager', () => {
       return response.images || []
     } catch (e) {
       return []
+    }
+  }
+
+  /**
+   * Initialize (start) the local Docker registry
+   * TODO: ⚡ Backend endpoint not yet implemented — needs POST /registry/init or similar
+   * Called by RegistryTab.vue:81
+   */
+  async function initRegistry() {
+    error.value = null
+    try {
+      const result = await api.post('/registry/init')
+      registryAvailable.value = true
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Cache (pull) a remote image into the local registry
+   * TODO: ⚡ Backend endpoint not yet implemented — needs POST /registry/cache
+   * Called by RegistryTab.vue:95
+   *
+   * @param {string} imageRef - Full image reference (e.g. "nginx:latest")
+   */
+  async function cacheImage(imageRef) {
+    error.value = null
+    try {
+      const result = await api.post('/registry/cache', { image: imageRef })
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Delete a specific image (or image tag) from the local registry
+   * Uses DELETE /registry/images/{name} — tag-level deletion not yet in Swagger
+   * Called by RegistryTab.vue:177
+   *
+   * @param {string} name - Image name
+   * @param {string} [tag] - Optional tag (currently ignored — deletes entire image)
+   */
+  async function deleteRegistryImage(name, tag) {
+    error.value = null
+    try {
+      // TODO: ⚡ When backend supports tag-level deletion, use /registry/images/{name}/tags/{tag}
+      const encoded = encodeURIComponent(name)
+      await api.delete(`/registry/images/${encoded}`)
+    } catch (e) {
+      error.value = e.message
+      throw e
     }
   }
 
@@ -327,7 +402,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   // ==========================================
-  // CasaOS Import (Backend gap)
+  // CasaOS Import
   // ==========================================
   
   async function fetchCasaOSStore(url) {
@@ -335,7 +410,6 @@ export const useAppManagerStore = defineStore('appmanager', () => {
       const response = await api.get('/casaos/stores', { url })
       return response.apps || []
     } catch (e) {
-      // CasaOS import not implemented yet
       return []
     }
   }
@@ -351,14 +425,14 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   // ==========================================
-  // NPM Integration (Backend gap)
+  // NPM Integration
   // ==========================================
   
   async function getNPMStatus() {
     try {
       return await api.get('/npm/status')
     } catch (e) {
-      return { available: false, error: 'NPM status not implemented' }
+      return { available: false, error: e.message }
     }
   }
 
@@ -372,20 +446,18 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   }
 
   // ==========================================
-  // Reserved Ports & Port Stats (Sprint 5)
+  // Reserved Ports & Port Stats
   // ==========================================
 
   /**
    * Fetch reserved system ports
    * GET /ports/reserved
-   * Returns: list of ports reserved by CubeOS infrastructure
    */
   async function fetchReservedPorts() {
     try {
       const response = await api.get('/ports/reserved')
       reservedPorts.value = response.ports || response || []
     } catch (e) {
-      console.error('Failed to fetch reserved ports:', e)
       reservedPorts.value = []
     }
   }
@@ -393,7 +465,6 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   /**
    * Fetch port allocation statistics
    * GET /ports/stats
-   * Returns: { total, used, available }
    */
   async function fetchPortStats() {
     try {
@@ -404,13 +475,44 @@ export const useAppManagerStore = defineStore('appmanager', () => {
         available: response.available ?? 0
       }
     } catch (e) {
-      console.error('Failed to fetch port stats:', e)
       portStats.value = { total: 0, used: 0, available: 0 }
     }
   }
 
+  /**
+   * Get next available port in the given range
+   * TODO: ⚡ Backend endpoint not yet implemented — needs GET /ports/available?type={type}
+   * Falls back to local computation from known ports.
+   * Called by PortsTab.vue:36
+   *
+   * @param {string} type - Port range type: 'user' (6100-6999), 'infrastructure' (6000-6009), etc.
+   * @returns {number|null} Next available port, or null if range is full
+   */
+  async function getAvailablePort(type = 'user') {
+    error.value = null
+    try {
+      const response = await api.get('/ports/available', { type })
+      return response.port || null
+    } catch (e) {
+      // Fallback: compute locally from known allocated ports
+      const ranges = {
+        infrastructure: [6000, 6009],
+        platform: [6010, 6019],
+        network: [6020, 6029],
+        ai: [6030, 6039],
+        user: [6100, 6999]
+      }
+      const [min, max] = ranges[type] || ranges.user
+      const usedPorts = new Set(ports.value.map(p => p.port))
+      for (let p = min; p <= max; p++) {
+        if (!usedPorts.has(p)) return p
+      }
+      return null
+    }
+  }
+
   // ==========================================
-  // FQDN Detail & Edit (Sprint 5)
+  // FQDN Detail & Edit
   // ==========================================
 
   /**
@@ -426,7 +528,6 @@ export const useAppManagerStore = defineStore('appmanager', () => {
       return await api.get(`/fqdns/${encodeURIComponent(fqdn)}`)
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch FQDN detail for ${fqdn}:`, e)
       return null
     }
   }
@@ -449,7 +550,6 @@ export const useAppManagerStore = defineStore('appmanager', () => {
       return result
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to update FQDN ${fqdn}:`, e)
       throw e
     }
   }
@@ -484,7 +584,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     // Actions
     init,
     
-    // Apps (working)
+    // Apps
     fetchApps,
     registerApp,
     unregisterApp,
@@ -497,41 +597,46 @@ export const useAppManagerStore = defineStore('appmanager', () => {
     getAppConfig,
     saveAppConfig,
     
-    // Ports (backend gap)
+    // Ports
     fetchPorts,
     allocatePort,
     releasePort,
     
-    // Ports — reserved & stats (Sprint 5)
+    // Ports — reserved & stats
     fetchReservedPorts,
     fetchPortStats,
+    getAvailablePort,
     
-    // FQDNs (backend gap)
+    // FQDNs
     fetchFQDNs,
     registerFQDN,
     deregisterFQDN,
     
-    // FQDNs — detail & edit (Sprint 5)
+    // FQDNs — detail & edit
     getFQDNDetail,
     updateFQDN,
     
-    // Profiles (working)
+    // Profiles
     fetchProfiles,
     getProfile,
     createProfile,
     deleteProfile,
     activateProfile,
+    setProfileApp,
     
-    // Registry (backend gap)
+    // Registry
     getRegistryStatus,
     getRegistryImages,
+    initRegistry,
+    cacheImage,
+    deleteRegistryImage,
     
-    // CasaOS (backend gap)
+    // CasaOS
     fetchCasaOSStore,
     previewCasaOSApp,
     importCasaOSApp,
     
-    // NPM (backend gap)
+    // NPM
     getNPMStatus,
     getNPMHosts
   }

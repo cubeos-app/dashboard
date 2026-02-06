@@ -1,12 +1,20 @@
 /**
  * CubeOS Profiles Store
  * 
- * Sprint 4: Uses verified /api/v1/profiles endpoints.
- * Manages service profiles (Full, Minimal, Offline, Custom).
+ * Dedicated profile store used by ProfilesView and SystemView.
+ * 
+ * NOTE: Profile management also exists in appmanager.js (used by ProfilesTab).
+ * The two stores share the same API endpoints but serve different UI components:
+ *   - profiles.js  → ProfilesView (main profiles page), SystemView
+ *   - appmanager.js → ProfilesTab (within App Manager), includes setProfileApp
+ * 
+ * TODO: Consider consolidating into a single store to avoid dual sources of truth.
+ *       If consolidating, keep this store's richer API (activeProfile tracking,
+ *       helper methods) and add appmanager.js's setProfileApp here.
  * 
  * Verified endpoints:
- * - GET /api/v1/profiles - List profiles (returns 3 profiles, active: full)
- * - POST /api/v1/profiles/{name}/apply - Apply profile (404 for nonexistent)
+ * - GET /api/v1/profiles - List profiles
+ * - POST /api/v1/profiles/{name}/apply - Apply profile
  * - POST /api/v1/profiles - Create profile
  */
 

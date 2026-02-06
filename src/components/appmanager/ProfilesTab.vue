@@ -28,8 +28,8 @@ async function createProfile() {
 
 async function activateProfile(profile) {
   if (profile.is_active) return
-  activating.value = profile.id
-  try { await store.activateProfile(profile.id) } catch (e) {}
+  activating.value = profile.name
+  try { await store.activateProfile(profile.name) } catch (e) {}
   finally { activating.value = null }
 }
 
@@ -41,12 +41,12 @@ async function deleteProfile(profile) {
     confirmText: 'Delete',
     variant: 'danger'
   })) return
-  try { await store.deleteProfile(profile.id) } catch (e) {}
+  try { await store.deleteProfile(profile.name) } catch (e) {}
 }
 
 async function openConfigureModal(profile) {
   selectedProfile.value = profile
-  const details = await store.getProfile(profile.id)
+  const details = await store.getProfile(profile.name)
   if (details) {
     profileApps.value = store.apps.map(app => ({
       ...app,
@@ -59,7 +59,7 @@ async function openConfigureModal(profile) {
 async function toggleAppInProfile(app) {
   const newEnabled = !app.enabled_in_profile
   try {
-    await store.setProfileApp(selectedProfile.value.id, app.id, newEnabled)
+    await store.setProfileApp(selectedProfile.value.name, app.id, newEnabled)
     app.enabled_in_profile = newEnabled
   } catch (e) {}
 }
@@ -119,8 +119,8 @@ async function toggleAppInProfile(app) {
             <button @click="openConfigureModal(profile)" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-theme-secondary hover:text-theme-primary bg-theme-tertiary hover:bg-theme-primary/10 rounded transition-colors">
               <Icon name="Settings" :size="12" />Configure
             </button>
-            <button v-if="!profile.is_active" @click="activateProfile(profile)" :disabled="activating === profile.id" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-accent hover:bg-accent-hover rounded transition-colors disabled:opacity-50">
-              <Icon name="Zap" :size="12" />{{ activating === profile.id ? 'Activating...' : 'Activate' }}
+            <button v-if="!profile.is_active" @click="activateProfile(profile)" :disabled="activating === profile.name" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-accent hover:bg-accent-hover rounded transition-colors disabled:opacity-50">
+              <Icon name="Zap" :size="12" />{{ activating === profile.name ? 'Activating...' : 'Activate' }}
             </button>
           </div>
           <button v-if="!profile.is_active" @click="deleteProfile(profile)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Delete profile">

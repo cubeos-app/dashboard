@@ -64,9 +64,9 @@ function closeDetail() {
   selectedApp.value = null
 }
 
-async function handleInstall(storeId, appName) {
+async function handleInstall(storeId, appName, options = {}) {
   try {
-    await appStore.installApp(storeId, appName)
+    await appStore.installApp(storeId, appName, options)
     closeDetail()
   } catch (e) {
     // Error handled in store
@@ -813,7 +813,7 @@ onMounted(async () => {
     <AppDetailModal
       v-if="showDetailModal && selectedApp"
       :app="selectedApp"
-      :installing="appStore.installing === selectedApp.id"
+      :installing="appStore.installing === `${selectedApp.store_id || ''}/${selectedApp.name || ''}`"
       @close="closeDetail"
       @install="handleInstall"
     />

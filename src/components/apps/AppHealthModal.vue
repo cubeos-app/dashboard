@@ -71,7 +71,7 @@ watch(() => [props.show, props.app], async ([show, app]) => {
     error.value = null
     try {
       const result = await appsStore.getAppLogs(app.name, 50)
-      logs.value = result?.logs || []
+      logs.value = result || []
     } catch (e) {
       error.value = e.message
       logs.value = []
@@ -97,10 +97,9 @@ function close() {
       <div 
         v-if="show" 
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
-        @click.self="close"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="close"></div>
         
         <!-- Modal -->
         <div class="relative w-full max-w-lg bg-theme-card rounded-2xl border border-theme-primary shadow-theme-lg overflow-hidden">
