@@ -38,17 +38,25 @@ const smartData = ref(null)
 const healthData = ref(null)
 
 // Fetch SMART + health data
+// In inline mode, skip the SMART call to avoid N+1 API storm
+// (2 calls × N devices when rendered in a list)
 async function fetchHealth() {
   if (!props.device) return
   loading.value = true
   error.value = null
   try {
-    const [smart, health] = await Promise.all([
-      storageHalStore.fetchDeviceSMART(props.device),
-      storageStore.fetchDeviceHealth(props.device)
-    ])
-    smartData.value = smart
-    healthData.value = health
+    if (props.inline) {
+      // Inline mode: single lightweight call only
+      healthData.value = await storageStore.fetchDeviceHealth(props.device)
+    } else {
+      // Full mode: parallel fetch of both datasets
+      const [smart, health] = await Promise.all([
+        storageHalStore.fetchDeviceSMART(props.device),
+        storageStore.fetchDeviceHealth(props.device)
+      ])
+      smartData.value = smart
+      healthData.value = health
+    }
   } catch (e) {
     error.value = e.message || 'Failed to fetch health data'
   } finally {

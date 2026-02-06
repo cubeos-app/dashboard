@@ -84,6 +84,15 @@ const batteryColorClass = computed(() => {
   return 'bg-error'
 })
 
+/** Charging state — read from hardwareStore (same source as write) to avoid stale UI */
+const isCharging = computed(() => {
+  // Prefer hardwareStore.powerStatus (where setCharging writes to)
+  if (hardwareStore.powerStatus?.charging !== undefined) return hardwareStore.powerStatus.charging
+  if (hardwareStore.ups?.charging !== undefined) return hardwareStore.ups.charging
+  // Fallback to systemStore
+  return systemStore.isCharging
+})
+
 /** Throttle flags as a structured list for rendering */
 const throttleFlags = computed(() => {
   const t = hardwareStore.throttle
@@ -202,6 +211,20 @@ async function copyBootConfig() {
   }
 }
 
+// Track which tabs have been auto-loaded
+const tabsLoaded = ref({ overview: true })
+
+function onTabChange(tabId) {
+  activeTab.value = tabId
+  // Load tab data on first visit (lazy loading)
+  if (!tabsLoaded.value[tabId]) {
+    tabsLoaded.value[tabId] = true
+    if (tabId === 'services') loadServicesData()
+    // GPIO, I2C, Sensors, RTC/Watchdog panels fetch their own data
+    // on mount, so just marking as loaded is sufficient
+  }
+}
+
 onMounted(() => {
   loadOverviewData()
 })
@@ -267,7 +290,7 @@ onMounted(() => {
           <button
             v-for="tab in tabs"
             :key="tab.id"
-            @click="activeTab = tab.id; tab.id === 'services' && loadServicesData()"
+            @click="onTabChange(tab.id)"
             :class="[
               activeTab === tab.id
                 ? 'border-accent text-accent'
@@ -396,16 +419,16 @@ onMounted(() => {
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-theme-secondary">Charging</span>
                   <button
-                    @click="hardwareStore.setCharging(!systemStore.isCharging)"
+                    @click="hardwareStore.setCharging(!isCharging)"
                     :class="[
                       'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                      systemStore.isCharging ? 'bg-success' : 'bg-theme-tertiary'
+                      isCharging ? 'bg-success' : 'bg-theme-tertiary'
                     ]"
                   >
                     <span
                       :class="[
                         'inline-block h-4 w-4 rounded-full bg-white transition-transform',
-                        systemStore.isCharging ? 'translate-x-6' : 'translate-x-1'
+                        isCharging ? 'translate-x-6' : 'translate-x-1'
                       ]"
                     />
                   </button>

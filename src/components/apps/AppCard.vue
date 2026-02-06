@@ -25,6 +25,7 @@ const emit = defineEmits(['showHealth'])
 
 const appsStore = useAppsStore()
 const actionLoading = ref(false)
+const actionError = ref(null)
 
 // Computed properties using apps store helpers
 const displayName = computed(() => appsStore.getAppDisplayName(props.app))
@@ -86,11 +87,15 @@ async function handleAction(action, e) {
   })) return
   
   actionLoading.value = true
+  actionError.value = null
   try {
     if (action === 'start') await appsStore.startApp(props.app.name)
     else if (action === 'stop') await appsStore.stopApp(props.app.name)
     else if (action === 'restart') await appsStore.restartApp(props.app.name)
     await appsStore.fetchApps()
+  } catch (err) {
+    actionError.value = `Failed to ${action}: ${err.message || 'Unknown error'}`
+    setTimeout(() => { actionError.value = null }, 5000)
   } finally {
     actionLoading.value = false
   }
@@ -163,9 +168,7 @@ async function handleAction(action, e) {
               class="p-1.5 text-theme-tertiary hover:text-success hover:bg-success-muted rounded-lg transition-colors"
               title="Start"
             >
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+              <Icon name="Play" :size="16" />
             </button>
             
             <!-- Stop -->
@@ -176,9 +179,7 @@ async function handleAction(action, e) {
               class="p-1.5 text-theme-tertiary hover:text-error hover:bg-error-muted rounded-lg transition-colors"
               title="Stop"
             >
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <rect x="6" y="6" width="12" height="12" rx="1" />
-              </svg>
+              <Icon name="Square" :size="16" />
             </button>
             
             <!-- Restart -->
@@ -230,6 +231,15 @@ async function handleAction(action, e) {
     <!-- Loading overlay -->
     <div v-if="actionLoading" class="absolute inset-0 bg-theme-card/80 backdrop-blur-sm flex items-center justify-center">
       <Icon name="Loader2" :size="24" class="animate-spin text-accent" />
+    </div>
+
+    <!-- Action error feedback -->
+    <div
+      v-if="actionError"
+      class="absolute bottom-0 left-0 right-0 px-3 py-2 bg-error-muted text-error text-xs flex items-center gap-1.5"
+    >
+      <Icon name="AlertTriangle" :size="12" class="flex-shrink-0" />
+      <span class="truncate">{{ actionError }}</span>
     </div>
   </div>
 </template>

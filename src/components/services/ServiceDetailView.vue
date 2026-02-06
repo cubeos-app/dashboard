@@ -60,7 +60,8 @@ const isRunning = computed(() =>
 
 const isHealthy = computed(() => {
   const health = app.value?.status?.health
-  return health === 'healthy' || health === 'running' || !health
+  if (!health) return null  // Unknown state — don't mask as healthy
+  return health === 'healthy' || health === 'running'
 })
 
 const isCore = computed(() => 
@@ -77,7 +78,8 @@ const hasWebUI = computed(() =>
 
 const status = computed(() => {
   if (!isRunning.value) return { text: 'Stopped', color: 'text-neutral' }
-  if (!isHealthy.value) return { text: 'Unhealthy', color: 'text-warning' }
+  if (isHealthy.value === false) return { text: 'Unhealthy', color: 'text-warning' }
+  if (isHealthy.value === null) return { text: 'Running', color: 'text-success' }
   return { text: 'Running', color: 'text-success' }
 })
 

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useNetworkStore } from '@/stores/network'
 import { useClientsStore } from '@/stores/clients'
+import { useFirewallStore } from '@/stores/firewall'
 import { confirm } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
@@ -14,6 +15,7 @@ const { signal, abort } = useAbortOnUnmount()
 const router = useRouter()
 const networkStore = useNetworkStore()
 const clientsStore = useClientsStore()
+const firewallStore = useFirewallStore()
 
 // State
 const loading = ref(true)
@@ -205,6 +207,10 @@ const tabs = computed(() => [
 ])
 
 // Fetch data
+// TODO (FS-11): Migrate remaining direct api.get calls to network/firewall stores
+// Currently: /network/wifi/ap/status, /network/interfaces/detailed, /firewall/nat,
+//   /network/internet, /firewall/status, /network/mode are all direct.
+// NAT toggle already migrated to firewallStore (FS-04 #11).
 async function fetchAll() {
   loading.value = true
   error.value = null
@@ -257,15 +263,16 @@ async function fetchAll() {
   }
 }
 
-// Actions
+// Actions — uses firewall store (FS-03b provided methods)
 async function toggleNAT() {
   try {
     if (natStatus.value?.enabled) {
-      await api.post('/firewall/nat/disable')
+      await firewallStore.disableNat()
     } else {
-      await api.post('/firewall/nat/enable')
+      await firewallStore.enableNat()
     }
-    await fetchAll()
+    // Update local ref from store state
+    natStatus.value = { enabled: firewallStore.isNatEnabled }
   } catch (e) {
     error.value = e.message
   }
@@ -282,19 +289,38 @@ function onTabChange(tabId) {
   if (tabId === 'clients') clientsStore.fetchClients()
 }
 
-// Poll data
+// Poll data — paused when tab/window is not visible
 let pollInterval = null
 let trafficInterval = null
 
+function startPolling() {
+  if (!pollInterval) pollInterval = setInterval(fetchAll, 10000)
+  if (!trafficInterval) trafficInterval = setInterval(fetchTrafficHistory, 5000)
+}
+
+function stopPolling() {
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
+  if (trafficInterval) { clearInterval(trafficInterval); trafficInterval = null }
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    stopPolling()
+  } else {
+    fetchAll()
+    startPolling()
+  }
+}
+
 onMounted(() => {
   fetchAll()
-  pollInterval = setInterval(fetchAll, 10000)
   fetchTrafficHistory()
-  trafficInterval = setInterval(fetchTrafficHistory, 5000)
+  startPolling()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval)
-  if (trafficInterval) clearInterval(trafficInterval)
+  stopPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 // Traffic history state

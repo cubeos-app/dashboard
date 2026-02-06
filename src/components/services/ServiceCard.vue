@@ -6,6 +6,7 @@
  * Sprint 4: Uses unified apps.js store.
  */
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAppsStore } from '@/stores/apps'
 import { useFavoritesStore } from '@/stores/favorites'
 import { confirm } from '@/utils/confirmDialog'
@@ -26,6 +27,7 @@ const props = defineProps({
 const emit = defineEmits(['showHealth'])
 
 const appsStore = useAppsStore()
+const router = useRouter()
 const actionLoading = ref(false)
 const favoritesStore = useFavoritesStore()
 
@@ -39,7 +41,8 @@ const isRunning = computed(() => {
 
 const isHealthy = computed(() => {
   const health = props.service.status?.health || props.service.health
-  return health === 'healthy' || health === 'running' || !health
+  if (!health) return null  // Unknown — don't mask as healthy
+  return health === 'healthy' || health === 'running'
 })
 
 const isCore = computed(() => {
@@ -56,7 +59,7 @@ const statusConfig = computed(() => {
   if (!isRunning.value) {
     return { dot: 'bg-theme-muted', text: 'Stopped', class: 'text-theme-muted' }
   }
-  if (!isHealthy.value) {
+  if (isHealthy.value === false) {
     return { dot: 'bg-warning', text: 'Unhealthy', class: 'text-warning', pulse: true }
   }
   return { dot: 'bg-success', text: 'Running', class: 'text-success' }
@@ -93,14 +96,21 @@ function trackUsage(name) {
 }
 
 function handleClick() {
-  if (!isRunning.value) return
-  
-  if (hasUI.value && serviceUrl.value) {
+  // Running service with Web UI → open in new tab
+  if (isRunning.value && hasUI.value && serviceUrl.value) {
     trackUsage(props.service.name)
     window.open(serviceUrl.value, '_blank', 'noopener,noreferrer')
-  } else {
-    emit('showHealth', props.service)
+    return
   }
+
+  // Running service without Web UI → show health modal
+  if (isRunning.value) {
+    emit('showHealth', props.service)
+    return
+  }
+
+  // Stopped service → navigate to detail view
+  router.push(`/services/${props.service.name}`)
 }
 
 async function handleAction(action, e) {
@@ -137,7 +147,7 @@ function handleToggleFavorite(e) {
     class="group relative bg-theme-card rounded-xl border border-theme-primary overflow-hidden transition-all duration-200 hover:border-theme-secondary hover:shadow-theme-md hover:-translate-y-0.5"
     :class="[
       { 'opacity-60': !isRunning },
-      isRunning ? 'cursor-pointer' : 'cursor-default'
+      'cursor-pointer'
     ]"
   >
     <div class="p-4" :class="{ 'p-3': compact }">
@@ -197,9 +207,7 @@ function handleToggleFavorite(e) {
               class="p-1.5 text-theme-tertiary hover:text-success hover:bg-success-muted rounded-lg transition-colors"
               title="Start"
             >
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+              <Icon name="Play" :size="16" />
             </button>
             
             <!-- Stop -->
@@ -210,9 +218,7 @@ function handleToggleFavorite(e) {
               class="p-1.5 text-theme-tertiary hover:text-error hover:bg-error-muted rounded-lg transition-colors"
               title="Stop"
             >
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <rect x="6" y="6" width="12" height="12" rx="1" />
-              </svg>
+              <Icon name="Square" :size="16" />
             </button>
             
             <!-- Restart -->

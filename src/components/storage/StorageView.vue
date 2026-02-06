@@ -312,13 +312,34 @@ const healthDisks = computed(() => {
 const storageMounts = computed(() => storageStore.mounts || [])
 
 // ==========================================
-// Polling
+// Polling — only refresh active tab data
 // ==========================================
 
 let pollInterval = null
+
+function pollActiveTab() {
+  switch (activeTab.value) {
+    case 'overview':
+      fetchAll()
+      break
+    case 'devices':
+      storageHalStore.fetchDevices()
+      break
+    case 'usb':
+      storageHalStore.fetchUSBDevices()
+      break
+    case 'network-mounts':
+      storageHalStore.fetchNetworkMounts()
+      break
+    case 'smb':
+      smbStore.fetchAll()
+      break
+  }
+}
+
 onMounted(() => {
   fetchAll()
-  pollInterval = setInterval(fetchAll, 15000)
+  pollInterval = setInterval(pollActiveTab, 15000)
 })
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval)

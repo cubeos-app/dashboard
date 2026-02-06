@@ -20,7 +20,6 @@ import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import api from '@/api/client'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
-import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
 const systemStore = useSystemStore()
 const authStore = useAuthStore()
@@ -33,9 +32,7 @@ const confirmPassword = ref('')
 const passwordError = ref('')
 const passwordSuccess = ref(false)
 
-// Confirmation dialog state
-const confirmAction = ref(null) // 'reboot' | 'shutdown' | null
-const showConfirm = ref(false)
+// Confirmation dialog state — removed: store's reboot()/shutdown() already call confirm()
 
 // Power/UPS status from HAL
 const powerStatus = ref(null)
@@ -46,6 +43,7 @@ const backupStats = ref(null)
 const backupLoading = ref(false)
 const backupCreating = ref(false)
 const backupRestoring = ref(false)
+const backupRestoreMessage = ref(null)  // { type: 'success' | 'error', text: string }
 const showCreateBackup = ref(false)
 const newBackupType = ref('config')
 const newBackupDescription = ref('')
@@ -185,11 +183,12 @@ async function restoreBackup(backupId) {
   })) return
   
   backupRestoring.value = true
+  backupRestoreMessage.value = null
   try {
     await api.post(`/backups/${backupId}/restore`, { restart_services: true })
-    alert('Backup restored successfully. Some services may need to be restarted.')
+    backupRestoreMessage.value = { type: 'success', text: 'Backup restored successfully. Some services may need to be restarted.' }
   } catch (e) {
-    alert('Failed to restore backup: ' + e.message)
+    backupRestoreMessage.value = { type: 'error', text: 'Failed to restore backup: ' + e.message }
   } finally {
     backupRestoring.value = false
   }
@@ -318,27 +317,13 @@ async function handleChangePassword() {
   }
 }
 
+// Power actions — store's reboot()/shutdown() already show confirm dialogs
 async function handleReboot() {
-  confirmAction.value = 'reboot'
-  showConfirm.value = true
+  await systemStore.reboot()
 }
 
 async function handleShutdown() {
-  confirmAction.value = 'shutdown'
-  showConfirm.value = true
-}
-
-async function executeConfirmedAction() {
-  const action = confirmAction.value
-  showConfirm.value = false
-  confirmAction.value = null
-  if (action === 'reboot') await systemStore.reboot()
-  else if (action === 'shutdown') await systemStore.shutdown()
-}
-
-function cancelConfirm() {
-  showConfirm.value = false
-  confirmAction.value = null
+  await systemStore.shutdown()
 }
 
 // Uptime display
@@ -657,6 +642,19 @@ const uptimeDisplay = computed(() => {
           </div>
         </div>
 
+        <!-- Backup restore feedback (replaces native alert) -->
+        <div
+          v-if="backupRestoreMessage"
+          class="p-3 rounded-lg flex items-center gap-2"
+          :class="backupRestoreMessage.type === 'success' ? 'bg-success-muted text-success' : 'bg-error-muted text-error'"
+        >
+          <Icon :name="backupRestoreMessage.type === 'success' ? 'CheckCircle' : 'AlertTriangle'" :size="16" />
+          <span class="text-sm flex-1">{{ backupRestoreMessage.text }}</span>
+          <button @click="backupRestoreMessage = null" class="p-1 hover:opacity-75">
+            <Icon name="X" :size="14" />
+          </button>
+        </div>
+
         <!-- Backup list -->
         <div v-if="backupLoading" class="text-center py-8">
           <div class="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -829,17 +827,5 @@ const uptimeDisplay = computed(() => {
       </div>
     </Teleport>
 
-    <!-- Reboot/Shutdown Confirmation -->
-    <ConfirmDialog
-      :show="showConfirm"
-      :title="confirmAction === 'reboot' ? 'Reboot System' : 'Shut Down System'"
-      :message="confirmAction === 'reboot' 
-        ? 'The system will restart. All active connections will be interrupted.' 
-        : 'The system will power off. You will need physical access to turn it back on.'"
-      :confirm-text="confirmAction === 'reboot' ? 'Reboot' : 'Shut Down'"
-      :variant="confirmAction === 'shutdown' ? 'danger' : 'warning'"
-      @confirm="executeConfirmedAction"
-      @cancel="cancelConfirm"
-    />
   </div>
 </template>

@@ -247,8 +247,32 @@ async function saveMount() {
       await mountsStore.addMount(config)
     } else {
       // For edit: delete + re-add (API mounts are name-keyed)
+      // Capture original config for rollback if add fails
+      const originalMount = allMounts.value.find(m => m.name === mountForm.value.name)
       await mountsStore.deleteMount(mountForm.value.name)
-      await mountsStore.addMount(config)
+      try {
+        await mountsStore.addMount(config)
+      } catch (addError) {
+        // Rollback: re-add original mount if we still have it
+        if (originalMount) {
+          try {
+            await mountsStore.addMount({
+              name: originalMount.name,
+              type: originalMount._type || originalMount.type,
+              host: originalMount.host || originalMount.server,
+              share: originalMount.share || originalMount.export_path || originalMount.remote,
+              mountpoint: originalMount.mountpoint,
+              username: originalMount.username || originalMount.user,
+              domain: originalMount.domain,
+              options: originalMount.options,
+              auto_mount: originalMount.auto_mount || originalMount.automount
+            })
+          } catch {
+            // Rollback also failed — surface the original add error
+          }
+        }
+        throw addError
+      }
     }
 
     showMountModal.value = false
@@ -297,11 +321,22 @@ async function testConnection() {
       domain: mountForm.value.domain || undefined
     }
 
-    // Try both stores — API-level test first, fallback to HAL
-    const result = await mountsStore.testMountConnection(config)
-      || await storageHalStore.testNetworkMount(config)
+    // Try API-level test first, fallback to HAL on failure
+    let result = null
+    try {
+      result = await mountsStore.testMountConnection(config)
+    } catch {
+      // API test failed or unavailable — try HAL
+    }
+    if (!result || result.error) {
+      try {
+        result = await storageHalStore.testNetworkMount(config)
+      } catch {
+        // HAL test also failed
+      }
+    }
 
-    testResult.value = result
+    testResult.value = result || { success: false, error: 'Connection test unavailable' }
   } catch (e) {
     testResult.value = { success: false, error: e.message }
   } finally {
@@ -571,9 +606,9 @@ function mountSource(mount) {
                 </div>
               </div>
 
-              <!-- HAL check result -->
+              <!-- HAL check result — guard by mountpoint to avoid showing wrong mount's result -->
               <div
-                v-if="storageHalStore.mountCheckResult && mount._source === 'hal'"
+                v-if="storageHalStore.mountCheckResult && mount._source === 'hal' && storageHalStore.mountCheckResult.mountpoint === mount.mountpoint"
                 class="mt-3 p-3 rounded-lg text-xs"
                 :class="storageHalStore.mountCheckResult.available
                   ? 'bg-success-muted text-success'
@@ -750,8 +785,11 @@ function mountSource(mount) {
                       v-model="mountForm.password"
                       type="password"
                       class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
-                      placeholder="Optional"
+                      :placeholder="mountModalMode === 'edit' ? 'Re-enter password' : 'Optional'"
                     >
+                    <p v-if="mountModalMode === 'edit'" class="text-xs text-theme-muted mt-1">
+                      Password is not pre-filled for security. Re-enter to keep credentials.
+                    </p>
                   </div>
                 </div>
                 <div>

@@ -195,22 +195,22 @@ const healthBgColor = computed(() => {
       </div>
       <div class="h-2 bg-theme-tertiary rounded-full overflow-hidden flex">
         <div 
-          v-if="healthStats.healthy > 0"
+          v-if="healthStats.healthy > 0 && totalApps > 0"
           class="h-full bg-success transition-all duration-300"
           :style="{ width: `${(healthStats.healthy / totalApps) * 100}%` }"
         ></div>
         <div 
-          v-if="healthStats.starting > 0"
+          v-if="healthStats.starting > 0 && totalApps > 0"
           class="h-full bg-warning transition-all duration-300"
           :style="{ width: `${(healthStats.starting / totalApps) * 100}%` }"
         ></div>
         <div 
-          v-if="healthStats.unhealthy > 0"
+          v-if="healthStats.unhealthy > 0 && totalApps > 0"
           class="h-full bg-error transition-all duration-300"
           :style="{ width: `${(healthStats.unhealthy / totalApps) * 100}%` }"
         ></div>
         <div 
-          v-if="healthStats.stopped > 0"
+          v-if="healthStats.stopped > 0 && totalApps > 0"
           class="h-full bg-neutral transition-all duration-300"
           :style="{ width: `${(healthStats.stopped / totalApps) * 100}%` }"
         ></div>
