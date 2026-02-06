@@ -472,6 +472,9 @@ function formatBytes(bytes) {
                 </div>
 
                 <!-- Connection stats (when active and detail has stats) -->
+                <!-- TODO: ⚡ stats field not in Swagger VPNConfig model. Verify with backend
+                     whether fetchConfigDetail returns stats (rx_bytes, tx_bytes). If not,
+                     remove this block or implement stats endpoint. -->
                 <div
                   v-if="config.is_active && vpnStore.selectedConfig?.stats"
                   class="grid grid-cols-2 sm:grid-cols-4 gap-3"

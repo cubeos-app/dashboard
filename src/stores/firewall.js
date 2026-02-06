@@ -5,16 +5,29 @@
  * Standalone store replacing the inline firewall data in NetworkView.
  * 
  * API Endpoints:
- * - GET    /firewall/rules       - List all rules
- * - POST   /firewall/rules       - Add a rule
- * - DELETE  /firewall/rules       - Delete a rule
- * - POST   /firewall/save        - Save current ruleset
- * - POST   /firewall/restore     - Restore saved ruleset
- * - POST   /firewall/reset       - Reset to defaults
- * - POST   /firewall/port/allow  - Allow a port
- * - POST   /firewall/port/block  - Block a port
- * - POST   /firewall/service/allow - Allow a service
- * - GET    /firewall/status      - Full firewall status
+ * - GET    /firewall/rules                  - List all rules
+ * - POST   /firewall/rules                  - Add a rule
+ * - DELETE  /firewall/rules                  - Delete a rule
+ * - POST   /firewall/save                   - Save current ruleset
+ * - POST   /firewall/restore                - Restore saved ruleset
+ * - POST   /firewall/reset                  - Reset to defaults
+ * - POST   /firewall/port/allow             - Allow a port
+ * - POST   /firewall/port/block             - Block a port
+ * - DELETE  /firewall/port/{port}            - Delete port rule ⚡
+ * - POST   /firewall/service/{service}/allow - Allow a service
+ * - GET    /firewall/status                 - Full firewall status
+ * - GET    /firewall/nat                    - Get NAT status ⚡
+ * - POST   /firewall/nat/enable             - Enable NAT ⚡
+ * - POST   /firewall/nat/disable            - Disable NAT ⚡
+ * - GET    /firewall/nat/status             - Get NAT status (alt) ⚡
+ * - GET    /firewall/forwarding             - Get IP forwarding status ⚡
+ * - POST   /firewall/forwarding/enable      - Enable IP forwarding ⚡
+ * - POST   /firewall/forwarding/disable     - Disable IP forwarding ⚡
+ * - GET    /firewall/ipforward              - Get IP forward setting ⚡
+ * - PUT    /firewall/ipforward              - Set IP forward setting ⚡
+ * 
+ * ⚡ = Endpoints verified in Swagger but not yet tested against backend.
+ *      TODO: NetworkView still calls some of these directly — migrate to use store.
  */
 
 import { defineStore } from 'pinia'
@@ -31,6 +44,9 @@ export const useFirewallStore = defineStore('firewall', () => {
   const error = ref(null)
   const rules = ref([])
   const status = ref(null)
+  const natStatus = ref(null)
+  const forwardingStatus = ref(null)
+  const ipForward = ref(null)
   
   // ==========================================
   // Computed
@@ -40,6 +56,9 @@ export const useFirewallStore = defineStore('firewall', () => {
   const isEnabled = computed(() => status.value?.enabled === true)
   const activeProfile = computed(() => status.value?.profile || 'default')
   const defaultPolicy = computed(() => status.value?.default_policy || 'deny')
+  const isNatEnabled = computed(() => natStatus.value?.enabled === true)
+  const isForwardingEnabled = computed(() => forwardingStatus.value?.enabled === true)
+  const isIpForwardEnabled = computed(() => ipForward.value?.enabled === true)
   
   // ==========================================
   // API Methods
@@ -261,6 +280,151 @@ export const useFirewallStore = defineStore('firewall', () => {
   }
   
   // ==========================================
+  // NAT Management ⚡
+  // ==========================================
+  
+  /** GET /firewall/nat — fetch NAT status */
+  async function fetchNatStatus() {
+    try {
+      const response = await api.get('/firewall/nat')
+      natStatus.value = response
+    } catch (e) {
+      error.value = e.message
+      natStatus.value = null
+    }
+  }
+  
+  /** POST /firewall/nat/enable */
+  async function enableNat() {
+    loading.value = true
+    error.value = null
+    try {
+      await api.post('/firewall/nat/enable')
+      await fetchNatStatus()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /** POST /firewall/nat/disable */
+  async function disableNat() {
+    loading.value = true
+    error.value = null
+    try {
+      await api.post('/firewall/nat/disable')
+      await fetchNatStatus()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  // ==========================================
+  // IP Forwarding ⚡
+  // ==========================================
+  
+  /** GET /firewall/forwarding — fetch forwarding status */
+  async function fetchForwardingStatus() {
+    try {
+      const response = await api.get('/firewall/forwarding')
+      forwardingStatus.value = response
+    } catch (e) {
+      error.value = e.message
+      forwardingStatus.value = null
+    }
+  }
+  
+  /** POST /firewall/forwarding/enable */
+  async function enableForwarding() {
+    loading.value = true
+    error.value = null
+    try {
+      await api.post('/firewall/forwarding/enable')
+      await fetchForwardingStatus()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /** POST /firewall/forwarding/disable */
+  async function disableForwarding() {
+    loading.value = true
+    error.value = null
+    try {
+      await api.post('/firewall/forwarding/disable')
+      await fetchForwardingStatus()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /** GET /firewall/ipforward — get IP forward setting */
+  async function fetchIpForward() {
+    try {
+      const response = await api.get('/firewall/ipforward')
+      ipForward.value = response
+    } catch (e) {
+      error.value = e.message
+      ipForward.value = null
+    }
+  }
+  
+  /** PUT /firewall/ipforward — set IP forward enabled/disabled */
+  async function setIpForward(enabled) {
+    loading.value = true
+    error.value = null
+    try {
+      await api.put('/firewall/ipforward', { enabled })
+      await fetchIpForward()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  // ==========================================
+  // Port Delete ⚡
+  // ==========================================
+  
+  /**
+   * Delete a port-specific firewall rule
+   * @param {number} port - Port number
+   * @param {string} proto - Protocol ('tcp', 'udp', or 'both')
+   */
+  async function deletePort(port, proto = 'tcp') {
+    loading.value = true
+    error.value = null
+    try {
+      await api.delete(`/firewall/port/${encodeURIComponent(port)}?protocol=${encodeURIComponent(proto)}`)
+      await fetchRules()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  // ==========================================
   // Export
   // ==========================================
   
@@ -270,23 +434,48 @@ export const useFirewallStore = defineStore('firewall', () => {
     error,
     rules,
     status,
+    natStatus,
+    forwardingStatus,
+    ipForward,
     
     // Computed
     ruleCount,
     isEnabled,
     activeProfile,
     defaultPolicy,
+    isNatEnabled,
+    isForwardingEnabled,
+    isIpForwardEnabled,
     
-    // API Methods
+    // Rules
     fetchRules,
     addRule,
     deleteRule,
     saveRuleset,
     restoreRuleset,
     resetRuleset,
+    
+    // Ports
     allowPort,
     blockPort,
+    deletePort,
     allowService,
-    fetchStatus
+    
+    // Status
+    fetchStatus,
+    
+    // NAT ⚡
+    fetchNatStatus,
+    enableNat,
+    disableNat,
+    
+    // Forwarding ⚡
+    fetchForwardingStatus,
+    enableForwarding,
+    disableForwarding,
+    
+    // IP Forward ⚡
+    fetchIpForward,
+    setIpForward
   }
 })

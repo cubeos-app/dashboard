@@ -8,6 +8,7 @@
  * Stores:
  *   GET    /appstore/stores           - List app stores
  *   POST   /appstore/stores           - Register new store
+ *   GET    /appstore/stores/{storeID} - Get store details
  *   DELETE /appstore/stores/{storeID} - Remove store
  *   POST   /appstore/stores/sync      - Sync all stores
  *   POST   /appstore/stores/{storeID}/sync - Sync one store
@@ -31,12 +32,16 @@
  *   GET    /appstore/installed/{appID}/config   - Get config
  *   PUT    /appstore/installed/{appID}/config   - Update config
  *   POST   /appstore/installed/{appID}/config/apply - Apply config
+ *   GET    /appstore/installed/{appID}/config/backups - List config backups (used by ConfigEditor)
+ *   POST   /appstore/installed/{appID}/config/restore/{backup} - Restore config backup (used by ConfigEditor)
  * 
  * Core Apps:
  *   GET    /appstore/coreapps                   - List core apps
  *   GET    /appstore/coreapps/{appID}/config    - Get config
  *   PUT    /appstore/coreapps/{appID}/config    - Update config
  *   POST   /appstore/coreapps/{appID}/config/apply - Apply config
+ *   GET    /appstore/coreapps/{appID}/config/backups - List config backups (used by ConfigEditor)
+ *   POST   /appstore/coreapps/{appID}/config/restore/{backup} - Restore config backup (used by ConfigEditor)
  * 
  * Other:
  *   GET    /appstore/proxy-hosts      - List NPM proxy hosts
@@ -199,7 +204,6 @@ export const useAppStoreStore = defineStore('appstore', () => {
       return response
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch store detail for ${storeId}:`, e)
       return null
     }
   }
@@ -217,7 +221,6 @@ export const useAppStoreStore = defineStore('appstore', () => {
       return await api.get(`/appstore/installed/${encodeURIComponent(appId)}`)
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch installed app detail for ${appId}:`, e)
       return null
     }
   }
@@ -283,13 +286,8 @@ export const useAppStoreStore = defineStore('appstore', () => {
       const data = await api.get('/appstore/installed')
       installedApps.value = data.apps || []
     } catch (e) {
-      // Fallback: some versions may only have /apps
-      try {
-        const data = await api.get('/apps')
-        installedApps.value = data.apps || []
-      } catch (e2) {
-        error.value = e2.message
-      }
+      error.value = e.message
+      installedApps.value = []
     }
   }
 
