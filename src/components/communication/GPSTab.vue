@@ -54,15 +54,25 @@ const status = computed(() => {
   const s = communicationStore.gpsStatuses[port]
   if (!s) return null
 
-  // Fix type: 1 = No Fix, 2 = 2D, 3 = 3D
-  const fixRaw = s.fix ?? s.fix_type ?? s.mode ?? null
+  // Fix type: Swagger has `has_fix` (boolean) and `fix_quality` (string like "3D Fix")
+  // Legacy: `fix`/`fix_type`/`mode` as numeric 1=NoFix, 2=2D, 3=3D
+  const fixRaw = s.fix_quality ?? s.fix ?? s.fix_type ?? s.mode ?? null
   let fixType = 'No Fix'
   let fixValue = 0
   if (fixRaw !== null && fixRaw !== undefined) {
-    const n = Number(fixRaw)
-    if (n === 3 || String(fixRaw).toLowerCase() === '3d') { fixType = '3D Fix'; fixValue = 3 }
-    else if (n === 2 || String(fixRaw).toLowerCase() === '2d') { fixType = '2D Fix'; fixValue = 2 }
-    else { fixType = 'No Fix'; fixValue = n }
+    const str = String(fixRaw).toLowerCase()
+    if (str === '3d fix' || str === '3d') { fixType = '3D Fix'; fixValue = 3 }
+    else if (str === '2d fix' || str === '2d') { fixType = '2D Fix'; fixValue = 2 }
+    else {
+      const n = Number(fixRaw)
+      if (n === 3) { fixType = '3D Fix'; fixValue = 3 }
+      else if (n === 2) { fixType = '2D Fix'; fixValue = 2 }
+      else { fixType = 'No Fix'; fixValue = n }
+    }
+  } else if (typeof s.has_fix === 'boolean') {
+    // Fallback: has_fix boolean without quality detail
+    fixType = s.has_fix ? '2D Fix' : 'No Fix'
+    fixValue = s.has_fix ? 2 : 0
   }
 
   const satsUsed = s.satellites_used ?? s.sats_used ?? s.satellites ?? s.sats ?? null

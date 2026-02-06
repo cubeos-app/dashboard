@@ -30,6 +30,8 @@ const actionLoading = ref({})
 const connectionStatus = computed(() => {
   const s = communicationStore.cellularStatus
   if (!s) return null
+  // Swagger CellularStatus has `connected` boolean — check first
+  if (typeof s.connected === 'boolean') return s.connected ? 'connected' : 'disconnected'
   const state = (s.state ?? s.status ?? s.connection ?? '').toLowerCase()
   if (state === 'connected' || state === 'active' || state === 'online') return 'connected'
   if (state === 'connecting' || state === 'registering') return 'connecting'
@@ -139,7 +141,7 @@ const tetheringStatus = computed(() => {
   const t = communicationStore.androidTethering
   if (!t) return null
   return {
-    enabled: t.enabled ?? t.active ?? t.tethering ?? false,
+    enabled: t.connected ?? t.enabled ?? t.active ?? t.tethering ?? false,
     device: t.device ?? t.interface ?? t.name ?? null,
     ip: t.ip ?? t.ip_address ?? null
   }

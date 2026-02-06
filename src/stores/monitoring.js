@@ -70,34 +70,33 @@ export const useMonitoringStore = defineStore('monitoring', () => {
     try {
       stats.value = await api.get('/monitoring/stats')
     } catch (e) {
-      console.error('Failed to fetch monitoring stats:', e)
+      error.value = e.message
     }
   }
 
   /**
    * Fetch stats history for charts
-   * GET /monitoring/history?period=1h&resolution=1m
+   * GET /monitoring/history?minutes=N
    *
    * @param {Object} params - Query parameters
-   * @param {string} params.period - Time period (1h, 6h, 24h, 7d)
-   * @param {string} params.resolution - Data point resolution (1m, 5m, 15m, 1h)
+   * @param {string} [params.period] - Time period label (1h, 6h, 24h, 7d) — converted to minutes
+   * @param {number} [params.minutes] - Direct minutes value (takes precedence)
    */
   async function fetchHistory(params = {}) {
     loading.value = true
     error.value = null
     try {
-      const query = {
-        period: params.period || historyPeriod.value,
-        resolution: params.resolution || historyResolution.value
-      }
-      const response = await api.get('/monitoring/history', query)
+      // Convert period label to minutes if not provided directly
+      const periodMinutesMap = { '1h': 60, '6h': 360, '24h': 1440, '7d': 10080 }
+      const period = params.period || historyPeriod.value
+      const minutes = params.minutes ?? periodMinutesMap[period] ?? 60
+
+      const response = await api.get('/monitoring/history', { minutes })
       history.value = response.data || response.points || response || []
       // Track the current period selection
       if (params.period) historyPeriod.value = params.period
-      if (params.resolution) historyResolution.value = params.resolution
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch monitoring history:', e)
     } finally {
       loading.value = false
     }
@@ -112,7 +111,7 @@ export const useMonitoringStore = defineStore('monitoring', () => {
       const response = await api.get('/monitoring/alerts')
       alerts.value = response.alerts || response || []
     } catch (e) {
-      console.error('Failed to fetch monitoring alerts:', e)
+      error.value = e.message
       alerts.value = []
     }
   }
@@ -125,7 +124,7 @@ export const useMonitoringStore = defineStore('monitoring', () => {
     try {
       thresholds.value = await api.get('/monitoring/thresholds')
     } catch (e) {
-      console.error('Failed to fetch monitoring thresholds:', e)
+      error.value = e.message
     }
   }
 
@@ -148,7 +147,6 @@ export const useMonitoringStore = defineStore('monitoring', () => {
       return result
     } catch (e) {
       error.value = e.message
-      console.error('Failed to update monitoring thresholds:', e)
       throw e
     } finally {
       savingThresholds.value = false
@@ -163,7 +161,7 @@ export const useMonitoringStore = defineStore('monitoring', () => {
     try {
       wsInfo.value = await api.get('/monitoring/websocket')
     } catch (e) {
-      console.error('Failed to fetch WebSocket info:', e)
+      error.value = e.message
       wsInfo.value = null
     }
   }
@@ -204,16 +202,7 @@ export const useMonitoringStore = defineStore('monitoring', () => {
    * Maps periods to sensible resolutions.
    */
   async function setPeriod(period) {
-    const resolutionMap = {
-      '1h': '1m',
-      '6h': '5m',
-      '24h': '15m',
-      '7d': '1h'
-    }
-    await fetchHistory({
-      period,
-      resolution: resolutionMap[period] || '5m'
-    })
+    await fetchHistory({ period })
   }
 
   return {

@@ -58,7 +58,10 @@ const isDiscoverable = computed(() => {
 const devices = computed(() => {
   const raw = communicationStore.bluetoothDevices
   if (!raw) return []
-  const list = Array.isArray(raw) ? raw : (raw.devices || raw.items || [])
+  // Swagger returns { available: [...], paired: [...] } — merge both arrays
+  const list = Array.isArray(raw)
+    ? raw
+    : [...(raw.available || []), ...(raw.paired || raw.devices || raw.items || [])]
   return list.map(d => ({
     address: d.address ?? d.mac ?? d.mac_address ?? 'unknown',
     name: d.name ?? d.alias ?? d.label ?? d.address ?? 'Unknown Device',

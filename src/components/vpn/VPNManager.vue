@@ -308,8 +308,8 @@ function formatBytes(bytes) {
           <p :class="['font-medium', isConnected ? 'text-success' : 'text-theme-secondary']">
             {{ isConnected ? 'VPN Connected' : 'VPN Disconnected' }}
           </p>
-          <p v-if="isConnected && status?.active_config" class="text-sm text-theme-secondary truncate">
-            {{ status.active_config }}
+          <p v-if="isConnected && (status?.config_name || status?.active_config)" class="text-sm text-theme-secondary truncate">
+            {{ status.config_name || status.active_config }}
             <span v-if="status?.connected_since"> · {{ vpnStore.formatDuration(status.connected_since) }}</span>
           </p>
           <p v-if="!isConnected" class="text-xs text-theme-muted">
@@ -453,10 +453,10 @@ function formatBytes(bytes) {
                       {{ formatDate(vpnStore.selectedConfig?.created_at || config.created_at) }}
                     </p>
                   </div>
-                  <div v-if="vpnStore.selectedConfig?.filename || config.filename">
+                  <div v-if="vpnStore.selectedConfig?.config_path || vpnStore.selectedConfig?.filename || config.config_path || config.filename">
                     <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">File</p>
                     <p class="text-xs font-medium text-theme-primary font-mono truncate">
-                      {{ vpnStore.selectedConfig?.filename || config.filename }}
+                      {{ vpnStore.selectedConfig?.config_path || vpnStore.selectedConfig?.filename || config.config_path || config.filename }}
                     </p>
                   </div>
                   <div v-if="config.is_active && status?.connected_since">

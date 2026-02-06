@@ -276,11 +276,12 @@ export const useCommunicationStore = defineStore('communication', () => {
    * Connect a cellular modem
    * POST /communication/cellular/{modem}/connect
    * @param {string} modem - Modem identifier
+   * @param {object} [connectionData] - Connection params: { apn, username, password }
    */
-  async function connectModem(modem) {
+  async function connectModem(modem, connectionData = {}) {
     error.value = null
     try {
-      const data = await api.post(`/communication/cellular/${encodeURIComponent(modem)}/connect`)
+      const data = await api.post(`/communication/cellular/${encodeURIComponent(modem)}/connect`, connectionData)
       await fetchCellularModems()
       await fetchCellularStatus()
       return data

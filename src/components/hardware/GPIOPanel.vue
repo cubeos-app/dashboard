@@ -56,7 +56,7 @@ onMounted(async () => {
 
 async function togglePin(pin) {
   const id = pinId(pin)
-  const newVal = pinValue(pin) ? 0 : 1
+  const newVal = !pinValue(pin)
 
   actionLoading.value = { ...actionLoading.value, [`toggle-${id}`]: true }
   try {

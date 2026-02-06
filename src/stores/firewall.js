@@ -145,6 +145,7 @@ export const useFirewallStore = defineStore('firewall', () => {
     try {
       await api.post('/firewall/restore')
       await fetchRules()
+      await fetchStatus()
       return true
     } catch (e) {
       error.value = e.message
@@ -232,7 +233,7 @@ export const useFirewallStore = defineStore('firewall', () => {
     error.value = null
     
     try {
-      await api.post('/firewall/service/allow', { service })
+      await api.post(`/firewall/service/${encodeURIComponent(service)}/allow`)
       await fetchRules()
       return true
     } catch (e) {
@@ -247,12 +248,15 @@ export const useFirewallStore = defineStore('firewall', () => {
    * Fetch full firewall status
    */
   async function fetchStatus() {
+    loading.value = true
     try {
       const response = await api.get('/firewall/status')
       status.value = response
     } catch (e) {
       error.value = e.message
       status.value = null
+    } finally {
+      loading.value = false
     }
   }
   

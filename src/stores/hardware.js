@@ -340,7 +340,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       return await api.get(`/hardware/i2c/${encodeURIComponent(bus)}/scan`)
     } catch (e) {
       error.value = e.message
-      return null
+      throw e
     }
   }
 
@@ -356,7 +356,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       return await api.get(`/hardware/i2c/${encodeURIComponent(bus)}/${encodeURIComponent(addr)}`)
     } catch (e) {
       error.value = e.message
-      return null
+      throw e
     }
   }
 
@@ -424,7 +424,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       return await api.get(`/hardware/sensors/1wire/${encodeURIComponent(id)}`)
     } catch (e) {
       error.value = e.message
-      return null
+      throw e
     }
   }
 

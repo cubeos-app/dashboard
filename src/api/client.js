@@ -320,8 +320,12 @@ class ApiClient {
     return response.json()
   }
 
-  async delete(endpoint) {
-    const response = await this.request(endpoint, { method: 'DELETE' })
+  async delete(endpoint, data = null) {
+    const opts = { method: 'DELETE' }
+    if (data !== null) {
+      opts.body = JSON.stringify(data)
+    }
+    const response = await this.request(endpoint, opts)
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       throw new Error(error.error || error.message || 'Request failed')
