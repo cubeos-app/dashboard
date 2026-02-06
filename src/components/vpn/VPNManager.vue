@@ -265,6 +265,7 @@ function formatBytes(bytes) {
         <button
           @click="router.push('/network')"
           class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+          aria-label="Back to network"
         >
           <Icon name="ArrowLeft" :size="18" />
         </button>
@@ -278,12 +279,14 @@ function formatBytes(bytes) {
           @click="refresh"
           :disabled="refreshing"
           class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+          aria-label="Refresh VPN status"
         >
           <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': refreshing }" />
         </button>
         <button
           @click="openAddModal"
           class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium btn-accent"
+          aria-label="Add VPN configuration"
         >
           <Icon name="Plus" :size="16" />
           <span class="hidden sm:inline">Add Config</span>
@@ -298,7 +301,7 @@ function formatBytes(bytes) {
     >
       <Icon name="AlertCircle" :size="16" class="text-error flex-shrink-0" />
       <p class="text-sm text-error flex-1">{{ combinedError }}</p>
-      <button @click="error = null; vpnStore.clearError()" class="text-error hover:opacity-70">
+      <button @click="error = null; vpnStore.clearError()" class="text-error hover:opacity-70" aria-label="Dismiss error">
         <Icon name="X" :size="14" />
       </button>
     </div>
@@ -362,6 +365,11 @@ function formatBytes(bytes) {
         <!-- Config Row (clickable for detail) -->
         <div
           @click="toggleDetail(config)"
+          @keydown.enter="toggleDetail(config)"
+          role="button"
+          tabindex="0"
+          :aria-expanded="isExpanded(config)"
+          :aria-label="'VPN configuration: ' + config.name + (config.is_active ? ' (active)' : '')"
           class="flex items-center gap-3 p-4 cursor-pointer hover:bg-theme-tertiary transition-colors"
         >
           <!-- Type icon -->
@@ -407,6 +415,7 @@ function formatBytes(bytes) {
               @click="handleDisconnect(config)"
               :disabled="vpnStore.loading"
               class="px-3 py-1.5 rounded-lg text-sm font-medium bg-error-muted text-error hover:opacity-80 transition-colors disabled:opacity-50"
+              :aria-label="'Disconnect ' + config.name"
             >
               Disconnect
             </button>
@@ -415,6 +424,7 @@ function formatBytes(bytes) {
               @click="handleConnect(config)"
               :disabled="vpnStore.loading"
               class="px-3 py-1.5 rounded-lg text-sm font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
+              :aria-label="'Connect ' + config.name"
             >
               Connect
             </button>
@@ -422,6 +432,7 @@ function formatBytes(bytes) {
               @click="handleDelete(config)"
               :disabled="config.is_active"
               :title="config.is_active ? 'Disconnect before deleting' : 'Delete configuration'"
+              :aria-label="'Delete ' + config.name + ' configuration'"
               class="p-1.5 rounded-lg text-theme-tertiary hover:text-error hover:bg-error/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon name="Trash2" :size="16" />
@@ -524,6 +535,9 @@ function formatBytes(bytes) {
                   <button
                     @click="toggleAutoConnect(config)"
                     :disabled="vpnStore.loading"
+                    role="switch"
+                    :aria-checked="config.auto_connect ? 'true' : 'false'"
+                    :aria-label="'Auto-connect ' + config.name"
                     class="relative inline-flex h-6 w-10 items-center rounded-full transition-colors duration-200 disabled:opacity-50"
                     :class="config.auto_connect ? 'bg-accent' : 'bg-theme-tertiary border border-theme-secondary'"
                   >
@@ -550,6 +564,7 @@ function formatBytes(bytes) {
       <button
         @click="openAddModal"
         class="px-4 py-2 rounded-lg btn-accent text-sm font-medium"
+        aria-label="Add VPN configuration"
       >
         Add Configuration
       </button>
@@ -590,6 +605,7 @@ function formatBytes(bytes) {
               <button
                 @click="closeAddModal"
                 class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+                aria-label="Close"
               >
                 <Icon name="X" :size="20" />
               </button>
@@ -616,6 +632,7 @@ function formatBytes(bytes) {
                 <div class="grid grid-cols-2 gap-2">
                   <button
                     @click="addForm.type = VPN_TYPES.WIREGUARD"
+                    aria-label="Select WireGuard type"
                     :class="[
                       'p-3 rounded-xl border-2 text-left transition-all',
                       addForm.type === VPN_TYPES.WIREGUARD
@@ -629,6 +646,7 @@ function formatBytes(bytes) {
                   </button>
                   <button
                     @click="addForm.type = VPN_TYPES.OPENVPN"
+                    aria-label="Select OpenVPN type"
                     :class="[
                       'p-3 rounded-xl border-2 text-left transition-all',
                       addForm.type === VPN_TYPES.OPENVPN
@@ -650,6 +668,11 @@ function formatBytes(bytes) {
                 </label>
                 <div
                   @click="fileInputRef?.click()"
+                  @keydown.enter="fileInputRef?.click()"
+                  @keydown.space.prevent="fileInputRef?.click()"
+                  role="button"
+                  tabindex="0"
+                  :aria-label="addForm.configFile ? 'Selected file: ' + addForm.configFile.name + '. Click to change.' : 'Click to upload VPN configuration file'"
                   class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-theme-primary rounded-xl cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors"
                 >
                   <input
@@ -658,6 +681,7 @@ function formatBytes(bytes) {
                     accept=".conf,.ovpn"
                     class="hidden"
                     @change="handleFileSelect"
+                    aria-label="Upload VPN configuration file"
                   />
                   <Icon
                     :name="addForm.configFile ? 'FileCheck' : 'Upload'"

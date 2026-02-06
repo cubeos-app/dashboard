@@ -241,6 +241,7 @@ function formatDirection(dir) {
           @click="router.push('/network')"
           class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
           title="Back to Network"
+          aria-label="Back to Network"
         >
           <Icon name="ArrowLeft" :size="20" />
         </button>
@@ -253,6 +254,7 @@ function formatDirection(dir) {
         @click="fetchAll"
         :disabled="firewallStore.loading"
         class="px-4 py-2 bg-theme-tertiary rounded-lg hover:bg-theme-secondary disabled:opacity-50 transition-colors"
+        aria-label="Refresh firewall rules"
       >
         <Icon name="RefreshCw" :size="20" :class="{ 'animate-spin': firewallStore.loading }" />
       </button>
@@ -262,7 +264,7 @@ function formatDirection(dir) {
     <div v-if="localError || firewallStore.error" class="bg-error-muted border border-error-subtle rounded-lg p-4 flex items-center gap-3">
       <Icon name="AlertCircle" :size="18" class="text-error shrink-0" />
       <p class="text-error text-sm">{{ localError || firewallStore.error }}</p>
-      <button @click="localError = null; firewallStore.error = null" class="ml-auto p-1 text-error hover:opacity-70">
+      <button @click="localError = null; firewallStore.error = null" class="ml-auto p-1 text-error hover:opacity-70" aria-label="Dismiss error">
         <Icon name="X" :size="14" />
       </button>
     </div>
@@ -306,6 +308,7 @@ function formatDirection(dir) {
             :disabled="actionLoading !== null"
             class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
             :class="actionSuccess === 'save' ? 'bg-success-muted text-success' : 'bg-accent-muted text-accent hover:opacity-80'"
+            aria-label="Save firewall ruleset"
           >
             <Icon v-if="actionLoading === 'save'" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else-if="actionSuccess === 'save'" name="Check" :size="14" />
@@ -316,6 +319,7 @@ function formatDirection(dir) {
             @click="handleRestore"
             :disabled="actionLoading !== null"
             class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg bg-warning-muted text-warning hover:opacity-80 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+            aria-label="Restore saved firewall ruleset"
           >
             <Icon v-if="actionLoading === 'restore'" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else-if="actionSuccess === 'restore'" name="Check" :size="14" />
@@ -326,6 +330,7 @@ function formatDirection(dir) {
             @click="handleReset"
             :disabled="actionLoading !== null"
             class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg bg-error-muted text-error hover:opacity-80 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+            aria-label="Reset firewall to defaults"
           >
             <Icon v-if="actionLoading === 'reset'" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else-if="actionSuccess === 'reset'" name="Check" :size="14" />
@@ -345,6 +350,7 @@ function formatDirection(dir) {
           <button
             @click="showQuickPort = !showQuickPort; showQuickService = false; showAddRule = false"
             class="px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors flex items-center gap-1.5"
+            aria-label="Quick port rule"
           >
             <Icon name="Hash" :size="14" />
             Quick Port
@@ -352,6 +358,7 @@ function formatDirection(dir) {
           <button
             @click="showQuickService = !showQuickService; showQuickPort = false; showAddRule = false"
             class="px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors flex items-center gap-1.5"
+            aria-label="Quick service rule"
           >
             <Icon name="Server" :size="14" />
             Service
@@ -359,6 +366,7 @@ function formatDirection(dir) {
           <button
             @click="showAddRule = !showAddRule; showQuickPort = false; showQuickService = false"
             class="px-3 py-1.5 text-xs font-medium rounded-lg btn-accent text-white transition-colors flex items-center gap-1.5"
+            aria-label="Add custom firewall rule"
           >
             <Icon name="Plus" :size="14" />
             Add Rule
@@ -371,8 +379,9 @@ function formatDirection(dir) {
         <div v-if="showQuickPort" class="p-4 border-b border-theme-primary bg-theme-secondary">
           <div class="flex flex-col sm:flex-row items-end gap-3">
             <div class="flex-1 w-full sm:w-auto">
-              <label class="block text-xs text-theme-muted mb-1">Port</label>
+              <label for="quick-port" class="block text-xs text-theme-muted mb-1">Port</label>
               <input
+                id="quick-port"
                 v-model="quickPort.port"
                 type="number"
                 min="1"
@@ -383,8 +392,9 @@ function formatDirection(dir) {
               />
             </div>
             <div class="w-full sm:w-32">
-              <label class="block text-xs text-theme-muted mb-1">Protocol</label>
+              <label for="quick-protocol" class="block text-xs text-theme-muted mb-1">Protocol</label>
               <select
+                id="quick-protocol"
                 v-model="quickPort.protocol"
                 class="w-full px-3 py-2 bg-theme-input border border-theme-primary rounded-lg text-sm text-theme-primary focus:outline-none focus:border-[color:var(--accent-primary)]"
               >
@@ -394,8 +404,9 @@ function formatDirection(dir) {
               </select>
             </div>
             <div class="w-full sm:w-32">
-              <label class="block text-xs text-theme-muted mb-1">Action</label>
+              <label for="quick-action" class="block text-xs text-theme-muted mb-1">Action</label>
               <select
+                id="quick-action"
                 v-model="quickPort.action"
                 class="w-full px-3 py-2 bg-theme-input border border-theme-primary rounded-lg text-sm text-theme-primary focus:outline-none focus:border-[color:var(--accent-primary)]"
               >
@@ -407,6 +418,7 @@ function formatDirection(dir) {
               @click="handleQuickPort"
               :disabled="firewallStore.loading"
               class="w-full sm:w-auto px-4 py-2 btn-accent text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-1.5"
+              aria-label="Apply quick port rule"
             >
               <Icon v-if="firewallStore.loading" name="Loader2" :size="14" class="animate-spin" />
               Apply
@@ -426,6 +438,7 @@ function formatDirection(dir) {
               @click="handleQuickService(svc.name)"
               :disabled="firewallStore.loading"
               class="px-3 py-2 bg-theme-card border border-theme-primary rounded-lg text-sm hover:border-[color:var(--accent-primary)] hover:text-accent transition-colors disabled:opacity-50 flex items-center gap-2"
+              :aria-label="'Allow ' + svc.label + ' (port ' + svc.port + ')'"
             >
               <span class="font-medium text-theme-primary">{{ svc.label }}</span>
               <span class="text-theme-muted text-xs font-mono">:{{ svc.port }}</span>
@@ -443,6 +456,7 @@ function formatDirection(dir) {
               @click="handleQuickService()"
               :disabled="!quickService.service || firewallStore.loading"
               class="px-4 py-2 btn-accent text-white text-sm font-medium rounded-lg disabled:opacity-50"
+              aria-label="Allow custom service"
             >
               Allow
             </button>
@@ -455,8 +469,9 @@ function formatDirection(dir) {
         <div v-if="showAddRule" class="p-4 border-b border-theme-primary bg-theme-secondary">
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
-              <label class="block text-xs text-theme-muted mb-1">Action</label>
+              <label for="rule-action" class="block text-xs text-theme-muted mb-1">Action</label>
               <select
+                id="rule-action"
                 v-model="newRule.action"
                 class="w-full px-3 py-2 bg-theme-input border border-theme-primary rounded-lg text-sm text-theme-primary focus:outline-none focus:border-[color:var(--accent-primary)]"
               >
@@ -466,8 +481,9 @@ function formatDirection(dir) {
               </select>
             </div>
             <div>
-              <label class="block text-xs text-theme-muted mb-1">Direction</label>
+              <label for="rule-direction" class="block text-xs text-theme-muted mb-1">Direction</label>
               <select
+                id="rule-direction"
                 v-model="newRule.direction"
                 class="w-full px-3 py-2 bg-theme-input border border-theme-primary rounded-lg text-sm text-theme-primary focus:outline-none focus:border-[color:var(--accent-primary)]"
               >
@@ -476,8 +492,9 @@ function formatDirection(dir) {
               </select>
             </div>
             <div>
-              <label class="block text-xs text-theme-muted mb-1">Port</label>
+              <label for="rule-port" class="block text-xs text-theme-muted mb-1">Port</label>
               <input
+                id="rule-port"
                 v-model="newRule.port"
                 type="number"
                 min="1"
@@ -487,8 +504,9 @@ function formatDirection(dir) {
               />
             </div>
             <div>
-              <label class="block text-xs text-theme-muted mb-1">Protocol</label>
+              <label for="rule-protocol" class="block text-xs text-theme-muted mb-1">Protocol</label>
               <select
+                id="rule-protocol"
                 v-model="newRule.protocol"
                 class="w-full px-3 py-2 bg-theme-input border border-theme-primary rounded-lg text-sm text-theme-primary focus:outline-none focus:border-[color:var(--accent-primary)]"
               >
@@ -498,8 +516,9 @@ function formatDirection(dir) {
               </select>
             </div>
             <div>
-              <label class="block text-xs text-theme-muted mb-1">From (source IP/CIDR)</label>
+              <label for="rule-from" class="block text-xs text-theme-muted mb-1">From (source IP/CIDR)</label>
               <input
+                id="rule-from"
                 v-model="newRule.from"
                 type="text"
                 placeholder="e.g. 10.42.24.0/24"
@@ -507,8 +526,9 @@ function formatDirection(dir) {
               />
             </div>
             <div>
-              <label class="block text-xs text-theme-muted mb-1">To (destination IP/CIDR)</label>
+              <label for="rule-to" class="block text-xs text-theme-muted mb-1">To (destination IP/CIDR)</label>
               <input
+                id="rule-to"
                 v-model="newRule.to"
                 type="text"
                 placeholder="e.g. any"
@@ -517,8 +537,9 @@ function formatDirection(dir) {
             </div>
           </div>
           <div class="mt-3">
-            <label class="block text-xs text-theme-muted mb-1">Comment (optional)</label>
+            <label for="rule-comment" class="block text-xs text-theme-muted mb-1">Comment (optional)</label>
             <input
+              id="rule-comment"
               v-model="newRule.comment"
               type="text"
               placeholder="Rule description"
@@ -586,6 +607,7 @@ function formatDirection(dir) {
                   :disabled="firewallStore.loading"
                   class="p-1.5 text-theme-muted hover:text-error hover:bg-error-muted rounded-lg transition-colors disabled:opacity-50"
                   title="Delete rule"
+                  :aria-label="'Delete rule' + (rule.comment ? ': ' + rule.comment : ' on port ' + (rule.port || 'any'))"
                 >
                   <Icon name="Trash2" :size="16" />
                 </button>
@@ -616,6 +638,7 @@ function formatDirection(dir) {
               @click="handleDeleteRule(rule)"
               :disabled="firewallStore.loading"
               class="p-1.5 text-theme-muted hover:text-error hover:bg-error-muted rounded-lg transition-colors disabled:opacity-50"
+              :aria-label="'Delete rule' + (rule.comment ? ': ' + rule.comment : ' on port ' + (rule.port || 'any'))"
             >
               <Icon name="Trash2" :size="16" />
             </button>

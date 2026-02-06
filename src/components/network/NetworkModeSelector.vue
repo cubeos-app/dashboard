@@ -132,12 +132,15 @@ function isCurrentMode(modeId) {
       Network Mode
     </h3>
     
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Network mode">
       <button
         v-for="mode in availableModes"
         :key="mode.id"
         @click="selectMode(mode)"
         :disabled="changingMode || !mode.available"
+        role="radio"
+        :aria-checked="isCurrentMode(mode.id)"
+        :aria-label="mode.name + ' — ' + mode.description"
         :class="[
           'relative p-4 rounded-xl border-2 text-left transition-all duration-200',
           isCurrentMode(mode.id)

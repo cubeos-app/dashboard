@@ -485,6 +485,7 @@ function formatDuration(seconds) {
         @click="fetchAll" 
         :disabled="loading"
         class="px-4 py-2 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary disabled:opacity-50"
+        aria-label="Refresh network status"
       >
         <Icon name="RefreshCw" :size="20" :class="{ 'animate-spin': loading }" />
       </button>
@@ -505,6 +506,7 @@ function formatDuration(seconds) {
         @click="dismissWarning"
         class="p-1 text-warning hover:text-warning/70 shrink-0"
         title="Dismiss"
+        aria-label="Dismiss warning"
       >
         <Icon name="X" :size="16" />
       </button>
@@ -537,11 +539,13 @@ function formatDuration(seconds) {
 
     <!-- Tabs -->
     <div class="border-b border-theme-primary overflow-x-auto">
-      <nav class="flex gap-1 sm:gap-4 min-w-max">
+      <nav class="flex gap-1 sm:gap-4 min-w-max" role="tablist" aria-label="Network sections">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           @click="onTabChange(tab.id)"
+          role="tab"
+          :aria-selected="activeTab === tab.id"
           class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap flex items-center gap-2"
           :class="activeTab === tab.id 
             ? 'border-[color:var(--accent-primary)] text-accent' 
@@ -579,6 +583,7 @@ function formatDuration(seconds) {
               @click="openAPConfigModal"
               class="p-2 text-theme-muted hover:text-accent hover:bg-accent-muted rounded-lg transition-colors"
               title="Configure Access Point"
+              aria-label="Configure Access Point"
             >
               <Icon name="Settings" :size="20" />
             </button>
@@ -604,6 +609,7 @@ function formatDuration(seconds) {
               @click="handleStartAP"
               :disabled="apActionLoading"
               class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-success-muted text-success hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              aria-label="Start access point"
             >
               <Icon v-if="apActionLoading" name="Loader2" :size="14" class="animate-spin" />
               <Icon v-else name="Play" :size="14" />
@@ -614,6 +620,7 @@ function formatDuration(seconds) {
               @click="handleStopAP"
               :disabled="apActionLoading"
               class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-error-muted text-error hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              aria-label="Stop access point"
             >
               <Icon v-if="apActionLoading" name="Loader2" :size="14" class="animate-spin" />
               <Icon v-else name="Square" :size="14" />
@@ -671,6 +678,7 @@ function formatDuration(seconds) {
             :class="natStatus?.enabled 
               ? 'bg-[#8b5cf620] text-[#8b5cf6] hover:opacity-80'
               : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-tertiary'"
+            :aria-label="natStatus?.enabled ? 'Disable NAT internet sharing' : 'Enable NAT internet sharing'"
           >
             {{ natStatus?.enabled ? 'Disable NAT' : 'Enable NAT' }}
           </button>
@@ -820,6 +828,7 @@ function formatDuration(seconds) {
               @click="networkStore.disconnectWiFi()"
               :disabled="networkStore.loading"
               class="px-3 py-1.5 text-xs font-medium rounded-lg bg-error-muted text-error hover:opacity-80 disabled:opacity-50 flex items-center gap-1.5"
+              aria-label="Disconnect WiFi"
             >
               <Icon name="WifiOff" :size="14" />
               Disconnect
@@ -827,6 +836,7 @@ function formatDuration(seconds) {
             <button
               @click="showWiFiConnector = true"
               class="px-3 py-1.5 text-xs font-medium rounded-lg btn-accent flex items-center gap-1.5"
+              aria-label="Scan for WiFi networks"
             >
               <Icon name="Search" :size="14" />
               Scan & Connect
@@ -842,6 +852,7 @@ function formatDuration(seconds) {
           <button
             @click="networkStore.fetchSavedNetworks()"
             class="text-xs text-accent hover:underline"
+            aria-label="Refresh saved networks"
           >
             Refresh
           </button>
@@ -862,6 +873,7 @@ function formatDuration(seconds) {
             <button
               @click="handleForgetNetwork(net.ssid)"
               class="px-2.5 py-1 text-xs text-error hover:bg-error-muted rounded-lg transition-colors"
+              :aria-label="'Forget network ' + net.ssid"
             >
               Forget
             </button>
@@ -881,6 +893,7 @@ function formatDuration(seconds) {
           <button 
             @click="openAPConfigModal"
             class="px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:bg-theme-card flex items-center gap-1.5"
+            aria-label="Configure access point"
           >
             <Icon name="Settings" :size="14" />
             Configure
@@ -925,8 +938,9 @@ function formatDuration(seconds) {
         <div class="space-y-4 max-w-lg">
           <!-- Primary DNS -->
           <div>
-            <label class="block text-sm font-medium text-theme-secondary mb-1.5">Primary DNS Server</label>
+            <label for="dns-primary" class="block text-sm font-medium text-theme-secondary mb-1.5">Primary DNS Server</label>
             <input 
+              id="dns-primary"
               v-model="dnsPrimary"
               type="text"
               placeholder="e.g. 1.1.1.1"
@@ -936,8 +950,9 @@ function formatDuration(seconds) {
 
           <!-- Secondary DNS -->
           <div>
-            <label class="block text-sm font-medium text-theme-secondary mb-1.5">Secondary DNS Server</label>
+            <label for="dns-secondary" class="block text-sm font-medium text-theme-secondary mb-1.5">Secondary DNS Server</label>
             <input 
+              id="dns-secondary"
               v-model="dnsSecondary"
               type="text"
               placeholder="e.g. 8.8.8.8"
@@ -984,6 +999,7 @@ function formatDuration(seconds) {
             @click="clientsStore.fetchClients()" 
             :disabled="clientsStore.loading"
             class="px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:bg-theme-card flex items-center gap-1.5"
+            aria-label="Refresh client list"
           >
             <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': clientsStore.loading }" />
             Refresh
@@ -1026,6 +1042,7 @@ function formatDuration(seconds) {
                   @click="handleBlockClient(client.mac || client.mac_address)"
                   class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-theme-tertiary transition-colors"
                   title="Block client"
+                  :aria-label="'Block ' + (client.hostname || 'device') + ' (' + (client.mac || client.mac_address) + ')'"
                 >
                   <Icon name="Ban" :size="18" />
                 </button>
@@ -1060,6 +1077,7 @@ function formatDuration(seconds) {
               <button 
                 @click="clientsStore.unblockClient(client.mac || client.mac_address)"
                 class="px-3 py-1 text-xs font-medium text-accent hover:bg-accent-muted rounded-lg transition-colors"
+                :aria-label="'Unblock ' + (client.hostname || 'device') + ' (' + (client.mac || client.mac_address) + ')'"
               >
                 Unblock
               </button>
@@ -1079,6 +1097,7 @@ function formatDuration(seconds) {
             v-model="selectedTrafficInterface" 
             @change="fetchTrafficHistory"
             class="px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary"
+            aria-label="Select network interface"
           >
             <option v-for="iface in physicalInterfaces" :key="iface.name" :value="iface.name">
               {{ iface.name }} ({{ iface.state }})
@@ -1087,6 +1106,7 @@ function formatDuration(seconds) {
           <button 
             @click="fetchTrafficHistory" 
             class="px-3 py-2 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary text-sm"
+            aria-label="Refresh traffic data"
           >
             Refresh
           </button>
@@ -1137,7 +1157,7 @@ function formatDuration(seconds) {
         <h3 class="font-semibold text-theme-primary mb-4">Traffic History (Last 60 minutes)</h3>
         
         <div v-if="trafficHistory.length > 0" class="space-y-4">
-          <div class="h-48 flex items-end gap-0.5">
+          <div class="h-48 flex items-end gap-0.5" role="img" aria-label="Traffic history bar chart showing download and upload rates over the last 60 minutes">
             <div 
               v-for="(point, idx) in normalizedTrafficHistory" 
               :key="idx"
@@ -1203,11 +1223,11 @@ function formatDuration(seconds) {
 
     <!-- WiFi AP Config Modal -->
     <Teleport to="body">
-      <div v-if="showAPConfigModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="showAPConfigModal = false">
+      <div v-if="showAPConfigModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="showAPConfigModal = false" role="dialog" aria-modal="true" aria-label="WiFi Access Point Settings" @keydown.escape="showAPConfigModal = false">
         <div class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md">
           <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
             <h3 class="text-lg font-semibold text-theme-primary">WiFi Access Point Settings</h3>
-            <button @click="showAPConfigModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg">
+            <button @click="showAPConfigModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg" aria-label="Close">
               <Icon name="X" :size="20" />
             </button>
           </div>
