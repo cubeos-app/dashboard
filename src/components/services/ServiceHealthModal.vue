@@ -5,7 +5,7 @@
  * Modal showing service/app health details and logs.
  * Sprint 4: Uses unified apps.js store.
  */
-import { ref, watch, computed, onUnmounted } from 'vue'
+import { ref, watch, computed, onUnmounted, nextTick } from 'vue'
 import { useAppsStore } from '@/stores/apps'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -27,6 +27,7 @@ const loading = ref(false)
 const logs = ref([])
 const error = ref(null)
 let logFetchController = null
+const modalRef = ref(null)
 
 const displayName = computed(() => 
   props.service ? appsStore.getDisplayName(props.service) : ''
@@ -78,6 +79,11 @@ const uptime = computed(() => {
   if (days > 0) return `${days}d ${hours}h`
   if (hours > 0) return `${hours}h ${minutes}m`
   return `${minutes}m`
+})
+
+// Auto-focus modal when shown
+watch(() => props.show, (visible) => {
+  if (visible) nextTick(() => modalRef.value?.focus())
 })
 
 // Fetch logs when modal opens
@@ -132,7 +138,13 @@ onUnmounted(() => {
     >
       <div 
         v-if="show" 
+        ref="modalRef"
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="displayName ? `${displayName} health` : 'Service health'"
+        tabindex="-1"
+        @keydown.escape="close"
         @click.self="close"
       >
         <!-- Backdrop -->

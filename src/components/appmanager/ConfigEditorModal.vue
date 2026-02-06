@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
@@ -31,6 +31,7 @@ const localCompose = ref('')
 const localEnv = ref('')
 const activeTab = ref('compose')
 const recreateOnSave = ref(true)
+const modalRef = ref(null)
 
 watch(() => props.compose, (val) => {
   localCompose.value = val || ''
@@ -45,6 +46,7 @@ watch(() => props.show, (val) => {
     localCompose.value = props.compose || ''
     localEnv.value = props.env || ''
     activeTab.value = 'compose'
+    nextTick(() => modalRef.value?.focus())
   }
 })
 
@@ -59,7 +61,16 @@ function handleSave() {
 
 <template>
   <Teleport to="body">
-    <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      v-if="show"
+      ref="modalRef"
+      class="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="`Edit configuration — ${appName}`"
+      tabindex="-1"
+      @keydown.escape="$emit('close')"
+    >
       <!-- Backdrop -->
       <div class="absolute inset-0 bg-black/60" @click="$emit('close')"></div>
       

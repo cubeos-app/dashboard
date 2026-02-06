@@ -5,7 +5,7 @@
  * Shows app health and logs using the unified apps store.
  * Replaces ServiceHealthModal.vue.
  */
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { useAppsStore } from '@/stores/apps'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -26,6 +26,7 @@ const appsStore = useAppsStore()
 const loading = ref(false)
 const logs = ref([])
 const error = ref(null)
+const modalRef = ref(null)
 
 const displayName = computed(() => 
   props.app ? appsStore.getAppDisplayName(props.app) : ''
@@ -65,6 +66,11 @@ const health = computed(() => {
   return props.app?.status?.health || 'N/A'
 })
 
+// Auto-focus modal when shown
+watch(() => props.show, (visible) => {
+  if (visible) nextTick(() => modalRef.value?.focus())
+})
+
 watch(() => [props.show, props.app], async ([show, app]) => {
   if (show && app) {
     loading.value = true
@@ -96,7 +102,13 @@ function close() {
     >
       <div 
         v-if="show" 
+        ref="modalRef"
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="displayName ? `${displayName} health` : 'App health'"
+        tabindex="-1"
+        @keydown.escape="close"
       >
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="close"></div>

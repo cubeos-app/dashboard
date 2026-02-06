@@ -16,12 +16,13 @@
  *   - useStorageStore     → Storage overview, health, mounts
  *   - useSMBStore         → SMB status, shares, CRUD
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useStorageHalStore } from '@/stores/storage-hal'
 import { useStorageStore } from '@/stores/storage'
 import { useSMBStore } from '@/stores/smb'
 import { confirm } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 import DeviceHealth from '@/components/storage/DeviceHealth.vue'
@@ -29,6 +30,7 @@ import USBDevices from '@/components/storage/USBDevices.vue'
 import NetworkMounts from '@/components/storage/NetworkMounts.vue'
 
 const { signal } = useAbortOnUnmount()
+const { trapFocus } = useFocusTrap()
 
 const storageHalStore = useStorageHalStore()
 const storageStore = useStorageStore()
@@ -89,6 +91,7 @@ const expandedDevice = ref(null)
 // SMB modal state
 const showShareModal = ref(false)
 const shareModalMode = ref('create')
+const shareModalRef = ref(null)
 const shareForm = ref({
   name: '',
   path: '',
@@ -102,6 +105,11 @@ const shareLoading = ref(false)
 // SMB detail expansion
 const expandedShare = ref(null)
 const shareDetailLoading = ref(false)
+
+// Focus share modal when shown
+watch(showShareModal, (visible) => {
+  if (visible) nextTick(() => shareModalRef.value?.focus())
+})
 
 // ==========================================
 // Data Fetching
@@ -877,10 +885,14 @@ onUnmounted(() => {
       <Transition name="fade">
         <div
           v-if="showShareModal"
+          ref="shareModalRef"
           class="fixed inset-0 z-50 flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
           :aria-label="shareModalMode === 'create' ? 'Create Share' : 'Edit Share'"
+          tabindex="-1"
+          @keydown.escape="showShareModal = false"
+          @keydown="trapFocus"
         >
           <div class="absolute inset-0 bg-black/50" @click="showShareModal = false"></div>
           <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary">

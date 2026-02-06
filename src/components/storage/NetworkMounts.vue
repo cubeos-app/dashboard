@@ -17,7 +17,7 @@
  *   - useStorageHalStore → HAL-level network mounts, mount/unmount SMB/NFS, test, check
  *   - useMountsStore → API-level mount CRUD, detail, status, test connection
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useStorageHalStore } from '@/stores/storage-hal'
 import { useMountsStore } from '@/stores/mounts'
 import { confirm } from '@/utils/confirmDialog'
@@ -36,6 +36,7 @@ const actionError = ref(null)
 // Mount modal
 const showMountModal = ref(false)
 const mountModalMode = ref('create') // 'create' | 'edit'
+const mountModalRef = ref(null)
 const mountForm = ref(defaultForm())
 const formLoading = ref(false)
 const testLoading = ref(false)
@@ -144,6 +145,11 @@ onMounted(() => {
 })
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval)
+})
+
+// Focus mount modal when shown
+watch(showMountModal, (visible) => {
+  if (visible) nextTick(() => mountModalRef.value?.focus())
 })
 
 // ==========================================
@@ -686,10 +692,13 @@ function mountSource(mount) {
       <Transition name="fade">
         <div
           v-if="showMountModal"
+          ref="mountModalRef"
           class="fixed inset-0 z-50 flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
           :aria-label="mountModalMode === 'create' ? 'Add Network Mount' : 'Edit Network Mount'"
+          tabindex="-1"
+          @keydown.escape="showMountModal = false"
         >
           <div class="absolute inset-0 bg-black/50" @click="showMountModal = false"></div>
           <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-lg border border-theme-primary max-h-[90vh] overflow-y-auto">

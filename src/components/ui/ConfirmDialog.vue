@@ -7,6 +7,9 @@
  */
 import { ref, watch, nextTick } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
+import { useFocusTrap } from '@/composables/useFocusTrap'
+
+const { trapFocus } = useFocusTrap()
 
 const dialogRef = ref(null)
 
@@ -82,6 +85,7 @@ watch(() => props.show, (visible) => {
         :aria-label="title"
         tabindex="-1"
         @keydown.escape="emit('cancel')"
+        @keydown="trapFocus"
       >
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50" @click="emit('cancel')"></div>

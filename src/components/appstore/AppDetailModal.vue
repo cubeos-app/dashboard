@@ -1,9 +1,13 @@
 <script setup>
-import { computed, ref, nextTick } from 'vue'
+import { computed, ref, nextTick, onMounted } from 'vue'
 import { useAppStoreStore } from '@/stores/appstore'
 import Icon from '@/components/ui/Icon.vue'
 
 const appStore = useAppStoreStore()
+const modalRef = ref(null)
+
+// Auto-focus modal when mounted
+onMounted(() => nextTick(() => modalRef.value?.focus()))
 
 const props = defineProps({
   app: {
@@ -127,7 +131,15 @@ function handleClose() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div
+    ref="modalRef"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    role="dialog"
+    aria-modal="true"
+    :aria-label="title ? `${title} details` : 'App details'"
+    tabindex="-1"
+    @keydown.escape="handleClose"
+  >
     <!-- Backdrop -->
     <div 
       class="absolute inset-0 bg-black/60 backdrop-blur-sm"

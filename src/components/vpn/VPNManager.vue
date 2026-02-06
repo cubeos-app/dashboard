@@ -18,14 +18,16 @@
  *   addConfig, deleteConfig, connect, disconnect, setAutoConnect,
  *   getTypeLabel, getTypeIcon, formatDuration
  */
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useVPNStore, VPN_TYPES } from '@/stores/vpn'
 import { confirm } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import Icon from '@/components/ui/Icon.vue'
 
 const { signal } = useAbortOnUnmount()
+const { trapFocus } = useFocusTrap()
 const router = useRouter()
 const vpnStore = useVPNStore()
 
@@ -42,6 +44,7 @@ const detailLoading = ref(false)
 
 // Add config modal
 const showAddModal = ref(false)
+const addModalRef = ref(null)
 const addForm = ref({
   name: '',
   type: VPN_TYPES.WIREGUARD,
@@ -89,6 +92,11 @@ async function refresh() {
 
 onMounted(() => {
   loadAll()
+})
+
+// Focus add modal when shown
+watch(showAddModal, (visible) => {
+  if (visible) nextTick(() => addModalRef.value?.focus())
 })
 
 // ==========================================
@@ -563,8 +571,15 @@ function formatBytes(bytes) {
       >
         <div
           v-if="showAddModal"
+          ref="addModalRef"
           class="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add VPN Configuration"
+          tabindex="-1"
           @click.self="closeAddModal"
+          @keydown.escape="closeAddModal"
+          @keydown="trapFocus"
         >
           <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
 
