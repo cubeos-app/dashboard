@@ -59,6 +59,19 @@ const routes = [
     component: () => import('@/components/vpn/VPNManager.vue'),
     meta: { requiresAuth: true }
   },
+  // Sprint 8: Communication & Media
+  {
+    path: '/communication',
+    name: 'communication',
+    component: () => import('@/components/communication/CommunicationView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/media',
+    name: 'media',
+    component: () => import('@/components/media/MediaView.vue'),
+    meta: { requiresAuth: true }
+  },
   {
     path: '/logs',
     name: 'logs',

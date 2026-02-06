@@ -37,6 +37,8 @@ const navItems = [
   { path: '/monitoring', name: 'Monitoring', icon: 'Activity' },
   { path: '/processes', name: 'Processes', icon: 'Cpu' },
   { path: '/hardware', name: 'Hardware', icon: 'CircuitBoard' },
+  { path: '/communication', name: 'Communication', icon: 'Radio' },
+  { path: '/media', name: 'Media', icon: 'Volume2' },
   { path: '/docs', name: 'Docs', icon: 'BookOpen' },
   { path: '/system', name: 'System', icon: 'Settings2' }
 ]
