@@ -245,7 +245,11 @@ onUnmounted(() => {
       </h2>
       <div 
         class="p-4 rounded-2xl border border-theme-primary bg-theme-card hover:border-accent/30 transition-all cursor-pointer group"
+        role="button"
+        tabindex="0"
+        aria-label="Open AI assistant chat"
         @click="openChat"
+        @keydown.enter="openChat"
       >
         <div class="flex items-center gap-4">
           <div class="w-10 h-10 rounded-xl bg-accent-muted flex items-center justify-center group-hover:bg-accent/20 transition-colors">
@@ -266,12 +270,14 @@ onUnmounted(() => {
               @keydown="handleChatKeydown"
               type="text"
               placeholder="Ask a question..."
+              aria-label="Ask CubeOS AI assistant"
               class="w-full pl-9 pr-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent"
             />
           </div>
           <button
             @click="openChatWithQuery"
             :disabled="!chatQuery.trim()"
+            aria-label="Send question to AI assistant"
             class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Ask
@@ -438,17 +444,22 @@ onUnmounted(() => {
         CubeOS Core Apps
       </h2>
       <SkeletonLoader v-if="appsStore.loading && coreApps.length === 0" variant="grid" :count="6" />
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div 
           v-for="app in coreApps" 
           :key="app.name"
           @click="openApp(app)"
+          @keydown.enter="openApp(app)"
+          role="button"
+          tabindex="0"
+          :aria-label="`Open ${getAppName(app)}`"
           class="group p-4 rounded-xl border border-theme-primary bg-theme-card hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer relative"
         >
           <!-- Favorite star -->
           <button 
             @click.stop="toggleFavorite(app.name)"
-            class="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+            :aria-label="isFavorite(app.name) ? `Remove ${getAppName(app)} from favorites` : `Add ${getAppName(app)} to favorites`"
+            class="absolute top-2 right-2 p-1 rounded opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity"
             :class="isFavorite(app.name) ? 'text-warning' : 'text-theme-muted hover:text-warning'"
           >
             <Icon name="Star" :size="14" :fill="isFavorite(app.name) ? 'currentColor' : 'none'" />

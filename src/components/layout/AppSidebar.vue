@@ -104,7 +104,7 @@ function navigate(path) {
     ]"
   >
     <!-- Main navigation -->
-    <nav class="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+    <nav aria-label="Main navigation" class="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
       <button
         v-for="item in navItems"
         :key="item.path"

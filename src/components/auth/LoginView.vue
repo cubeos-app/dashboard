@@ -112,6 +112,7 @@ async function handleSubmit() {
             <button
               type="button"
               @click="showPassword = !showPassword"
+              :aria-label="showPassword ? 'Hide password' : 'Show password'"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-secondary transition-colors"
             >
               <Icon :name="showPassword ? 'EyeOff' : 'Eye'" :size="16" />

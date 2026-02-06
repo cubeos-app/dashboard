@@ -168,6 +168,7 @@ const wsConnected = computed(() => systemStore.wsConnected)
         <!-- Settings -->
         <router-link
           to="/settings"
+          aria-label="Settings"
           class="p-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
         >
           <Icon name="Settings" :size="18" />
@@ -176,6 +177,7 @@ const wsConnected = computed(() => systemStore.wsConnected)
         <!-- User menu -->
         <router-link
           to="/settings"
+          aria-label="User menu"
           class="flex items-center gap-2 pl-2 ml-1 border-l border-theme-primary"
         >
           <div class="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-theme-tertiary transition-colors">
