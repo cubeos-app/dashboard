@@ -10,7 +10,7 @@
  * Store: useCommunicationStore — fetchMeshtasticStatus, fetchMeshtasticNodes,
  *        sendMeshtasticMessage, setMeshtasticChannel
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCommunicationStore } from '@/stores/communication'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { confirm } from '@/utils/confirmDialog'
@@ -30,6 +30,7 @@ const devicePort = ref(null)
 // Message form
 const messageText = ref('')
 const messageSent = ref(false)
+let messageSentTimeout = null
 
 // Channel config form
 const channelName = ref('')
@@ -131,7 +132,8 @@ async function handleSendMessage() {
     await communicationStore.sendMeshtasticMessage(port, { text: messageText.value.trim() })
     messageText.value = ''
     messageSent.value = true
-    setTimeout(() => { messageSent.value = false }, 3000)
+    if (messageSentTimeout) clearTimeout(messageSentTimeout)
+    messageSentTimeout = setTimeout(() => { messageSent.value = false }, 3000)
   } catch {
     // Store sets error
   } finally {
@@ -202,6 +204,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onUnmounted(() => {
+  if (messageSentTimeout) clearTimeout(messageSentTimeout)
 })
 </script>
 

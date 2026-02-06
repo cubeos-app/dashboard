@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAppManagerStore } from '@/stores/appmanager'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
@@ -29,6 +29,7 @@ const newApp = ref({
 
 const typeFilter = ref('')
 const controllingApp = ref(null)
+let statusRefreshTimeout = null
 
 const filteredApps = computed(() => {
   if (!typeFilter.value) return store.apps
@@ -141,7 +142,8 @@ async function startAppContainer(app) {
   try { 
     await store.startApp(app.name)
     // Update state after short delay
-    setTimeout(async () => {
+    if (statusRefreshTimeout) clearTimeout(statusRefreshTimeout)
+    statusRefreshTimeout = setTimeout(async () => {
       const status = await store.getAppStatus(app.name)
       appStates.value[app.name] = { 
         running: status?.running || false, 
@@ -158,7 +160,8 @@ async function stopAppContainer(app) {
   try { 
     await store.stopApp(app.name)
     // Update state after short delay
-    setTimeout(async () => {
+    if (statusRefreshTimeout) clearTimeout(statusRefreshTimeout)
+    statusRefreshTimeout = setTimeout(async () => {
       const status = await store.getAppStatus(app.name)
       appStates.value[app.name] = { 
         running: status?.running || false, 
@@ -174,7 +177,8 @@ async function restartAppContainer(app) {
   try { 
     await store.restartApp(app.name)
     // Update state after short delay
-    setTimeout(async () => {
+    if (statusRefreshTimeout) clearTimeout(statusRefreshTimeout)
+    statusRefreshTimeout = setTimeout(async () => {
       const status = await store.getAppStatus(app.name)
       appStates.value[app.name] = { 
         running: status?.running || false, 
@@ -221,6 +225,10 @@ watch(() => store.apps, (newApps) => {
     fetchAllAppStates()
   }
 }, { immediate: true })
+
+onUnmounted(() => {
+  if (statusRefreshTimeout) clearTimeout(statusRefreshTimeout)
+})
 </script>
 
 <template>

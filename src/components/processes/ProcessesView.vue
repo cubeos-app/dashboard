@@ -160,6 +160,8 @@ onMounted(async () => {
   pollInterval = setInterval(() => {
     processesStore.fetchAll()
     processesStore.fetchStats()
+    processesStore.fetchTopCpu()
+    processesStore.fetchTopMemory()
   }, 10000)
 })
 

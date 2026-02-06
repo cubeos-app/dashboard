@@ -275,9 +275,11 @@ watch(autoRefresh, (val) => {
   }
 })
 
-// Re-fetch on filter changes
+// Re-fetch on filter changes (debounced to prevent rapid fire)
+let filterDebounce = null
 watch([activeTab, selectedUnit, selectedContainer, logLevel, lineCount, halCategory], () => {
-  fetchLogs()
+  if (filterDebounce) clearTimeout(filterDebounce)
+  filterDebounce = setTimeout(() => fetchLogs(), 150)
 })
 
 // ==========================================
@@ -291,6 +293,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (refreshInterval) clearInterval(refreshInterval)
+  if (filterDebounce) clearTimeout(filterDebounce)
 })
 
 // ==========================================

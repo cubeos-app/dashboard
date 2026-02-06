@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted, watch } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -24,6 +24,8 @@ const modelReady = ref(false)
 const isPullingModel = ref(false)
 const chatContainer = ref(null)
 const inputRef = ref(null)
+let pullPollInterval = null
+let pullTimeoutId = null
 
 const suggestedPrompts = [
   "How do I access Pi-hole?",
@@ -91,16 +93,20 @@ async function pullModel() {
   try {
     await api.post('/chat/pull-model')
     // Poll status every 5 seconds until ready
-    const pollInterval = setInterval(async () => {
+    if (pullPollInterval) clearInterval(pullPollInterval)
+    pullPollInterval = setInterval(async () => {
       await checkStatus()
       if (modelReady.value) {
-        clearInterval(pollInterval)
+        clearInterval(pullPollInterval)
+        pullPollInterval = null
         isPullingModel.value = false
       }
     }, 5000)
     // Timeout after 10 minutes
-    setTimeout(() => {
-      clearInterval(pollInterval)
+    if (pullTimeoutId) clearTimeout(pullTimeoutId)
+    pullTimeoutId = setTimeout(() => {
+      if (pullPollInterval) clearInterval(pullPollInterval)
+      pullPollInterval = null
       isPullingModel.value = false
     }, 600000)
   } catch (e) {
@@ -237,6 +243,11 @@ onMounted(() => {
   if (props.show) {
     checkStatus()
   }
+})
+
+onUnmounted(() => {
+  if (pullPollInterval) clearInterval(pullPollInterval)
+  if (pullTimeoutId) clearTimeout(pullTimeoutId)
 })
 </script>
 

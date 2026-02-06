@@ -10,7 +10,7 @@
  * Store: useMediaStore — fetchCameras, fetchCameraInfo, captureImage,
  *        fetchCapturedImage, fetchStreamInfo, startStream, stopStream
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMediaStore } from '@/stores/media'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { confirm } from '@/utils/confirmDialog'
@@ -24,6 +24,8 @@ const loading = ref(true)
 const actionLoading = ref({})
 const captureSuccess = ref(false)
 const streamUrlCopied = ref(false)
+let captureSuccessTimeout = null
+let streamUrlCopiedTimeout = null
 
 // ==========================================
 // Computed — camera list
@@ -127,7 +129,8 @@ async function handleCapture() {
   try {
     await mediaStore.captureImage()
     captureSuccess.value = true
-    setTimeout(() => { captureSuccess.value = false }, 3000)
+    if (captureSuccessTimeout) clearTimeout(captureSuccessTimeout)
+    captureSuccessTimeout = setTimeout(() => { captureSuccess.value = false }, 3000)
   } catch {
     // Store sets error
   } finally {
@@ -171,7 +174,8 @@ async function copyStreamUrl() {
   try {
     await navigator.clipboard.writeText(streamStatus.value.url)
     streamUrlCopied.value = true
-    setTimeout(() => { streamUrlCopied.value = false }, 2000)
+    if (streamUrlCopiedTimeout) clearTimeout(streamUrlCopiedTimeout)
+    streamUrlCopiedTimeout = setTimeout(() => { streamUrlCopied.value = false }, 2000)
   } catch {
     // Fallback — select text
   }
@@ -193,6 +197,11 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onUnmounted(() => {
+  if (captureSuccessTimeout) clearTimeout(captureSuccessTimeout)
+  if (streamUrlCopiedTimeout) clearTimeout(streamUrlCopiedTimeout)
 })
 </script>
 

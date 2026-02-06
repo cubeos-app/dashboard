@@ -10,7 +10,7 @@
  * Store: useCommunicationStore — fetchIridiumStatus, fetchIridiumSignal,
  *        fetchIridiumMessages, sendIridiumSBD, checkIridiumMailbox
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCommunicationStore } from '@/stores/communication'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { confirm } from '@/utils/confirmDialog'
@@ -29,6 +29,7 @@ const devicePort = ref(null)
 // Send form
 const sbdMessage = ref('')
 const messageSent = ref(false)
+let messageSentTimeout = null
 
 const SBD_MAX_BYTES = 340
 
@@ -193,7 +194,8 @@ async function handleSendSBD() {
     await communicationStore.sendIridiumSBD(port, { message: sbdMessage.value.trim() })
     sbdMessage.value = ''
     messageSent.value = true
-    setTimeout(() => { messageSent.value = false }, 3000)
+    if (messageSentTimeout) clearTimeout(messageSentTimeout)
+    messageSentTimeout = setTimeout(() => { messageSent.value = false }, 3000)
   } catch {
     // Store sets error
   } finally {
@@ -247,6 +249,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onUnmounted(() => {
+  if (messageSentTimeout) clearTimeout(messageSentTimeout)
 })
 </script>
 

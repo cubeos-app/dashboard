@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSetupStore } from '@/stores/setup'
 import api from '@/api/client'
@@ -283,6 +283,13 @@ onMounted(async () => {
     hostname.value = info.hostname || 'cubeos'
   } catch (e) {
     hostname.value = 'cubeos'
+  }
+})
+
+onUnmounted(() => {
+  if (estimateDebounceTimer.value) {
+    clearTimeout(estimateDebounceTimer.value)
+    estimateDebounceTimer.value = null
   }
 })
 </script>

@@ -26,9 +26,7 @@ async function handleSubmit() {
   
   if (success) {
     const redirect = route.query.redirect || '/'
-    setTimeout(() => {
-      router.push(redirect)
-    }, 100)
+    router.push(redirect)
   }
 }
 </script>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFirewallStore } from '@/stores/firewall'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
@@ -18,6 +18,7 @@ const showQuickPort = ref(false)
 const showQuickService = ref(false)
 const actionLoading = ref(null) // 'save' | 'restore' | 'reset' | null
 const actionSuccess = ref(null) // 'save' | 'restore' | 'reset' | null
+let actionSuccessTimeout = null
 const localError = ref(null)
 
 // Add Rule form
@@ -87,6 +88,10 @@ async function fetchAll() {
 
 onMounted(fetchAll)
 
+onUnmounted(() => {
+  if (actionSuccessTimeout) clearTimeout(actionSuccessTimeout)
+})
+
 // ==========================================
 // Rule Management
 // ==========================================
@@ -139,7 +144,8 @@ async function handleSave() {
   actionLoading.value = null
   if (ok) {
     actionSuccess.value = 'save'
-    setTimeout(() => { actionSuccess.value = null }, 3000)
+    if (actionSuccessTimeout) clearTimeout(actionSuccessTimeout)
+    actionSuccessTimeout = setTimeout(() => { actionSuccess.value = null }, 3000)
   }
 }
 
@@ -150,7 +156,8 @@ async function handleRestore() {
   actionLoading.value = null
   if (ok) {
     actionSuccess.value = 'restore'
-    setTimeout(() => { actionSuccess.value = null }, 3000)
+    if (actionSuccessTimeout) clearTimeout(actionSuccessTimeout)
+    actionSuccessTimeout = setTimeout(() => { actionSuccess.value = null }, 3000)
   }
 }
 
@@ -161,7 +168,8 @@ async function handleReset() {
   actionLoading.value = null
   if (ok) {
     actionSuccess.value = 'reset'
-    setTimeout(() => { actionSuccess.value = null }, 3000)
+    if (actionSuccessTimeout) clearTimeout(actionSuccessTimeout)
+    actionSuccessTimeout = setTimeout(() => { actionSuccess.value = null }, 3000)
   }
 }
 

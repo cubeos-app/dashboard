@@ -87,7 +87,11 @@ async function saveAPConfig() {
     await api.put('/network/ap/config', apConfig.value)
     await api.post('/network/wifi/ap/restart')
     showAPConfigModal.value = false
-    setTimeout(() => fetchAll(), 2000)
+    // Poll until AP comes back (up to 3 attempts, 2s apart)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await new Promise(r => setTimeout(r, 2000))
+      try { await fetchAll(); break } catch { /* retry */ }
+    }
   } catch (e) {
     error.value = 'Failed to save AP config: ' + e.message
   } finally {
@@ -164,6 +168,7 @@ const dnsLoading = ref(false)
 const dnsPrimary = ref('')
 const dnsSecondary = ref('')
 const dnsSaveSuccess = ref(false)
+let dnsSaveTimeout = null
 
 async function loadDNS() {
   dnsLoading.value = true
@@ -186,7 +191,8 @@ async function saveDNS() {
     })
     if (success) {
       dnsSaveSuccess.value = true
-      setTimeout(() => { dnsSaveSuccess.value = false }, 3000)
+      if (dnsSaveTimeout) clearTimeout(dnsSaveTimeout)
+      dnsSaveTimeout = setTimeout(() => { dnsSaveSuccess.value = false }, 3000)
     }
   } finally {
     dnsLoading.value = false
@@ -351,6 +357,7 @@ onMounted(() => {
 onUnmounted(() => {
   stopPolling()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  if (dnsSaveTimeout) clearTimeout(dnsSaveTimeout)
 })
 
 // Traffic history state

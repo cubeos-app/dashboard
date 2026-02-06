@@ -72,10 +72,25 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+
+  // Pause auto-refresh when tab is hidden, resume when visible
+  visibilityHandler = () => {
+    if (document.hidden) {
+      if (autoRefresh.value) stopAutoRefresh()
+    } else {
+      if (autoRefresh.value) startAutoRefresh()
+    }
+  }
+  document.addEventListener('visibilitychange', visibilityHandler)
 })
+
+let visibilityHandler = null
 
 onUnmounted(() => {
   stopAutoRefresh()
+  if (visibilityHandler) {
+    document.removeEventListener('visibilitychange', visibilityHandler)
+  }
 })
 
 // ==========================================

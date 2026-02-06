@@ -205,7 +205,8 @@ export function useWebSocket(options = {}) {
       if (!connected.value) {
         reconnectAttempts.value = 0
         // Small delay to let network stabilize after mode change
-        setTimeout(connect, 1000)
+        if (reconnectTimeout) clearTimeout(reconnectTimeout)
+        reconnectTimeout = setTimeout(connect, 1000)
       }
     }
     window.addEventListener('online', onlineHandler)

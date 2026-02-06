@@ -54,6 +54,8 @@ const thresholdForm = ref({
 
 const saveSuccess = ref(false)
 const saveError = ref(null)
+let saveSuccessTimeout = null
+let saveErrorTimeout = null
 
 watch(() => monitoringStore.thresholds, (val) => {
   if (val) {
@@ -69,13 +71,15 @@ watch(() => monitoringStore.thresholds, (val) => {
 async function saveThresholds() {
   saveSuccess.value = false
   saveError.value = null
+  if (saveSuccessTimeout) clearTimeout(saveSuccessTimeout)
+  if (saveErrorTimeout) clearTimeout(saveErrorTimeout)
   try {
     await monitoringStore.updateThresholds({ ...thresholdForm.value })
     saveSuccess.value = true
-    setTimeout(() => { saveSuccess.value = false }, 3000)
+    saveSuccessTimeout = setTimeout(() => { saveSuccess.value = false }, 3000)
   } catch (e) {
     saveError.value = e.message || 'Failed to save thresholds'
-    setTimeout(() => { saveError.value = null }, 5000)
+    saveErrorTimeout = setTimeout(() => { saveError.value = null }, 5000)
   }
 }
 
@@ -283,6 +287,8 @@ onUnmounted(() => {
   if (wsUnsubscribe) {
     wsUnsubscribe(WS_SUBSCRIBER_KEY)
   }
+  if (saveSuccessTimeout) clearTimeout(saveSuccessTimeout)
+  if (saveErrorTimeout) clearTimeout(saveErrorTimeout)
 })
 
 async function refresh() {

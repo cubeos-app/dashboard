@@ -51,6 +51,8 @@ const newBackupDescription = ref('')
 // Sprint 6 G2: Quick backup state
 const quickBackupLoading = ref(false)
 const quickBackupSuccess = ref(false)
+let quickBackupTimeout = null
+let passwordSuccessTimeout = null
 
 // Sprint 6 G2: Backup detail state (accordion pattern — max 1 open)
 const expandedBackupId = ref(null)
@@ -137,7 +139,8 @@ async function handleQuickBackup() {
     await systemStore.quickBackup('config')
     quickBackupSuccess.value = true
     await fetchBackups()
-    setTimeout(() => { quickBackupSuccess.value = false }, 2000)
+    if (quickBackupTimeout) clearTimeout(quickBackupTimeout)
+    quickBackupTimeout = setTimeout(() => { quickBackupSuccess.value = false }, 2000)
   } catch (e) {
     // Error handled by store
   } finally {
@@ -227,6 +230,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (powerInterval) clearInterval(powerInterval)
+  if (quickBackupTimeout) clearTimeout(quickBackupTimeout)
+  if (passwordSuccessTimeout) clearTimeout(passwordSuccessTimeout)
 })
 
 // Power status computed classes - using theme colors
@@ -308,7 +313,8 @@ async function handleChangePassword() {
     currentPassword.value = ''
     newPassword.value = ''
     confirmPassword.value = ''
-    setTimeout(() => {
+    if (passwordSuccessTimeout) clearTimeout(passwordSuccessTimeout)
+    passwordSuccessTimeout = setTimeout(() => {
       showChangePassword.value = false
       passwordSuccess.value = false
     }, 2000)

@@ -43,10 +43,13 @@ onMounted(() => {
   if (isMobile.value) {
     isSidebarOpen.value = false
   }
+  fetchDocsTree()
+  fetchDoc(currentPath.value)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  if (searchTimeout) clearTimeout(searchTimeout)
 })
 
 // Get current doc path from route
@@ -162,11 +165,6 @@ watch(searchQuery, (val) => {
   } else {
     searchResults.value = []
   }
-})
-
-onMounted(() => {
-  fetchDocsTree()
-  fetchDoc(currentPath.value)
 })
 
 function isActive(path) {

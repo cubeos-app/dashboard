@@ -6,7 +6,7 @@
  * Sprint 2 additions: disconnect button, saved networks list with forget action,
  * WiFi status indicator showing connected SSID + signal.
  */
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -55,8 +55,16 @@ onMounted(() => {
   }
 })
 
+const scanCooldown = ref(false)
+let scanCooldownTimeout = null
+
 async function scanNetworks() {
+  if (scanCooldown.value) return
+  scanCooldown.value = true
   await networkStore.scanWiFi()
+  // 5s cooldown between scans
+  if (scanCooldownTimeout) clearTimeout(scanCooldownTimeout)
+  scanCooldownTimeout = setTimeout(() => { scanCooldown.value = false }, 5000)
 }
 
 function selectNetwork(network) {
@@ -129,6 +137,10 @@ function getSecurityIcon(security) {
   if (!security || security === 'open') return 'Unlock'
   return 'Lock'
 }
+
+onUnmounted(() => {
+  if (scanCooldownTimeout) clearTimeout(scanCooldownTimeout)
+})
 </script>
 
 <template>
@@ -232,7 +244,8 @@ function getSecurityIcon(security) {
               <div v-else-if="!selectedNetwork" class="space-y-2">
                 <button
                   @click="scanNetworks"
-                  class="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-sm text-accent hover:bg-accent/10 transition-colors mb-3"
+                  :disabled="scanning || scanCooldown"
+                  class="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-sm text-accent hover:bg-accent/10 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Icon name="RefreshCw" :size="16" />
                   Refresh
@@ -275,7 +288,8 @@ function getSecurityIcon(security) {
                   <p class="text-theme-tertiary">No networks found</p>
                   <button
                     @click="scanNetworks"
-                    class="mt-2 text-sm text-accent hover:underline"
+                    :disabled="scanning || scanCooldown"
+                    class="mt-2 text-sm text-accent hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Try again
                   </button>
