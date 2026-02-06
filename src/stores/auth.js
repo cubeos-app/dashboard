@@ -10,6 +10,13 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const error = ref(null)
 
+  // Sync token state when API client clears tokens (e.g. refresh failure)
+  function onAuthExpired() {
+    token.value = null
+    user.value = null
+  }
+  window.addEventListener('cubeos:auth-expired', onAuthExpired)
+
   // Getters - token ref is reactive
   const isAuthenticated = computed(() => !!token.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
@@ -21,8 +28,8 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const response = await api.login(usernameInput, password)
-      // Update our reactive token ref
-      token.value = response.access_token
+      // Update our reactive token ref (match client.js fallback logic)
+      token.value = response.access_token || response.token
       // Set user data from login response
       if (response.user) {
         user.value = response.user

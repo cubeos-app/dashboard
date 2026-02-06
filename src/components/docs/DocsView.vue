@@ -9,6 +9,7 @@
  */
 import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
 const route = useRoute()
@@ -60,16 +61,12 @@ const currentPath = computed(() => {
 // Fetch docs tree structure
 async function fetchDocsTree() {
   try {
-    const resp = await fetch('/api/v1/docs/tree')
-    if (resp.ok) {
-      docsTree.value = await resp.json()
-      docsAvailable.value = docsTree.value.length > 0
-    } else if (resp.status === 404) {
-      docsAvailable.value = false
-      docsTree.value = []
-    }
+    const data = await api.get('/docs/tree')
+    docsTree.value = data || []
+    docsAvailable.value = docsTree.value.length > 0
   } catch (e) {
     docsAvailable.value = false
+    docsTree.value = []
   }
 }
 
@@ -79,19 +76,13 @@ async function fetchDoc(path) {
   error.value = null
   
   try {
-    const resp = await fetch(`/api/v1/docs/${path}`)
-    
-    if (resp.ok) {
-      currentDoc.value = await resp.json()
-    } else if (resp.status === 404) {
+    currentDoc.value = await api.get(`/docs/${path}`)
+  } catch (e) {
+    if (e.message && e.message.includes('404')) {
       error.value = 'not_found'
-      currentDoc.value = null
     } else {
       error.value = 'load_failed'
-      currentDoc.value = null
     }
-  } catch (e) {
-    error.value = 'connection_failed'
     currentDoc.value = null
   } finally {
     isLoading.value = false
@@ -106,10 +97,8 @@ async function searchDocs() {
   }
   
   try {
-    const resp = await fetch(`/api/v1/docs/search?q=${encodeURIComponent(searchQuery.value)}`)
-    if (resp.ok) {
-      searchResults.value = await resp.json()
-    }
+    const data = await api.get('/docs/search', { q: searchQuery.value })
+    searchResults.value = data || []
   } catch (e) {
     // Search failed silently
   }
@@ -143,7 +132,12 @@ function renderMarkdown(content) {
     .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
     .replace(/_([^_\n]+)_/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="doc-link">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+      const isSafe = /^(https?:\/\/|\/|#|mailto:)/.test(url.trim())
+      return isSafe
+        ? `<a href="${url}" target="_blank" rel="noopener" class="doc-link">${text}</a>`
+        : `<span class="doc-link">${text}</span>`
+    })
     .replace(/^- (.+)$/gm, '<li class="doc-li">$1</li>')
     .replace(/(<li.*<\/li>\n?)+/g, '<ul class="doc-ul">$&</ul>')
     .replace(/^\d+\. (.+)$/gm, '<li class="doc-li-ordered">$1</li>')

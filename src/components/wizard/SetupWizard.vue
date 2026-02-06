@@ -179,6 +179,8 @@ async function nextStep() {
   if (currentStep.value === 4) {
     // Before complete step, apply configuration
     await applyConfiguration()
+    // Don't advance if configuration failed
+    if (error.value) return
   }
   
   if (currentStep.value < steps.length - 1) {
@@ -225,10 +227,16 @@ async function applyConfiguration() {
     
     // Change admin password
     if (adminPassword.value) {
-      await api.post('/auth/password', {
-        current_password: 'admin', // Default password
-        new_password: adminPassword.value
-      })
+      try {
+        await api.post('/auth/password', {
+          current_password: 'admin', // Default password — will fail if already changed
+          new_password: adminPassword.value
+        })
+      } catch (pwErr) {
+        // TODO: If wizard is re-run after password was changed, this will fail.
+        // Future: prompt for current password or skip if not first-boot.
+        console.warn('Password change failed — default password may have been changed previously')
+      }
     }
     
     // Mark setup as complete via store

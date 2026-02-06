@@ -196,6 +196,8 @@ class ApiClient {
     this.refreshToken = null
     safeRemoveItem('cubeos_access_token')
     safeRemoveItem('cubeos_refresh_token')
+    // Notify auth store of token invalidation
+    window.dispatchEvent(new Event('cubeos:auth-expired'))
   }
 
   /**

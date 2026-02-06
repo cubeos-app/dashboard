@@ -186,7 +186,9 @@ async function validateStep() {
     validation.value = result
     return result.valid
   } catch (e) {
-    return true // Continue on validation error
+    // Surface validation error — don't silently allow invalid config to proceed
+    error.value = e.message || 'Validation failed — please check your connection'
+    return false
   }
 }
 

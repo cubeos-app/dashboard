@@ -1,6 +1,6 @@
 <script setup>
 import { ref, nextTick, onMounted, watch } from 'vue'
-import { safeGetRaw } from '@/utils/storage'
+import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
@@ -66,18 +66,19 @@ function parseMarkdown(text) {
     // Inline code: `code`
     .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
     // Links: [text](url)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="chat-link">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+      const isSafe = /^(https?:\/\/|\/|#|mailto:)/.test(url.trim())
+      return isSafe
+        ? `<a href="${url}" target="_blank" rel="noopener" class="chat-link">${text}</a>`
+        : `<span>${text}</span>`
+    })
     // Line breaks
     .replace(/\n/g, '<br>')
 }
 
 async function checkStatus() {
   try {
-    const token = safeGetRaw('cubeos_access_token')
-    const resp = await fetch('/api/v1/chat/status', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    const data = await resp.json()
+    const data = await api.get('/chat/status')
     isAvailable.value = data.available
     modelReady.value = data.model_ready
   } catch (e) {
@@ -88,11 +89,7 @@ async function checkStatus() {
 async function pullModel() {
   isPullingModel.value = true
   try {
-    const token = safeGetRaw('cubeos_access_token')
-    await fetch('/api/v1/chat/pull-model', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    await api.post('/chat/pull-model')
     // Poll status every 5 seconds until ready
     const pollInterval = setInterval(async () => {
       await checkStatus()
@@ -126,16 +123,12 @@ async function sendMessage(text = null) {
   messages.value.push({ role: 'assistant', content: '', loading: true, sources: [] })
 
   try {
-    const token = safeGetRaw('cubeos_access_token')
     // Send last 6 messages as history (matches API limit)
     const history = messages.value.slice(0, -2).slice(-6)
 
     const response = await fetch('/api/v1/chat/stream', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: api.getHeaders(),
       body: JSON.stringify({ message, history })
     })
 
@@ -387,7 +380,7 @@ onMounted(() => {
                     v-if="msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && !msg.loading" 
                     class="flex flex-wrap gap-1.5 mt-1.5 ml-1"
                   >
-                    <span class="text-[10px] text-theme-muted">📚</span>
+                    <Icon name="BookOpen" :size="10" class="text-theme-muted flex-shrink-0" />
                     <a 
                       v-for="(source, sIdx) in msg.sources" 
                       :key="sIdx" 
@@ -467,7 +460,7 @@ onMounted(() => {
 .chat-content :deep(.inline-code) {
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
   font-size: 0.85em;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-tertiary, rgba(0, 0, 0, 0.2));
   padding: 0.1em 0.4em;
   border-radius: 4px;
 }
