@@ -297,6 +297,14 @@ async function deleteMount(mount) {
   try {
     if (mount._source === 'api') {
       await mountsStore.deleteMount(mount.name)
+    } else if (mount._source === 'hal') {
+      // HAL-only mounts: unmount (HAL has no persistent config to delete)
+      if (mount._mounted) {
+        await storageHalStore.unmountNetworkShare({
+          source: mount.source,
+          mountpoint: mount.mountpoint
+        })
+      }
     }
     await fetchAll()
   } catch (e) {
@@ -531,9 +539,8 @@ function mountSource(mount) {
                 <Icon name="Pencil" :size="14" />
               </button>
 
-              <!-- Delete (API mounts only) -->
+              <!-- Delete -->
               <button
-                v-if="mount._source === 'api'"
                 @click.stop="deleteMount(mount)"
                 class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted"
                 title="Delete mount"
@@ -596,7 +603,7 @@ function mountSource(mount) {
                   <span class="text-xs text-theme-muted block">Domain</span>
                   <span class="text-theme-primary text-xs">{{ mount.domain }}</span>
                 </div>
-                <div v-if="mount.auto_mount || mount.automount">
+                <div>
                   <span class="text-xs text-theme-muted block">Auto Mount</span>
                   <span class="text-theme-primary text-xs">{{ (mount.auto_mount || mount.automount) ? 'Yes' : 'No' }}</span>
                 </div>

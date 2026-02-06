@@ -247,6 +247,37 @@ export const useSetupStore = defineStore('setup', () => {
   }
 
   /**
+   * Mark setup as complete
+   * POST /setup/complete
+   * Replaces the pattern of using preferencesStore.savePreferences({ setup_complete: true })
+   * which couples setup completion to user preferences.
+   *
+   * Falls back to preferences store if dedicated endpoint not available.
+   *
+   * @returns {boolean} true if marked complete
+   */
+  async function markComplete() {
+    try {
+      await api.post('/setup/complete')
+      status.value = { is_complete: true }
+      return true
+    } catch (e) {
+      // TODO: ⚡ If /setup/complete endpoint doesn't exist yet, fall back to preferences
+      // Remove this fallback once backend implements the endpoint
+      try {
+        const { usePreferencesStore } = await import('@/stores/preferences')
+        const preferencesStore = usePreferencesStore()
+        await preferencesStore.savePreferences({ setup_complete: true })
+        status.value = { is_complete: true }
+        return true
+      } catch (fallbackErr) {
+        error.value = fallbackErr.message
+        return false
+      }
+    }
+  }
+
+  /**
    * Clear cached status — called after setup completes or resets.
    * Replaces the old invalidateSetupCache() in router/index.js.
    */
@@ -277,6 +308,7 @@ export const useSetupStore = defineStore('setup', () => {
     // Actions — Setup
     fetchStatus,
     resetSetup,
+    markComplete,
     clearStatus,
 
     // Actions — Wizard

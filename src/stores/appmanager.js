@@ -105,14 +105,17 @@ export const useAppManagerStore = defineStore('appmanager', () => {
 
   async function startApp(name) {
     await api.post(`/apps/${name}/start`)
+    await fetchApps()
   }
 
   async function stopApp(name) {
     await api.post(`/apps/${name}/stop`)
+    await fetchApps()
   }
 
   async function restartApp(name) {
     await api.post(`/apps/${name}/restart`)
+    await fetchApps()
   }
 
   async function getAppStatus(name) {

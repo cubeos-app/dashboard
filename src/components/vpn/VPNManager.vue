@@ -119,7 +119,11 @@ function isExpanded(config) {
 
 async function toggleAutoConnect(config) {
   const newValue = !config.auto_connect
-  await vpnStore.setAutoConnect(config.name, newValue)
+  try {
+    await vpnStore.setAutoConnect(config.name, newValue)
+  } catch (e) {
+    error.value = e.message || 'Failed to toggle auto-connect'
+  }
 }
 
 // ==========================================
@@ -127,15 +131,23 @@ async function toggleAutoConnect(config) {
 // ==========================================
 
 async function handleConnect(config) {
-  await vpnStore.connect(config.name)
-  // Refresh public IP after connect
-  await vpnStore.fetchPublicIP()
+  try {
+    await vpnStore.connect(config.name)
+    // Refresh public IP after connect
+    await vpnStore.fetchPublicIP()
+  } catch (e) {
+    error.value = e.message || 'Failed to connect'
+  }
 }
 
 async function handleDisconnect(config) {
-  await vpnStore.disconnect(config.name)
-  // Refresh public IP after disconnect
-  await vpnStore.fetchPublicIP()
+  try {
+    await vpnStore.disconnect(config.name)
+    // Refresh public IP after disconnect
+    await vpnStore.fetchPublicIP()
+  } catch (e) {
+    error.value = e.message || 'Failed to disconnect'
+  }
 }
 
 // ==========================================
@@ -277,7 +289,7 @@ function formatBytes(bytes) {
     >
       <Icon name="AlertCircle" :size="16" class="text-error flex-shrink-0" />
       <p class="text-sm text-error flex-1">{{ combinedError }}</p>
-      <button @click="error = null; vpnStore.error = null" class="text-error hover:opacity-70">
+      <button @click="error = null; vpnStore.clearError()" class="text-error hover:opacity-70">
         <Icon name="X" :size="14" />
       </button>
     </div>
@@ -400,7 +412,8 @@ function formatBytes(bytes) {
             <button
               @click="handleDelete(config)"
               :disabled="config.is_active"
-              class="p-1.5 rounded-lg text-theme-tertiary hover:text-error hover:bg-error/10 transition-colors disabled:opacity-50"
+              :title="config.is_active ? 'Disconnect before deleting' : 'Delete configuration'"
+              class="p-1.5 rounded-lg text-theme-tertiary hover:text-error hover:bg-error/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon name="Trash2" :size="16" />
             </button>
@@ -422,8 +435,8 @@ function formatBytes(bytes) {
           enter-active-class="transition-all duration-200 ease-out"
           leave-active-class="transition-all duration-150 ease-in"
           enter-from-class="max-h-0 opacity-0"
-          enter-to-class="max-h-96 opacity-100"
-          leave-from-class="max-h-96 opacity-100"
+          enter-to-class="max-h-[600px] opacity-100"
+          leave-from-class="max-h-[600px] opacity-100"
           leave-to-class="max-h-0 opacity-0"
         >
           <div v-if="isExpanded(config)" class="overflow-hidden">

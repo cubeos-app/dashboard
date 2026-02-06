@@ -2,13 +2,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSetupStore } from '@/stores/setup'
-import { usePreferencesStore } from '@/stores/preferences'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
 const setupStore = useSetupStore()
-const preferencesStore = usePreferencesStore()
 const emit = defineEmits(['complete'])
 
 // Wizard state
@@ -239,10 +237,8 @@ async function applyConfiguration() {
       }
     }
     
-    // Mark setup as complete via store
-    await preferencesStore.savePreferences({
-      setup_complete: true
-    })
+    // Mark setup as complete via setup store
+    await setupStore.markComplete()
     
   } catch (e) {
     error.value = e.message || 'Failed to apply configuration'
@@ -270,10 +266,10 @@ function barColor(percent) {
 }
 
 onMounted(async () => {
-  // Check if already set up via store
+  // Check if already set up via setup store
   try {
-    const prefs = await preferencesStore.fetchPreferences()
-    if (prefs?.setup_complete) {
+    const setupStatus = await setupStore.fetchStatus()
+    if (setupStatus?.is_complete) {
       router.push('/')
       return
     }
@@ -654,10 +650,7 @@ onMounted(async () => {
             :disabled="!canProceed || loading"
             class="btn-accent px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <Icon v-if="loading" name="Loader2" :size="16" class="animate-spin" />
             {{ currentStep === 4 ? 'Apply & Finish' : 'Continue' }}
           </button>
           

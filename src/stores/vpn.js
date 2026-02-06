@@ -259,6 +259,13 @@ export const useVPNStore = defineStore('vpn', () => {
   // ==========================================
   
   /**
+   * Clear error state
+   */
+  function clearError() {
+    error.value = null
+  }
+
+  /**
    * Get VPN type label
    */
   function getTypeLabel(type) {
@@ -347,6 +354,7 @@ export const useVPNStore = defineStore('vpn', () => {
     // Helper Methods
     getTypeLabel,
     getTypeIcon,
+    clearError,
     formatDuration
   }
 })
