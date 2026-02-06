@@ -63,6 +63,19 @@ async function refresh() {
         communicationStore.fetchCellularModems({ signal: s }),
         communicationStore.fetchAndroidTethering({ signal: s })
       ])
+    } else if (activeTab.value === 'gps') {
+      await communicationStore.fetchGPSDevices({ signal: s })
+    } else if (activeTab.value === 'meshtastic') {
+      await Promise.all([
+        communicationStore.fetchMeshtasticStatus('default', { signal: s }),
+        communicationStore.fetchMeshtasticNodes('default', { signal: s })
+      ])
+    } else if (activeTab.value === 'iridium') {
+      await Promise.all([
+        communicationStore.fetchIridiumStatus('default', { signal: s }),
+        communicationStore.fetchIridiumSignal('default', { signal: s }),
+        communicationStore.fetchIridiumMessages('default', { signal: s })
+      ])
     }
   } finally {
     refreshing.value = false
