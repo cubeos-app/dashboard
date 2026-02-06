@@ -1,15 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-
-// Setup status cache - uses in-memory state that resets on full page reload.
-// Call invalidateSetupCache() after setup wizard completes to force re-check.
-let setupChecked = false
-let setupComplete = true
-
-export function invalidateSetupCache() {
-  setupChecked = false
-  setupComplete = true
-}
+import { useSetupStore } from '@/stores/setup'
 
 const routes = [
   {
@@ -143,41 +134,23 @@ const router = createRouter({
   routes
 })
 
-// Check setup status using the new setup API
-async function checkSetupStatus() {
-  if (setupChecked) return setupComplete
-  
-  try {
-    const response = await fetch('/api/v1/setup/status')
-    if (response.ok) {
-      const data = await response.json()
-      setupComplete = data.is_complete === true
-    } else if (response.status === 404) {
-      // Setup endpoint not found, assume complete (backward compat)
-      setupComplete = true
-    }
-  } catch (e) {
-    // If we can't check, assume setup is complete
-    setupComplete = true
-  }
-  
-  setupChecked = true
-  return setupComplete
-}
-
-// Navigation guard for authentication
+// Navigation guard for authentication and setup status
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
-  
+  // useSetupStore() is safe here — pinia is installed before router in main.js
+  const setupStore = useSetupStore()
+
   // Always check setup status first (before auth)
-  const isSetupDone = await checkSetupStatus()
-  
+  // fetchStatus() returns cached data on subsequent calls (no redundant API hits)
+  const statusData = await setupStore.fetchStatus()
+  const isSetupDone = statusData?.is_complete === true
+
   // If setup not done and not going to setup page, redirect to setup
   if (!isSetupDone && to.name !== 'setup') {
     next({ name: 'setup' })
     return
   }
-  
+
   // If setup is done, proceed with normal auth flow
   // Initialize auth on first navigation if we have a token but no user
   if (authStore.token && !authStore.user) {
@@ -202,9 +175,14 @@ router.beforeEach(async (to, from, next) => {
 
 export default router
 
-// Reset setup cache on HMR to prevent stale state during development
+// Reset setup store on HMR to prevent stale state during development
 if (import.meta.hot) {
   import.meta.hot.accept(() => {
-    setupChecked = false
+    try {
+      const setupStore = useSetupStore()
+      setupStore.clearStatus()
+    } catch (e) {
+      // Pinia may not be ready during HMR — safe to ignore
+    }
   })
 }

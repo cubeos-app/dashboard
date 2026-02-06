@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { invalidateSetupCache } from '@/router'
+import { useSetupStore } from '@/stores/setup'
 import api from '@/api/client'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
+const setupStore = useSetupStore()
 
 // State
 const loading = ref(true)
@@ -228,7 +229,7 @@ async function skipWizard() {
   saving.value = true
   try {
     await api.post('/setup/skip')
-    invalidateSetupCache()
+    setupStore.clearStatus()
     router.push('/login')
   } catch (e) {
     // If skip endpoint doesnt exist, just mark complete locally
@@ -254,8 +255,8 @@ async function finishSetup() {
     const result = await api.post('/setup/apply', config.value)
     
     if (result.success) {
-      // Setup complete - invalidate cache and redirect to login
-      invalidateSetupCache()
+      // Setup complete - clear cached status and redirect to login
+      setupStore.clearStatus()
       router.push('/login')
     }
   } catch (e) {

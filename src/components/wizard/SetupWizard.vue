@@ -1,10 +1,14 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSetupStore } from '@/stores/setup'
+import { usePreferencesStore } from '@/stores/preferences'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
+const setupStore = useSetupStore()
+const preferencesStore = usePreferencesStore()
 const emit = defineEmits(['complete'])
 
 // Wizard state
@@ -23,17 +27,20 @@ const wifiPassword = ref('')
 const wifiChannel = ref(6)
 
 // Step 3: Profile Selection
-const profiles = ref([])
 const selectedProfile = ref('minimal')
 const customServices = ref([])
 
 // Step 4: Service Selection (from profile)
-const categories = ref([])
 const selectedServices = ref([])
 
 // Step 5: Admin Account
 const adminPassword = ref('')
 const confirmPassword = ref('')
+
+// Estimate display state
+const estimateDebounceTimer = ref(null)
+const estimateLoading = ref(false)
+const recommendationsLoaded = ref(false)
 
 // Available timezones (common ones)
 const timezones = [
@@ -55,6 +62,12 @@ const currentStepData = computed(() => steps[currentStep.value])
 const isFirstStep = computed(() => currentStep.value === 0)
 const isLastStep = computed(() => currentStep.value === steps.length - 1)
 const progress = computed(() => ((currentStep.value + 1) / steps.length) * 100)
+
+// Store-backed reactive state
+const profiles = computed(() => setupStore.profiles)
+const categories = computed(() => setupStore.services)
+const estimate = computed(() => setupStore.estimate)
+const recommendations = computed(() => setupStore.recommendations)
 
 // Validation
 const canProceed = computed(() => {
@@ -81,33 +94,25 @@ const selectedProfileInfo = computed(() => {
   return profiles.value.find(p => p.id === selectedProfile.value) || null
 })
 
-// RAM estimate for selected services
+// RAM estimate for selected services (from estimate API or fallback to profile)
 const estimatedRAM = computed(() => {
+  if (estimate.value?.memory_mb) return estimate.value.memory_mb
   if (!selectedProfileInfo.value) return 0
   return selectedProfileInfo.value.ram_estimate
 })
 
-async function fetchProfiles() {
-  try {
-    const data = await api.get('/wizard/profiles')
-    profiles.value = data.profiles || data || []
-  } catch (e) {
-    // Profiles fetch failed
-  }
-}
+// Estimate bar helpers
+const estimateCPU = computed(() => estimate.value?.cpu_percent ?? null)
+const estimateMemory = computed(() => estimate.value?.memory_mb ?? null)
+const estimateDisk = computed(() => estimate.value?.disk_mb ?? null)
+const hasDetailedEstimate = computed(() => estimate.value !== null)
 
-async function fetchServices() {
-  try {
-    const data = await api.get('/wizard/services')
-    categories.value = data.categories || []
-    
-    // Pre-select services from profile
-    if (selectedProfileInfo.value) {
-      selectedServices.value = [...selectedProfileInfo.value.services]
-    }
-  } catch (e) {
-    // Services fetch failed
-  }
+// Recommendation lookup by service name
+function getRecommendation(serviceName) {
+  if (!recommendations.value) return null
+  if (recommendations.value.recommended?.includes(serviceName)) return 'recommended'
+  if (recommendations.value.not_recommended?.includes(serviceName)) return 'not_recommended'
+  return null
 }
 
 function toggleService(serviceName) {
@@ -123,15 +128,52 @@ function isServiceSelected(serviceName) {
   return selectedServices.value.includes(serviceName)
 }
 
+// Debounced estimate fetch — fires ~500ms after service selection changes
+function debouncedFetchEstimate() {
+  if (estimateDebounceTimer.value) {
+    clearTimeout(estimateDebounceTimer.value)
+  }
+  estimateDebounceTimer.value = setTimeout(async () => {
+    if (selectedServices.value.length === 0) {
+      setupStore.estimate = null
+      return
+    }
+    estimateLoading.value = true
+    await setupStore.fetchEstimate([...selectedServices.value])
+    estimateLoading.value = false
+  }, 500)
+}
+
+// Watch service selection for estimate updates (only on services step)
+watch(selectedServices, () => {
+  if (currentStep.value === 3) {
+    debouncedFetchEstimate()
+  }
+}, { deep: true })
+
 async function nextStep() {
   if (currentStep.value === 1) {
-    // After network step, fetch profiles
-    await fetchProfiles()
+    // After network step, fetch profiles via store
+    await setupStore.fetchProfiles()
   }
   
   if (currentStep.value === 2) {
     // After profile step, fetch services and pre-select
-    await fetchServices()
+    await setupStore.fetchServices()
+
+    // Pre-select services from profile
+    if (selectedProfileInfo.value) {
+      selectedServices.value = [...selectedProfileInfo.value.services]
+    }
+
+    // Load recommendations once on services step entry
+    if (!recommendationsLoaded.value) {
+      setupStore.fetchRecommendations() // non-blocking, fire-and-forget
+      recommendationsLoaded.value = true
+    }
+
+    // Trigger initial estimate for pre-selected services
+    debouncedFetchEstimate()
   }
   
   if (currentStep.value === 4) {
@@ -170,8 +212,8 @@ async function applyConfiguration() {
       })
     }
     
-    // Apply profile/services
-    await api.post('/wizard/apply', {
+    // Apply profile/services via store
+    await setupStore.applyWizard({
       profile: selectedProfile.value,
       additional_services: selectedServices.value.filter(s => 
         !selectedProfileInfo.value?.services?.includes(s)
@@ -189,8 +231,8 @@ async function applyConfiguration() {
       })
     }
     
-    // Mark setup as complete
-    await api.put('/preferences', {
+    // Mark setup as complete via store
+    await preferencesStore.savePreferences({
       setup_complete: true
     })
     
@@ -206,11 +248,24 @@ function finishWizard() {
   router.push('/')
 }
 
+// Estimate bar percentage helper (capped at 100)
+function barPercent(value, max) {
+  if (!value || !max) return 0
+  return Math.min(Math.round((value / max) * 100), 100)
+}
+
+// Color class based on percentage
+function barColor(percent) {
+  if (percent >= 80) return 'bg-error'
+  if (percent >= 60) return 'bg-warning'
+  return 'bg-accent'
+}
+
 onMounted(async () => {
-  // Check if already set up
+  // Check if already set up via store
   try {
-    const prefs = await api.get('/preferences')
-    if (prefs.setup_complete) {
+    const prefs = await preferencesStore.fetchPreferences()
+    if (prefs?.setup_complete) {
       router.push('/')
       return
     }
@@ -397,17 +452,71 @@ onMounted(async () => {
               <p class="text-theme-tertiary">Fine-tune which services to enable</p>
             </div>
             
-            <div class="bg-theme-tertiary rounded-xl p-4 mb-4">
+            <!-- Resource Estimate Panel -->
+            <div class="bg-theme-tertiary rounded-xl p-4 space-y-3">
               <div class="flex items-center justify-between">
-                <span class="text-theme-secondary">Estimated RAM Usage</span>
-                <span class="font-semibold text-accent">~{{ estimatedRAM }}MB</span>
+                <span class="text-sm font-medium text-theme-secondary">Resource Estimate</span>
+                <div v-if="estimateLoading" class="flex items-center gap-1.5">
+                  <div class="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
+                  <span class="text-xs text-theme-muted">Calculating...</span>
+                </div>
+                <span v-else class="font-semibold text-accent">~{{ estimatedRAM }}MB RAM</span>
               </div>
+
+              <!-- Detailed estimate bars (only if API returned data) -->
+              <template v-if="hasDetailedEstimate && !estimateLoading">
+                <!-- CPU -->
+                <div v-if="estimateCPU !== null" class="space-y-1">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-theme-muted">CPU</span>
+                    <span class="text-theme-secondary">~{{ estimateCPU }}%</span>
+                  </div>
+                  <div class="h-1.5 bg-theme-secondary rounded-full overflow-hidden">
+                    <div 
+                      class="h-full rounded-full transition-all duration-300"
+                      :class="barColor(estimateCPU)"
+                      :style="{ width: Math.min(estimateCPU, 100) + '%' }"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Memory -->
+                <div v-if="estimateMemory !== null" class="space-y-1">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-theme-muted">Memory</span>
+                    <span class="text-theme-secondary">~{{ estimateMemory }}MB</span>
+                  </div>
+                  <div class="h-1.5 bg-theme-secondary rounded-full overflow-hidden">
+                    <div 
+                      class="h-full rounded-full transition-all duration-300"
+                      :class="barColor(barPercent(estimateMemory, 4096))"
+                      :style="{ width: barPercent(estimateMemory, 4096) + '%' }"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Disk -->
+                <div v-if="estimateDisk !== null" class="space-y-1">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-theme-muted">Disk</span>
+                    <span class="text-theme-secondary">~{{ estimateDisk }}MB</span>
+                  </div>
+                  <div class="h-1.5 bg-theme-secondary rounded-full overflow-hidden">
+                    <div 
+                      class="h-full rounded-full transition-all duration-300"
+                      :class="barColor(barPercent(estimateDisk, 32768))"
+                      :style="{ width: barPercent(estimateDisk, 32768) + '%' }"
+                    ></div>
+                  </div>
+                </div>
+              </template>
             </div>
             
+            <!-- Service categories -->
             <div class="space-y-4 max-h-80 overflow-y-auto pr-2">
               <div v-for="category in categories" :key="category.id" class="space-y-2">
                 <h3 class="text-sm font-semibold text-theme-tertiary uppercase tracking-wider">{{ category.name }}</h3>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     v-for="service in category.services"
                     :key="service.name"
@@ -417,8 +526,25 @@ onMounted(async () => {
                       ? 'border-theme-accent bg-accent-muted' 
                       : 'border-theme-secondary bg-theme-tertiary hover:border-theme-primary'"
                   >
-                    <p class="text-sm font-medium text-theme-primary truncate">{{ service.display_name || service.name }}</p>
-                    <p class="text-xs text-theme-muted">~{{ service.ram_estimate }}MB</p>
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-theme-primary truncate">{{ service.display_name || service.name }}</p>
+                        <p class="text-xs text-theme-muted">~{{ service.ram_estimate }}MB</p>
+                      </div>
+                      <!-- Recommendation badge -->
+                      <span 
+                        v-if="getRecommendation(service.name) === 'recommended'"
+                        class="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-accent/20 text-accent font-medium"
+                      >
+                        Recommended
+                      </span>
+                      <span 
+                        v-else-if="getRecommendation(service.name) === 'not_recommended'"
+                        class="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-medium"
+                      >
+                        Not recommended
+                      </span>
+                    </div>
                   </button>
                 </div>
               </div>
