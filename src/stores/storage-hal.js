@@ -68,10 +68,13 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
    * Fetch overall storage usage
    * GET /hal/storage/usage
    */
-  async function fetchUsage() {
+  async function fetchUsage(options = {}) {
     try {
-      usage.value = await api.get('/hal/storage/usage')
+      const data = await api.get('/hal/storage/usage', {}, options)
+      if (data === null) return
+      usage.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
     }
   }
 

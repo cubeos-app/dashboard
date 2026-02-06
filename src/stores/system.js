@@ -136,7 +136,9 @@ export const useSystemStore = defineStore('system', () => {
   // Actions
   async function fetchInfo(options = {}) {
     try {
-      info.value = await api.getSystemInfo()
+      const data = await api.get('/system/info', {}, options)
+      if (data === null) return
+      info.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
       error.value = e.message
@@ -319,11 +321,13 @@ export const useSystemStore = defineStore('system', () => {
   /**
    * Fetch current hostname
    */
-  async function fetchHostname() {
+  async function fetchHostname(options = {}) {
     try {
-      const response = await api.get('/system/hostname')
+      const response = await api.get('/system/hostname', {}, options)
+      if (response === null) return
       hostnameValue.value = response.hostname || null
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     }
   }
@@ -351,11 +355,13 @@ export const useSystemStore = defineStore('system', () => {
   /**
    * Fetch current timezone
    */
-  async function fetchTimezone() {
+  async function fetchTimezone(options = {}) {
     try {
-      const response = await api.get('/system/timezone')
+      const response = await api.get('/system/timezone', {}, options)
+      if (response === null) return
       timezone.value = response.timezone || null
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     }
   }
@@ -383,11 +389,13 @@ export const useSystemStore = defineStore('system', () => {
   /**
    * Fetch list of available timezones
    */
-  async function fetchTimezones() {
+  async function fetchTimezones(options = {}) {
     try {
-      const response = await api.get('/system/timezones')
+      const response = await api.get('/system/timezones', {}, options)
+      if (response === null) return
       timezonesList.value = response.timezones || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
       timezonesList.value = []
     }

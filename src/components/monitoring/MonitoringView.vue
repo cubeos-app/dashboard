@@ -294,7 +294,7 @@ onUnmounted(() => {
 async function refresh() {
   refreshing.value = true
   try {
-    await monitoringStore.fetchAll()
+    await monitoringStore.fetchAll({ signal: signal() })
     await monitoringStore.setPeriod(monitoringStore.historyPeriod)
   } finally {
     refreshing.value = false

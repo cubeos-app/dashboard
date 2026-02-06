@@ -275,13 +275,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * @param {number|string} pin - GPIO pin number
    * @param {number} value - 0 or 1
    */
-  async function setGPIOPin(pin, value) {
+  async function setGPIOPin(pin, value, options = {}) {
     error.value = null
     try {
-      const data = await api.post(`/hardware/gpio/${encodeURIComponent(pin)}`, { value })
+      const data = await api.post(`/hardware/gpio/${encodeURIComponent(pin)}`, { value }, options)
+      if (data === null) return null
       await fetchGPIO()
       return data
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       throw e
     }
@@ -334,11 +336,14 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/i2c/{bus}/scan
    * @param {number|string} bus - I2C bus number (e.g. 1)
    */
-  async function scanI2CBus(bus) {
+  async function scanI2CBus(bus, options = {}) {
     error.value = null
     try {
-      return await api.get(`/hardware/i2c/${encodeURIComponent(bus)}/scan`)
+      const data = await api.get(`/hardware/i2c/${encodeURIComponent(bus)}/scan`, {}, options)
+      if (data === null) return null
+      return data
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       throw e
     }
@@ -456,13 +461,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * Sync RTC to system time
    * POST /hardware/rtc/sync
    */
-  async function syncRTC() {
+  async function syncRTC(options = {}) {
     error.value = null
     try {
-      const data = await api.post('/hardware/rtc/sync')
+      const data = await api.post('/hardware/rtc/sync', {}, options)
+      if (data === null) return null
       await fetchRTC()
       return data
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       throw e
     }
@@ -530,13 +537,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * POST /hardware/watchdog/enable
    * @param {object} config - { enabled: boolean, timeout: number (seconds, max 15 on Pi) }
    */
-  async function enableWatchdog(config) {
+  async function enableWatchdog(config, options = {}) {
     error.value = null
     try {
-      const data = await api.post('/hardware/watchdog/enable', config)
+      const data = await api.post('/hardware/watchdog/enable', config, options)
+      if (data === null) return null
       await fetchWatchdog()
       return data
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       throw e
     }
@@ -546,13 +555,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * Pet the watchdog (debug/manual)
    * POST /hardware/watchdog/pet
    */
-  async function petWatchdog() {
+  async function petWatchdog(options = {}) {
     error.value = null
     try {
-      const data = await api.post('/hardware/watchdog/pet')
+      const data = await api.post('/hardware/watchdog/pet', {}, options)
+      if (data === null) return null
       await fetchWatchdog()
       return data
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       throw e
     }
@@ -567,13 +578,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/services/{name}
    * @param {string} name - HAL service name
    */
-  async function fetchHALService(name) {
+  async function fetchHALService(name, options = {}) {
     error.value = null
     try {
-      const data = await api.get(`/hardware/services/${encodeURIComponent(name)}`)
+      const data = await api.get(`/hardware/services/${encodeURIComponent(name)}`, {}, options)
+      if (data === null) return null
       halServices.value = { ...halServices.value, [name]: data }
       return data
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       return null
     }

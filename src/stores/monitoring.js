@@ -66,10 +66,13 @@ export const useMonitoringStore = defineStore('monitoring', () => {
    * Fetch current stats snapshot
    * GET /monitoring/stats
    */
-  async function fetchStats() {
+  async function fetchStats(options = {}) {
     try {
-      stats.value = await api.get('/monitoring/stats')
+      const data = await api.get('/monitoring/stats', {}, options)
+      if (data === null) return
+      stats.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     }
   }
@@ -106,11 +109,13 @@ export const useMonitoringStore = defineStore('monitoring', () => {
    * Fetch active alerts
    * GET /monitoring/alerts
    */
-  async function fetchAlerts() {
+  async function fetchAlerts(options = {}) {
     try {
-      const response = await api.get('/monitoring/alerts')
+      const response = await api.get('/monitoring/alerts', {}, options)
+      if (response === null) return
       alerts.value = response.alerts || response || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
       alerts.value = []
     }
@@ -120,10 +125,13 @@ export const useMonitoringStore = defineStore('monitoring', () => {
    * Fetch alert threshold configuration
    * GET /monitoring/thresholds
    */
-  async function fetchThresholds() {
+  async function fetchThresholds(options = {}) {
     try {
-      thresholds.value = await api.get('/monitoring/thresholds')
+      const data = await api.get('/monitoring/thresholds', {}, options)
+      if (data === null) return
+      thresholds.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     }
   }
@@ -157,10 +165,13 @@ export const useMonitoringStore = defineStore('monitoring', () => {
    * Fetch WebSocket connection debug info
    * GET /monitoring/websocket
    */
-  async function fetchWebSocketInfo() {
+  async function fetchWebSocketInfo(options = {}) {
     try {
-      wsInfo.value = await api.get('/monitoring/websocket')
+      const data = await api.get('/monitoring/websocket', {}, options)
+      if (data === null) return
+      wsInfo.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
       wsInfo.value = null
     }
@@ -183,14 +194,14 @@ export const useMonitoringStore = defineStore('monitoring', () => {
   /**
    * Fetch all monitoring data in parallel
    */
-  async function fetchAll() {
+  async function fetchAll(options = {}) {
     loading.value = true
     try {
       await Promise.all([
-        fetchStats(),
-        fetchAlerts(),
-        fetchThresholds(),
-        fetchWebSocketInfo()
+        fetchStats(options),
+        fetchAlerts(options),
+        fetchThresholds(options),
+        fetchWebSocketInfo(options)
       ])
     } finally {
       loading.value = false

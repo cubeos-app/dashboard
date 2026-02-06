@@ -104,7 +104,7 @@ async function handleEnable() {
 
   enableLoading.value = true
   try {
-    await hardwareStore.enableWatchdog({ enabled: true, timeout })
+    await hardwareStore.enableWatchdog({ enabled: true, timeout }, { signal: signal() })
   } catch {
     // Store sets error
   } finally {
@@ -123,7 +123,7 @@ async function handleDisable() {
 
   disableLoading.value = true
   try {
-    await hardwareStore.enableWatchdog({ enabled: false })
+    await hardwareStore.enableWatchdog({ enabled: false }, { signal: signal() })
   } catch {
     // Store sets error
   } finally {
@@ -135,7 +135,7 @@ async function handlePet() {
   petLoading.value = true
   petSuccess.value = false
   try {
-    await hardwareStore.petWatchdog()
+    await hardwareStore.petWatchdog({ signal: signal() })
     petSuccess.value = true
     setTimeout(() => { petSuccess.value = false }, 2000)
   } catch {

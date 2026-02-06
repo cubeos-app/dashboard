@@ -69,10 +69,11 @@ async function loadAll() {
   refreshing.value = true
   error.value = null
   try {
+    const opts = { signal: signal() }
     await Promise.all([
-      vpnStore.fetchConfigs(),
-      vpnStore.fetchStatus(),
-      vpnStore.fetchPublicIP()
+      vpnStore.fetchConfigs(false, opts),
+      vpnStore.fetchStatus(false, opts),
+      vpnStore.fetchPublicIP(false, opts)
     ])
   } catch (e) {
     error.value = e.message

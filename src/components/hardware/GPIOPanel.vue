@@ -60,7 +60,7 @@ async function togglePin(pin) {
 
   actionLoading.value = { ...actionLoading.value, [`toggle-${id}`]: true }
   try {
-    await hardwareStore.setGPIOPin(id, newVal)
+    await hardwareStore.setGPIOPin(id, newVal, { signal: signal() })
   } catch {
     // Store sets error
   } finally {

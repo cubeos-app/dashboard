@@ -26,6 +26,7 @@ const chatContainer = ref(null)
 const inputRef = ref(null)
 let pullPollInterval = null
 let pullTimeoutId = null
+let streamController = null
 
 const suggestedPrompts = [
   "How do I access Pi-hole?",
@@ -132,10 +133,15 @@ async function sendMessage(text = null) {
     // Send last 6 messages as history (matches API limit)
     const history = messages.value.slice(0, -2).slice(-6)
 
+    // Abort any previous stream
+    if (streamController) streamController.abort()
+    streamController = new AbortController()
+
     const response = await fetch('/api/v1/chat/stream', {
       method: 'POST',
       headers: api.getHeaders(),
-      body: JSON.stringify({ message, history })
+      body: JSON.stringify({ message, history }),
+      signal: streamController.signal
     })
 
     if (!response.ok) {
@@ -196,6 +202,7 @@ async function sendMessage(text = null) {
       }
     }
   } catch (e) {
+    if (e.name === 'AbortError') return
     messages.value[assistantIndex] = { 
       role: 'assistant', 
       content: "Failed to connect to AI service. Check if Ollama is running.", 
@@ -248,6 +255,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (pullPollInterval) clearInterval(pullPollInterval)
   if (pullTimeoutId) clearTimeout(pullTimeoutId)
+  if (streamController) streamController.abort()
 })
 </script>
 

@@ -58,13 +58,15 @@ export const useProcessesStore = defineStore('processes', () => {
    * Fetch all processes
    * GET /processes
    */
-  async function fetchAll(skipLoading = false) {
+  async function fetchAll(skipLoading = false, options = {}) {
     if (!skipLoading) loading.value = true
     error.value = null
     try {
-      const response = await api.get('/processes')
+      const response = await api.get('/processes', {}, options)
+      if (response === null) return
       processes.value = response.processes || response || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     } finally {
       if (!skipLoading) loading.value = false
@@ -75,10 +77,13 @@ export const useProcessesStore = defineStore('processes', () => {
    * Fetch process summary stats
    * GET /processes/stats
    */
-  async function fetchStats() {
+  async function fetchStats(options = {}) {
     try {
-      processStats.value = await api.get('/processes/stats')
+      const data = await api.get('/processes/stats', {}, options)
+      if (data === null) return
+      processStats.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
     }
   }
 
@@ -88,11 +93,13 @@ export const useProcessesStore = defineStore('processes', () => {
    *
    * @param {number} [limit=10] - Number of top processes to return
    */
-  async function fetchTopCpu(limit = 10) {
+  async function fetchTopCpu(limit = 10, options = {}) {
     try {
-      const response = await api.get('/processes/top/cpu', { limit })
+      const response = await api.get('/processes/top/cpu', { limit }, options)
+      if (response === null) return
       topCpu.value = response.processes || response || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       topCpu.value = []
     }
   }
@@ -103,11 +110,13 @@ export const useProcessesStore = defineStore('processes', () => {
    *
    * @param {number} [limit=10] - Number of top processes to return
    */
-  async function fetchTopMemory(limit = 10) {
+  async function fetchTopMemory(limit = 10, options = {}) {
     try {
-      const response = await api.get('/processes/top/memory', { limit })
+      const response = await api.get('/processes/top/memory', { limit }, options)
+      if (response === null) return
       topMemory.value = response.processes || response || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       topMemory.value = []
     }
   }
@@ -246,14 +255,14 @@ export const useProcessesStore = defineStore('processes', () => {
   /**
    * Load initial data — processes + stats + top consumers
    */
-  async function loadAll() {
+  async function loadAll(options = {}) {
     loading.value = true
     try {
       await Promise.all([
-        fetchAll(true),
-        fetchStats(),
-        fetchTopCpu(),
-        fetchTopMemory()
+        fetchAll(true, options),
+        fetchStats(options),
+        fetchTopCpu(10, options),
+        fetchTopMemory(10, options)
       ])
     } finally {
       loading.value = false

@@ -294,11 +294,13 @@ class ApiClient {
     return response.json()
   }
 
-  async post(endpoint, data = {}) {
+  async post(endpoint, data = {}, options = {}) {
     const response = await this.request(endpoint, {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      ...options
     })
+    if (!response) return null // Request was aborted
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       throw new Error(error.error || error.message || 'Request failed')
@@ -307,11 +309,13 @@ class ApiClient {
     return response.json()
   }
 
-  async put(endpoint, data = {}) {
+  async put(endpoint, data = {}, options = {}) {
     const response = await this.request(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      ...options
     })
+    if (!response) return null // Request was aborted
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       throw new Error(error.error || error.message || 'Request failed')
@@ -320,12 +324,13 @@ class ApiClient {
     return response.json()
   }
 
-  async delete(endpoint, data = null) {
-    const opts = { method: 'DELETE' }
+  async delete(endpoint, data = null, options = {}) {
+    const opts = { method: 'DELETE', ...options }
     if (data !== null) {
       opts.body = JSON.stringify(data)
     }
     const response = await this.request(endpoint, opts)
+    if (!response) return null // Request was aborted
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       throw new Error(error.error || error.message || 'Request failed')

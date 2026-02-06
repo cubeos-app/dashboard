@@ -80,7 +80,7 @@ async function scanBus(bus) {
   const busId = bus.bus ?? bus.id ?? bus.number ?? bus
   scanLoading.value = { ...scanLoading.value, [busId]: true }
   try {
-    const result = await hardwareStore.scanI2CBus(busId)
+    const result = await hardwareStore.scanI2CBus(busId, { signal: signal() })
     if (result) {
       const devices = Array.isArray(result) ? result : (result.devices || [])
       scanResults.value = { ...scanResults.value, [busId]: devices }

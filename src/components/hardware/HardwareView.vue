@@ -186,7 +186,8 @@ async function loadOverviewData() {
 }
 
 async function loadServicesData() {
-  await Promise.all(halServiceNames.map(name => hardwareStore.fetchHALService(name)))
+  const opts = { signal: signal() }
+  await Promise.all(halServiceNames.map(name => hardwareStore.fetchHALService(name, opts)))
 }
 
 async function refresh() {

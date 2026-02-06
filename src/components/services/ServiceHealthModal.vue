@@ -5,7 +5,7 @@
  * Modal showing service/app health details and logs.
  * Sprint 4: Uses unified apps.js store.
  */
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onUnmounted } from 'vue'
 import { useAppsStore } from '@/stores/apps'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -26,6 +26,7 @@ const appsStore = useAppsStore()
 const loading = ref(false)
 const logs = ref([])
 const error = ref(null)
+let logFetchController = null
 
 const displayName = computed(() => 
   props.service ? appsStore.getDisplayName(props.service) : ''
@@ -81,14 +82,22 @@ const uptime = computed(() => {
 
 // Fetch logs when modal opens
 watch(() => [props.show, props.service], async ([show, service]) => {
+  // Abort any in-flight log fetch
+  if (logFetchController) {
+    logFetchController.abort()
+    logFetchController = null
+  }
+  
   if (show && service) {
     loading.value = true
     error.value = null
+    logFetchController = new AbortController()
     
     try {
-      const result = await appsStore.getAppLogs(service.name, 50)
+      const result = await appsStore.getAppLogs(service.name, 50, { signal: logFetchController.signal })
       logs.value = result || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
       logs.value = []
     } finally {
@@ -98,8 +107,19 @@ watch(() => [props.show, props.service], async ([show, service]) => {
 }, { immediate: true })
 
 function close() {
+  if (logFetchController) {
+    logFetchController.abort()
+    logFetchController = null
+  }
   emit('close')
 }
+
+onUnmounted(() => {
+  if (logFetchController) {
+    logFetchController.abort()
+    logFetchController = null
+  }
+})
 </script>
 
 <template>

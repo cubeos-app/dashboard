@@ -112,11 +112,12 @@ async function fetchAll() {
   error.value = null
   try {
     const s = signal()
+    const opts = { signal: s }
     // Parallel fetch of overview data
     const [, , dockerInfo] = await Promise.all([
-      storageHalStore.fetchUsage(),
-      storageStore.fetchAll(),
-      api.get('/docker/disk-usage', {}, { signal: s }).catch(() => null)
+      storageHalStore.fetchUsage(opts),
+      storageStore.fetchAll(opts),
+      api.get('/docker/disk-usage', {}, opts).catch(() => null)
     ])
 
     if (dockerInfo) {

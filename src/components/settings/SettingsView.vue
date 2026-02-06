@@ -26,6 +26,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useBrandingStore } from '@/stores/branding'
 import { usePreferencesStore } from '@/stores/preferences'
 import { useSetupStore } from '@/stores/setup'
+import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
@@ -35,6 +36,7 @@ const authStore = useAuthStore()
 const brandingStore = useBrandingStore()
 const preferencesStore = usePreferencesStore()
 const setupStore = useSetupStore()
+const { signal } = useAbortOnUnmount()
 
 // Password change
 const passwordForm = ref({
@@ -351,17 +353,19 @@ const avatarLetter = computed(() => {
 })
 
 onMounted(async () => {
+  const opts = { signal: signal() }
+  
   // Fetch system info
-  await systemStore.fetchAll()
+  await systemStore.fetchAll(opts)
   
   // Sprint 6 G2: Ensure fresh auth user data
   await authStore.fetchUser()
   
   // Fetch hostname and timezone for System Configuration section
   await Promise.all([
-    systemStore.fetchHostname(),
-    systemStore.fetchTimezone(),
-    systemStore.fetchTimezones()
+    systemStore.fetchHostname(opts),
+    systemStore.fetchTimezone(opts),
+    systemStore.fetchTimezones(opts)
   ])
   
   // Initialize local inputs from store

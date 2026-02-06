@@ -67,14 +67,16 @@ export const useFirewallStore = defineStore('firewall', () => {
   /**
    * Fetch all firewall rules
    */
-  async function fetchRules(skipLoading = false) {
+  async function fetchRules(skipLoading = false, options = {}) {
     if (!skipLoading) loading.value = true
     error.value = null
     
     try {
-      const response = await api.get('/firewall/rules')
+      const response = await api.get('/firewall/rules', {}, options)
+      if (response === null) return
       rules.value = response.rules || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
       rules.value = []
     } finally {
@@ -266,12 +268,14 @@ export const useFirewallStore = defineStore('firewall', () => {
   /**
    * Fetch full firewall status
    */
-  async function fetchStatus(skipLoading = false) {
+  async function fetchStatus(skipLoading = false, options = {}) {
     if (!skipLoading) loading.value = true
     try {
-      const response = await api.get('/firewall/status')
+      const response = await api.get('/firewall/status', {}, options)
+      if (response === null) return
       status.value = response
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
       status.value = null
     } finally {

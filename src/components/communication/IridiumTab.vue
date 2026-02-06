@@ -209,7 +209,7 @@ async function handleCheckMailbox() {
 
   actionLoading.value = { ...actionLoading.value, mailbox: true }
   try {
-    await communicationStore.checkIridiumMailbox(port)
+    await communicationStore.checkIridiumMailbox(port, { signal: signal() })
   } catch {
     // Store sets error
   } finally {

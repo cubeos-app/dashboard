@@ -77,9 +77,10 @@ const hasRules = computed(() => firewallStore.rules.length > 0)
 async function fetchAll() {
   localError.value = null
   try {
+    const opts = { signal: signal() }
     await Promise.all([
-      firewallStore.fetchStatus(),
-      firewallStore.fetchRules()
+      firewallStore.fetchStatus(false, opts),
+      firewallStore.fetchRules(false, opts)
     ])
   } catch (e) {
     localError.value = 'Failed to load firewall data'

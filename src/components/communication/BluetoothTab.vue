@@ -83,7 +83,7 @@ const hasData = computed(() => communicationStore.bluetooth !== null)
 async function handleScan() {
   actionLoading.value = { ...actionLoading.value, scan: true }
   try {
-    await communicationStore.scanBluetooth()
+    await communicationStore.scanBluetooth({ signal: signal() })
   } catch {
     // Store sets error
   } finally {

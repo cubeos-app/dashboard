@@ -111,7 +111,7 @@ async function handleSync() {
 
   syncLoading.value = true
   try {
-    await hardwareStore.syncRTC()
+    await hardwareStore.syncRTC({ signal: signal() })
   } catch {
     // Store sets error
   } finally {

@@ -51,12 +51,15 @@ export const useStorageStore = defineStore('storage', () => {
    * Fetch storage overview
    * GET /storage
    */
-  async function fetchOverview(skipLoading = false) {
+  async function fetchOverview(skipLoading = false, options = {}) {
     if (!skipLoading) loading.value = true
     error.value = null
     try {
-      overview.value = await api.get('/storage')
+      const data = await api.get('/storage', {}, options)
+      if (data === null) return
+      overview.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     } finally {
       if (!skipLoading) loading.value = false
@@ -67,11 +70,14 @@ export const useStorageStore = defineStore('storage', () => {
    * Fetch overall disk health
    * GET /storage/health
    */
-  async function fetchHealth(skipLoading = false) {
+  async function fetchHealth(skipLoading = false, options = {}) {
     if (!skipLoading) loading.value = true
     try {
-      health.value = await api.get('/storage/health')
+      const data = await api.get('/storage/health', {}, options)
+      if (data === null) return
+      health.value = data
     } catch (e) {
+      if (e.name === 'AbortError') return
       // Health fetch failure is non-fatal
     } finally {
       if (!skipLoading) loading.value = false
@@ -102,13 +108,15 @@ export const useStorageStore = defineStore('storage', () => {
    * Fetch storage mounts
    * GET /storage/mounts
    */
-  async function fetchMounts(skipLoading = false) {
+  async function fetchMounts(skipLoading = false, options = {}) {
     if (!skipLoading) mountsLoading.value = true
     error.value = null
     try {
-      const response = await api.get('/storage/mounts')
+      const response = await api.get('/storage/mounts', {}, options)
+      if (response === null) return
       mounts.value = response.mounts || response || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     } finally {
       if (!skipLoading) mountsLoading.value = false
@@ -149,13 +157,13 @@ export const useStorageStore = defineStore('storage', () => {
   /**
    * Fetch all storage data in parallel
    */
-  async function fetchAll() {
+  async function fetchAll(options = {}) {
     loading.value = true
     try {
       await Promise.all([
-        fetchOverview(true),
-        fetchHealth(true),
-        fetchMounts(true)
+        fetchOverview(true, options),
+        fetchHealth(true, options),
+        fetchMounts(true, options)
       ])
     } finally {
       loading.value = false

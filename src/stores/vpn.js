@@ -67,14 +67,16 @@ export const useVPNStore = defineStore('vpn', () => {
   /**
    * Fetch all VPN configurations
    */
-  async function fetchConfigs(skipLoading = false) {
+  async function fetchConfigs(skipLoading = false, options = {}) {
     if (!skipLoading) loading.value = true
     error.value = null
     
     try {
-      const response = await api.get('/vpn/configs')
+      const response = await api.get('/vpn/configs', {}, options)
+      if (response === null) return
       configs.value = response.configs || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
     } finally {
       if (!skipLoading) loading.value = false
@@ -84,12 +86,14 @@ export const useVPNStore = defineStore('vpn', () => {
   /**
    * Get VPN status
    */
-  async function fetchStatus(skipLoading = false) {
+  async function fetchStatus(skipLoading = false, options = {}) {
     if (!skipLoading) loading.value = true
     try {
-      const response = await api.get('/vpn/status')
+      const response = await api.get('/vpn/status', {}, options)
+      if (response === null) return
       status.value = response
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
       status.value = null
     } finally {
@@ -239,13 +243,15 @@ export const useVPNStore = defineStore('vpn', () => {
   /**
    * Fetch public IP address (useful to verify VPN is working)
    */
-  async function fetchPublicIP(skipLoading = false) {
+  async function fetchPublicIP(skipLoading = false, options = {}) {
     if (!skipLoading) loading.value = true
     try {
-      const response = await api.get('/vpn/public-ip')
+      const response = await api.get('/vpn/public-ip', {}, options)
+      if (response === null) return null
       publicIP.value = response.ip || response.public_ip || null
       return publicIP.value
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       publicIP.value = null
       return null

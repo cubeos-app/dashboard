@@ -103,14 +103,16 @@ export const useCommunicationStore = defineStore('communication', () => {
    * Scan for nearby Bluetooth devices
    * POST /communication/bluetooth/scan
    */
-  async function scanBluetooth() {
+  async function scanBluetooth(options = {}) {
     error.value = null
     bluetoothScanning.value = true
     try {
-      const data = await api.post('/communication/bluetooth/scan')
+      const data = await api.post('/communication/bluetooth/scan', {}, options)
+      if (data === null) return null
       await fetchBluetoothDevices()
       return data
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       throw e
     } finally {
@@ -596,13 +598,15 @@ export const useCommunicationStore = defineStore('communication', () => {
    * POST /communication/iridium/{port}/mailbox
    * @param {string} port - Iridium modem port
    */
-  async function checkIridiumMailbox(port) {
+  async function checkIridiumMailbox(port, options = {}) {
     error.value = null
     try {
-      const data = await api.post(`/communication/iridium/${encodeURIComponent(port)}/mailbox`)
+      const data = await api.post(`/communication/iridium/${encodeURIComponent(port)}/mailbox`, {}, options)
+      if (data === null) return null
       await fetchIridiumMessages(port)
       return data
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       throw e
     }

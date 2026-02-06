@@ -76,13 +76,15 @@ export const useFavoritesStore = defineStore('favorites', () => {
    * Fetch all favorites from the API
    * GET /favorites
    */
-  async function fetchAll() {
+  async function fetchAll(options = {}) {
     loading.value = true
     error.value = null
     try {
-      const response = await api.get('/favorites')
+      const response = await api.get('/favorites', {}, options)
+      if (response === null) return
       favorites.value = response.favorites || response || []
     } catch (e) {
+      if (e.name === 'AbortError') return
       error.value = e.message
       console.error('Failed to fetch favorites:', e)
       // Keep whatever we have locally if fetch fails
