@@ -85,6 +85,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/hardware',
+    name: 'hardware',
+    component: () => import('@/components/hardware/HardwareView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/system',
     name: 'system',
     component: () => import('@/components/system/SystemView.vue'),
