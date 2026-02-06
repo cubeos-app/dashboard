@@ -46,13 +46,15 @@ export const useRegistryStore = defineStore('registry', () => {
    * Fetch registry status
    * GET /registry/status
    */
-  async function fetchStatus() {
+  async function fetchStatus(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     try {
       status.value = await api.get('/registry/status')
     } catch (e) {
       // Registry might not be running — not a fatal error
-      console.error('Failed to fetch registry status:', e)
       status.value = { running: false, error: e.message }
+    } finally {
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -60,17 +62,16 @@ export const useRegistryStore = defineStore('registry', () => {
    * Fetch all images in the registry
    * GET /registry/images
    */
-  async function fetchImages() {
-    loading.value = true
+  async function fetchImages(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       const response = await api.get('/registry/images')
       images.value = response.images || response.repositories || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch registry images:', e)
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -82,13 +83,16 @@ export const useRegistryStore = defineStore('registry', () => {
    * Fetch registry disk usage statistics
    * GET /registry/disk-usage
    */
-  async function fetchDiskUsage() {
+  async function fetchDiskUsage(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     try {
       diskUsage.value = await api.get('/registry/disk-usage')
       return diskUsage.value
     } catch (e) {
-      console.error('Failed to fetch registry disk usage:', e)
+      // Disk usage fetch failure is non-fatal
       return null
+    } finally {
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -102,11 +106,10 @@ export const useRegistryStore = defineStore('registry', () => {
     try {
       const result = await api.post('/registry/cleanup')
       // Refresh images and disk usage after cleanup
-      await Promise.all([fetchImages(), fetchDiskUsage()])
+      await Promise.all([fetchImages(true), fetchDiskUsage(true)])
       return result
     } catch (e) {
       error.value = e.message
-      console.error('Failed to cleanup registry:', e)
       throw e
     } finally {
       loading.value = false
@@ -127,7 +130,6 @@ export const useRegistryStore = defineStore('registry', () => {
       return selectedImageTags.value
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch tags for image ${name}:`, e)
       return []
     }
   }
@@ -152,10 +154,9 @@ export const useRegistryStore = defineStore('registry', () => {
         selectedImageName.value = null
       }
       // Refresh disk usage
-      await fetchDiskUsage()
+      await fetchDiskUsage(true)
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to delete image ${name}:`, e)
       throw e
     }
   }
@@ -167,9 +168,9 @@ export const useRegistryStore = defineStore('registry', () => {
     loading.value = true
     try {
       await Promise.all([
-        fetchStatus(),
-        fetchImages(),
-        fetchDiskUsage()
+        fetchStatus(true),
+        fetchImages(true),
+        fetchDiskUsage(true)
       ])
     } finally {
       loading.value = false

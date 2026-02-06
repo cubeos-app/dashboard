@@ -67,8 +67,8 @@ export const useVPNStore = defineStore('vpn', () => {
   /**
    * Fetch all VPN configurations
    */
-  async function fetchConfigs() {
-    loading.value = true
+  async function fetchConfigs(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -77,28 +77,31 @@ export const useVPNStore = defineStore('vpn', () => {
     } catch (e) {
       error.value = e.message
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
   /**
    * Get VPN status
    */
-  async function fetchStatus() {
+  async function fetchStatus(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     try {
       const response = await api.get('/vpn/status')
       status.value = response
     } catch (e) {
       error.value = e.message
       status.value = null
+    } finally {
+      if (!skipLoading) loading.value = false
     }
   }
   
   /**
    * Add a new VPN configuration
    */
-  async function addConfig(name, type, configData) {
-    loading.value = true
+  async function addConfig(name, type, configData, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -113,32 +116,32 @@ export const useVPNStore = defineStore('vpn', () => {
         type,
         config
       })
-      await fetchConfigs()
+      await fetchConfigs(true)
       return true
     } catch (e) {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
   /**
    * Delete a VPN configuration
    */
-  async function deleteConfig(name) {
-    loading.value = true
+  async function deleteConfig(name, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
       await api.delete(`/vpn/configs/${encodeURIComponent(name)}`)
-      await fetchConfigs()
+      await fetchConfigs(true)
       return true
     } catch (e) {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -151,7 +154,7 @@ export const useVPNStore = defineStore('vpn', () => {
     
     try {
       await api.post(`/vpn/configs/${encodeURIComponent(name)}/connect`)
-      await Promise.all([fetchConfigs(), fetchStatus()])
+      await Promise.all([fetchConfigs(true), fetchStatus(true)])
       return true
     } catch (e) {
       error.value = e.message
@@ -170,7 +173,7 @@ export const useVPNStore = defineStore('vpn', () => {
     
     try {
       await api.post(`/vpn/configs/${encodeURIComponent(name)}/disconnect`)
-      await Promise.all([fetchConfigs(), fetchStatus()])
+      await Promise.all([fetchConfigs(true), fetchStatus(true)])
       return true
     } catch (e) {
       error.value = e.message
@@ -188,8 +191,8 @@ export const useVPNStore = defineStore('vpn', () => {
    * Fetch detailed info for a single VPN config
    * @param {string} name - Config name
    */
-  async function fetchConfigDetail(name) {
-    loading.value = true
+  async function fetchConfigDetail(name, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -201,7 +204,7 @@ export const useVPNStore = defineStore('vpn', () => {
       selectedConfig.value = null
       return null
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -210,8 +213,8 @@ export const useVPNStore = defineStore('vpn', () => {
    * @param {string} name - Config name
    * @param {boolean} enabled - Whether auto-connect is enabled
    */
-  async function setAutoConnect(name, enabled) {
-    loading.value = true
+  async function setAutoConnect(name, enabled, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -229,14 +232,15 @@ export const useVPNStore = defineStore('vpn', () => {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
   /**
    * Fetch public IP address (useful to verify VPN is working)
    */
-  async function fetchPublicIP() {
+  async function fetchPublicIP(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     try {
       const response = await api.get('/vpn/public-ip')
       publicIP.value = response.ip || response.public_ip || null
@@ -245,6 +249,8 @@ export const useVPNStore = defineStore('vpn', () => {
       error.value = e.message
       publicIP.value = null
       return null
+    } finally {
+      if (!skipLoading) loading.value = false
     }
   }
   

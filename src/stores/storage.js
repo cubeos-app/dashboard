@@ -51,16 +51,15 @@ export const useStorageStore = defineStore('storage', () => {
    * Fetch storage overview
    * GET /storage
    */
-  async function fetchOverview() {
-    loading.value = true
+  async function fetchOverview(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       overview.value = await api.get('/storage')
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch storage overview:', e)
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -68,11 +67,14 @@ export const useStorageStore = defineStore('storage', () => {
    * Fetch overall disk health
    * GET /storage/health
    */
-  async function fetchHealth() {
+  async function fetchHealth(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     try {
       health.value = await api.get('/storage/health')
     } catch (e) {
-      console.error('Failed to fetch disk health:', e)
+      // Health fetch failure is non-fatal
+    } finally {
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -92,7 +94,6 @@ export const useStorageStore = defineStore('storage', () => {
       return deviceHealth.value
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch health for device ${device}:`, e)
       return null
     }
   }
@@ -101,17 +102,16 @@ export const useStorageStore = defineStore('storage', () => {
    * Fetch storage mounts
    * GET /storage/mounts
    */
-  async function fetchMounts() {
-    mountsLoading.value = true
+  async function fetchMounts(skipLoading = false) {
+    if (!skipLoading) mountsLoading.value = true
     error.value = null
     try {
       const response = await api.get('/storage/mounts')
       mounts.value = response.mounts || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch storage mounts:', e)
     } finally {
-      mountsLoading.value = false
+      if (!skipLoading) mountsLoading.value = false
     }
   }
 
@@ -127,7 +127,6 @@ export const useStorageStore = defineStore('storage', () => {
       return result
     } catch (e) {
       error.value = e.message
-      console.error('Failed to add mount:', e)
       throw e
     }
   }
@@ -143,7 +142,6 @@ export const useStorageStore = defineStore('storage', () => {
       mounts.value = mounts.value.filter(m => m.id !== id)
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to delete mount ${id}:`, e)
       throw e
     }
   }
@@ -155,9 +153,9 @@ export const useStorageStore = defineStore('storage', () => {
     loading.value = true
     try {
       await Promise.all([
-        fetchOverview(),
-        fetchHealth(),
-        fetchMounts()
+        fetchOverview(true),
+        fetchHealth(true),
+        fetchMounts(true)
       ])
     } finally {
       loading.value = false

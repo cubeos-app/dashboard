@@ -67,8 +67,8 @@ export const useFirewallStore = defineStore('firewall', () => {
   /**
    * Fetch all firewall rules
    */
-  async function fetchRules() {
-    loading.value = true
+  async function fetchRules(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -78,7 +78,7 @@ export const useFirewallStore = defineStore('firewall', () => {
       error.value = e.message
       rules.value = []
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -92,7 +92,7 @@ export const useFirewallStore = defineStore('firewall', () => {
     
     try {
       await api.post('/firewall/rules', rule)
-      await fetchRules()
+      await fetchRules(true)
       return true
     } catch (e) {
       error.value = e.message
@@ -119,7 +119,7 @@ export const useFirewallStore = defineStore('firewall', () => {
     
     try {
       await api.delete('/firewall/rules', rule)
-      await fetchRules()
+      await fetchRules(true)
       return true
     } catch (e) {
       error.value = e.message
@@ -163,8 +163,8 @@ export const useFirewallStore = defineStore('firewall', () => {
     
     try {
       await api.post('/firewall/restore')
-      await fetchRules()
-      await fetchStatus()
+      await fetchRules(true)
+      await fetchStatus(true)
       return true
     } catch (e) {
       error.value = e.message
@@ -190,8 +190,8 @@ export const useFirewallStore = defineStore('firewall', () => {
     
     try {
       await api.post('/firewall/reset')
-      await fetchRules()
-      await fetchStatus()
+      await fetchRules(true)
+      await fetchStatus(true)
       return true
     } catch (e) {
       error.value = e.message
@@ -212,7 +212,7 @@ export const useFirewallStore = defineStore('firewall', () => {
     
     try {
       await api.post('/firewall/port/allow', { port, protocol: proto })
-      await fetchRules()
+      await fetchRules(true)
       return true
     } catch (e) {
       error.value = e.message
@@ -233,7 +233,7 @@ export const useFirewallStore = defineStore('firewall', () => {
     
     try {
       await api.post('/firewall/port/block', { port, protocol: proto })
-      await fetchRules()
+      await fetchRules(true)
       return true
     } catch (e) {
       error.value = e.message
@@ -253,7 +253,7 @@ export const useFirewallStore = defineStore('firewall', () => {
     
     try {
       await api.post(`/firewall/service/${encodeURIComponent(service)}/allow`)
-      await fetchRules()
+      await fetchRules(true)
       return true
     } catch (e) {
       error.value = e.message
@@ -266,8 +266,8 @@ export const useFirewallStore = defineStore('firewall', () => {
   /**
    * Fetch full firewall status
    */
-  async function fetchStatus() {
-    loading.value = true
+  async function fetchStatus(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     try {
       const response = await api.get('/firewall/status')
       status.value = response
@@ -275,7 +275,7 @@ export const useFirewallStore = defineStore('firewall', () => {
       error.value = e.message
       status.value = null
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -414,7 +414,7 @@ export const useFirewallStore = defineStore('firewall', () => {
     error.value = null
     try {
       await api.delete(`/firewall/port/${encodeURIComponent(port)}?protocol=${encodeURIComponent(proto)}`)
-      await fetchRules()
+      await fetchRules(true)
       return true
     } catch (e) {
       error.value = e.message

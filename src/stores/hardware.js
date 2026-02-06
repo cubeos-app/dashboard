@@ -79,17 +79,17 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/overview
    */
   async function fetchOverview(options = {}) {
-    loading.value = true
-    error.value = null
+    const { skipLoading, ...opts } = options
+    if (!skipLoading) { loading.value = true; error.value = null }
     try {
-      const data = await api.get('/hardware/overview', {}, options)
+      const data = await api.get('/hardware/overview', {}, opts)
       if (data === null) return
       overview.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
       error.value = e.message
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -240,10 +240,10 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/gpio
    */
   async function fetchGPIO(options = {}) {
-    loading.value = true
-    error.value = null
+    const { skipLoading, ...opts } = options
+    if (!skipLoading) { loading.value = true; error.value = null }
     try {
-      const data = await api.get('/hardware/gpio', {}, options)
+      const data = await api.get('/hardware/gpio', {}, opts)
       if (data === null) return
       gpioPins.value = data
     } catch (e) {
@@ -251,7 +251,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       error.value = e.message
       gpioPins.value = null
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -314,10 +314,10 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/i2c
    */
   async function fetchI2CBuses(options = {}) {
-    loading.value = true
-    error.value = null
+    const { skipLoading, ...opts } = options
+    if (!skipLoading) { loading.value = true; error.value = null }
     try {
-      const data = await api.get('/hardware/i2c', {}, options)
+      const data = await api.get('/hardware/i2c', {}, opts)
       if (data === null) return
       i2cBuses.value = data
     } catch (e) {
@@ -325,7 +325,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       error.value = e.message
       i2cBuses.value = null
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -369,10 +369,10 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/sensors
    */
   async function fetchSensors(options = {}) {
-    loading.value = true
-    error.value = null
+    const { skipLoading, ...opts } = options
+    if (!skipLoading) { loading.value = true; error.value = null }
     try {
-      const data = await api.get('/hardware/sensors', {}, options)
+      const data = await api.get('/hardware/sensors', {}, opts)
       if (data === null) return
       sensors.value = data
     } catch (e) {
@@ -380,7 +380,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       error.value = e.message
       sensors.value = null
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -437,10 +437,10 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/rtc
    */
   async function fetchRTC(options = {}) {
-    loading.value = true
-    error.value = null
+    const { skipLoading, ...opts } = options
+    if (!skipLoading) { loading.value = true; error.value = null }
     try {
-      const data = await api.get('/hardware/rtc', {}, options)
+      const data = await api.get('/hardware/rtc', {}, opts)
       if (data === null) return
       rtc.value = data
     } catch (e) {
@@ -448,7 +448,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       error.value = e.message
       rtc.value = null
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -510,10 +510,10 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/watchdog
    */
   async function fetchWatchdog(options = {}) {
-    loading.value = true
-    error.value = null
+    const { skipLoading, ...opts } = options
+    if (!skipLoading) { loading.value = true; error.value = null }
     try {
-      const data = await api.get('/hardware/watchdog', {}, options)
+      const data = await api.get('/hardware/watchdog', {}, opts)
       if (data === null) return
       watchdog.value = data
     } catch (e) {
@@ -521,7 +521,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       error.value = e.message
       watchdog.value = null
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 

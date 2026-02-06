@@ -42,12 +42,14 @@ export const useNPMStore = defineStore('npm', () => {
    * Fetch NPM service status
    * GET /npm/status
    */
-  async function fetchStatus() {
+  async function fetchStatus(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     try {
       status.value = await api.get('/npm/status')
     } catch (e) {
-      console.error('Failed to fetch NPM status:', e)
       status.value = { running: false, error: e.message }
+    } finally {
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -55,17 +57,16 @@ export const useNPMStore = defineStore('npm', () => {
    * Fetch all proxy hosts
    * GET /npm/hosts
    */
-  async function fetchHosts() {
-    loading.value = true
+  async function fetchHosts(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       const response = await api.get('/npm/hosts')
       hosts.value = response.hosts || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch NPM hosts:', e)
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -78,11 +79,10 @@ export const useNPMStore = defineStore('npm', () => {
     error.value = null
     try {
       const result = await api.post('/npm/hosts', config)
-      await fetchHosts()
+      await fetchHosts(true)
       return result
     } catch (e) {
       error.value = e.message
-      console.error('Failed to create NPM host:', e)
       throw e
     }
   }
@@ -99,7 +99,6 @@ export const useNPMStore = defineStore('npm', () => {
       hosts.value = hosts.value.filter(h => h.id !== id)
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to delete NPM host ${id}:`, e)
       throw e
     }
   }
@@ -110,7 +109,7 @@ export const useNPMStore = defineStore('npm', () => {
   async function fetchAll() {
     loading.value = true
     try {
-      await Promise.all([fetchStatus(), fetchHosts()])
+      await Promise.all([fetchStatus(true), fetchHosts(true)])
     } finally {
       loading.value = false
     }

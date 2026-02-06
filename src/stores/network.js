@@ -92,8 +92,8 @@ export const useNetworkStore = defineStore('network', () => {
   /**
    * Fetch network status
    */
-  async function fetchStatus() {
-    loading.value = true
+  async function fetchStatus(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -102,7 +102,7 @@ export const useNetworkStore = defineStore('network', () => {
     } catch (e) {
       error.value = e.message
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -111,8 +111,8 @@ export const useNetworkStore = defineStore('network', () => {
    * @param {string} mode - One of NETWORK_MODES
    * @param {object} options - Additional options (ssid, password for ONLINE_WIFI)
    */
-  async function setMode(mode, options = {}) {
-    loading.value = true
+  async function setMode(mode, options = {}, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -126,13 +126,13 @@ export const useNetworkStore = defineStore('network', () => {
       }
       
       await api.post('/network/mode', body)
-      await fetchStatus()
+      await fetchStatus(true)
       return true
     } catch (e) {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -192,20 +192,20 @@ export const useNetworkStore = defineStore('network', () => {
   /**
    * Update AP configuration
    */
-  async function updateAPConfig(config) {
-    loading.value = true
+  async function updateAPConfig(config, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
       await api.put('/network/ap/config', config)
       apConfig.value = config
-      await fetchStatus()
+      await fetchStatus(true)
       return true
     } catch (e) {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -216,8 +216,8 @@ export const useNetworkStore = defineStore('network', () => {
   /**
    * Fetch DNS configuration
    */
-  async function fetchDNS() {
-    loading.value = true
+  async function fetchDNS(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -226,7 +226,7 @@ export const useNetworkStore = defineStore('network', () => {
     } catch (e) {
       error.value = e.message
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -234,8 +234,8 @@ export const useNetworkStore = defineStore('network', () => {
    * Save DNS configuration
    * @param {object} config - DNS config (primary, secondary)
    */
-  async function saveDNS(config) {
-    loading.value = true
+  async function saveDNS(config, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -246,15 +246,15 @@ export const useNetworkStore = defineStore('network', () => {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
   /**
    * Fetch network interfaces
    */
-  async function fetchInterfaces() {
-    loading.value = true
+  async function fetchInterfaces(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -264,15 +264,15 @@ export const useNetworkStore = defineStore('network', () => {
       error.value = e.message
       interfaces.value = []
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
   /**
    * Fetch network settings
    */
-  async function fetchSettings() {
-    loading.value = true
+  async function fetchSettings(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -281,7 +281,7 @@ export const useNetworkStore = defineStore('network', () => {
     } catch (e) {
       error.value = e.message
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -289,8 +289,8 @@ export const useNetworkStore = defineStore('network', () => {
    * Update network settings
    * @param {object} data - Settings to update
    */
-  async function updateSettings(data) {
-    loading.value = true
+  async function updateSettings(data, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -301,7 +301,7 @@ export const useNetworkStore = defineStore('network', () => {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -347,8 +347,8 @@ export const useNetworkStore = defineStore('network', () => {
    * Set VPN mode
    * @param {string} mode - VPN mode to set
    */
-  async function setVPNMode(mode) {
-    loading.value = true
+  async function setVPNMode(mode, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -359,7 +359,7 @@ export const useNetworkStore = defineStore('network', () => {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -379,20 +379,20 @@ export const useNetworkStore = defineStore('network', () => {
   /**
    * Disconnect from current WiFi network
    */
-  async function disconnectWiFi() {
-    loading.value = true
+  async function disconnectWiFi(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
       await api.post('/network/wifi/disconnect')
-      await fetchStatus()
+      await fetchStatus(true)
       await fetchWiFiStatus()
       return true
     } catch (e) {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -413,8 +413,8 @@ export const useNetworkStore = defineStore('network', () => {
    * Forget a saved WiFi network
    * @param {string} ssid - Network SSID to forget
    */
-  async function forgetNetwork(ssid) {
-    loading.value = true
+  async function forgetNetwork(ssid, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
@@ -425,7 +425,7 @@ export const useNetworkStore = defineStore('network', () => {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
@@ -445,38 +445,38 @@ export const useNetworkStore = defineStore('network', () => {
   /**
    * Start the Access Point
    */
-  async function startAP() {
-    loading.value = true
+  async function startAP(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
       await api.post('/network/ap/start')
-      await fetchStatus()
+      await fetchStatus(true)
       return true
     } catch (e) {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   
   /**
    * Stop the Access Point
    */
-  async function stopAP() {
-    loading.value = true
+  async function stopAP(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     
     try {
       await api.post('/network/ap/stop')
-      await fetchStatus()
+      await fetchStatus(true)
       return true
     } catch (e) {
       error.value = e.message
       return false
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
   

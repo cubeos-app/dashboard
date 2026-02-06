@@ -23,7 +23,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import api from '@/api/client'
 
 export const useMediaStore = defineStore('media', () => {
@@ -43,9 +43,15 @@ export const useMediaStore = defineStore('media', () => {
   const capturedImage = ref(null)
   const streamInfo = ref(null)
 
-  // Common
-  const loading = ref(false)
-  const error = ref(null)
+  // Per-section loading & error (fixes shared loading/error clobber)
+  const audioLoading = ref(false)
+  const audioError = ref(null)
+  const cameraLoading = ref(false)
+  const cameraError = ref(null)
+
+  // Backwards-compatible unified refs
+  const loading = computed(() => audioLoading.value || cameraLoading.value)
+  const error = computed(() => audioError.value || cameraError.value)
 
   // ==========================================
   // Audio
@@ -56,18 +62,18 @@ export const useMediaStore = defineStore('media', () => {
    * GET /media/audio
    */
   async function fetchAudioDevices(options = {}) {
-    loading.value = true
-    error.value = null
+    audioLoading.value = true
+    audioError.value = null
     try {
       const data = await api.get('/media/audio', {}, options)
       if (data === null) return
       audioDevices.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
-      error.value = e.message
+      audioError.value = e.message
       audioDevices.value = null
     } finally {
-      loading.value = false
+      audioLoading.value = false
     }
   }
 
@@ -122,13 +128,13 @@ export const useMediaStore = defineStore('media', () => {
    * @param {number} level - Volume 0–100
    */
   async function setVolume(level) {
-    error.value = null
+    audioError.value = null
     try {
       const data = await api.post('/media/audio/volume', { volume: level })
       await fetchVolume()
       return data
     } catch (e) {
-      error.value = e.message
+      audioError.value = e.message
       throw e
     }
   }
@@ -139,13 +145,13 @@ export const useMediaStore = defineStore('media', () => {
    * @param {boolean} muted - true to mute, false to unmute
    */
   async function setMute(muted) {
-    error.value = null
+    audioError.value = null
     try {
       const data = await api.post('/media/audio/mute', { muted })
       await fetchVolume()
       return data
     } catch (e) {
-      error.value = e.message
+      audioError.value = e.message
       throw e
     }
   }
@@ -159,18 +165,18 @@ export const useMediaStore = defineStore('media', () => {
    * GET /media/cameras
    */
   async function fetchCameras(options = {}) {
-    loading.value = true
-    error.value = null
+    cameraLoading.value = true
+    cameraError.value = null
     try {
       const data = await api.get('/media/cameras', {}, options)
       if (data === null) return
       cameras.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
-      error.value = e.message
+      cameraError.value = e.message
       cameras.value = null
     } finally {
-      loading.value = false
+      cameraLoading.value = false
     }
   }
 
@@ -194,14 +200,14 @@ export const useMediaStore = defineStore('media', () => {
    * POST /media/cameras/capture
    */
   async function captureImage() {
-    error.value = null
+    cameraError.value = null
     try {
       const data = await api.post('/media/cameras/capture')
       // Auto-fetch the captured image after capture
       await fetchCapturedImage()
       return data
     } catch (e) {
-      error.value = e.message
+      cameraError.value = e.message
       throw e
     }
   }
@@ -241,13 +247,13 @@ export const useMediaStore = defineStore('media', () => {
    * POST /media/cameras/stream/start
    */
   async function startStream() {
-    error.value = null
+    cameraError.value = null
     try {
       const data = await api.post('/media/cameras/stream/start')
       await fetchStreamInfo()
       return data
     } catch (e) {
-      error.value = e.message
+      cameraError.value = e.message
       throw e
     }
   }
@@ -257,13 +263,13 @@ export const useMediaStore = defineStore('media', () => {
    * POST /media/cameras/stream/stop
    */
   async function stopStream() {
-    error.value = null
+    cameraError.value = null
     try {
       const data = await api.post('/media/cameras/stream/stop')
       await fetchStreamInfo()
       return data
     } catch (e) {
-      error.value = e.message
+      cameraError.value = e.message
       throw e
     }
   }
@@ -288,6 +294,10 @@ export const useMediaStore = defineStore('media', () => {
     // State — Common
     loading,
     error,
+    audioLoading,
+    audioError,
+    cameraLoading,
+    cameraError,
 
     // Audio
     fetchAudioDevices,

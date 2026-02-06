@@ -58,17 +58,16 @@ export const useProcessesStore = defineStore('processes', () => {
    * Fetch all processes
    * GET /processes
    */
-  async function fetchAll() {
-    loading.value = true
+  async function fetchAll(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       const response = await api.get('/processes')
       processes.value = response.processes || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch processes:', e)
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -80,7 +79,6 @@ export const useProcessesStore = defineStore('processes', () => {
     try {
       processStats.value = await api.get('/processes/stats')
     } catch (e) {
-      console.error('Failed to fetch process stats:', e)
     }
   }
 
@@ -95,7 +93,6 @@ export const useProcessesStore = defineStore('processes', () => {
       const response = await api.get('/processes/top/cpu', { limit })
       topCpu.value = response.processes || response || []
     } catch (e) {
-      console.error('Failed to fetch top CPU processes:', e)
       topCpu.value = []
     }
   }
@@ -111,7 +108,6 @@ export const useProcessesStore = defineStore('processes', () => {
       const response = await api.get('/processes/top/memory', { limit })
       topMemory.value = response.processes || response || []
     } catch (e) {
-      console.error('Failed to fetch top memory processes:', e)
       topMemory.value = []
     }
   }
@@ -136,7 +132,6 @@ export const useProcessesStore = defineStore('processes', () => {
       searchQuery.value = name.trim()
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to search processes for "${name}":`, e)
       searchResults.value = []
     }
   }
@@ -154,7 +149,6 @@ export const useProcessesStore = defineStore('processes', () => {
       return selectedProcess.value
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch process ${pid}:`, e)
       selectedProcess.value = null
       return null
     }
@@ -192,7 +186,6 @@ export const useProcessesStore = defineStore('processes', () => {
       return true
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to kill process ${pid}:`, e)
       throw e
     } finally {
       killing.value = false
@@ -229,7 +222,6 @@ export const useProcessesStore = defineStore('processes', () => {
       return true
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to terminate process ${pid}:`, e)
       throw e
     } finally {
       terminating.value = false
@@ -258,7 +250,7 @@ export const useProcessesStore = defineStore('processes', () => {
     loading.value = true
     try {
       await Promise.all([
-        fetchAll(),
+        fetchAll(true),
         fetchStats(),
         fetchTopCpu(),
         fetchTopMemory()

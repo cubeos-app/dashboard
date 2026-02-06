@@ -72,7 +72,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
     try {
       usage.value = await api.get('/hal/storage/usage')
     } catch (e) {
-      console.error('Failed to fetch storage usage:', e)
     }
   }
 
@@ -80,17 +79,16 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
    * Fetch all storage devices
    * GET /hal/storage/devices
    */
-  async function fetchDevices() {
-    loading.value = true
+  async function fetchDevices(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       const response = await api.get('/hal/storage/devices')
       devices.value = response.devices || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch storage devices:', e)
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -106,7 +104,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       return selectedDevice.value
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch device ${device}:`, e)
       return null
     }
   }
@@ -123,7 +120,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       return smartData.value
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch SMART data for ${device}:`, e)
       return null
     }
   }
@@ -141,7 +137,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       const response = await api.get('/hal/storage/usb')
       usbStorage.value = response.devices || response || []
     } catch (e) {
-      console.error('Failed to fetch USB storage:', e)
     }
   }
 
@@ -149,17 +144,16 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
    * Fetch all USB devices (storage + peripherals)
    * GET /hal/storage/usb/devices
    */
-  async function fetchUSBDevices() {
-    loading.value = true
+  async function fetchUSBDevices(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       const response = await api.get('/hal/storage/usb/devices')
       usbDevices.value = response.devices || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch USB devices:', e)
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -167,8 +161,8 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
    * Fetch USB devices filtered by class
    * GET /hal/storage/usb/class/{class}
    */
-  async function fetchUSBByClass(cls) {
-    loading.value = true
+  async function fetchUSBByClass(cls, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       const encoded = encodeURIComponent(cls)
@@ -176,9 +170,8 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       usbDevices.value = response.devices || response || []
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch USB devices for class ${cls}:`, e)
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -193,7 +186,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       return usbTree.value
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch USB tree:', e)
       return null
     }
   }
@@ -202,18 +194,17 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
    * Rescan USB bus for new devices
    * POST /hal/storage/usb/rescan
    */
-  async function rescanUSB() {
-    loading.value = true
+  async function rescanUSB(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       await api.post('/hal/storage/usb/rescan')
       // Refresh device lists after rescan
-      await Promise.all([fetchUSBDevices(), fetchUSBStorage()])
+      await Promise.all([fetchUSBDevices(true), fetchUSBStorage()])
     } catch (e) {
       error.value = e.message
-      console.error('Failed to rescan USB bus:', e)
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -230,7 +221,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       await fetchUSBDevices()
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to reset USB device ${bus}/${device}:`, e)
       throw e
     } finally {
       usbDeviceLoading.value = { ...usbDeviceLoading.value, [key]: false }
@@ -251,7 +241,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       return result
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to mount USB device ${device}:`, e)
       throw e
     } finally {
       usbDeviceLoading.value = { ...usbDeviceLoading.value, [device]: false }
@@ -271,7 +260,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       await fetchUSBStorage()
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to unmount USB device ${device}:`, e)
       throw e
     } finally {
       usbDeviceLoading.value = { ...usbDeviceLoading.value, [device]: false }
@@ -292,7 +280,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       await Promise.all([fetchUSBDevices(), fetchUSBStorage()])
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to eject USB device ${device}:`, e)
       throw e
     } finally {
       usbDeviceLoading.value = { ...usbDeviceLoading.value, [device]: false }
@@ -307,17 +294,16 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
    * Fetch all network mounts managed by HAL
    * GET /hal/storage/network-mounts
    */
-  async function fetchNetworkMounts() {
-    loading.value = true
+  async function fetchNetworkMounts(skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       const response = await api.get('/hal/storage/network-mounts')
       networkMounts.value = response.mounts || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch network mounts:', e)
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -325,19 +311,18 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
    * Mount an SMB share via HAL
    * POST /hal/storage/network-mounts/smb
    */
-  async function mountSMBViaHAL(config) {
-    loading.value = true
+  async function mountSMBViaHAL(config, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       const result = await api.post('/hal/storage/network-mounts/smb', config)
-      await fetchNetworkMounts()
+      await fetchNetworkMounts(true)
       return result
     } catch (e) {
       error.value = e.message
-      console.error('Failed to mount SMB share:', e)
       throw e
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -345,19 +330,18 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
    * Mount an NFS share via HAL
    * POST /hal/storage/network-mounts/nfs
    */
-  async function mountNFSViaHAL(config) {
-    loading.value = true
+  async function mountNFSViaHAL(config, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       const result = await api.post('/hal/storage/network-mounts/nfs', config)
-      await fetchNetworkMounts()
+      await fetchNetworkMounts(true)
       return result
     } catch (e) {
       error.value = e.message
-      console.error('Failed to mount NFS share:', e)
       throw e
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -365,18 +349,17 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
    * Unmount a network share via HAL
    * DELETE /hal/storage/network-mounts
    */
-  async function unmountNetworkShare(config) {
-    loading.value = true
+  async function unmountNetworkShare(config, skipLoading = false) {
+    if (!skipLoading) loading.value = true
     error.value = null
     try {
       await api.delete('/hal/storage/network-mounts', { data: config })
-      await fetchNetworkMounts()
+      await fetchNetworkMounts(true)
     } catch (e) {
       error.value = e.message
-      console.error('Failed to unmount network share:', e)
       throw e
     } finally {
-      loading.value = false
+      if (!skipLoading) loading.value = false
     }
   }
 
@@ -389,7 +372,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       mountCheckResult.value = await api.get('/hal/storage/network-mounts/check', { params })
       return mountCheckResult.value
     } catch (e) {
-      console.error('Failed to check network mount:', e)
       return null
     }
   }
@@ -405,7 +387,6 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
       return mountTestResult.value
     } catch (e) {
       mountTestResult.value = { success: false, error: e.message }
-      console.error('Failed to test network mount:', e)
       return mountTestResult.value
     }
   }
