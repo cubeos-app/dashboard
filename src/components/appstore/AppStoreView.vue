@@ -13,6 +13,7 @@ const selectedApp = ref(null)
 const showDetailModal = ref(false)
 const activeTab = ref('browse') // browse, installed, coreapps, stores
 const coreApps = ref([])
+const coreAppsError = ref('')
 const newStoreUrl = ref('')
 const newStoreName = ref('')
 const addingStore = ref(false)
@@ -47,11 +48,12 @@ watch(() => activeTab.value, async (newTab) => {
 
 // Methods
 async function fetchCoreApps() {
+  coreAppsError.value = ''
   try {
     const data = await api.get('/appstore/coreapps')
     coreApps.value = data.apps || []
   } catch (e) {
-    // Core apps fetch failed
+    coreAppsError.value = e.message || 'Failed to load core apps'
   }
 }
 
@@ -627,7 +629,18 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div v-if="coreApps.length === 0" class="text-center py-12">
+      <!-- Core Apps Error -->
+      <div v-if="coreAppsError" class="mb-4 p-4 rounded-xl bg-error-muted border border-error/30 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <Icon name="AlertCircle" :size="20" class="text-error flex-shrink-0" />
+          <span class="text-sm text-error">{{ coreAppsError }}</span>
+        </div>
+        <button @click="fetchCoreApps()" class="px-3 py-1 rounded-lg border border-error/30 text-xs text-error hover:bg-error-muted/80 transition-colors">
+          Retry
+        </button>
+      </div>
+
+      <div v-if="coreApps.length === 0 && !coreAppsError" class="text-center py-12">
         <Icon name="Shield" :size="32" class="mx-auto text-theme-muted mb-2" />
         <p class="text-theme-tertiary text-sm">No core apps found</p>
       </div>

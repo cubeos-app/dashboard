@@ -12,6 +12,7 @@ const creating = ref(false)
 const activating = ref(null)
 const selectedProfile = ref(null)
 const profileApps = ref([])
+const error = ref('')
 
 const newProfile = ref({ name: '', description: '' })
 const activeProfile = computed(() => store.profiles.find(p => p.is_active))
@@ -22,7 +23,7 @@ async function createProfile() {
     await store.createProfile(newProfile.value.name, newProfile.value.description)
     showCreateModal.value = false
     newProfile.value = { name: '', description: '' }
-  } catch (e) {}
+  } catch (e) { error.value = e.message || 'Failed to create profile' }
   finally { creating.value = false }
 }
 
@@ -35,7 +36,7 @@ async function activateProfile(profile) {
     variant: 'warning'
   })) return
   activating.value = profile.name
-  try { await store.activateProfile(profile.name) } catch (e) {}
+  try { await store.activateProfile(profile.name) } catch (e) { error.value = e.message || 'Failed to activate profile' }
   finally { activating.value = null }
 }
 
@@ -56,7 +57,7 @@ async function deleteProfile(profile) {
     confirmText: 'Delete',
     variant: 'danger'
   })) return
-  try { await store.deleteProfile(profile.name) } catch (e) {}
+  try { await store.deleteProfile(profile.name) } catch (e) { error.value = e.message || 'Failed to delete profile' }
 }
 
 async function openConfigureModal(profile) {
@@ -76,7 +77,7 @@ async function toggleAppInProfile(app) {
   try {
     await store.setProfileApp(selectedProfile.value.name, app.id, newEnabled)
     app.enabled_in_profile = newEnabled
-  } catch (e) {}
+  } catch (e) { error.value = e.message || 'Failed to update app in profile' }
 }
 </script>
 
@@ -93,6 +94,17 @@ async function toggleAppInProfile(app) {
           </p>
         </div>
       </div>
+    </div>
+
+    <!-- Error Banner -->
+    <div v-if="error" class="bg-error-muted border border-error/30 rounded-lg p-4 mb-6 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <Icon name="AlertCircle" :size="20" class="text-error flex-shrink-0" />
+        <span class="text-sm text-error">{{ error }}</span>
+      </div>
+      <button @click="error = ''" class="text-error hover:text-error/80 p-1" aria-label="Dismiss error">
+        <Icon name="X" :size="16" />
+      </button>
     </div>
 
     <!-- Toolbar -->
