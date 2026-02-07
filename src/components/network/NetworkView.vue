@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useNetworkStore } from '@/stores/network'
@@ -7,6 +7,7 @@ import { useClientsStore } from '@/stores/clients'
 import { useFirewallStore } from '@/stores/firewall'
 import { confirm } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import Icon from '@/components/ui/Icon.vue'
 import WiFiConnector from '@/components/network/WiFiConnector.vue'
 import NetworkModeSelector from '@/components/network/NetworkModeSelector.vue'
@@ -47,7 +48,18 @@ const apActionLoading = ref(false)
 
 // WiFi AP Config Modal
 const showAPConfigModal = ref(false)
+const apConfigModalRef = ref(null)
 const apConfigLoading = ref(false)
+const { trapFocus: trapAPConfigFocus } = useFocusTrap()
+
+// Auto-focus AP Config modal on open
+watch(showAPConfigModal, (val) => {
+  if (val) {
+    nextTick(() => {
+      apConfigModalRef.value?.focus()
+    })
+  }
+})
 const apConfig = ref({
   ssid: '',
   password: '',
@@ -1223,7 +1235,7 @@ function formatDuration(seconds) {
 
     <!-- WiFi AP Config Modal -->
     <Teleport to="body">
-      <div v-if="showAPConfigModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay" @click.self="showAPConfigModal = false" role="dialog" aria-modal="true" aria-label="WiFi Access Point Settings" @keydown.escape="showAPConfigModal = false">
+      <div v-if="showAPConfigModal" ref="apConfigModalRef" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay" @click.self="showAPConfigModal = false" role="dialog" aria-modal="true" aria-label="WiFi Access Point Settings" tabindex="-1" @keydown="trapAPConfigFocus" @keydown.escape="showAPConfigModal = false">
         <div class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md">
           <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
             <h3 class="text-lg font-semibold text-theme-primary">WiFi Access Point Settings</h3>

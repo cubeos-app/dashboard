@@ -6,9 +6,10 @@
  * Sprint 2 additions: disconnect button, saved networks list with forget action,
  * WiFi status indicator showing connected SSID + signal.
  */
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import Icon from '@/components/ui/Icon.vue'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 
 const props = defineProps({
   show: {
@@ -20,6 +21,8 @@ const props = defineProps({
 const emit = defineEmits(['close', 'connected'])
 
 const networkStore = useNetworkStore()
+const { trapFocus } = useFocusTrap()
+const modalRef = ref(null)
 
 // Local state
 const selectedNetwork = ref(null)
@@ -45,6 +48,10 @@ watch(() => props.show, (val) => {
     networkStore.fetchWiFiStatus()
     networkStore.fetchSavedNetworks()
     activeView.value = 'scan'
+    // Focus the modal container on open for keyboard accessibility
+    nextTick(() => {
+      modalRef.value?.focus()
+    })
   }
 })
 
@@ -160,7 +167,16 @@ onUnmounted(() => {
         <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm"></div>
         
         <!-- Modal -->
-        <div class="relative w-full max-w-md bg-theme-card rounded-2xl border border-theme-primary shadow-theme-lg overflow-hidden">
+        <div 
+          ref="modalRef"
+          class="relative w-full max-w-md bg-theme-card rounded-2xl border border-theme-primary shadow-theme-lg overflow-hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="WiFi Manager"
+          tabindex="-1"
+          @keydown="trapFocus"
+          @keydown.escape="close"
+        >
           <!-- Header -->
           <div class="flex items-center justify-between p-4 border-b border-theme-primary">
             <div class="flex items-center gap-3">
