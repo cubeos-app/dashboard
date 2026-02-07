@@ -542,7 +542,7 @@ function formatBytes(bytes) {
                     :class="config.auto_connect ? 'bg-accent' : 'bg-theme-tertiary border border-theme-secondary'"
                   >
                     <span
-                      class="inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200"
+                      class="inline-block h-4 w-4 rounded-full bg-theme-primary shadow transform transition-transform duration-200"
                       :class="config.auto_connect ? 'translate-x-5' : 'translate-x-1'"
                     />
                   </button>
@@ -596,7 +596,7 @@ function formatBytes(bytes) {
           @keydown.escape="closeAddModal"
           @keydown="trapFocus"
         >
-          <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+          <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm"></div>
 
           <div class="relative w-full max-w-md bg-theme-card rounded-2xl border border-theme-primary shadow-theme-lg overflow-hidden">
             <!-- Header -->
@@ -719,8 +719,8 @@ function formatBytes(bytes) {
                 :class="[
                   'px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors',
                   addLoading || !addForm.name || !addForm.configFile
-                    ? 'bg-accent/50 text-white cursor-not-allowed'
-                    : 'bg-accent text-white hover:bg-accent-hover'
+                    ? 'bg-accent/50 text-on-accent cursor-not-allowed'
+                    : 'bg-accent text-on-accent hover:bg-accent-hover'
                 ]"
               >
                 <Icon v-if="addLoading" name="Loader2" :size="16" class="animate-spin" />

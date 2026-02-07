@@ -243,7 +243,7 @@ function formatSize(bytes) {
             :aria-label="'View ' + mode.label + ' devices'"
             class="px-3 py-1.5 text-xs font-medium transition-colors"
             :class="viewMode === mode.id
-              ? 'bg-accent text-white'
+              ? 'bg-accent text-on-accent'
               : 'text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary'"
           >{{ mode.label }}</button>
         </div>
@@ -300,7 +300,7 @@ function formatSize(bytes) {
         <button
           @click="filterClass = null"
           class="px-2.5 py-1 text-xs rounded-lg transition-colors"
-          :class="filterClass === null ? 'bg-accent text-white' : 'bg-theme-tertiary text-theme-muted hover:text-theme-primary'"
+          :class="filterClass === null ? 'bg-accent text-on-accent' : 'bg-theme-tertiary text-theme-muted hover:text-theme-primary'"
           aria-label="Show all device classes"
         >All</button>
         <button
@@ -308,7 +308,7 @@ function formatSize(bytes) {
           :key="cls"
           @click="filterClass = filterClass === cls ? null : cls"
           class="px-2.5 py-1 text-xs rounded-lg transition-colors capitalize"
-          :class="filterClass === cls ? 'bg-accent text-white' : 'bg-theme-tertiary text-theme-muted hover:text-theme-primary'"
+          :class="filterClass === cls ? 'bg-accent text-on-accent' : 'bg-theme-tertiary text-theme-muted hover:text-theme-primary'"
           :aria-label="'Filter by ' + cls"
         >{{ cls }}</button>
       </div>

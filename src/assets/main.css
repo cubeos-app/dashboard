@@ -85,6 +85,9 @@
     --glass-bg: rgba(255, 255, 255, 0.05);
     --glass-border: rgba(255, 255, 255, 0.1);
     
+    --overlay-bg: rgba(0, 0, 0, 0.5);
+    --text-on-accent: #ffffff;
+    
     --scrollbar-track: #18181b;
     --scrollbar-thumb: #3f3f46;
     --scrollbar-hover: #52525b;
@@ -145,6 +148,9 @@
     
     --glass-bg: rgba(255, 255, 255, 0.8);
     --glass-border: rgba(0, 0, 0, 0.06);
+    
+    --overlay-bg: rgba(0, 0, 0, 0.3);
+    --text-on-accent: #ffffff;
     
     --scrollbar-track: #f4f4f5;
     --scrollbar-thumb: #d4d4d8;
@@ -211,6 +217,8 @@ body {
   .bg-theme-input { background-color: var(--bg-input); }
   .bg-theme-glass { background-color: var(--glass-bg); }
   .bg-accent-muted { background-color: var(--accent-muted); }
+  .bg-theme-overlay { background-color: var(--overlay-bg); }
+  .text-on-accent { color: var(--text-on-accent); }
   
   /* Theme-aware borders */
   .border-theme-primary { border-color: var(--border-primary); }

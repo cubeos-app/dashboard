@@ -392,7 +392,7 @@ onUnmounted(() => {
           <span
             v-if="tab.badge"
             class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full"
-            :class="activeTab === tab.id ? 'bg-accent text-white' : 'bg-theme-tertiary text-theme-secondary'"
+            :class="activeTab === tab.id ? 'bg-accent text-on-accent' : 'bg-theme-tertiary text-theme-secondary'"
           >
             {{ tab.badge }}
           </span>
@@ -898,7 +898,7 @@ onUnmounted(() => {
           @keydown.escape="showShareModal = false"
           @keydown="trapFocus"
         >
-          <div class="absolute inset-0 bg-black/50" @click="showShareModal = false"></div>
+          <div class="absolute inset-0 bg-theme-overlay" @click="showShareModal = false"></div>
           <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary">
             <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
               <h3 class="text-lg font-semibold text-theme-primary">

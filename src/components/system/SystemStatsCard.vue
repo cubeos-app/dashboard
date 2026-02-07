@@ -26,7 +26,7 @@ const colorClasses = {
   cube: 'bg-accent-muted text-accent',
   green: 'bg-success-muted text-success',
   blue: 'bg-accent-muted text-accent',
-  purple: 'bg-[#8b5cf620] text-[#8b5cf6]',
+  purple: 'bg-accent-muted text-accent',
   yellow: 'bg-warning-muted text-warning',
   red: 'bg-error-muted text-error'
 }

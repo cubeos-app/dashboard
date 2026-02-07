@@ -662,12 +662,12 @@ function formatDuration(seconds) {
         <div class="bg-theme-card rounded-xl p-4 border border-theme-primary">
           <div class="flex items-center gap-3 mb-3">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                 :class="natStatus?.enabled ? 'bg-[#8b5cf620]' : 'bg-theme-tertiary'">
-              <Icon name="ArrowLeftRight" :size="20" :class="natStatus?.enabled ? 'text-[#8b5cf6]' : 'text-theme-muted'" />
+                 :class="natStatus?.enabled ? 'bg-accent-muted' : 'bg-theme-tertiary'">
+              <Icon name="ArrowLeftRight" :size="20" :class="natStatus?.enabled ? 'text-accent' : 'text-theme-muted'" />
             </div>
             <div>
               <p class="text-sm text-theme-tertiary">Internet Sharing</p>
-              <p class="font-semibold" :class="natStatus?.enabled ? 'text-[#8b5cf6]' : 'text-theme-muted'">
+              <p class="font-semibold" :class="natStatus?.enabled ? 'text-accent' : 'text-theme-muted'">
                 {{ natStatus?.enabled ? 'Enabled' : 'Disabled' }}
               </p>
             </div>
@@ -676,7 +676,7 @@ function formatDuration(seconds) {
             @click="toggleNAT"
             class="w-full mt-2 px-3 py-2 text-sm rounded-lg transition-colors"
             :class="natStatus?.enabled 
-              ? 'bg-[#8b5cf620] text-[#8b5cf6] hover:opacity-80'
+              ? 'bg-accent-muted text-accent hover:opacity-80'
               : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-tertiary'"
             :aria-label="natStatus?.enabled ? 'Disable NAT internet sharing' : 'Enable NAT internet sharing'"
           >
@@ -687,8 +687,8 @@ function formatDuration(seconds) {
         <!-- Firewall (summary card linking to /firewall) -->
         <div class="bg-theme-card rounded-xl p-4 border border-theme-primary">
           <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-[#f59e0b20] flex items-center justify-center">
-              <Icon name="Shield" :size="20" class="text-[#f59e0b]" />
+            <div class="w-10 h-10 rounded-lg bg-warning-muted flex items-center justify-center">
+              <Icon name="Shield" :size="20" class="text-warning" />
             </div>
             <div>
               <p class="text-sm text-theme-tertiary">Firewall</p>
