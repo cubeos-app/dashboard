@@ -348,6 +348,7 @@ onUnmounted(() => {
                   :disabled="actionLoading.signal"
                   class="p-1 rounded text-theme-muted hover:text-theme-primary transition-colors"
                   title="Refresh signal"
+                  aria-label="Refresh signal strength"
                 >
                   <Icon
                     name="RefreshCw" :size="12"
@@ -373,6 +374,7 @@ onUnmounted(() => {
               v-model="sbdMessage"
               rows="3"
               placeholder="Type your Short Burst Data message..."
+              aria-label="SBD message text"
               class="w-full px-3 py-2 text-sm rounded-lg border border-theme-primary bg-theme-secondary text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent resize-none font-mono"
             />
 
@@ -389,6 +391,7 @@ onUnmounted(() => {
               <button
                 @click="handleSendSBD"
                 :disabled="!sbdMessage.trim() || byteCount > SBD_MAX_BYTES || actionLoading.send"
+                aria-label="Send SBD message via satellite"
                 class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
               >
                 <Icon
@@ -433,6 +436,7 @@ onUnmounted(() => {
               <button
                 @click="handleCheckMailbox"
                 :disabled="actionLoading.mailbox"
+                aria-label="Check Iridium mailbox"
                 class="px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors disabled:opacity-50"
               >
                 <Icon

@@ -229,6 +229,9 @@ onUnmounted(() => {
             <button
               @click="handleToggleMute"
               :disabled="actionLoading['mute']"
+              role="switch"
+              :aria-checked="volumeData?.muted ? 'true' : 'false'"
+              :aria-label="volumeData?.muted ? 'Unmute audio' : 'Mute audio'"
               :class="[
                 'px-4 py-2 text-sm font-medium rounded-lg transition-colors',
                 volumeData?.muted
@@ -256,6 +259,7 @@ onUnmounted(() => {
                 step="1"
                 :value="sliderValue"
                 @input="handleVolumeChange"
+                aria-label="Volume level"
                 :class="[
                   'flex-1 h-2 rounded-full appearance-none cursor-pointer',
                   'bg-theme-tertiary',

@@ -95,6 +95,7 @@ async function refresh() {
               :disabled="refreshing"
               class="p-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
               title="Refresh"
+              aria-label="Refresh media data"
             >
               <Icon name="RefreshCw" :size="18" :class="{ 'animate-spin': refreshing }" />
             </button>
@@ -106,11 +107,13 @@ async function refresh() {
     <!-- Tabs -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="border-b border-theme-primary overflow-x-auto">
-        <nav class="-mb-px flex space-x-8" aria-label="Media tabs">
+        <nav class="-mb-px flex space-x-8" role="tablist" aria-label="Media tabs">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             @click="activeTab = tab.id"
+            role="tab"
+            :aria-selected="activeTab === tab.id"
             :class="[
               activeTab === tab.id
                 ? 'border-accent text-accent'

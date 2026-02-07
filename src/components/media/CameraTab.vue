@@ -320,6 +320,7 @@ onUnmounted(() => {
                 <button
                   @click="handleCapture"
                   :disabled="actionLoading['capture']"
+                  aria-label="Capture image from camera"
                   class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
                 >
                   <Icon
@@ -380,6 +381,7 @@ onUnmounted(() => {
                   v-if="!streamStatus?.active"
                   @click="handleStartStream"
                   :disabled="actionLoading['stream-start']"
+                  aria-label="Start camera stream"
                   class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
                 >
                   <Icon
@@ -394,6 +396,7 @@ onUnmounted(() => {
                   v-else
                   @click="handleStopStream"
                   :disabled="actionLoading['stream-stop']"
+                  aria-label="Stop camera stream"
                   class="px-4 py-2 text-sm font-medium rounded-lg bg-error text-white hover:opacity-80 transition-colors disabled:opacity-50"
                 >
                   <Icon
@@ -420,6 +423,7 @@ onUnmounted(() => {
                   @click="copyStreamUrl"
                   class="p-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors shrink-0"
                   :title="streamUrlCopied ? 'Copied!' : 'Copy URL'"
+                  :aria-label="streamUrlCopied ? 'Stream URL copied' : 'Copy stream URL'"
                 >
                   <Icon :name="streamUrlCopied ? 'Check' : 'Copy'" :size="16" />
                 </button>

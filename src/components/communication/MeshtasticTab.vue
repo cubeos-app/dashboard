@@ -287,6 +287,7 @@ onUnmounted(() => {
             <!-- Channel config toggle -->
             <button
               @click="showChannelForm = !showChannelForm"
+              :aria-label="showChannelForm ? 'Hide channel configuration' : 'Show channel configuration'"
               class="px-4 py-2 text-sm font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors"
             >
               <Icon name="Settings" :size="14" class="inline-block mr-1.5" />
@@ -309,8 +310,9 @@ onUnmounted(() => {
 
           <div class="space-y-4 max-w-lg">
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Channel Name</label>
+              <label for="meshtastic-channel-name" class="block text-sm font-medium text-theme-secondary mb-1">Channel Name</label>
               <input
+                id="meshtastic-channel-name"
                 v-model="channelName"
                 type="text"
                 placeholder="e.g., CubeOS-Mesh"
@@ -319,8 +321,9 @@ onUnmounted(() => {
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">PSK (Pre-Shared Key)</label>
+              <label for="meshtastic-channel-psk" class="block text-sm font-medium text-theme-secondary mb-1">PSK (Pre-Shared Key)</label>
               <input
+                id="meshtastic-channel-psk"
                 v-model="channelPSK"
                 type="text"
                 placeholder="Leave blank for default"
@@ -336,6 +339,7 @@ onUnmounted(() => {
             <button
               @click="handleSetChannel"
               :disabled="!channelName.trim() || actionLoading.channel"
+              aria-label="Set Meshtastic channel"
               class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
             >
               <Icon
@@ -369,6 +373,7 @@ onUnmounted(() => {
                 :disabled="actionLoading.nodes"
                 class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
                 title="Refresh nodes"
+                aria-label="Refresh mesh nodes"
               >
                 <Icon
                   name="RefreshCw" :size="14"
@@ -457,12 +462,14 @@ onUnmounted(() => {
               type="text"
               placeholder="Type a message to broadcast..."
               maxlength="237"
+              aria-label="Message text"
               @keyup.enter="handleSendMessage"
               class="flex-1 px-3 py-2 text-sm rounded-lg border border-theme-primary bg-theme-secondary text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
             />
             <button
               @click="handleSendMessage"
               :disabled="!messageText.trim() || actionLoading.send"
+              aria-label="Send message to mesh network"
               class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
             >
               <Icon
