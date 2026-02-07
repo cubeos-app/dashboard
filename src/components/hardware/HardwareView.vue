@@ -12,7 +12,7 @@
  * Uses hardwareStore (G1) for HAL data and systemStore for existing
  * battery/eeprom/temperature to avoid duplication.
  */
-import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useHardwareStore } from '@/stores/hardware'
 import { useSystemStore } from '@/stores/system'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
@@ -46,6 +46,8 @@ const tabs = [
 
 const activeTab = ref('overview')
 const refreshing = ref(false)
+const bootConfigCopied = ref(false)
+let bootConfigCopiedTimeout = null
 
 // ==========================================
 // Computed helpers
@@ -208,8 +210,19 @@ async function copyBootConfig() {
   try {
     await navigator.clipboard.writeText(text)
   } catch {
-    // Clipboard API may fail in some contexts
+    // Fallback for non-HTTPS / older browsers
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
   }
+  bootConfigCopied.value = true
+  if (bootConfigCopiedTimeout) clearTimeout(bootConfigCopiedTimeout)
+  bootConfigCopiedTimeout = setTimeout(() => { bootConfigCopied.value = false }, 2000)
 }
 
 async function handleToggleCharging() {
@@ -251,6 +264,10 @@ function onTabChange(tabId) {
 
 onMounted(() => {
   loadOverviewData()
+})
+
+onUnmounted(() => {
+  if (bootConfigCopiedTimeout) clearTimeout(bootConfigCopiedTimeout)
 })
 </script>
 
@@ -355,6 +372,11 @@ onMounted(() => {
       </div>
 
       <template v-else>
+        <!-- Error banner (visible even when data exists from previous load) -->
+        <div v-if="hardwareStore.error && hardwareStore.overview" class="mb-4 bg-error-muted border border-error-subtle rounded-lg p-3 flex items-start gap-2">
+          <Icon name="AlertTriangle" :size="16" class="text-error mt-0.5 shrink-0" />
+          <span class="text-sm text-error">{{ hardwareStore.error }}</span>
+        </div>
         <!-- ======================================== -->
         <!-- OVERVIEW TAB -->
         <!-- ======================================== -->
@@ -617,10 +639,10 @@ onMounted(() => {
                 v-if="bootConfigText"
                 @click="copyBootConfig"
                 class="p-1.5 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-                title="Copy to clipboard"
-                aria-label="Copy boot configuration to clipboard"
+                :title="bootConfigCopied ? 'Copied!' : 'Copy to clipboard'"
+                :aria-label="bootConfigCopied ? 'Boot configuration copied' : 'Copy boot configuration to clipboard'"
               >
-                <Icon name="Copy" :size="16" />
+                <Icon :name="bootConfigCopied ? 'Check' : 'Copy'" :size="16" :class="bootConfigCopied ? 'text-success' : ''" />
               </button>
             </div>
 

@@ -173,12 +173,20 @@ async function copyStreamUrl() {
   if (!streamStatus.value?.url) return
   try {
     await navigator.clipboard.writeText(streamStatus.value.url)
-    streamUrlCopied.value = true
-    if (streamUrlCopiedTimeout) clearTimeout(streamUrlCopiedTimeout)
-    streamUrlCopiedTimeout = setTimeout(() => { streamUrlCopied.value = false }, 2000)
   } catch {
-    // Fallback — select text
+    // Fallback for non-HTTPS / older browsers
+    const ta = document.createElement('textarea')
+    ta.value = streamStatus.value.url
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
   }
+  streamUrlCopied.value = true
+  if (streamUrlCopiedTimeout) clearTimeout(streamUrlCopiedTimeout)
+  streamUrlCopiedTimeout = setTimeout(() => { streamUrlCopied.value = false }, 2000)
 }
 
 // ==========================================
@@ -191,7 +199,6 @@ onMounted(async () => {
     await Promise.all([
       mediaStore.fetchCameras({ signal: signal() }),
       mediaStore.fetchCameraInfo({ signal: signal() }),
-      mediaStore.fetchCapturedImage({ signal: signal() }),
       mediaStore.fetchStreamInfo({ signal: signal() })
     ])
   } finally {

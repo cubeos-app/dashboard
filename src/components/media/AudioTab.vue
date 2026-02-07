@@ -10,7 +10,7 @@
  * Store: useMediaStore — fetchAudioDevices, fetchPlaybackDevices,
  *        fetchCaptureDevices, fetchVolume, setVolume, setMute
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useMediaStore } from '@/stores/media'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
@@ -58,6 +58,11 @@ function syncSlider() {
     sliderValue.value = volumeData.value.level
   }
 }
+
+// Reactively sync slider when store volume updates (e.g., from polling or external changes)
+watch(volumeData, () => {
+  syncSlider()
+})
 
 // ==========================================
 // Computed — device lists

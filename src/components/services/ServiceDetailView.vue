@@ -160,12 +160,13 @@ onUnmounted(() => {
 })
 
 // Sync local app ref when store data updates from polling
+// Shallow watch is sufficient — polling replaces the apps array reference
 watch(() => appsStore.apps, () => {
   const updated = appsStore.getAppByName(appName.value)
   if (updated) {
     app.value = updated
   }
-}, { deep: true })
+})
 
 // Fetch logs when switching to logs tab
 watch(activeTab, async (tab) => {

@@ -144,7 +144,8 @@ async function toggleImageExpand(imageName) {
 }
 
 async function deleteImage(name) {
-  const tagCount = registryStore.selectedImageTags?.length || 0
+  const tags = registryStore.selectedImageTags || []
+  const tagCount = tags.length
   if (!await confirm({
     title: 'Delete Image',
     message: `Delete "${name}" from the local registry?${tagCount > 0 ? ` This will remove ${tagCount} tag${tagCount !== 1 ? 's' : ''}.` : ''}`,
@@ -155,10 +156,19 @@ async function deleteImage(name) {
   deleteLoading.value = { ...deleteLoading.value, [name]: true }
   actionError.value = null
   try {
-    await registryStore.deleteImage(name)
+    // Delete all tags individually to ensure complete removal
+    if (tags.length > 0) {
+      for (const tag of tags) {
+        await appManagerStore.deleteRegistryImage(name, tag)
+      }
+    } else {
+      await registryStore.deleteImage(name)
+    }
     if (expandedImage.value === name) {
       expandedImage.value = null
     }
+    await registryStore.fetchImages()
+    await registryStore.fetchDiskUsage()
   } catch (e) {
     actionError.value = `Failed to delete "${name}": ` + e.message
   } finally {

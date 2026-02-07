@@ -47,7 +47,7 @@ const status = computed(() => {
   const s = communicationStore.meshtasticStatuses[port]
   if (!s) return null
 
-  const connected = s.connected ?? s.online ?? s.status === 'connected' ?? false
+  const connected = s.connected ?? s.online ?? s.status === 'connected'
   const firmware = s.firmware ?? s.firmware_version ?? s.version ?? null
   const battery = s.battery ?? s.battery_level ?? s.batt ?? null
   const channel = s.channel ?? s.channel_name ?? null

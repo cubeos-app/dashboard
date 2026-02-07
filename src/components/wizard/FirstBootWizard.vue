@@ -831,7 +831,11 @@ onMounted(() => {
                   </div>
                   <div class="flex justify-between">
                     <span class="text-theme-muted">Hostname</span>
-                    <span class="text-theme-primary">{{ config.hostname }}</span>
+                    <span class="text-theme-primary">{{ config.hostname }}.cube</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-theme-muted">Dashboard</span>
+                    <span class="text-theme-primary font-mono text-xs">https://{{ config.hostname }}.cube</span>
                   </div>
                   <div class="flex justify-between">
                     <span class="text-theme-muted">WiFi</span>

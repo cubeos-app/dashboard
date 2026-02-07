@@ -9,7 +9,7 @@
  * Uses mediaStore (G1) for all media data.
  * Mirrors CommunicationView tab architecture.
  */
-import { ref, defineAsyncComponent } from 'vue'
+import { ref, watch, defineAsyncComponent } from 'vue'
 import { useMediaStore } from '@/stores/media'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
@@ -60,6 +60,11 @@ async function refresh() {
     refreshing.value = false
   }
 }
+
+// Refresh data when switching tabs to avoid stale content
+watch(activeTab, () => {
+  refresh()
+})
 </script>
 
 <template>

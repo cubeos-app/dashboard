@@ -2,11 +2,13 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSetupStore } from '@/stores/setup'
+import { useSystemStore } from '@/stores/system'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
 const setupStore = useSetupStore()
+const systemStore = useSystemStore()
 const emit = defineEmits(['complete'])
 
 // Wizard state
@@ -279,8 +281,8 @@ onMounted(async () => {
   
   // Set default hostname
   try {
-    const info = await api.getSystemInfo()
-    hostname.value = info.hostname || 'cubeos'
+    await systemStore.fetchHostname()
+    hostname.value = systemStore.hostname || 'cubeos'
   } catch (e) {
     hostname.value = 'cubeos'
   }
