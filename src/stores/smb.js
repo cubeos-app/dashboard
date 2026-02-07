@@ -50,7 +50,7 @@ export const useSMBStore = defineStore('smb', () => {
     try {
       status.value = await api.get('/smb/status')
     } catch (e) {
-      console.error('Failed to fetch SMB status:', e)
+      if (import.meta.env.DEV) console.error('Failed to fetch SMB status:', e)
       status.value = { running: false, error: e.message }
     }
   }
@@ -67,7 +67,7 @@ export const useSMBStore = defineStore('smb', () => {
       shares.value = response.shares || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch SMB shares:', e)
+      if (import.meta.env.DEV) console.error('Failed to fetch SMB shares:', e)
     } finally {
       loading.value = false
     }
@@ -86,7 +86,7 @@ export const useSMBStore = defineStore('smb', () => {
       return selectedShare.value
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch share detail for ${name}:`, e)
+      if (import.meta.env.DEV) console.error(`Failed to fetch share detail for ${name}:`, e)
       return null
     }
   }
@@ -103,7 +103,7 @@ export const useSMBStore = defineStore('smb', () => {
       return result
     } catch (e) {
       error.value = e.message
-      console.error('Failed to create SMB share:', e)
+      if (import.meta.env.DEV) console.error('Failed to create SMB share:', e)
       throw e
     }
   }
@@ -121,7 +121,7 @@ export const useSMBStore = defineStore('smb', () => {
       return result
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to update SMB share ${name}:`, e)
+      if (import.meta.env.DEV) console.error(`Failed to update SMB share ${name}:`, e)
       throw e
     }
   }
@@ -142,7 +142,7 @@ export const useSMBStore = defineStore('smb', () => {
       }
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to delete SMB share ${name}:`, e)
+      if (import.meta.env.DEV) console.error(`Failed to delete SMB share ${name}:`, e)
       throw e
     }
   }

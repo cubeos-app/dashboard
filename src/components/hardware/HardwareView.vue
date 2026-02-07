@@ -457,7 +457,7 @@ onMounted(() => {
                   >
                     <span
                       :class="[
-                        'inline-block h-4 w-4 rounded-full bg-white transition-transform',
+                        'inline-block h-4 w-4 rounded-full bg-theme-primary transition-transform',
                         isCharging ? 'translate-x-6' : 'translate-x-1'
                       ]"
                     />

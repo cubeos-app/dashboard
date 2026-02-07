@@ -57,7 +57,7 @@ export const useMountsStore = defineStore('mounts', () => {
       mounts.value = response.mounts || response || []
     } catch (e) {
       error.value = e.message
-      console.error('Failed to fetch mounts:', e)
+      if (import.meta.env.DEV) console.error('Failed to fetch mounts:', e)
     } finally {
       loading.value = false
     }
@@ -75,7 +75,7 @@ export const useMountsStore = defineStore('mounts', () => {
       return result
     } catch (e) {
       error.value = e.message
-      console.error('Failed to add mount:', e)
+      if (import.meta.env.DEV) console.error('Failed to add mount:', e)
       throw e
     }
   }
@@ -91,7 +91,7 @@ export const useMountsStore = defineStore('mounts', () => {
       mounts.value = mounts.value.filter(m => m.name !== name)
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to delete mount ${name}:`, e)
+      if (import.meta.env.DEV) console.error(`Failed to delete mount ${name}:`, e)
       throw e
     }
   }
@@ -107,7 +107,7 @@ export const useMountsStore = defineStore('mounts', () => {
       await fetchMountStatus(name)
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to mount ${name}:`, e)
+      if (import.meta.env.DEV) console.error(`Failed to mount ${name}:`, e)
       throw e
     }
   }
@@ -123,7 +123,7 @@ export const useMountsStore = defineStore('mounts', () => {
       await fetchMountStatus(name)
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to unmount ${name}:`, e)
+      if (import.meta.env.DEV) console.error(`Failed to unmount ${name}:`, e)
       throw e
     }
   }
@@ -144,7 +144,7 @@ export const useMountsStore = defineStore('mounts', () => {
       return selectedMount.value
     } catch (e) {
       error.value = e.message
-      console.error(`Failed to fetch mount detail for ${name}:`, e)
+      if (import.meta.env.DEV) console.error(`Failed to fetch mount detail for ${name}:`, e)
       return null
     }
   }
@@ -160,7 +160,7 @@ export const useMountsStore = defineStore('mounts', () => {
       return testResult.value
     } catch (e) {
       testResult.value = { success: false, error: e.message }
-      console.error('Failed to test mount connection:', e)
+      if (import.meta.env.DEV) console.error('Failed to test mount connection:', e)
       return testResult.value
     }
   }
@@ -176,7 +176,7 @@ export const useMountsStore = defineStore('mounts', () => {
       mountStatuses.value = { ...mountStatuses.value, [name]: status }
       return status
     } catch (e) {
-      console.error(`Failed to fetch status for mount ${name}:`, e)
+      if (import.meta.env.DEV) console.error(`Failed to fetch status for mount ${name}:`, e)
       return null
     }
   }

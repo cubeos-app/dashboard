@@ -92,7 +92,7 @@ function navigate(path) {
   <!-- Mobile overlay -->
   <div
     v-if="mobileOpen"
-    class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+    class="fixed inset-0 bg-theme-overlay backdrop-blur-sm z-40 lg:hidden"
     @click="$emit('close-mobile')"
   ></div>
 
@@ -128,7 +128,7 @@ function navigate(path) {
         <span
           v-if="!collapsed && item.badge && item.badge()"
           class="px-1.5 py-0.5 text-[10px] font-semibold rounded"
-          :class="isActive(item.path) ? 'bg-accent text-white' : 'bg-success-muted text-success'"
+          :class="isActive(item.path) ? 'bg-accent text-on-accent' : 'bg-success-muted text-success'"
         >
           {{ item.badge() }}
         </span>

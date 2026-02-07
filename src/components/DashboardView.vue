@@ -278,7 +278,7 @@ onUnmounted(() => {
             @click="openChatWithQuery"
             :disabled="!chatQuery.trim()"
             aria-label="Send question to AI assistant"
-            class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm font-medium hover:bg-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Ask
           </button>

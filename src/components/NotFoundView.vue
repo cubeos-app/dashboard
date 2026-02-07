@@ -21,7 +21,7 @@ const router = useRouter()
     </p>
     <button
       @click="router.push('/')"
-      class="px-6 py-2.5 rounded-xl bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors"
+      class="px-6 py-2.5 rounded-xl bg-accent text-on-accent text-sm font-medium hover:bg-accent-secondary transition-colors"
       aria-label="Go back to dashboard"
     >
       Back to Dashboard

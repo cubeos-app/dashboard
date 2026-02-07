@@ -89,6 +89,7 @@ export const useMediaStore = defineStore('media', () => {
     } catch (e) {
       if (e.name === 'AbortError') return
       playbackDevices.value = null
+      audioError.value = e.message
     }
   }
 
@@ -104,6 +105,7 @@ export const useMediaStore = defineStore('media', () => {
     } catch (e) {
       if (e.name === 'AbortError') return
       captureDevices.value = null
+      audioError.value = e.message
     }
   }
 

@@ -11,7 +11,7 @@ app.use(router)
 
 // Global error handler - prevents unhandled component errors from crashing the app
 app.config.errorHandler = (err, instance, info) => {
-  console.error(`[CubeOS] Component error in ${info}:`, err)
+  if (import.meta.env.DEV) console.error(`[CubeOS] Component error in ${info}:`, err)
 }
 
 app.mount('#app')

@@ -86,7 +86,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
     } catch (e) {
       if (e.name === 'AbortError') return
       error.value = e.message
-      console.error('Failed to fetch favorites:', e)
+      if (import.meta.env.DEV) console.error('Failed to fetch favorites:', e)
       // Keep whatever we have locally if fetch fails
     } finally {
       loading.value = false
@@ -115,7 +115,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
         return n !== name
       })
       error.value = e.message
-      console.error(`Failed to add favorite "${name}":`, e)
+      if (import.meta.env.DEV) console.error(`Failed to add favorite "${name}":`, e)
     }
   }
 
@@ -144,7 +144,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
       // Rollback on failure
       favorites.value = previous
       error.value = e.message
-      console.error(`Failed to remove favorite "${name}":`, e)
+      if (import.meta.env.DEV) console.error(`Failed to remove favorite "${name}":`, e)
     }
   }
 
@@ -188,7 +188,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
       // Rollback on failure
       favorites.value = previous
       error.value = e.message
-      console.error(`Failed to toggle favorite "${name}":`, e)
+      if (import.meta.env.DEV) console.error(`Failed to toggle favorite "${name}":`, e)
     } finally {
       pendingToggles.value.delete(name)
     }
