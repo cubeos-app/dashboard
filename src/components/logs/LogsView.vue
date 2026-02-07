@@ -32,8 +32,8 @@ const { signal, abort } = useAbortOnUnmount()
 // State
 // ==========================================
 
-const localLoading = ref(false)
-const localError = ref(null)
+// Sprint 5: Removed localLoading/localError — store handles loading/error state.
+// localLogs retained for post-processing (store entries → display format).
 const localLogs = ref([])
 
 // Filters
@@ -127,11 +127,11 @@ const isHALHardwareTab = computed(() => activeTab.value === 'hal-hardware')
 async function fetchOptions() {
   try {
     const s = signal()
-    const [unitsResp, servicesResp] = await Promise.all([
-      api.get('/logs/units', {}, { signal: s }).catch(() => ({ units: [] })),
+    const [, servicesResp] = await Promise.all([
+      logsStore.fetchUnits({ signal: s }),
       api.get('/apps', {}, { signal: s }).catch(() => ({ apps: [] }))
     ])
-    units.value = unitsResp.units || []
+    units.value = logsStore.units || []
     const appsList = servicesResp?.apps || []
     containers.value = appsList
       .filter(s => s.status?.running || s.state === 'running')
@@ -142,8 +142,8 @@ async function fetchOptions() {
 }
 
 async function fetchLogs() {
-  localLoading.value = true
-  localError.value = null
+  // Reset store error before new fetch
+  logsStore.error = null
 
   abort()
   const s = signal()
@@ -164,7 +164,6 @@ async function fetchLogs() {
       case 'container':
         if (!selectedContainer.value) {
           localLogs.value = []
-          localLoading.value = false
           return
         }
         await logsStore.fetchContainerLog(selectedContainer.value, params, { signal: s })
@@ -186,7 +185,6 @@ async function fetchLogs() {
       case 'file':
         if (!filePath.value) {
           localLogs.value = []
-          localLoading.value = false
           return
         }
         await logsStore.fetchFile(filePath.value, params, { signal: s })
@@ -214,10 +212,8 @@ async function fetchLogs() {
 
   } catch (e) {
     if (e.name === 'AbortError') return
-    localError.value = e.message
+    logsStore.error = e.message
     localLogs.value = []
-  } finally {
-    localLoading.value = false
   }
 }
 
@@ -381,12 +377,12 @@ function handleFileSubmit() {
         <!-- Refresh -->
         <button
           @click="fetchLogs"
-          :disabled="localLoading"
+          :disabled="logsStore.loading"
           class="p-2 rounded-lg bg-theme-tertiary hover:bg-theme-secondary/20 transition-colors disabled:opacity-50"
           title="Refresh"
           aria-label="Refresh logs"
         >
-          <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': localLoading }" class="text-theme-secondary" />
+          <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': logsStore.loading }" class="text-theme-secondary" />
         </button>
 
         <!-- Download -->
@@ -403,9 +399,9 @@ function handleFileSubmit() {
     </div>
 
     <!-- Error -->
-    <div v-if="localError" class="bg-error-muted border border-error-subtle rounded-lg p-4 flex items-start gap-2">
+    <div v-if="logsStore.error" class="bg-error-muted border border-error-subtle rounded-lg p-4 flex items-start gap-2">
       <Icon name="AlertTriangle" :size="16" class="text-error mt-0.5" />
-      <p class="text-sm text-error">{{ localError }}</p>
+      <p class="text-sm text-error">{{ logsStore.error }}</p>
     </div>
 
     <!-- Tabs (horizontal scrollable on mobile) -->
@@ -465,7 +461,7 @@ function handleFileSubmit() {
           </div>
           <button
             @click="handleFileSubmit"
-            :disabled="!filePath || localLoading"
+            :disabled="!filePath || logsStore.loading"
             class="px-3 py-2 text-sm font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50 shrink-0"
             aria-label="Load log file"
           >
@@ -541,7 +537,7 @@ function handleFileSubmit() {
     <div class="bg-theme-card rounded-xl border border-theme-primary">
       <div class="px-4 py-3 border-b border-theme-primary flex items-center justify-between">
         <span class="text-sm text-theme-muted">{{ localLogs.length }} log entries</span>
-        <span v-if="localLoading" class="flex items-center gap-1.5 text-sm text-theme-muted">
+        <span v-if="logsStore.loading" class="flex items-center gap-1.5 text-sm text-theme-muted">
           <Icon name="Loader2" :size="14" class="animate-spin" />
           Loading...
         </span>
@@ -549,7 +545,7 @@ function handleFileSubmit() {
 
       <div class="max-h-[600px] overflow-y-auto font-mono text-sm">
         <!-- Empty state -->
-        <div v-if="localLogs.length === 0 && !localLoading" class="flex flex-col items-center justify-center py-12 text-center">
+        <div v-if="localLogs.length === 0 && !logsStore.loading" class="flex flex-col items-center justify-center py-12 text-center">
           <Icon name="FileText" :size="36" class="text-theme-muted mb-3" />
           <p class="text-sm text-theme-tertiary">No log entries found</p>
           <p v-if="isContainerTab && !selectedContainer" class="text-xs text-theme-muted mt-1">

@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/api/client'
 import { useNetworkStore } from '@/stores/network'
 import { useClientsStore } from '@/stores/clients'
 import { useFirewallStore } from '@/stores/firewall'
@@ -72,13 +71,13 @@ const availableChannels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 async function openAPConfigModal() {
   apConfigLoading.value = true
   try {
-    const cfg = await api.get('/network/ap/config', {}, { signal: signal() })
+    const cfg = await networkStore.fetchAPConfig()
     apConfig.value = {
-      ssid: cfg.ssid || 'CubeOS',
-      password: cfg.password || '',
-      channel: cfg.channel || 6,
-      hidden: cfg.hidden || false,
-      country_code: cfg.country_code || 'NL'
+      ssid: cfg?.ssid || 'CubeOS',
+      password: cfg?.password || '',
+      channel: cfg?.channel || 6,
+      hidden: cfg?.hidden || false,
+      country_code: cfg?.country_code || 'NL'
     }
     showAPConfigModal.value = true
   } catch (e) {
@@ -96,8 +95,8 @@ async function saveAPConfig() {
   
   apConfigLoading.value = true
   try {
-    await api.put('/network/ap/config', apConfig.value)
-    await api.post('/network/wifi/ap/restart')
+    await networkStore.updateAPConfig(apConfig.value, true)
+    await networkStore.restartAP()
     showAPConfigModal.value = false
     // Poll until AP comes back (up to 3 attempts, 2s apart)
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -225,26 +224,24 @@ const tabs = computed(() => [
 ])
 
 // Fetch data
-// TODO (FS-11): Migrate remaining direct api.get calls to network/firewall stores
-// Currently: /network/wifi/ap/status, /network/interfaces/detailed, /firewall/nat,
-//   /network/internet, /firewall/status, /network/mode are all direct.
-// NAT toggle already migrated to firewallStore (FS-04 #11).
+// Sprint 5: Migrated direct api.get calls to network/firewall stores (FS-11)
 async function fetchAll() {
   loading.value = true
   error.value = null
   try {
     const s = signal()
+    const opts = { signal: s }
     const apPromise = apHardwarePresent.value
-      ? api.get('/network/wifi/ap/status', {}, { signal: s }).catch(() => null)
+      ? networkStore.fetchAPStatus(opts)
       : Promise.resolve(null)
 
     const [ap, ifacesResp, nat, internet, fw, mode] = await Promise.all([
       apPromise,
-      api.get('/network/interfaces/detailed', {}, { signal: s }).catch(() => ({ interfaces: [] })),
-      api.get('/firewall/nat', {}, { signal: s }).catch(() => ({ enabled: false })),
-      api.get('/network/internet', {}, { signal: s }).catch(() => ({ connected: false })),
-      api.get('/firewall/status', {}, { signal: s }).catch(() => null),
-      api.get('/network/mode', {}, { signal: s }).catch(() => null)
+      networkStore.fetchDetailedInterfaces(opts),
+      firewallStore.fetchNatStatus(opts),
+      networkStore.fetchInternetStatus(opts),
+      firewallStore.fetchStatus(true, opts),
+      networkStore.fetchNetworkMode(opts)
     ])
     
     if (!apHardwareChecked.value) {
@@ -386,7 +383,8 @@ const physicalInterfaces = computed(() => {
 async function fetchTrafficHistory() {
   try {
     const s = signal()
-    const stats = await api.get('/network/traffic', {}, { signal: s })
+    const opts = { signal: s }
+    const stats = await networkStore.fetchTraffic(opts)
     if (stats?.stats?.length > 0) {
       if (!selectedTrafficInterface.value) {
         const physical = stats.stats.find(s => 
@@ -401,8 +399,8 @@ async function fetchTrafficHistory() {
     }
     
     if (selectedTrafficInterface.value) {
-      const history = await api.get(`/network/traffic/${selectedTrafficInterface.value}/history`, { minutes: 60 }, { signal: s })
-      trafficHistory.value = history?.history || []
+      const history = await networkStore.fetchTrafficHistory(selectedTrafficInterface.value, { minutes: 60 }, opts)
+      trafficHistory.value = history?.history || networkStore.trafficHistory || []
     }
   } catch (e) {
     // Traffic history fetch failed silently

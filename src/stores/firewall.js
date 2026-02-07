@@ -288,13 +288,17 @@ export const useFirewallStore = defineStore('firewall', () => {
   // ==========================================
   
   /** GET /firewall/nat — fetch NAT status */
-  async function fetchNatStatus() {
+  async function fetchNatStatus(options = {}) {
     try {
-      const response = await api.get('/firewall/nat')
+      const response = await api.get('/firewall/nat', {}, options)
+      if (response === null) return null
       natStatus.value = response
+      return response
     } catch (e) {
+      if (e.name === 'AbortError') return null
       error.value = e.message
       natStatus.value = null
+      return null
     }
   }
   

@@ -65,6 +65,14 @@ export const useNetworkStore = defineStore('network', () => {
   const savedNetworks = ref([])
   const wifiStatus = ref(null)
   
+  // Sprint 5: State refs for migrated NetworkView direct api calls
+  const apStatus = ref(null)
+  const detailedInterfaces = ref([])
+  const internetStatus = ref(null)
+  const networkMode = ref(null)
+  const trafficStats = ref(null)
+  const trafficHistory = ref([])
+  
   // ==========================================
   // Computed
   // ==========================================
@@ -481,6 +489,129 @@ export const useNetworkStore = defineStore('network', () => {
   }
   
   // ==========================================
+  // API Methods (Sprint 5: NetworkView migration)
+  // ==========================================
+
+  /**
+   * Fetch WiFi AP status
+   * GET /network/wifi/ap/status
+   */
+  async function fetchAPStatus(options = {}) {
+    try {
+      const response = await api.get('/network/wifi/ap/status', {}, options)
+      if (response === null) return null
+      apStatus.value = response
+      return response
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      apStatus.value = null
+      return null
+    }
+  }
+
+  /**
+   * Fetch detailed network interfaces (filtered view)
+   * GET /network/interfaces/detailed
+   */
+  async function fetchDetailedInterfaces(options = {}) {
+    try {
+      const response = await api.get('/network/interfaces/detailed', {}, options)
+      if (response === null) return { interfaces: [] }
+      detailedInterfaces.value = response.interfaces || []
+      return response
+    } catch (e) {
+      if (e.name === 'AbortError') return { interfaces: [] }
+      detailedInterfaces.value = []
+      return { interfaces: [] }
+    }
+  }
+
+  /**
+   * Fetch internet connectivity status
+   * GET /network/internet
+   */
+  async function fetchInternetStatus(options = {}) {
+    try {
+      const response = await api.get('/network/internet', {}, options)
+      if (response === null) return { connected: false }
+      internetStatus.value = response
+      return response
+    } catch (e) {
+      if (e.name === 'AbortError') return { connected: false }
+      internetStatus.value = { connected: false }
+      return { connected: false }
+    }
+  }
+
+  /**
+   * Fetch current network mode
+   * GET /network/mode
+   */
+  async function fetchNetworkMode(options = {}) {
+    try {
+      const response = await api.get('/network/mode', {}, options)
+      if (response === null) return null
+      networkMode.value = response
+      return response
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      networkMode.value = null
+      return null
+    }
+  }
+
+  /**
+   * Fetch traffic statistics for all interfaces
+   * GET /network/traffic
+   */
+  async function fetchTraffic(options = {}) {
+    try {
+      const response = await api.get('/network/traffic', {}, options)
+      if (response === null) return null
+      trafficStats.value = response
+      return response
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      trafficStats.value = null
+      return null
+    }
+  }
+
+  /**
+   * Fetch traffic history for a specific interface
+   * GET /network/traffic/{interface}/history
+   * @param {string} iface - Interface name
+   * @param {object} params - Query parameters (e.g. { minutes: 60 })
+   */
+  async function fetchTrafficHistory(iface, params = {}, options = {}) {
+    try {
+      const response = await api.get(`/network/traffic/${encodeURIComponent(iface)}/history`, params, options)
+      if (response === null) return null
+      trafficHistory.value = response.history || []
+      return response
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      trafficHistory.value = []
+      return null
+    }
+  }
+
+  /**
+   * Restart the WiFi Access Point
+   * POST /network/wifi/ap/restart
+   */
+  async function restartAP(options = {}) {
+    try {
+      await api.post('/network/wifi/ap/restart', {}, options)
+      return true
+    } catch (e) {
+      if (e.name === 'AbortError') return false
+      error.value = e.message
+      return false
+    }
+  }
+
+  // ==========================================
   // Helper Methods
   // ==========================================
   
@@ -557,6 +688,12 @@ export const useNetworkStore = defineStore('network', () => {
     vpnMode,
     savedNetworks,
     wifiStatus,
+    apStatus,
+    detailedInterfaces,
+    internetStatus,
+    networkMode,
+    trafficStats,
+    trafficHistory,
     
     // Computed
     currentMode,
@@ -598,6 +735,15 @@ export const useNetworkStore = defineStore('network', () => {
     fetchWiFiStatus,
     startAP,
     stopAP,
+    
+    // API Methods (Sprint 5)
+    fetchAPStatus,
+    fetchDetailedInterfaces,
+    fetchInternetStatus,
+    fetchNetworkMode,
+    fetchTraffic,
+    fetchTrafficHistory,
+    restartAP,
     
     // Helper Methods
     getModeLabel,
