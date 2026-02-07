@@ -265,6 +265,7 @@ onMounted(async () => {
             <button
               @click="handlePowerToggle"
               :disabled="actionLoading.power"
+              :aria-label="isPowered ? 'Power off Bluetooth' : 'Power on Bluetooth'"
               :class="[
                 'px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50',
                 isPowered
@@ -308,6 +309,7 @@ onMounted(async () => {
             <button
               @click="handleScan"
               :disabled="actionLoading.scan || communicationStore.bluetoothScanning"
+              aria-label="Scan for Bluetooth devices"
               class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
             >
               <Icon
@@ -412,6 +414,7 @@ onMounted(async () => {
                   v-if="!device.paired"
                   @click="handlePair(device.address)"
                   :disabled="actionLoading[`pair-${device.address}`]"
+                  :aria-label="'Pair with ' + device.name"
                   class="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50"
                 >
                   <Icon
@@ -427,6 +430,7 @@ onMounted(async () => {
                   v-if="device.paired && !device.connected"
                   @click="handleConnect(device.address)"
                   :disabled="actionLoading[`connect-${device.address}`]"
+                  :aria-label="'Connect to ' + device.name"
                   class="px-3 py-1.5 text-xs font-medium rounded-lg bg-success-muted text-success hover:bg-theme-tertiary transition-colors disabled:opacity-50"
                 >
                   <Icon
@@ -442,6 +446,7 @@ onMounted(async () => {
                   v-if="device.connected"
                   @click="handleDisconnect(device.address)"
                   :disabled="actionLoading[`disconnect-${device.address}`]"
+                  :aria-label="'Disconnect ' + device.name"
                   class="px-3 py-1.5 text-xs font-medium rounded-lg bg-warning-muted text-warning hover:bg-theme-tertiary transition-colors disabled:opacity-50"
                 >
                   <Icon
@@ -457,6 +462,7 @@ onMounted(async () => {
                   v-if="device.paired"
                   @click="handleRemove(device.address)"
                   :disabled="actionLoading[`remove-${device.address}`]"
+                  :aria-label="'Remove ' + device.name"
                   class="px-3 py-1.5 text-xs font-medium rounded-lg bg-error-muted text-error hover:bg-theme-tertiary transition-colors disabled:opacity-50"
                 >
                   <Icon

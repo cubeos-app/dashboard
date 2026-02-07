@@ -276,6 +276,7 @@ onUnmounted(() => {
               v-for="device in deviceList"
               :key="device.port"
               @click="selectDevice(device.port)"
+              :aria-label="'Select GPS device ' + device.name"
               :class="[
                 'px-3 py-2 text-sm font-medium rounded-lg transition-colors border',
                 activePort === device.port
@@ -342,6 +343,9 @@ onUnmounted(() => {
             <!-- Auto-refresh toggle -->
             <button
               @click="toggleAutoRefresh"
+              role="switch"
+              :aria-checked="autoRefresh"
+              aria-label="Toggle auto-refresh"
               :class="[
                 'px-4 py-2 text-sm font-medium rounded-lg transition-colors',
                 autoRefresh

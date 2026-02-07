@@ -409,6 +409,7 @@ onMounted(async () => {
                     :disabled="actionLoading[`signal-${modem.id}`]"
                     class="p-1 rounded text-theme-muted hover:text-theme-primary transition-colors"
                     title="Refresh signal"
+                    :aria-label="'Refresh signal for ' + modem.name"
                   >
                     <Icon
                       name="RefreshCw"
@@ -425,6 +426,7 @@ onMounted(async () => {
                   v-if="!isModemConnected(modem)"
                   @click="handleConnect(modem.id)"
                   :disabled="actionLoading[`connect-${modem.id}`]"
+                  :aria-label="'Connect ' + modem.name"
                   class="px-4 py-2 text-sm font-medium rounded-lg bg-success-muted text-success hover:bg-theme-tertiary transition-colors disabled:opacity-50"
                 >
                   <Icon
@@ -438,6 +440,7 @@ onMounted(async () => {
                   v-else
                   @click="handleDisconnect(modem.id)"
                   :disabled="actionLoading[`disconnect-${modem.id}`]"
+                  :aria-label="'Disconnect ' + modem.name"
                   class="px-4 py-2 text-sm font-medium rounded-lg bg-error-muted text-error hover:bg-theme-tertiary transition-colors disabled:opacity-50"
                 >
                   <Icon
@@ -502,6 +505,7 @@ onMounted(async () => {
               v-if="!tetheringStatus?.enabled"
               @click="handleEnableTethering"
               :disabled="actionLoading.tethering"
+              aria-label="Enable Android tethering"
               class="px-4 py-2 text-sm font-medium rounded-lg bg-success-muted text-success hover:bg-theme-tertiary transition-colors disabled:opacity-50"
             >
               <Icon
@@ -515,6 +519,7 @@ onMounted(async () => {
               v-else
               @click="handleDisableTethering"
               :disabled="actionLoading.tethering"
+              aria-label="Disable Android tethering"
               class="px-4 py-2 text-sm font-medium rounded-lg bg-error-muted text-error hover:bg-theme-tertiary transition-colors disabled:opacity-50"
             >
               <Icon
