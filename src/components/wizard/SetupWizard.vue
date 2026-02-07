@@ -303,7 +303,14 @@ onUnmounted(() => {
           <span class="text-sm text-theme-tertiary">Step {{ currentStep + 1 }} of {{ steps.length }}</span>
           <span class="text-sm text-theme-tertiary">{{ currentStepData.title }}</span>
         </div>
-        <div class="h-1 bg-theme-tertiary rounded-full overflow-hidden">
+        <div 
+          class="h-1 bg-theme-tertiary rounded-full overflow-hidden"
+          role="progressbar"
+          :aria-valuenow="currentStep + 1"
+          :aria-valuemin="1"
+          :aria-valuemax="steps.length"
+          :aria-label="`Setup progress: step ${currentStep + 1} of ${steps.length}`"
+        >
           <div 
             class="h-full bg-accent transition-all duration-500"
             :style="{ width: progress + '%' }"
@@ -312,10 +319,13 @@ onUnmounted(() => {
       </div>
       
       <!-- Step indicators -->
-      <div class="flex justify-center gap-2 mb-8">
+      <div class="flex justify-center gap-2 mb-8" role="list" aria-label="Setup steps">
         <div 
           v-for="(step, idx) in steps" 
           :key="step.id"
+          role="listitem"
+          :aria-label="`${step.title}${idx === currentStep ? ' (current)' : idx < currentStep ? ' (completed)' : ''}`"
+          :aria-current="idx === currentStep ? 'step' : undefined"
           class="w-10 h-10 rounded-full flex items-center justify-center transition-all"
           :class="idx === currentStep ? 'bg-accent text-white' : idx < currentStep ? 'bg-accent-muted text-accent' : 'bg-theme-tertiary text-theme-muted'"
         >
@@ -339,8 +349,9 @@ onUnmounted(() => {
             
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-2">Device Name</label>
+                <label for="setup-hostname" class="block text-sm font-medium text-theme-secondary mb-2">Device Name</label>
                 <input
+                  id="setup-hostname"
                   v-model="hostname"
                   type="text"
                   placeholder="cubeos"
@@ -350,8 +361,9 @@ onUnmounted(() => {
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-2">Timezone</label>
+                <label for="setup-timezone" class="block text-sm font-medium text-theme-secondary mb-2">Timezone</label>
                 <select
+                  id="setup-timezone"
                   v-model="timezone"
                   class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary focus:ring-2 ring-accent focus:border-transparent"
                 >
@@ -375,6 +387,9 @@ onUnmounted(() => {
               </div>
               <button 
                 @click="wifiEnabled = !wifiEnabled"
+                role="switch"
+                :aria-checked="wifiEnabled ? 'true' : 'false'"
+                aria-label="Enable WiFi Access Point"
                 class="relative w-12 h-6 rounded-full transition-colors"
                 :class="wifiEnabled ? 'bg-accent' : 'bg-theme-muted'"
               >
@@ -387,8 +402,9 @@ onUnmounted(() => {
             
             <div v-if="wifiEnabled" class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-2">Network Name (SSID)</label>
+                <label for="setup-wifi-ssid" class="block text-sm font-medium text-theme-secondary mb-2">Network Name (SSID)</label>
                 <input
+                  id="setup-wifi-ssid"
                   v-model="wifiSSID"
                   type="text"
                   placeholder="CubeOS"
@@ -397,8 +413,9 @@ onUnmounted(() => {
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-2">Password</label>
+                <label for="setup-wifi-password" class="block text-sm font-medium text-theme-secondary mb-2">Password</label>
                 <input
+                  id="setup-wifi-password"
                   v-model="wifiPassword"
                   type="password"
                   placeholder="Minimum 8 characters"
@@ -407,8 +424,9 @@ onUnmounted(() => {
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-2">Channel</label>
+                <label for="setup-wifi-channel" class="block text-sm font-medium text-theme-secondary mb-2">Channel</label>
                 <select
+                  id="setup-wifi-channel"
                   v-model="wifiChannel"
                   class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary focus:ring-2 ring-accent focus:border-transparent"
                 >
@@ -425,11 +443,14 @@ onUnmounted(() => {
               <p class="text-theme-tertiary">Select a preset that matches your use case</p>
             </div>
             
-            <div class="space-y-3">
+            <div class="space-y-3" role="radiogroup" aria-label="Setup profile">
               <button
                 v-for="profile in profiles"
                 :key="profile.id"
                 @click="selectedProfile = profile.id"
+                role="radio"
+                :aria-checked="selectedProfile === profile.id ? 'true' : 'false'"
+                :aria-label="profile.name"
                 class="w-full p-4 rounded-xl border-2 text-left transition-all"
                 :class="selectedProfile === profile.id 
                   ? 'border-theme-accent bg-accent-muted' 
@@ -532,6 +553,9 @@ onUnmounted(() => {
                     v-for="service in category.services"
                     :key="service.name"
                     @click="toggleService(service.name)"
+                    role="switch"
+                    :aria-checked="isServiceSelected(service.name) ? 'true' : 'false'"
+                    :aria-label="`${service.display_name || service.name}: ${isServiceSelected(service.name) ? 'enabled' : 'disabled'}`"
                     class="p-3 rounded-lg border text-left transition-all"
                     :class="isServiceSelected(service.name) 
                       ? 'border-theme-accent bg-accent-muted' 
@@ -571,8 +595,9 @@ onUnmounted(() => {
             
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-2">New Password</label>
+                <label for="setup-admin-password" class="block text-sm font-medium text-theme-secondary mb-2">New Password</label>
                 <input
+                  id="setup-admin-password"
                   v-model="adminPassword"
                   type="password"
                   placeholder="Minimum 8 characters"
@@ -581,8 +606,9 @@ onUnmounted(() => {
               </div>
               
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-2">Confirm Password</label>
+                <label for="setup-confirm-password" class="block text-sm font-medium text-theme-secondary mb-2">Confirm Password</label>
                 <input
+                  id="setup-confirm-password"
                   v-model="confirmPassword"
                   type="password"
                   placeholder="Repeat password"
@@ -645,6 +671,7 @@ onUnmounted(() => {
           <button
             v-if="!isFirstStep && !isLastStep"
             @click="prevStep"
+            :aria-label="`Back to ${steps[currentStep - 1]?.title || 'previous'} step`"
             class="px-6 py-2 text-theme-tertiary hover:text-theme-primary transition-colors"
           >
             Back
@@ -655,6 +682,7 @@ onUnmounted(() => {
             v-if="!isLastStep"
             @click="nextStep"
             :disabled="!canProceed || loading"
+            :aria-label="currentStep === 4 ? 'Apply configuration and finish' : `Continue to ${steps[currentStep + 1]?.title || 'next'} step`"
             class="btn-accent px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <Icon v-if="loading" name="Loader2" :size="16" class="animate-spin" />
@@ -664,6 +692,7 @@ onUnmounted(() => {
           <button
             v-if="isLastStep"
             @click="finishWizard"
+            aria-label="Go to dashboard"
             class="btn-accent px-6 py-2 rounded-lg"
           >
             Go to Dashboard

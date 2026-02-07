@@ -320,7 +320,14 @@ onMounted(() => {
           </div>
 
           <!-- Progress Bar -->
-          <div class="h-1.5 bg-theme-tertiary rounded-full overflow-hidden">
+          <div 
+            class="h-1.5 bg-theme-tertiary rounded-full overflow-hidden"
+            role="progressbar"
+            :aria-valuenow="currentStep + 1"
+            :aria-valuemin="1"
+            :aria-valuemax="totalSteps"
+            :aria-label="`Setup progress: step ${currentStep + 1} of ${totalSteps}`"
+          >
             <div 
               class="h-full bg-accent transition-all duration-500 ease-out"
               :style="{ width: `${progress}%` }"
@@ -378,6 +385,7 @@ onMounted(() => {
               <!-- Skip Wizard Option -->
               <button
                 @click="skipWizard"
+                aria-label="Skip setup wizard and use default settings"
                 class="mt-6 text-sm text-theme-muted hover:text-theme-secondary transition-colors underline"
               >
                 Skip wizard and use defaults
@@ -390,8 +398,9 @@ onMounted(() => {
             
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Username</label>
+                <label for="admin-username" class="block text-sm font-medium text-theme-primary mb-1.5">Username</label>
                 <input
+                  id="admin-username"
                   v-model="config.admin_username"
                   type="text"
                   placeholder="admin"
@@ -403,8 +412,9 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Email</label>
+                <label for="admin-email" class="block text-sm font-medium text-theme-primary mb-1.5">Email</label>
                 <input
+                  id="admin-email"
                   v-model="config.admin_email"
                   type="email"
                   placeholder="admin@example.com"
@@ -414,8 +424,9 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Password</label>
+                <label for="admin-password" class="block text-sm font-medium text-theme-primary mb-1.5">Password</label>
                 <input
+                  id="admin-password"
                   v-model="config.admin_password"
                   type="password"
                   placeholder="••••••••"
@@ -428,8 +439,9 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Confirm Password</label>
+                <label for="admin-password-confirm" class="block text-sm font-medium text-theme-primary mb-1.5">Confirm Password</label>
                 <input
+                  id="admin-password-confirm"
                   v-model="config.admin_password_confirm"
                   type="password"
                   placeholder="••••••••"
@@ -447,8 +459,9 @@ onMounted(() => {
             
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Hostname</label>
+                <label for="device-hostname" class="block text-sm font-medium text-theme-primary mb-1.5">Hostname</label>
                 <input
+                  id="device-hostname"
                   v-model="config.hostname"
                   type="text"
                   placeholder="cubeos"
@@ -460,8 +473,9 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Display Name</label>
+                <label for="device-display-name" class="block text-sm font-medium text-theme-primary mb-1.5">Display Name</label>
                 <input
+                  id="device-display-name"
                   v-model="config.device_name"
                   type="text"
                   placeholder="CubeOS Server"
@@ -478,8 +492,9 @@ onMounted(() => {
             
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Network Name (SSID)</label>
+                <label for="wifi-ssid" class="block text-sm font-medium text-theme-primary mb-1.5">Network Name (SSID)</label>
                 <input
+                  id="wifi-ssid"
                   v-model="config.wifi_ssid"
                   type="text"
                   placeholder="CubeOS"
@@ -490,8 +505,9 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">WiFi Password</label>
+                <label for="wifi-password" class="block text-sm font-medium text-theme-primary mb-1.5">WiFi Password</label>
                 <input
+                  id="wifi-password"
                   v-model="config.wifi_password"
                   type="password"
                   placeholder="Leave empty for open network"
@@ -501,8 +517,9 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Channel</label>
+                <label for="wifi-channel" class="block text-sm font-medium text-theme-primary mb-1.5">Channel</label>
                 <select
+                  id="wifi-channel"
                   v-model="config.wifi_channel"
                   class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent"
                 >
@@ -521,8 +538,9 @@ onMounted(() => {
             
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Timezone</label>
+                <label for="locale-timezone" class="block text-sm font-medium text-theme-primary mb-1.5">Timezone</label>
                 <select
+                  id="locale-timezone"
                   v-model="config.timezone"
                   class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent"
                 >
@@ -540,8 +558,9 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Language</label>
+                <label for="locale-language" class="block text-sm font-medium text-theme-primary mb-1.5">Language</label>
                 <select
+                  id="locale-language"
                   v-model="config.language"
                   class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent"
                 >
@@ -565,12 +584,15 @@ onMounted(() => {
             <div class="space-y-6">
               <!-- Theme Selection -->
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-3">Theme Mode</label>
-                <div class="grid grid-cols-3 gap-3">
+                <label id="theme-mode-label" class="block text-sm font-medium text-theme-primary mb-3">Theme Mode</label>
+                <div class="grid grid-cols-3 gap-3" role="radiogroup" aria-labelledby="theme-mode-label">
                   <button
                     v-for="theme in ['dark', 'light', 'system']"
                     :key="theme"
                     @click="config.theme = theme"
+                    role="radio"
+                    :aria-checked="config.theme === theme ? 'true' : 'false'"
+                    :aria-label="`${theme} theme`"
                     class="p-4 rounded-xl border-2 transition-colors text-center"
                     :class="config.theme === theme 
                       ? 'border-accent bg-accent/10' 
@@ -592,12 +614,15 @@ onMounted(() => {
 
               <!-- Accent Color -->
               <div>
-                <label class="block text-sm font-medium text-theme-primary mb-3">Accent Color</label>
-                <div class="flex flex-wrap gap-2">
+                <label id="accent-color-label" class="block text-sm font-medium text-theme-primary mb-3">Accent Color</label>
+                <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="accent-color-label">
                   <button
                     v-for="color in accentColors"
                     :key="color.value"
                     @click="config.accent_color = color.value"
+                    role="radio"
+                    :aria-checked="config.accent_color === color.value ? 'true' : 'false'"
+                    :aria-label="color.name"
                     class="w-10 h-10 rounded-full border-2 transition-all"
                     :style="{ backgroundColor: color.value }"
                     :class="config.accent_color === color.value 
@@ -614,11 +639,14 @@ onMounted(() => {
           <template v-else-if="currentStepData.id === 'purpose'">
             <p class="text-theme-secondary mb-6">What will you primarily use CubeOS for?</p>
             
-            <div class="space-y-3">
+            <div class="space-y-3" role="radiogroup" aria-label="Deployment purpose">
               <button
                 v-for="purpose in purposes"
                 :key="purpose.id"
                 @click="config.deployment_purpose = purpose.id"
+                role="radio"
+                :aria-checked="config.deployment_purpose === purpose.id ? 'true' : 'false'"
+                :aria-label="purpose.name"
                 class="w-full p-4 rounded-xl border-2 text-left transition-colors"
                 :class="config.deployment_purpose === purpose.id 
                   ? 'border-accent bg-accent/10' 
@@ -651,11 +679,14 @@ onMounted(() => {
             <p class="text-theme-secondary mb-6">Configure HTTPS for secure connections.</p>
             
             <div class="space-y-4">
-              <div class="space-y-3">
+              <div class="space-y-3" role="radiogroup" aria-label="SSL mode">
                 <button
                   v-for="mode in sslModes"
                   :key="mode.id"
                   @click="config.ssl_mode = mode.id"
+                  role="radio"
+                  :aria-checked="config.ssl_mode === mode.id ? 'true' : 'false'"
+                  :aria-label="mode.name"
                   class="w-full p-4 rounded-xl border-2 text-left transition-colors"
                   :class="config.ssl_mode === mode.id 
                     ? 'border-accent bg-accent/10' 
@@ -672,8 +703,9 @@ onMounted(() => {
               </div>
 
               <div v-if="config.ssl_mode === 'letsencrypt'">
-                <label class="block text-sm font-medium text-theme-primary mb-1.5">Base Domain</label>
+                <label for="ssl-base-domain" class="block text-sm font-medium text-theme-primary mb-1.5">Base Domain</label>
                 <input
+                  id="ssl-base-domain"
                   v-model="config.base_domain"
                   type="text"
                   placeholder="home.example.com"
@@ -697,8 +729,9 @@ onMounted(() => {
               
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-theme-primary mb-1.5">DNS Provider</label>
+                  <label for="dns-provider" class="block text-sm font-medium text-theme-primary mb-1.5">DNS Provider</label>
                   <select
+                    id="dns-provider"
                     v-model="config.dns_provider"
                     class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent"
                   >
@@ -710,8 +743,9 @@ onMounted(() => {
                 </div>
 
                 <div v-if="config.dns_provider">
-                  <label class="block text-sm font-medium text-theme-primary mb-1.5">API Token</label>
+                  <label for="dns-api-token" class="block text-sm font-medium text-theme-primary mb-1.5">API Token</label>
                   <input
+                    id="dns-api-token"
                     v-model="config.dns_api_token"
                     type="password"
                     placeholder="Your DNS provider API token"
@@ -821,6 +855,7 @@ onMounted(() => {
           <button
             v-if="!isFirstStep"
             @click="prevStep"
+            :aria-label="`Back to step ${currentStep}: ${steps[currentStep - 1]?.title || 'previous'}`"
             class="flex items-center gap-2 px-4 py-2 rounded-lg border border-theme-primary text-theme-secondary hover:bg-theme-tertiary transition-colors"
           >
             <Icon name="ChevronLeft" :size="16" />
@@ -832,6 +867,7 @@ onMounted(() => {
             <button
               v-if="!currentStepData.required && !isLastStep"
               @click="skipStep"
+              :aria-label="`Skip ${currentStepData.title} step`"
               class="px-4 py-2 rounded-lg text-theme-muted hover:text-theme-secondary transition-colors"
             >
               Skip
@@ -840,6 +876,7 @@ onMounted(() => {
             <button
               @click="nextStep"
               :disabled="!canProceed || saving"
+              :aria-label="isLastStep ? 'Finish setup' : `Continue to step ${currentStep + 2}: ${steps[currentStep + 1]?.title || 'next'}`"
               class="flex items-center gap-2 px-6 py-2 rounded-lg btn-accent font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon v-if="saving" name="Loader2" :size="16" class="animate-spin" />
@@ -853,11 +890,13 @@ onMounted(() => {
       </div>
 
       <!-- Step Indicators -->
-      <div class="flex justify-center gap-1.5 mt-6">
+      <nav class="flex justify-center gap-1.5 mt-6" aria-label="Setup steps">
         <button
           v-for="(step, index) in steps"
           :key="step.id"
           @click="index < currentStep && (currentStep = index)"
+          :aria-label="`Step ${index + 1}: ${step.title}${index === currentStep ? ' (current)' : ''}`"
+          :aria-current="index === currentStep ? 'step' : undefined"
           class="w-2 h-2 rounded-full transition-all"
           :class="[
             index === currentStep ? 'w-6 bg-accent' : '',
@@ -865,7 +904,7 @@ onMounted(() => {
           ]"
           :disabled="index > currentStep"
         ></button>
-      </div>
+      </nav>
     </div>
   </div>
 </template>
