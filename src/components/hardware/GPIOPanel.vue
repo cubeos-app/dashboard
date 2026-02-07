@@ -203,6 +203,7 @@ const modeOptions = ['input', 'output']
             v-if="isOutput(pin)"
             @click="togglePin(pin)"
             :disabled="actionLoading[`toggle-${pinId(pin)}`]"
+            :aria-label="(pinValue(pin) ? 'Set LOW' : 'Set HIGH') + ' on ' + pinLabel(pin)"
             :class="[
               'flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50',
               pinValue(pin)
@@ -220,6 +221,7 @@ const modeOptions = ['input', 'output']
               :value="(pin.mode || pin.function || 'input').toLowerCase()"
               @change="changeMode(pin, $event.target.value)"
               :disabled="actionLoading[`mode-${pinId(pin)}`]"
+              :aria-label="'Mode for ' + pinLabel(pin)"
               class="appearance-none bg-theme-input border border-theme-primary rounded-lg px-3 py-1.5 pr-7 text-xs text-theme-primary cursor-pointer disabled:opacity-50"
             >
               <option v-for="mode in modeOptions" :key="mode" :value="mode">

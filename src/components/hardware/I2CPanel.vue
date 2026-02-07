@@ -195,6 +195,7 @@ function formatDeviceData(data) {
           <button
             @click="scanBus(bus)"
             :disabled="scanLoading[busId(bus)]"
+            :aria-label="'Scan ' + busLabel(bus)"
             class="px-4 py-1.5 text-xs font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50"
           >
             <Icon v-if="scanLoading[busId(bus)]" name="Loader2" :size="12" class="inline-block animate-spin mr-1" />
@@ -243,6 +244,7 @@ function formatDeviceData(data) {
                   <td class="px-5 py-3 text-right">
                     <button
                       @click="readDevice(busId(bus), deviceAddr(device))"
+                      :aria-label="'Read device at ' + deviceAddr(device)"
                       class="px-3 py-1 text-xs font-medium rounded-lg bg-neutral-muted text-theme-secondary hover:bg-theme-tertiary transition-colors"
                     >
                       Read
@@ -276,6 +278,7 @@ function formatDeviceData(data) {
         <button
           @click="closeDeviceDetail"
           class="p-1.5 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+          aria-label="Close device detail"
         >
           <Icon name="X" :size="16" />
         </button>

@@ -257,6 +257,7 @@ function formatTime(ts) {
               :min="1"
               :max="MAX_TIMEOUT"
               step="1"
+              aria-label="Watchdog timeout in seconds"
               class="flex-1 accent-[color:var(--accent-primary)]"
             />
             <span class="text-sm font-mono font-medium text-theme-primary w-8 text-right">{{ timeoutInput }}s</span>
@@ -269,6 +270,7 @@ function formatTime(ts) {
             v-if="!isEnabled"
             @click="handleEnable"
             :disabled="enableLoading"
+            aria-label="Enable watchdog"
             class="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-success-muted text-success hover:bg-theme-tertiary transition-colors disabled:opacity-50"
           >
             <Icon v-if="enableLoading" name="Loader2" :size="14" class="inline-block animate-spin mr-1.5" />
@@ -280,6 +282,7 @@ function formatTime(ts) {
             v-if="isEnabled"
             @click="handleDisable"
             :disabled="disableLoading"
+            aria-label="Disable watchdog"
             class="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-error-muted text-error hover:bg-theme-tertiary transition-colors disabled:opacity-50"
           >
             <Icon v-if="disableLoading" name="Loader2" :size="14" class="inline-block animate-spin mr-1.5" />
@@ -292,6 +295,7 @@ function formatTime(ts) {
             v-if="isEnabled && currentTimeout !== timeoutInput"
             @click="handleEnable"
             :disabled="enableLoading"
+            :aria-label="'Apply ' + timeoutInput + ' second timeout'"
             class="px-4 py-2 text-sm font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50 shrink-0"
           >
             <Icon v-if="enableLoading" name="Loader2" :size="14" class="inline-block animate-spin mr-1.5" />
@@ -313,6 +317,7 @@ function formatTime(ts) {
           <button
             @click="handlePet"
             :disabled="petLoading || !isEnabled"
+            aria-label="Pet watchdog"
             :class="[
               'px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50',
               petSuccess

@@ -259,6 +259,7 @@ function formatDrift(seconds) {
       <button
         @click="handleSync"
         :disabled="syncLoading"
+        aria-label="Sync RTC to system time"
         class="w-full px-4 py-2 text-sm font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50"
       >
         <Icon v-if="syncLoading" name="Loader2" :size="14" class="inline-block animate-spin mr-1.5" />
@@ -299,6 +300,7 @@ function formatDrift(seconds) {
           v-if="wakeAlarmEnabled"
           @click="handleClearAlarm"
           :disabled="clearAlarmLoading"
+          aria-label="Clear wake alarm"
           class="w-full px-3 py-1.5 text-xs font-medium rounded-lg bg-error-muted text-error hover:bg-theme-tertiary transition-colors disabled:opacity-50"
         >
           <Icon v-if="clearAlarmLoading" name="Loader2" :size="12" class="inline-block animate-spin mr-1" />
@@ -310,11 +312,13 @@ function formatDrift(seconds) {
           <input
             v-model="wakeAlarmInput"
             type="datetime-local"
+            aria-label="Wake alarm date and time"
             class="flex-1 px-3 py-1.5 text-sm rounded-lg border border-theme-primary bg-theme-input text-theme-primary"
           />
           <button
             @click="handleSetAlarm"
             :disabled="setAlarmLoading || !wakeAlarmInput"
+            aria-label="Set wake alarm"
             class="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50 shrink-0"
           >
             <Icon v-if="setAlarmLoading" name="Loader2" :size="12" class="inline-block animate-spin mr-1" />

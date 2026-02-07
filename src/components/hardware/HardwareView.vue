@@ -299,6 +299,7 @@ onMounted(() => {
               :disabled="refreshing"
               class="p-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
               title="Refresh"
+              aria-label="Refresh hardware data"
             >
               <Icon name="RefreshCw" :size="18" :class="{ 'animate-spin': refreshing }" />
             </button>
@@ -310,11 +311,13 @@ onMounted(() => {
     <!-- Tabs -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="border-b border-theme-primary overflow-x-auto">
-        <nav class="-mb-px flex space-x-8" aria-label="Hardware tabs">
+        <nav class="-mb-px flex space-x-8" role="tablist" aria-label="Hardware tabs">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             @click="onTabChange(tab.id)"
+            role="tab"
+            :aria-selected="activeTab === tab.id"
             :class="[
               activeTab === tab.id
                 ? 'border-accent text-accent'
@@ -444,6 +447,9 @@ onMounted(() => {
                   <span class="text-sm text-theme-secondary">Charging</span>
                   <button
                     @click="handleToggleCharging()"
+                    role="switch"
+                    :aria-checked="isCharging"
+                    aria-label="Toggle charging"
                     :class="[
                       'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                       isCharging ? 'bg-success' : 'bg-theme-tertiary'
@@ -612,6 +618,7 @@ onMounted(() => {
                 @click="copyBootConfig"
                 class="p-1.5 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
                 title="Copy to clipboard"
+                aria-label="Copy boot configuration to clipboard"
               >
                 <Icon name="Copy" :size="16" />
               </button>
@@ -688,6 +695,7 @@ onMounted(() => {
                     v-if="serviceStatus(name) !== 'running'"
                     @click="handleServiceAction(name, 'start')"
                     :disabled="serviceActionLoading[`${name}-start`]"
+                    :aria-label="'Start ' + name"
                     class="px-3 py-1.5 text-xs font-medium rounded-lg bg-success-muted text-success hover:bg-theme-tertiary transition-colors disabled:opacity-50"
                   >
                     <Icon v-if="serviceActionLoading[`${name}-start`]" name="Loader2" :size="12" class="inline-block animate-spin mr-1" />
@@ -697,6 +705,7 @@ onMounted(() => {
                     v-if="serviceStatus(name) === 'running'"
                     @click="handleServiceAction(name, 'stop')"
                     :disabled="serviceActionLoading[`${name}-stop`]"
+                    :aria-label="'Stop ' + name"
                     class="px-3 py-1.5 text-xs font-medium rounded-lg bg-error-muted text-error hover:bg-theme-tertiary transition-colors disabled:opacity-50"
                   >
                     <Icon v-if="serviceActionLoading[`${name}-stop`]" name="Loader2" :size="12" class="inline-block animate-spin mr-1" />
@@ -705,6 +714,7 @@ onMounted(() => {
                   <button
                     @click="handleServiceAction(name, 'restart')"
                     :disabled="serviceActionLoading[`${name}-restart`]"
+                    :aria-label="'Restart ' + name"
                     class="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50"
                   >
                     <Icon v-if="serviceActionLoading[`${name}-restart`]" name="Loader2" :size="12" class="inline-block animate-spin mr-1" />

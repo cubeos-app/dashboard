@@ -227,6 +227,7 @@ function formatOneWireReading(reading) {
               ]"
               role="switch"
               :aria-checked="autoRefresh"
+              aria-label="Toggle auto-refresh"
             >
               <span
                 :class="[
@@ -241,6 +242,7 @@ function formatOneWireReading(reading) {
 
         <button
           @click="refreshAll"
+          aria-label="Refresh sensor data"
           class="px-3 py-1.5 text-xs font-medium rounded-lg bg-neutral-muted text-theme-secondary hover:bg-theme-tertiary transition-colors"
         >
           <Icon name="RefreshCw" :size="12" class="inline-block mr-1" />
@@ -381,6 +383,7 @@ function formatOneWireReading(reading) {
                 <button
                   @click="readOneWireDevice(device)"
                   :disabled="oneWireReadings[oneWireDeviceId(device)]?.loading"
+                  :aria-label="'Read device ' + oneWireDeviceId(device)"
                   class="px-3 py-1 text-xs font-medium rounded-lg bg-neutral-muted text-theme-secondary hover:bg-theme-tertiary transition-colors disabled:opacity-50 shrink-0"
                 >
                   Read
