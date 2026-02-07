@@ -538,6 +538,24 @@ async function refresh() {
               <span class="text-theme-secondary font-medium w-10 text-right">{{ memVal(proc).toFixed(1) }}%</span>
             </div>
           </div>
+          <div class="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-theme-primary">
+            <button
+              @click.stop="processesStore.terminateProcess(proc.pid, proc.name)"
+              class="flex items-center gap-1 px-2 py-1 rounded text-xs text-warning hover:bg-warning-muted transition-colors"
+              :aria-label="'Terminate ' + proc.name + ' (PID ' + proc.pid + ')'"
+            >
+              <Icon name="AlertTriangle" :size="12" />
+              Terminate
+            </button>
+            <button
+              @click.stop="processesStore.killProcess(proc.pid, proc.name)"
+              class="flex items-center gap-1 px-2 py-1 rounded text-xs text-error hover:bg-error-muted transition-colors"
+              :aria-label="'Kill ' + proc.name + ' (PID ' + proc.pid + ')'"
+            >
+              <Icon name="Skull" :size="12" />
+              Kill
+            </button>
+          </div>
         </div>
 
         <!-- Empty state (mobile) -->

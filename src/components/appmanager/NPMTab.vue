@@ -94,6 +94,15 @@ async function saveHost() {
       .map(d => d.trim())
       .filter(Boolean)
 
+    // Validate domain format
+    const domainPattern = /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/
+    const invalid = domains.find(d => !domainPattern.test(d))
+    if (invalid) {
+      actionError.value = `Invalid domain format: ${invalid}`
+      createLoading.value = false
+      return
+    }
+
     await npmStore.createHost({
       domain_names: domains,
       forward_host: hostForm.value.forward_host.trim(),

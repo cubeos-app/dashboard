@@ -125,6 +125,11 @@ async function handleSetAlarm() {
   const dt = new Date(wakeAlarmInput.value)
   if (isNaN(dt.getTime())) return
 
+  if (dt.getTime() <= Date.now()) {
+    error.value = 'Wake alarm must be set to a future time'
+    return
+  }
+
   const ok = await confirm({
     title: 'Set Wake Alarm',
     message: `Set wake alarm for ${dt.toLocaleString()}? The system will power on at this time.`,

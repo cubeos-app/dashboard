@@ -691,6 +691,15 @@ function mountSource(mount) {
                   <Icon name="Pencil" :size="12" />
                   Edit
                 </button>
+                <button
+                  v-if="mount._source === 'api'"
+                  @click.stop="deleteMount(mount)"
+                  class="px-3 py-1.5 text-xs bg-error-muted text-error rounded-lg hover:bg-error/20 flex items-center gap-1.5"
+                  :aria-label="'Delete mount ' + mount._display"
+                >
+                  <Icon name="Trash2" :size="12" />
+                  Delete
+                </button>
               </div>
             </div>
           </div>

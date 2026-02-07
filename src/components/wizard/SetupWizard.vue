@@ -73,7 +73,7 @@ const canProceed = computed(() => {
     case 0: // Welcome
       return hostname.value.length >= 3
     case 1: // Network
-      return !wifiEnabled.value || (wifiSSID.value.length >= 2 && wifiPassword.value.length >= 8)
+      return !wifiEnabled.value || (wifiSSID.value.length >= 2 && (wifiPassword.value.length === 0 || wifiPassword.value.length >= 8))
     case 2: // Profile
       return selectedProfile.value !== ''
     case 3: // Services
@@ -418,9 +418,10 @@ onUnmounted(() => {
                   id="setup-wifi-password"
                   v-model="wifiPassword"
                   type="password"
-                  placeholder="Minimum 8 characters"
+                  placeholder="Min 8 chars (leave empty for open network)"
                   class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
                 />
+                <p v-if="wifiPassword.length > 0 && wifiPassword.length < 8" class="mt-1 text-xs text-warning">Password must be at least 8 characters</p>
               </div>
               
               <div>

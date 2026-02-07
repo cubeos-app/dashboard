@@ -22,7 +22,20 @@ const reservedPercent = computed(() => {
   return Math.round((store.reservedPortCount / store.portStats.total) * 100)
 })
 
+const RESERVED_PORTS = [22, 53, 67, 68, 80, 123, 443, 5000]
+const RESERVED_RANGES = [[6000, 6099]]
+
+function isReservedPort(port) {
+  if (!port) return false
+  if (RESERVED_PORTS.includes(port)) return true
+  return RESERVED_RANGES.some(([min, max]) => port >= min && port <= max)
+}
+
 async function allocatePort() {
+  if (newPort.value.port && isReservedPort(newPort.value.port)) {
+    store.error = `Port ${newPort.value.port} is reserved by CubeOS infrastructure`
+    return
+  }
   allocating.value = true
   try {
     await store.allocatePort(newPort.value)

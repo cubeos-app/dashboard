@@ -130,7 +130,9 @@ const hoverIndex = ref(-1)
 function onChartMouseMove(event, chartField) {
   const svg = event.currentTarget
   const rect = svg.getBoundingClientRect()
-  const x = event.clientX - rect.left
+  // Support both mouse and touch events
+  const clientX = event.touches ? event.touches[0].clientX : event.clientX
+  const x = clientX - rect.left
   const relX = x / rect.width
   const data = monitoringStore.history
   if (!data || !data.length) return
@@ -518,6 +520,8 @@ async function refresh() {
                 preserveAspectRatio="none"
                 @mousemove="onChartMouseMove($event, 'cpu')"
                 @mouseleave="onChartMouseLeave"
+                @touchmove.prevent="onChartMouseMove($event, 'cpu')"
+                @touchend="onChartMouseLeave"
                 role="img"
                 aria-label="CPU usage history chart"
               >
@@ -558,6 +562,8 @@ async function refresh() {
                 preserveAspectRatio="none"
                 @mousemove="onChartMouseMove($event, 'memory')"
                 @mouseleave="onChartMouseLeave"
+                @touchmove.prevent="onChartMouseMove($event, 'memory')"
+                @touchend="onChartMouseLeave"
                 role="img"
                 aria-label="Memory usage history chart"
               >
@@ -598,6 +604,8 @@ async function refresh() {
                 preserveAspectRatio="none"
                 @mousemove="onChartMouseMove($event, 'disk')"
                 @mouseleave="onChartMouseLeave"
+                @touchmove.prevent="onChartMouseMove($event, 'disk')"
+                @touchend="onChartMouseLeave"
                 role="img"
                 aria-label="Disk usage history chart"
               >

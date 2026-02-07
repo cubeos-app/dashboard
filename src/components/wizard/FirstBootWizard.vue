@@ -95,7 +95,7 @@ const canProceed = computed(() => {
              config.value.admin_password.length >= 8 &&
              config.value.admin_password === config.value.admin_password_confirm
     case 'device':
-      return config.value.hostname.length >= 1
+      return config.value.hostname.length >= 3
     case 'wifi':
       return config.value.wifi_ssid.length >= 1 &&
              (config.value.wifi_password === '' || config.value.wifi_password.length >= 8)
@@ -256,7 +256,8 @@ async function finishSetup() {
 
     const result = await api.post('/setup/apply', config.value)
     
-    if (result.success) {
+    // If request didn't throw and wasn't aborted, setup succeeded
+    if (result !== null) {
       // Setup complete - clear cached status and redirect to login
       setupStore.clearStatus()
       router.push('/login')

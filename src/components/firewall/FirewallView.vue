@@ -112,8 +112,14 @@ async function handleAddRule() {
   if (!rule.to) delete rule.to
   if (!rule.comment) delete rule.comment
 
-  // Parse port as number if provided
-  if (rule.port) rule.port = parseInt(rule.port, 10)
+  // Parse port as number if provided and validate range
+  if (rule.port) {
+    rule.port = parseInt(rule.port, 10)
+    if (isNaN(rule.port) || rule.port < 1 || rule.port > 65535) {
+      localError.value = 'Port must be between 1 and 65535'
+      return
+    }
+  }
 
   const success = await firewallStore.addRule(rule)
   if (success) {

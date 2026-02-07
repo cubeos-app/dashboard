@@ -101,6 +101,34 @@ async function loadBackups() {
   }
 }
 
+function validateConfig() {
+  const yaml = config.value.compose_yaml.trim()
+  if (!yaml) {
+    error.value = 'Docker Compose configuration cannot be empty'
+    return false
+  }
+  // Basic YAML structure check — must contain at least one key: value pair
+  if (!yaml.includes(':')) {
+    error.value = 'Invalid YAML: no key-value pairs found'
+    return false
+  }
+  // If it looks like JSON, validate JSON syntax
+  if (yaml.startsWith('{') || yaml.startsWith('[')) {
+    try {
+      JSON.parse(yaml)
+    } catch (e) {
+      error.value = `Invalid JSON syntax: ${e.message}`
+      return false
+    }
+  }
+  // Check for common YAML errors — tabs instead of spaces
+  if (yaml.includes('\t')) {
+    error.value = 'Invalid YAML: tabs are not allowed, use spaces for indentation'
+    return false
+  }
+  return true
+}
+
 async function saveConfig() {
   if (isCoreApp.value && !showDangerConfirm.value) {
     dangerAction.value = 'save'
@@ -111,6 +139,11 @@ async function saveConfig() {
   saving.value = true
   error.value = null
   success.value = null
+
+  if (!validateConfig()) {
+    saving.value = false
+    return
+  }
 
   try {
     const endpoint = isCoreApp.value
@@ -242,31 +275,31 @@ watch(() => route.params.appId, () => {
 <template>
   <div class="min-h-full pb-8">
     <!-- Header -->
-    <div class="flex items-center gap-4 mb-6">
+    <div class="flex flex-wrap items-center gap-4 mb-6">
       <button @click="goBack" aria-label="Back to app list" class="p-2 rounded-lg hover:bg-theme-tertiary transition-colors">
         <Icon name="ArrowLeft" :size="20" class="text-theme-secondary" />
       </button>
-      <div class="flex-1">
+      <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2">
-          <h1 class="text-xl font-semibold text-theme-primary">
+          <h1 class="text-xl font-semibold text-theme-primary truncate">
             Configure: {{ appId }}
           </h1>
           <span 
             v-if="isCoreApp" 
-            class="px-2 py-0.5 text-xs font-medium rounded bg-error-muted text-error"
+            class="px-2 py-0.5 text-xs font-medium rounded bg-error-muted text-error flex-shrink-0"
           >
             CORE APP
           </span>
         </div>
-        <p class="text-theme-tertiary text-sm">{{ config.app_path }}</p>
+        <p class="text-theme-tertiary text-sm truncate">{{ config.app_path }}</p>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 w-full sm:w-auto">
         <button
           @click="saveConfig"
           :disabled="!hasChanges || saving"
           aria-label="Save configuration"
-          class="flex items-center gap-2 px-4 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
+          class="flex items-center justify-center gap-2 flex-1 sm:flex-initial px-4 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
         >
           <Icon v-if="saving" name="Loader2" :size="16" class="animate-spin" />
           <Icon v-else name="Save" :size="16" />
@@ -277,7 +310,7 @@ watch(() => route.params.appId, () => {
           @click="applyConfig"
           :disabled="applying"
           aria-label="Apply configuration and restart"
-          class="flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium disabled:opacity-50"
+          class="flex items-center justify-center gap-2 flex-1 sm:flex-initial px-4 py-2 rounded-lg btn-accent text-sm font-medium disabled:opacity-50"
         >
           <Icon v-if="applying" name="Loader2" :size="16" class="animate-spin" />
           <Icon v-else name="RotateCw" :size="16" />
