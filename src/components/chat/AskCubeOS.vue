@@ -269,7 +269,7 @@ onUnmounted(() => {
       >
         <!-- Backdrop -->
         <div 
-          class="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+          class="absolute inset-0 bg-theme-overlay backdrop-blur-sm" 
           @click="handleClose"
         ></div>
 
@@ -320,7 +320,7 @@ onUnmounted(() => {
               <p class="text-sm text-theme-secondary mb-3">AI model needs to be downloaded</p>
               <button 
                 @click="pullModel" 
-                class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors"
+                class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm font-medium hover:bg-accent-secondary transition-colors"
                 aria-label="Download AI model"
               >
                 Download Model (~400MB)
@@ -381,7 +381,7 @@ onUnmounted(() => {
                     class="max-w-[80%] px-3 py-2 rounded-xl text-sm" 
                     :class="[
                       msg.role === 'user' 
-                        ? 'bg-accent text-white rounded-br-md' 
+                        ? 'bg-accent text-on-accent rounded-br-md' 
                         : 'bg-theme-tertiary text-theme-primary rounded-bl-md', 
                       msg.error ? 'bg-error/20 text-error' : ''
                     ]"
@@ -441,7 +441,7 @@ onUnmounted(() => {
               <button 
                 @click="sendMessage()" 
                 :disabled="!inputMessage.trim() || !isAvailable || !modelReady || isLoading" 
-                class="px-3 py-2 rounded-xl bg-accent text-white hover:bg-accent-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-3 py-2 rounded-xl bg-accent text-on-accent hover:bg-accent-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 :aria-label="isLoading ? 'Sending message' : 'Send message'"
               >
                 <Icon :name="isLoading ? 'Loader2' : 'Send'" :size="18" :class="isLoading ? 'animate-spin' : ''" />

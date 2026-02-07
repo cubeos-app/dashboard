@@ -188,7 +188,7 @@ function closeSidebar() {
     <Transition name="fade">
       <div 
         v-if="isSidebarOpen && isMobile"
-        class="fixed inset-0 bg-black/50 z-40"
+        class="fixed inset-0 bg-theme-overlay z-40"
         @click="closeSidebar"
       ></div>
     </Transition>
@@ -320,7 +320,7 @@ function closeSidebar() {
                 href="/api/v1/docs/"
                 target="_blank"
                 rel="noopener"
-                class="px-4 py-2 rounded-lg bg-accent text-white text-sm hover:bg-accent-secondary transition-colors"
+                class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm hover:bg-accent-secondary transition-colors"
               >
                 View API Docs
               </a>
@@ -339,7 +339,7 @@ function closeSidebar() {
             <p class="text-theme-secondary mb-4">Document not found</p>
             <button
               @click="navigateTo('README')"
-              class="px-4 py-2 rounded-lg bg-accent text-white text-sm hover:bg-accent-secondary transition-colors"
+              class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm hover:bg-accent-secondary transition-colors"
             >
               Go to Home
             </button>
@@ -351,7 +351,7 @@ function closeSidebar() {
             <p class="text-theme-secondary">Failed to load document</p>
             <button
               @click="fetchDoc(currentPath)"
-              class="mt-4 px-4 py-2 rounded-lg bg-accent text-white text-sm hover:bg-accent-secondary transition-colors"
+              class="mt-4 px-4 py-2 rounded-lg bg-accent text-on-accent text-sm hover:bg-accent-secondary transition-colors"
             >
               Try Again
             </button>

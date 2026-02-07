@@ -379,7 +379,7 @@ async function refresh() {
       <p class="text-sm text-theme-tertiary mb-4">{{ monitoringStore.error }}</p>
       <button
         @click="refresh"
-        class="inline-flex items-center px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 transition-opacity"
+        class="inline-flex items-center px-4 py-2 rounded-lg bg-accent text-on-accent text-sm font-medium hover:opacity-90 transition-opacity"
         aria-label="Retry loading monitoring data"
       >
         <Icon name="RefreshCw" :size="14" class="mr-1.5" />
@@ -788,7 +788,7 @@ async function refresh() {
               <button
                 @click="saveThresholds"
                 :disabled="monitoringStore.savingThresholds"
-                class="inline-flex items-center px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium
+                class="inline-flex items-center px-4 py-2 rounded-lg bg-accent text-on-accent text-sm font-medium
                        hover:opacity-90 disabled:opacity-50 transition-opacity"
                 aria-label="Save alert thresholds"
               >

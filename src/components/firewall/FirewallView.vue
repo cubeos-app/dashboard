@@ -371,7 +371,7 @@ function formatDirection(dir) {
           </button>
           <button
             @click="showAddRule = !showAddRule; showQuickPort = false; showQuickService = false"
-            class="px-3 py-1.5 text-xs font-medium rounded-lg btn-accent text-white transition-colors flex items-center gap-1.5"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg btn-accent text-on-accent transition-colors flex items-center gap-1.5"
             aria-label="Add custom firewall rule"
           >
             <Icon name="Plus" :size="14" />
@@ -423,7 +423,7 @@ function formatDirection(dir) {
             <button
               @click="handleQuickPort"
               :disabled="firewallStore.loading"
-              class="w-full sm:w-auto px-4 py-2 btn-accent text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-1.5"
+              class="w-full sm:w-auto px-4 py-2 btn-accent text-on-accent text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-1.5"
               aria-label="Apply quick port rule"
             >
               <Icon v-if="firewallStore.loading" name="Loader2" :size="14" class="animate-spin" />
@@ -461,7 +461,7 @@ function formatDirection(dir) {
             <button
               @click="handleQuickService()"
               :disabled="!quickService.service || firewallStore.loading"
-              class="px-4 py-2 btn-accent text-white text-sm font-medium rounded-lg disabled:opacity-50"
+              class="px-4 py-2 btn-accent text-on-accent text-sm font-medium rounded-lg disabled:opacity-50"
               aria-label="Allow custom service"
             >
               Allow
@@ -563,7 +563,7 @@ function formatDirection(dir) {
             <button
               @click="handleAddRule"
               :disabled="firewallStore.loading"
-              class="px-4 py-2 btn-accent text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center gap-1.5"
+              class="px-4 py-2 btn-accent text-on-accent text-sm font-medium rounded-lg disabled:opacity-50 flex items-center gap-1.5"
             >
               <Icon v-if="firewallStore.loading" name="Loader2" :size="14" class="animate-spin" />
               Add Rule
@@ -680,7 +680,7 @@ function formatDirection(dir) {
         <p class="text-theme-muted text-xs mt-1">Add rules to control network traffic</p>
         <button
           @click="showAddRule = true"
-          class="mt-4 px-4 py-2 btn-accent text-white text-sm font-medium rounded-lg inline-flex items-center gap-1.5"
+          class="mt-4 px-4 py-2 btn-accent text-on-accent text-sm font-medium rounded-lg inline-flex items-center gap-1.5"
         >
           <Icon name="Plus" :size="14" />
           Add First Rule
