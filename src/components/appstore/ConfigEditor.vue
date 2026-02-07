@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { confirm } from '@/utils/confirmDialog'
+import { load as yamlLoad } from 'js-yaml'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -107,23 +108,18 @@ function validateConfig() {
     error.value = 'Docker Compose configuration cannot be empty'
     return false
   }
-  // Basic YAML structure check — must contain at least one key: value pair
-  if (!yaml.includes(':')) {
-    error.value = 'Invalid YAML: no key-value pairs found'
-    return false
-  }
-  // If it looks like JSON, validate JSON syntax
-  if (yaml.startsWith('{') || yaml.startsWith('[')) {
-    try {
-      JSON.parse(yaml)
-    } catch (e) {
-      error.value = `Invalid JSON syntax: ${e.message}`
+  try {
+    const parsed = yamlLoad(yaml)
+    if (parsed === null || parsed === undefined) {
+      error.value = 'Invalid YAML: document is empty or contains only comments'
       return false
     }
-  }
-  // Check for common YAML errors — tabs instead of spaces
-  if (yaml.includes('\t')) {
-    error.value = 'Invalid YAML: tabs are not allowed, use spaces for indentation'
+    if (typeof parsed !== 'object') {
+      error.value = 'Invalid Docker Compose: root must be a mapping, not a scalar value'
+      return false
+    }
+  } catch (e) {
+    error.value = `Invalid YAML: ${e.message}`
     return false
   }
   return true
