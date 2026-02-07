@@ -438,6 +438,7 @@ function mountSource(mount) {
           @click="fetchAll"
           :disabled="loading"
           class="px-3 py-1.5 text-sm bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 flex items-center gap-1.5 disabled:opacity-50"
+          aria-label="Refresh network mounts"
         >
           <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': loading }" />
           Refresh
@@ -445,6 +446,7 @@ function mountSource(mount) {
         <button
           @click="openCreateMount"
           class="px-3 py-1.5 text-sm btn-accent rounded-lg flex items-center gap-1.5"
+          aria-label="Add network mount"
         >
           <Icon name="Plus" :size="14" />
           Add Mount
@@ -457,7 +459,7 @@ function mountSource(mount) {
       <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-sm text-error">{{ actionError }}</p>
-        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">Dismiss</button>
+        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss error">Dismiss</button>
       </div>
     </div>
 
@@ -523,6 +525,7 @@ function mountSource(mount) {
                 @click.stop="mountShare(mount)"
                 class="p-2 text-theme-muted hover:text-success rounded-lg hover:bg-success-muted"
                 title="Mount"
+                :aria-label="'Mount ' + mount._display"
               >
                 <Icon name="Play" :size="14" />
               </button>
@@ -531,6 +534,7 @@ function mountSource(mount) {
                 @click.stop="unmountShare(mount)"
                 class="p-2 text-theme-muted hover:text-warning rounded-lg hover:bg-warning-muted"
                 title="Unmount"
+                :aria-label="'Unmount ' + mount._display"
               >
                 <Icon name="Square" :size="14" />
               </button>
@@ -541,6 +545,7 @@ function mountSource(mount) {
                 @click.stop="openEditMount(mount)"
                 class="p-2 text-theme-muted hover:text-theme-secondary rounded-lg hover:bg-theme-tertiary"
                 title="Edit mount"
+                :aria-label="'Edit mount ' + mount._display"
               >
                 <Icon name="Pencil" :size="14" />
               </button>
@@ -550,6 +555,7 @@ function mountSource(mount) {
                 @click.stop="deleteMount(mount)"
                 class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted"
                 title="Delete mount"
+                :aria-label="'Delete mount ' + mount._display"
               >
                 <Icon name="Trash2" :size="14" />
               </button>
@@ -558,6 +564,8 @@ function mountSource(mount) {
               <button
                 @click="toggleDetail(mount._key)"
                 class="p-2 text-theme-muted hover:text-theme-secondary rounded-lg"
+                :aria-label="'Toggle details for ' + mount._display"
+                :aria-expanded="expandedMount === mount._key"
               >
                 <Icon
                   name="ChevronDown"
@@ -660,6 +668,7 @@ function mountSource(mount) {
                   v-if="!mount._mounted"
                   @click.stop="mountShare(mount)"
                   class="px-3 py-1.5 text-xs bg-success-muted text-success rounded-lg hover:bg-success/20 flex items-center gap-1.5"
+                  :aria-label="'Mount ' + mount._display"
                 >
                   <Icon name="Play" :size="12" />
                   Mount
@@ -668,6 +677,7 @@ function mountSource(mount) {
                   v-else
                   @click.stop="unmountShare(mount)"
                   class="px-3 py-1.5 text-xs bg-warning-muted text-warning rounded-lg hover:bg-warning/20 flex items-center gap-1.5"
+                  :aria-label="'Unmount ' + mount._display"
                 >
                   <Icon name="Square" :size="12" />
                   Unmount
@@ -676,6 +686,7 @@ function mountSource(mount) {
                   v-if="mount._source === 'api'"
                   @click.stop="openEditMount(mount)"
                   class="px-3 py-1.5 text-xs bg-theme-tertiary text-theme-secondary rounded-lg hover:bg-theme-secondary/50 flex items-center gap-1.5"
+                  :aria-label="'Edit mount ' + mount._display"
                 >
                   <Icon name="Pencil" :size="12" />
                   Edit
@@ -707,7 +718,7 @@ function mountSource(mount) {
               <h3 class="text-lg font-semibold text-theme-primary">
                 {{ mountModalMode === 'create' ? 'Add Network Mount' : 'Edit Network Mount' }}
               </h3>
-              <button @click="showMountModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg">
+              <button @click="showMountModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg" aria-label="Close">
                 <Icon name="X" :size="18" />
               </button>
             </div>
@@ -716,8 +727,8 @@ function mountSource(mount) {
             <div class="p-6 space-y-4">
               <!-- Protocol toggle -->
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-2">Protocol</label>
-                <div class="flex rounded-lg overflow-hidden border border-theme-primary">
+                <label id="mount-protocol-label" class="block text-sm font-medium text-theme-secondary mb-2">Protocol</label>
+                <div class="flex rounded-lg overflow-hidden border border-theme-primary" role="radiogroup" aria-labelledby="mount-protocol-label">
                   <button
                     @click="mountForm.type = 'smb'"
                     class="flex-1 px-4 py-2 text-sm font-medium transition-colors"
@@ -737,8 +748,9 @@ function mountSource(mount) {
 
               <!-- Mount name -->
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-1">Mount Name</label>
+                <label for="mount-name" class="block text-sm font-medium text-theme-secondary mb-1">Mount Name</label>
                 <input
+                  id="mount-name"
                   v-model="mountForm.name"
                   type="text"
                   :disabled="mountModalMode === 'edit'"
@@ -749,8 +761,9 @@ function mountSource(mount) {
 
               <!-- Host -->
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-1">Host / IP</label>
+                <label for="mount-host" class="block text-sm font-medium text-theme-secondary mb-1">Host / IP</label>
                 <input
+                  id="mount-host"
                   v-model="mountForm.host"
                   type="text"
                   class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
@@ -760,10 +773,11 @@ function mountSource(mount) {
 
               <!-- Share / Export path -->
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-1">
+                <label for="mount-share" class="block text-sm font-medium text-theme-secondary mb-1">
                   {{ mountForm.type === 'smb' ? 'Share Name' : 'Export Path' }}
                 </label>
                 <input
+                  id="mount-share"
                   v-model="mountForm.share"
                   type="text"
                   class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
@@ -773,8 +787,9 @@ function mountSource(mount) {
 
               <!-- Mount point -->
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-1">Local Mount Point</label>
+                <label for="mount-mountpoint" class="block text-sm font-medium text-theme-secondary mb-1">Local Mount Point</label>
                 <input
+                  id="mount-mountpoint"
                   v-model="mountForm.mountpoint"
                   type="text"
                   class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent font-mono text-sm"
@@ -787,8 +802,9 @@ function mountSource(mount) {
               <template v-if="mountForm.type === 'smb'">
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-sm font-medium text-theme-secondary mb-1">Username</label>
+                    <label for="mount-username" class="block text-sm font-medium text-theme-secondary mb-1">Username</label>
                     <input
+                      id="mount-username"
                       v-model="mountForm.username"
                       type="text"
                       class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
@@ -796,8 +812,9 @@ function mountSource(mount) {
                     >
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-theme-secondary mb-1">Password</label>
+                    <label for="mount-password" class="block text-sm font-medium text-theme-secondary mb-1">Password</label>
                     <input
+                      id="mount-password"
                       v-model="mountForm.password"
                       type="password"
                       class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
@@ -809,8 +826,9 @@ function mountSource(mount) {
                   </div>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-theme-secondary mb-1">Domain (optional)</label>
+                  <label for="mount-domain" class="block text-sm font-medium text-theme-secondary mb-1">Domain (optional)</label>
                   <input
+                    id="mount-domain"
                     v-model="mountForm.domain"
                     type="text"
                     class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
@@ -821,8 +839,9 @@ function mountSource(mount) {
 
               <!-- Mount options -->
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-1">Mount Options (optional)</label>
+                <label for="mount-options" class="block text-sm font-medium text-theme-secondary mb-1">Mount Options (optional)</label>
                 <input
+                  id="mount-options"
                   v-model="mountForm.options"
                   type="text"
                   class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent font-mono text-sm"

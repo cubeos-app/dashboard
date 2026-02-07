@@ -228,7 +228,7 @@ function tempClass(temp) {
         <Icon name="AlertTriangle" :size="16" class="text-error" />
         <p class="text-sm text-error">{{ error }}</p>
       </div>
-      <button @click="fetchHealth" class="mt-2 text-xs text-accent hover:underline">Retry</button>
+      <button @click="fetchHealth" class="mt-2 text-xs text-accent hover:underline" aria-label="Retry loading health data">Retry</button>
     </div>
 
     <!-- No data -->
@@ -258,6 +258,7 @@ function tempClass(temp) {
           :disabled="loading"
           class="p-2 text-theme-muted hover:text-theme-secondary rounded-lg hover:bg-theme-tertiary disabled:opacity-50"
           title="Refresh health data"
+          aria-label="Refresh health data"
         >
           <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': loading }" />
         </button>
@@ -306,7 +307,7 @@ function tempClass(temp) {
           <!-- We use a details/summary for progressive disclosure -->
         </button>
         <details class="group">
-          <summary class="cursor-pointer text-sm text-theme-muted hover:text-theme-primary flex items-center gap-1">
+          <summary class="cursor-pointer text-sm text-theme-muted hover:text-theme-primary flex items-center gap-1" aria-label="Show S.M.A.R.T. attributes">
             <Icon name="ChevronRight" :size="14" class="transform group-open:rotate-90 transition-transform" />
             Show {{ attributes.length }} S.M.A.R.T. attributes
           </summary>

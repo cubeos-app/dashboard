@@ -368,6 +368,7 @@ onUnmounted(() => {
         :disabled="loading"
         class="p-2 bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 disabled:opacity-50"
         title="Refresh"
+        aria-label="Refresh storage"
       >
         <Icon name="RefreshCw" :size="18" :class="{ 'animate-spin': loading }" class="text-theme-secondary" />
       </button>
@@ -375,11 +376,13 @@ onUnmounted(() => {
 
     <!-- Tabs -->
     <div class="border-b border-theme-primary overflow-x-auto">
-      <nav class="flex gap-1 sm:gap-4 min-w-max">
+      <nav class="flex gap-1 sm:gap-4 min-w-max" role="tablist" aria-label="Storage sections">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           @click="onTabChange(tab.id)"
+          role="tab"
+          :aria-selected="activeTab === tab.id"
           class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap flex items-center gap-2"
           :class="activeTab === tab.id
             ? 'border-[color:var(--accent-primary)] text-accent'
@@ -402,7 +405,7 @@ onUnmounted(() => {
       <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-sm text-error">{{ error }}</p>
-        <button @click="error = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">Dismiss</button>
+        <button @click="error = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss error">Dismiss</button>
       </div>
     </div>
 
@@ -519,6 +522,7 @@ onUnmounted(() => {
             @click="dockerPrune"
             :disabled="cleanupLoading"
             class="px-3 py-1.5 text-sm bg-error-muted text-error rounded-lg hover:opacity-80 disabled:opacity-50 flex items-center gap-1.5"
+            aria-label="Clean up Docker storage"
           >
             <Icon v-if="cleanupLoading" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else name="Trash2" :size="14" />
@@ -808,13 +812,13 @@ onUnmounted(() => {
             <div class="flex items-center gap-2 flex-shrink-0">
               <span v-if="share.read_only" class="hidden sm:inline px-2 py-0.5 text-[10px] font-semibold bg-theme-tertiary text-theme-secondary rounded">Read Only</span>
               <span v-if="share.guest_ok" class="hidden sm:inline px-2 py-0.5 text-[10px] font-semibold bg-success-muted text-success rounded">Guest</span>
-              <button @click="openEditShare(share)" class="p-2 text-theme-muted hover:text-theme-secondary rounded-lg hover:bg-theme-tertiary" title="Edit share">
+              <button @click="openEditShare(share)" class="p-2 text-theme-muted hover:text-theme-secondary rounded-lg hover:bg-theme-tertiary" title="Edit share" :aria-label="'Edit share ' + share.name">
                 <Icon name="Pencil" :size="14" />
               </button>
-              <button @click="deleteShare(share.name)" class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted" title="Delete share">
+              <button @click="deleteShare(share.name)" class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted" title="Delete share" :aria-label="'Delete share ' + share.name">
                 <Icon name="Trash2" :size="14" />
               </button>
-              <button @click="toggleShareDetail(share.name)" class="p-2 text-theme-muted hover:text-theme-secondary rounded-lg">
+              <button @click="toggleShareDetail(share.name)" class="p-2 text-theme-muted hover:text-theme-secondary rounded-lg" :aria-label="'Toggle details for ' + share.name" :aria-expanded="expandedShare === share.name">
                 <Icon
                   name="ChevronDown"
                   :size="14"
@@ -900,7 +904,7 @@ onUnmounted(() => {
               <h3 class="text-lg font-semibold text-theme-primary">
                 {{ shareModalMode === 'create' ? 'Create Share' : 'Edit Share' }}
               </h3>
-              <button @click="showShareModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg">
+              <button @click="showShareModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg" aria-label="Close">
                 <Icon name="X" :size="18" />
               </button>
             </div>
