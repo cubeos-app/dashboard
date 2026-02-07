@@ -422,6 +422,9 @@ watch(() => systemStore.timezone, (val) => {
           
           <button
             @click="themeStore.setTheme(themeStore.isDark ? 'light' : 'dark')"
+            role="switch"
+            :aria-checked="themeStore.isDark"
+            aria-label="Toggle dark mode"
             class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200"
             :class="themeStore.isDark ? 'bg-accent' : 'bg-theme-tertiary border border-theme-secondary'"
           >
@@ -444,6 +447,7 @@ watch(() => systemStore.timezone, (val) => {
             <button
               @click="handleResetPreferences"
               :disabled="preferencesStore.loading"
+              aria-label="Reset preferences to defaults"
               class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
               :class="prefsResetSuccess
                 ? 'bg-success text-white'
@@ -512,8 +516,9 @@ watch(() => systemStore.timezone, (val) => {
           
           <form @submit.prevent="changePassword" class="space-y-3">
             <div>
-              <label class="block text-xs font-medium text-theme-secondary mb-1">Current Password</label>
+              <label for="settings-current-password" class="block text-xs font-medium text-theme-secondary mb-1">Current Password</label>
               <input
+                id="settings-current-password"
                 v-model="passwordForm.current"
                 type="password"
                 class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
@@ -521,8 +526,9 @@ watch(() => systemStore.timezone, (val) => {
               />
             </div>
             <div>
-              <label class="block text-xs font-medium text-theme-secondary mb-1">New Password</label>
+              <label for="settings-new-password" class="block text-xs font-medium text-theme-secondary mb-1">New Password</label>
               <input
+                id="settings-new-password"
                 v-model="passwordForm.new"
                 type="password"
                 class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
@@ -530,8 +536,9 @@ watch(() => systemStore.timezone, (val) => {
               />
             </div>
             <div>
-              <label class="block text-xs font-medium text-theme-secondary mb-1">Confirm Password</label>
+              <label for="settings-confirm-password" class="block text-xs font-medium text-theme-secondary mb-1">Confirm Password</label>
               <input
+                id="settings-confirm-password"
                 v-model="passwordForm.confirm"
                 type="password"
                 class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
@@ -565,7 +572,7 @@ watch(() => systemStore.timezone, (val) => {
       <div class="p-4 rounded-xl border border-theme-primary bg-theme-card space-y-5">
         <!-- Hostname -->
         <div>
-          <label class="block text-xs font-semibold text-theme-primary mb-2">Hostname</label>
+          <label for="settings-hostname" class="block text-xs font-semibold text-theme-primary mb-2">Hostname</label>
           
           <div v-if="hostnameError" class="mb-2 p-2 rounded-lg bg-error-muted border border-error/20">
             <p class="text-xs text-error">{{ hostnameError }}</p>
@@ -574,6 +581,7 @@ watch(() => systemStore.timezone, (val) => {
           <div class="flex gap-2">
             <div class="flex-1">
               <input
+                id="settings-hostname"
                 v-model="hostnameInput"
                 type="text"
                 class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm font-mono focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
@@ -599,7 +607,7 @@ watch(() => systemStore.timezone, (val) => {
 
         <!-- Timezone -->
         <div>
-          <label class="block text-xs font-semibold text-theme-primary mb-2">Timezone</label>
+          <label for="settings-timezone" class="block text-xs font-semibold text-theme-primary mb-2">Timezone</label>
           
           <div v-if="timezoneError" class="mb-2 p-2 rounded-lg bg-error-muted border border-error/20">
             <p class="text-xs text-error">{{ timezoneError }}</p>
@@ -608,6 +616,7 @@ watch(() => systemStore.timezone, (val) => {
           <div class="flex gap-2">
             <div class="flex-1 relative">
               <input
+                id="settings-timezone"
                 v-model="timezoneSearch"
                 type="text"
                 class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
@@ -794,6 +803,7 @@ watch(() => systemStore.timezone, (val) => {
             <button
               @click="handleResetSetup"
               :disabled="setupStore.loading"
+              aria-label="Reset setup wizard"
               class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
               :class="setupResetSuccess
                 ? 'bg-success text-white'

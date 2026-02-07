@@ -480,8 +480,9 @@ const uptimeDisplay = computed(() => {
               Password changed successfully!
             </div>
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Current Password</label>
+              <label for="current-password" class="block text-sm font-medium text-theme-secondary mb-1">Current Password</label>
               <input
+                id="current-password"
                 v-model="currentPassword"
                 type="password"
                 required
@@ -489,8 +490,9 @@ const uptimeDisplay = computed(() => {
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">New Password</label>
+              <label for="new-password" class="block text-sm font-medium text-theme-secondary mb-1">New Password</label>
               <input
+                id="new-password"
                 v-model="newPassword"
                 type="password"
                 required
@@ -499,8 +501,9 @@ const uptimeDisplay = computed(() => {
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Confirm New Password</label>
+              <label for="confirm-password" class="block text-sm font-medium text-theme-secondary mb-1">Confirm New Password</label>
               <input
+                id="confirm-password"
                 v-model="confirmPassword"
                 type="password"
                 required
@@ -586,6 +589,7 @@ const uptimeDisplay = computed(() => {
         <div class="flex flex-wrap gap-3">
           <button
             @click="handleReboot"
+            aria-label="Reboot system"
             class="px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 transition-colors flex items-center gap-2"
           >
             <Icon name="RotateCw" :size="16" />
@@ -593,6 +597,7 @@ const uptimeDisplay = computed(() => {
           </button>
           <button
             @click="handleShutdown"
+            aria-label="Shut down system"
             class="px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 transition-colors flex items-center gap-2"
           >
             <Icon name="Power" :size="16" />
@@ -611,6 +616,7 @@ const uptimeDisplay = computed(() => {
           <button
             @click="handleQuickBackup"
             :disabled="quickBackupLoading"
+            aria-label="Quick backup"
             class="px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 transition-colors"
             :class="quickBackupSuccess
               ? 'bg-success text-white'
@@ -624,6 +630,7 @@ const uptimeDisplay = computed(() => {
           <!-- Create Backup button -->
           <button
             @click="showCreateBackup = true"
+            aria-label="Create backup"
             class="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-secondary transition-colors flex items-center gap-1.5"
           >
             <Icon name="Plus" :size="14" />
@@ -656,7 +663,7 @@ const uptimeDisplay = computed(() => {
         >
           <Icon :name="backupRestoreMessage.type === 'success' ? 'CheckCircle' : 'AlertTriangle'" :size="16" />
           <span class="text-sm flex-1">{{ backupRestoreMessage.text }}</span>
-          <button @click="backupRestoreMessage = null" class="p-1 hover:opacity-75">
+          <button @click="backupRestoreMessage = null" aria-label="Dismiss message" class="p-1 hover:opacity-75">
             <Icon name="X" :size="14" />
           </button>
         </div>
@@ -677,8 +684,13 @@ const uptimeDisplay = computed(() => {
           >
             <!-- Backup row (clickable to expand) -->
             <div
+              role="button"
+              tabindex="0"
               class="flex items-center justify-between p-3 cursor-pointer hover:bg-theme-elevated/50 transition-colors"
+              :aria-expanded="expandedBackupId === backup.id"
+              :aria-label="'Toggle details for backup ' + (backup.description || backup.type)"
               @click="toggleBackupDetail(backup.id)"
+              @keydown.enter="toggleBackupDetail(backup.id)"
             >
               <div class="flex items-center gap-2 min-w-0">
                 <Icon
@@ -696,6 +708,7 @@ const uptimeDisplay = computed(() => {
                 <button
                   @click="downloadBackup(backup.id)"
                   class="p-1.5 text-theme-secondary hover:text-accent rounded transition-colors"
+                  :aria-label="'Download backup ' + (backup.description || backup.type)"
                   title="Download"
                 >
                   <Icon name="Download" :size="16" />
@@ -704,6 +717,7 @@ const uptimeDisplay = computed(() => {
                   @click="restoreBackup(backup.id)"
                   :disabled="backupRestoring"
                   class="p-1.5 text-theme-secondary hover:text-warning rounded transition-colors disabled:opacity-50"
+                  :aria-label="'Restore backup ' + (backup.description || backup.type)"
                   title="Restore"
                 >
                   <Icon name="RotateCcw" :size="16" />
@@ -711,6 +725,7 @@ const uptimeDisplay = computed(() => {
                 <button
                   @click="deleteBackup(backup.id)"
                   class="p-1.5 text-theme-secondary hover:text-error rounded transition-colors"
+                  :aria-label="'Delete backup ' + (backup.description || backup.type)"
                   title="Delete"
                 >
                   <Icon name="Trash2" :size="16" />
@@ -781,18 +796,19 @@ const uptimeDisplay = computed(() => {
     <!-- Create Backup Modal -->
     <Teleport to="body">
       <div v-if="showCreateBackup" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="showCreateBackup = false">
-        <div class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary">
+        <div role="dialog" aria-modal="true" aria-labelledby="create-backup-title" class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary">
           <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
-            <h3 class="text-lg font-semibold text-theme-primary">Create Backup</h3>
-            <button @click="showCreateBackup = false" class="p-1 text-theme-muted hover:text-theme-primary rounded-lg">
+            <h3 id="create-backup-title" class="text-lg font-semibold text-theme-primary">Create Backup</h3>
+            <button @click="showCreateBackup = false" aria-label="Close" class="p-1 text-theme-muted hover:text-theme-primary rounded-lg">
               <Icon name="X" :size="20" />
             </button>
           </div>
           
           <div class="p-6 space-y-4">
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-2">Backup Type</label>
+              <label for="backup-type" class="block text-sm font-medium text-theme-secondary mb-2">Backup Type</label>
               <select 
+                id="backup-type"
                 v-model="newBackupType"
                 class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent"
               >
@@ -803,8 +819,9 @@ const uptimeDisplay = computed(() => {
             </div>
             
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-2">Description (optional)</label>
+              <label for="backup-description" class="block text-sm font-medium text-theme-secondary mb-2">Description (optional)</label>
               <input 
+                id="backup-description"
                 v-model="newBackupDescription"
                 type="text"
                 placeholder="e.g., Before update"
