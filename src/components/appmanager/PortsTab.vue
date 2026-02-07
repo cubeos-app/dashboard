@@ -115,7 +115,7 @@ async function releasePort(port, protocol) {
     <!-- Toolbar -->
     <div class="flex items-center justify-between mb-6">
       <span class="text-sm text-theme-secondary">{{ store.ports.length }} allocated ports</span>
-      <button @click="showAllocateModal = true" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors">
+      <button @click="showAllocateModal = true" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors">
         <Icon name="Plus" :size="16" />Allocate Port
       </button>
     </div>
@@ -203,7 +203,7 @@ async function releasePort(port, protocol) {
     <!-- Allocate Modal -->
     <div v-if="showAllocateModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showAllocateModal = false"></div>
+        <div class="fixed inset-0 bg-theme-overlay backdrop-blur-sm" @click="showAllocateModal = false"></div>
         <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6" role="dialog" aria-modal="true" aria-label="Allocate Port">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Allocate Port</h3>
@@ -241,7 +241,7 @@ async function releasePort(port, protocol) {
             </div>
             <div class="flex justify-end gap-3 pt-4">
               <button type="button" @click="showAllocateModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary transition-colors">Cancel</button>
-              <button type="submit" :disabled="allocating" class="px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50">{{ allocating ? 'Allocating...' : 'Allocate' }}</button>
+              <button type="submit" :disabled="allocating" class="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50">{{ allocating ? 'Allocating...' : 'Allocate' }}</button>
             </div>
           </form>
         </div>

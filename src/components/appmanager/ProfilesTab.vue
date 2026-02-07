@@ -115,7 +115,7 @@ async function toggleAppInProfile(app) {
           <Icon name="CheckCircle" :size="14" />Active: {{ activeProfile.name }}
         </span>
       </div>
-      <button @click="showCreateModal = true" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors">
+      <button @click="showCreateModal = true" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors">
         <Icon name="Plus" :size="16" />Create Profile
       </button>
     </div>
@@ -146,7 +146,7 @@ async function toggleAppInProfile(app) {
             <button @click="openConfigureModal(profile)" :aria-label="'Configure profile ' + profile.name" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-theme-secondary hover:text-theme-primary bg-theme-tertiary hover:bg-theme-primary/10 rounded transition-colors">
               <Icon name="Settings" :size="12" />Configure
             </button>
-            <button v-if="!profile.is_active" @click="activateProfile(profile)" :disabled="activating === profile.name" :aria-label="'Activate profile ' + profile.name" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-accent hover:bg-accent-hover rounded transition-colors disabled:opacity-50">
+            <button v-if="!profile.is_active" @click="activateProfile(profile)" :disabled="activating === profile.name" :aria-label="'Activate profile ' + profile.name" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-on-accent bg-accent hover:bg-accent-hover rounded transition-colors disabled:opacity-50">
               <Icon name="Zap" :size="12" />{{ activating === profile.name ? 'Activating...' : 'Activate' }}
             </button>
           </div>
@@ -160,7 +160,7 @@ async function toggleAppInProfile(app) {
     <!-- Create Modal -->
     <div v-if="showCreateModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showCreateModal = false"></div>
+        <div class="fixed inset-0 bg-theme-overlay backdrop-blur-sm" @click="showCreateModal = false"></div>
         <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6" role="dialog" aria-modal="true" aria-label="Create Profile">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Create Profile</h3>
@@ -177,7 +177,7 @@ async function toggleAppInProfile(app) {
             </div>
             <div class="flex justify-end gap-3 pt-4">
               <button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary transition-colors">Cancel</button>
-              <button type="submit" :disabled="creating" class="px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50">{{ creating ? 'Creating...' : 'Create' }}</button>
+              <button type="submit" :disabled="creating" class="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50">{{ creating ? 'Creating...' : 'Create' }}</button>
             </div>
           </form>
         </div>
@@ -187,7 +187,7 @@ async function toggleAppInProfile(app) {
     <!-- Configure Modal -->
     <div v-if="showConfigureModal && selectedProfile" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showConfigureModal = false"></div>
+        <div class="fixed inset-0 bg-theme-overlay backdrop-blur-sm" @click="showConfigureModal = false"></div>
         <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto" role="dialog" aria-modal="true" :aria-label="'Configure profile ' + selectedProfile.name">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Configure: {{ selectedProfile.name }}</h3>
@@ -205,12 +205,12 @@ async function toggleAppInProfile(app) {
               </div>
               <label class="relative inline-flex items-center cursor-pointer" :aria-label="'Toggle ' + (app.display_name || app.name) + ' in profile'">
                 <input type="checkbox" :checked="app.enabled_in_profile" @change="toggleAppInProfile(app)" class="sr-only peer" :aria-label="'Enable ' + (app.display_name || app.name)">
-                <div class="w-9 h-5 bg-theme-primary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-theme-primary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+                <div class="w-9 h-5 bg-theme-primary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-theme-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-theme-primary after:border-theme-primary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
               </label>
             </div>
           </div>
           <div class="flex justify-end pt-4">
-            <button @click="showConfigureModal = false" class="px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors">Done</button>
+            <button @click="showConfigureModal = false" class="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors">Done</button>
           </div>
         </div>
       </div>

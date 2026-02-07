@@ -367,7 +367,7 @@ function hostStatusText(host) {
           aria-modal="true"
           aria-label="Create Proxy Host"
         >
-          <div class="absolute inset-0 bg-black/50" @click="showCreateModal = false"></div>
+          <div class="absolute inset-0 bg-theme-overlay" @click="showCreateModal = false"></div>
           <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary max-h-[90vh] flex flex-col">
             <!-- Header -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary flex-shrink-0">

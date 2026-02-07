@@ -88,7 +88,7 @@ watch(() => props.show, (visible) => {
         @keydown="trapFocus"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/50" @click="emit('cancel')"></div>
+        <div class="absolute inset-0 bg-theme-overlay" @click="emit('cancel')"></div>
         
         <!-- Dialog -->
         <div class="relative bg-theme-card border border-theme-primary rounded-2xl shadow-xl max-w-sm w-full p-6">
@@ -112,7 +112,7 @@ watch(() => props.show, (visible) => {
               <button
                 @click="emit('confirm')"
                 :disabled="loading"
-                class="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                class="flex-1 px-4 py-2.5 rounded-xl text-on-accent text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 :class="variantClasses[variant]"
                 :aria-label="confirmText"
               >

@@ -83,7 +83,7 @@ function goHome() {
         </button>
         <button
           @click="goHome"
-          class="px-5 py-2.5 rounded-xl text-white text-sm font-medium transition-colors btn-accent"
+          class="px-5 py-2.5 rounded-xl text-on-accent text-sm font-medium transition-colors btn-accent"
           aria-label="Go to dashboard"
         >
           Go to Dashboard

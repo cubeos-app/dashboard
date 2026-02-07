@@ -142,7 +142,7 @@ function handleClose() {
   >
     <!-- Backdrop -->
     <div 
-      class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      class="absolute inset-0 bg-theme-overlay backdrop-blur-sm"
       @click="handleClose"
     ></div>
 

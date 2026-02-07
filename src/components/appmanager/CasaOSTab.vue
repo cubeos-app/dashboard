@@ -158,7 +158,7 @@ async function importApp() {
   }
 }' class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm font-mono"></textarea>
         <div class="mt-4 flex justify-end">
-          <button @click="previewPastedJson" :disabled="!pastedJson.trim()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50">
+          <button @click="previewPastedJson" :disabled="!pastedJson.trim()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50">
             <Icon name="Eye" :size="16" />Preview & Import
           </button>
         </div>
@@ -181,7 +181,7 @@ async function importApp() {
     <!-- Preview Modal -->
     <div v-if="showPreviewModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showPreviewModal = false"></div>
+        <div class="fixed inset-0 bg-theme-overlay backdrop-blur-sm" @click="showPreviewModal = false"></div>
         <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Preview CasaOS app">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Preview: {{ previewApp?.title || previewApp?.name }}</h3>
@@ -193,7 +193,7 @@ async function importApp() {
           </div>
           <div class="flex justify-end gap-3">
             <button @click="showPreviewModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary transition-colors">Cancel</button>
-            <button @click="importApp" :disabled="importing" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50">
+            <button @click="importApp" :disabled="importing" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50">
               <Icon :name="importing ? 'Loader2' : 'Download'" :size="16" :class="importing ? 'animate-spin' : ''" />
               {{ importing ? 'Importing...' : 'Import App' }}
             </button>

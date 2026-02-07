@@ -72,7 +72,7 @@ function handleSave() {
       @keydown.escape="$emit('close')"
     >
       <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/60" @click="$emit('close')"></div>
+      <div class="absolute inset-0 bg-theme-overlay" @click="$emit('close')"></div>
       
       <!-- Modal -->
       <div class="relative bg-theme-secondary rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col m-4">
@@ -163,7 +163,7 @@ function handleSave() {
             <button
               @click="handleSave"
               :disabled="loading"
-              class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-lg disabled:opacity-50"
+              class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-lg disabled:opacity-50"
             >
               <Icon v-if="loading" name="Loader2" :size="16" class="animate-spin" />
               <Icon v-else name="Save" :size="16" />

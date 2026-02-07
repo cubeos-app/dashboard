@@ -246,7 +246,7 @@ onUnmounted(() => {
           <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': loadingStates }" />
         </button>
       </div>
-      <button @click="showRegisterModal = true" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors">
+      <button @click="showRegisterModal = true" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors">
         <Icon name="Plus" :size="16" />
         Register App
       </button>
@@ -338,7 +338,7 @@ onUnmounted(() => {
             </button>
             <label class="relative inline-flex items-center cursor-pointer ml-2">
               <input type="checkbox" :checked="app.enabled" @change="toggleApp(app)" class="sr-only peer">
-              <div class="w-9 h-5 bg-theme-tertiary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-theme-primary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+              <div class="w-9 h-5 bg-theme-tertiary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-theme-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-theme-primary after:border-theme-primary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
             </label>
           </div>
           <button v-if="app.type !== 'system'" @click="deleteApp(app)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Unregister">
@@ -351,7 +351,7 @@ onUnmounted(() => {
     <!-- Register Modal -->
     <div v-if="showRegisterModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showRegisterModal = false"></div>
+        <div class="fixed inset-0 bg-theme-overlay backdrop-blur-sm" @click="showRegisterModal = false"></div>
         <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Register Application</h3>
@@ -393,7 +393,7 @@ onUnmounted(() => {
             </div>
             <div class="flex justify-end gap-3 pt-4">
               <button type="button" @click="showRegisterModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary transition-colors">Cancel</button>
-              <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-colors">Register</button>
+              <button type="submit" class="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors">Register</button>
             </div>
           </form>
         </div>

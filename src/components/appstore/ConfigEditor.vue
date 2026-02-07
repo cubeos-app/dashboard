@@ -463,7 +463,7 @@ watch(() => route.params.appId, () => {
 
     <!-- Danger Confirmation Modal -->
     <div v-if="showDangerConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="cancelDangerConfirm"></div>
+      <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm" @click="cancelDangerConfirm"></div>
       
       <div class="relative w-full max-w-md bg-theme-card rounded-2xl border border-error/50 shadow-theme-xl p-6">
         <div class="flex items-center gap-3 mb-4">
@@ -502,7 +502,7 @@ watch(() => route.params.appId, () => {
           </button>
           <button
             @click="confirmDangerAction"
-            class="flex-1 px-4 py-2 rounded-lg bg-error text-white text-sm font-medium hover:bg-error/90 transition-colors"
+            class="flex-1 px-4 py-2 rounded-lg bg-error text-on-accent text-sm font-medium hover:bg-error/90 transition-colors"
           >
             Yes, I understand the risks
           </button>
