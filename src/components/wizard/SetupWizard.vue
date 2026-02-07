@@ -34,6 +34,7 @@ const customServices = ref([])
 const selectedServices = ref([])
 
 // Step 5: Admin Account
+const currentPassword = ref('')
 const adminPassword = ref('')
 const confirmPassword = ref('')
 
@@ -81,7 +82,7 @@ const canProceed = computed(() => {
     case 3: // Services
       return true // Can skip custom selection
     case 4: // Account
-      return adminPassword.value.length >= 8 && adminPassword.value === confirmPassword.value
+      return currentPassword.value.length >= 4 && adminPassword.value.length >= 8 && adminPassword.value === confirmPassword.value
     case 5: // Complete
       return true
     default:
@@ -229,13 +230,15 @@ async function applyConfiguration() {
     if (adminPassword.value) {
       try {
         await api.post('/auth/password', {
-          current_password: 'admin', // Default password — will fail if already changed
+          current_password: currentPassword.value,
           new_password: adminPassword.value
         })
       } catch (pwErr) {
-        // TODO: If wizard is re-run after password was changed, this will fail.
-        // Future: prompt for current password or skip if not first-boot.
-        console.warn('Password change failed — default password may have been changed previously')
+        if (import.meta.env.DEV) {
+          console.warn('Password change failed:', pwErr.message)
+        }
+        error.value = 'Password change failed — please verify your current password'
+        return
       }
     }
     
@@ -597,6 +600,18 @@ onUnmounted(() => {
             </div>
             
             <div class="space-y-4">
+              <div>
+                <label for="setup-current-password" class="block text-sm font-medium text-theme-secondary mb-2">Current Password</label>
+                <input
+                  id="setup-current-password"
+                  v-model="currentPassword"
+                  type="password"
+                  placeholder="Default password from first boot"
+                  class="w-full px-4 py-3 bg-theme-input border border-theme-secondary rounded-xl text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
+                />
+                <p class="text-xs text-theme-muted mt-1">The default password is <code class="font-mono bg-theme-tertiary px-1 py-0.5 rounded">admin</code> on first boot</p>
+              </div>
+
               <div>
                 <label for="setup-admin-password" class="block text-sm font-medium text-theme-secondary mb-2">New Password</label>
                 <input

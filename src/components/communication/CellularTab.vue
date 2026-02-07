@@ -22,6 +22,24 @@ const { signal } = useAbortOnUnmount()
 const loading = ref(true)
 const actionLoading = ref({})
 
+// APN form state — keyed by modem ID
+const apnForms = ref({})
+const apnFormVisible = ref({})
+
+function getApnForm(modemId) {
+  if (!apnForms.value[modemId]) {
+    apnForms.value[modemId] = { apn: '', username: '', password: '' }
+  }
+  return apnForms.value[modemId]
+}
+
+function toggleApnForm(modemId) {
+  apnFormVisible.value = {
+    ...apnFormVisible.value,
+    [modemId]: !apnFormVisible.value[modemId]
+  }
+}
+
 // ==========================================
 // Computed — cellular status
 // ==========================================
@@ -154,7 +172,12 @@ const tetheringStatus = computed(() => {
 async function handleConnect(modemId) {
   actionLoading.value = { ...actionLoading.value, [`connect-${modemId}`]: true }
   try {
-    await communicationStore.connectModem(modemId)
+    const form = apnForms.value[modemId]
+    const connectionData = {}
+    if (form?.apn) connectionData.apn = form.apn
+    if (form?.username) connectionData.username = form.username
+    if (form?.password) connectionData.password = form.password
+    await communicationStore.connectModem(modemId, connectionData)
     await communicationStore.fetchCellularStatus({ signal: signal() })
   } catch {
     // Store sets error
@@ -424,6 +447,16 @@ onMounted(async () => {
               <div class="flex items-center gap-2">
                 <button
                   v-if="!isModemConnected(modem)"
+                  @click="toggleApnForm(modem.id)"
+                  :aria-label="'Configure APN for ' + modem.name"
+                  :aria-expanded="apnFormVisible[modem.id] ? 'true' : 'false'"
+                  class="p-2 text-sm rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+                  title="APN Settings"
+                >
+                  <Icon name="Settings" :size="16" />
+                </button>
+                <button
+                  v-if="!isModemConnected(modem)"
                   @click="handleConnect(modem.id)"
                   :disabled="actionLoading[`connect-${modem.id}`]"
                   :aria-label="'Connect ' + modem.name"
@@ -450,6 +483,58 @@ onMounted(async () => {
                   />
                   Disconnect
                 </button>
+              </div>
+            </div>
+
+            <!-- APN Configuration Form (collapsible) -->
+            <div
+              v-if="!isModemConnected(modem) && apnFormVisible[modem.id]"
+              class="mt-4 p-4 bg-theme-tertiary rounded-lg space-y-3"
+            >
+              <p class="text-xs font-medium text-theme-secondary uppercase tracking-wider">APN Configuration</p>
+              <div>
+                <label
+                  :for="'apn-name-' + modem.id"
+                  class="block text-xs font-medium text-theme-secondary mb-1"
+                >APN Name <span class="text-error">*</span></label>
+                <input
+                  :id="'apn-name-' + modem.id"
+                  v-model="getApnForm(modem.id).apn"
+                  type="text"
+                  placeholder="e.g. internet, fast.t-mobile.com"
+                  :aria-label="'APN name for ' + modem.name"
+                  class="w-full px-3 py-2 text-sm bg-theme-input border border-theme-secondary rounded-lg text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
+                />
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label
+                    :for="'apn-username-' + modem.id"
+                    class="block text-xs font-medium text-theme-secondary mb-1"
+                  >Username</label>
+                  <input
+                    :id="'apn-username-' + modem.id"
+                    v-model="getApnForm(modem.id).username"
+                    type="text"
+                    placeholder="Optional"
+                    :aria-label="'APN username for ' + modem.name"
+                    class="w-full px-3 py-2 text-sm bg-theme-input border border-theme-secondary rounded-lg text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label
+                    :for="'apn-password-' + modem.id"
+                    class="block text-xs font-medium text-theme-secondary mb-1"
+                  >Password</label>
+                  <input
+                    :id="'apn-password-' + modem.id"
+                    v-model="getApnForm(modem.id).password"
+                    type="password"
+                    placeholder="Optional"
+                    :aria-label="'APN password for ' + modem.name"
+                    class="w-full px-3 py-2 text-sm bg-theme-input border border-theme-secondary rounded-lg text-theme-primary placeholder-theme-muted focus:ring-2 ring-accent focus:border-transparent"
+                  />
+                </div>
               </div>
             </div>
           </div>
