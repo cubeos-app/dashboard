@@ -328,7 +328,7 @@ onUnmounted(() => {
                   @click="handleCapture"
                   :disabled="actionLoading['capture']"
                   aria-label="Capture image from camera"
-                  class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
+                  class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-on-accent hover:bg-accent-hover transition-colors disabled:opacity-50"
                 >
                   <Icon
                     :name="actionLoading['capture'] ? 'Loader2' : 'Camera'"
@@ -389,7 +389,7 @@ onUnmounted(() => {
                   @click="handleStartStream"
                   :disabled="actionLoading['stream-start']"
                   aria-label="Start camera stream"
-                  class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
+                  class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-on-accent hover:bg-accent-hover transition-colors disabled:opacity-50"
                 >
                   <Icon
                     :name="actionLoading['stream-start'] ? 'Loader2' : 'Play'"
@@ -404,7 +404,7 @@ onUnmounted(() => {
                   @click="handleStopStream"
                   :disabled="actionLoading['stream-stop']"
                   aria-label="Stop camera stream"
-                  class="px-4 py-2 text-sm font-medium rounded-lg bg-error text-white hover:opacity-80 transition-colors disabled:opacity-50"
+                  class="px-4 py-2 text-sm font-medium rounded-lg bg-error text-on-accent hover:opacity-80 transition-colors disabled:opacity-50"
                 >
                   <Icon
                     :name="actionLoading['stream-stop'] ? 'Loader2' : 'Square'"

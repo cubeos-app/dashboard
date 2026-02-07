@@ -349,7 +349,7 @@ onUnmounted(() => {
               :class="[
                 'px-4 py-2 text-sm font-medium rounded-lg transition-colors',
                 autoRefresh
-                  ? 'bg-accent text-white hover:bg-accent-hover'
+                  ? 'bg-accent text-on-accent hover:bg-accent-hover'
                   : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
               ]"
             >

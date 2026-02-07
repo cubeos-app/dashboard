@@ -310,7 +310,7 @@ onMounted(async () => {
               @click="handleScan"
               :disabled="actionLoading.scan || communicationStore.bluetoothScanning"
               aria-label="Scan for Bluetooth devices"
-              class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
+              class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-on-accent hover:bg-accent-hover transition-colors disabled:opacity-50"
             >
               <Icon
                 v-if="actionLoading.scan || communicationStore.bluetoothScanning"

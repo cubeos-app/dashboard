@@ -392,7 +392,7 @@ onUnmounted(() => {
                 @click="handleSendSBD"
                 :disabled="!sbdMessage.trim() || byteCount > SBD_MAX_BYTES || actionLoading.send"
                 aria-label="Send SBD message via satellite"
-                class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
+                class="px-4 py-2 text-sm font-medium rounded-lg bg-accent text-on-accent hover:bg-accent-hover transition-colors disabled:opacity-50"
               >
                 <Icon
                   v-if="actionLoading.send"
