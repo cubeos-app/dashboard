@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAppManagerStore } from '@/stores/appmanager'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
@@ -29,7 +29,6 @@ const newApp = ref({
 
 const typeFilter = ref('')
 const controllingApp = ref(null)
-let statusRefreshTimeout = null
 
 const filteredApps = computed(() => {
   if (!typeFilter.value) return store.apps
@@ -141,15 +140,6 @@ async function startAppContainer(app) {
   controllingApp.value = app.name
   try { 
     await store.startApp(app.name)
-    // Update state after short delay
-    if (statusRefreshTimeout) clearTimeout(statusRefreshTimeout)
-    statusRefreshTimeout = setTimeout(async () => {
-      const status = await store.getAppStatus(app.name)
-      appStates.value[app.name] = { 
-        running: status?.running || false, 
-        status: status?.health || (status?.running ? 'running' : 'stopped') 
-      }
-    }, 2000)
   } catch (e) {}
   finally { controllingApp.value = null }
 }
@@ -159,15 +149,6 @@ async function stopAppContainer(app) {
   controllingApp.value = app.name
   try { 
     await store.stopApp(app.name)
-    // Update state after short delay
-    if (statusRefreshTimeout) clearTimeout(statusRefreshTimeout)
-    statusRefreshTimeout = setTimeout(async () => {
-      const status = await store.getAppStatus(app.name)
-      appStates.value[app.name] = { 
-        running: status?.running || false, 
-        status: status?.health || (status?.running ? 'running' : 'stopped') 
-      }
-    }, 2000)
   } catch (e) {}
   finally { controllingApp.value = null }
 }
@@ -176,15 +157,6 @@ async function restartAppContainer(app) {
   controllingApp.value = app.name
   try { 
     await store.restartApp(app.name)
-    // Update state after short delay
-    if (statusRefreshTimeout) clearTimeout(statusRefreshTimeout)
-    statusRefreshTimeout = setTimeout(async () => {
-      const status = await store.getAppStatus(app.name)
-      appStates.value[app.name] = { 
-        running: status?.running || false, 
-        status: status?.health || (status?.running ? 'running' : 'stopped') 
-      }
-    }, 3000)
   } catch (e) {}
   finally { controllingApp.value = null }
 }
@@ -226,9 +198,6 @@ watch(() => store.apps, (newApps) => {
   }
 }, { immediate: true })
 
-onUnmounted(() => {
-  if (statusRefreshTimeout) clearTimeout(statusRefreshTimeout)
-})
 </script>
 
 <template>

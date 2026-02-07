@@ -300,12 +300,6 @@ function tempClass(temp) {
 
       <!-- SMART attributes table -->
       <div v-if="attributes.length > 0">
-        <button
-          class="w-full text-left"
-          @click="$el.querySelector('.smart-detail')?.classList.toggle('hidden')"
-        >
-          <!-- We use a details/summary for progressive disclosure -->
-        </button>
         <details class="group">
           <summary class="cursor-pointer text-sm text-theme-muted hover:text-theme-primary flex items-center gap-1" aria-label="Show S.M.A.R.T. attributes">
             <Icon name="ChevronRight" :size="14" class="transform group-open:rotate-90 transition-transform" />
