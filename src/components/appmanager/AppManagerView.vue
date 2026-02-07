@@ -64,10 +64,12 @@ onMounted(() => {
     <!-- Tabs -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="border-b border-theme-primary overflow-x-auto">
-        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+        <nav class="-mb-px flex space-x-8" role="tablist" aria-label="App manager sections">
           <button
             v-for="tab in tabs"
             :key="tab.id"
+            role="tab"
+            :aria-selected="activeTab === tab.id"
             @click="activeTab = tab.id"
             :class="[
               activeTab === tab.id

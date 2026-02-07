@@ -243,7 +243,7 @@ watch(() => route.params.appId, () => {
   <div class="min-h-full pb-8">
     <!-- Header -->
     <div class="flex items-center gap-4 mb-6">
-      <button @click="goBack" class="p-2 rounded-lg hover:bg-theme-tertiary transition-colors">
+      <button @click="goBack" aria-label="Back to app list" class="p-2 rounded-lg hover:bg-theme-tertiary transition-colors">
         <Icon name="ArrowLeft" :size="20" class="text-theme-secondary" />
       </button>
       <div class="flex-1">
@@ -265,6 +265,7 @@ watch(() => route.params.appId, () => {
         <button
           @click="saveConfig"
           :disabled="!hasChanges || saving"
+          aria-label="Save configuration"
           class="flex items-center gap-2 px-4 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
         >
           <Icon v-if="saving" name="Loader2" :size="16" class="animate-spin" />
@@ -275,6 +276,7 @@ watch(() => route.params.appId, () => {
         <button
           @click="applyConfig"
           :disabled="applying"
+          aria-label="Apply configuration and restart"
           class="flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium disabled:opacity-50"
         >
           <Icon v-if="applying" name="Loader2" :size="16" class="animate-spin" />
@@ -316,8 +318,10 @@ watch(() => route.params.appId, () => {
 
     <template v-else>
       <!-- Tabs -->
-      <div class="flex items-center gap-1 p-1 bg-theme-tertiary rounded-lg mb-4 w-fit">
+      <div role="tablist" aria-label="Configuration editor" class="flex items-center gap-1 p-1 bg-theme-tertiary rounded-lg mb-4 w-fit">
         <button
+          role="tab"
+          :aria-selected="activeTab === 'compose'"
           @click="activeTab = 'compose'"
           class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
           :class="activeTab === 'compose' 
@@ -328,6 +332,8 @@ watch(() => route.params.appId, () => {
           docker-compose.yml
         </button>
         <button
+          role="tab"
+          :aria-selected="activeTab === 'env'"
           @click="activeTab = 'env'"
           class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
           :class="activeTab === 'env' 
@@ -338,6 +344,8 @@ watch(() => route.params.appId, () => {
           .env
         </button>
         <button
+          role="tab"
+          :aria-selected="activeTab === 'backups'"
           @click="activeTab = 'backups'"
           class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
           :class="activeTab === 'backups' 
@@ -362,6 +370,7 @@ watch(() => route.params.appId, () => {
         </div>
         <textarea
           v-model="config.compose_yaml"
+          aria-label="docker-compose.yml editor"
           class="w-full h-[500px] p-4 font-mono text-sm bg-transparent text-theme-primary resize-none focus:outline-none"
           placeholder="# docker-compose.yml content"
           spellcheck="false"
@@ -375,6 +384,7 @@ watch(() => route.params.appId, () => {
         </div>
         <textarea
           v-model="config.env_content"
+          aria-label="Environment variables editor"
           class="w-full h-[500px] p-4 font-mono text-sm bg-transparent text-theme-primary resize-none focus:outline-none"
           placeholder="# Environment variables&#10;KEY=value"
           spellcheck="false"
@@ -401,6 +411,7 @@ watch(() => route.params.appId, () => {
             </div>
             <button
               @click="restoreBackup(backup)"
+              :aria-label="'Restore backup ' + backup"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-accent hover:bg-accent-muted transition-colors"
             >
               <Icon name="RotateCcw" :size="14" />

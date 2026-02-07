@@ -192,6 +192,7 @@ function handleClose() {
         <!-- Close button -->
         <button
           @click="handleClose"
+          aria-label="Close"
           class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
         >
           <Icon name="X" :size="18" />
@@ -229,6 +230,7 @@ function handleClose() {
             <button
               v-if="visibleScreenshots.length > 1"
               @click="scrollCarousel(-1)"
+              aria-label="Previous screenshot"
               class="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 items-center justify-center rounded-full bg-theme-card/90 border border-theme-primary text-theme-secondary hover:text-theme-primary shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Icon name="ChevronLeft" :size="16" />
@@ -238,6 +240,7 @@ function handleClose() {
             <button
               v-if="visibleScreenshots.length > 1"
               @click="scrollCarousel(1)"
+              aria-label="Next screenshot"
               class="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 items-center justify-center rounded-full bg-theme-card/90 border border-theme-primary text-theme-secondary hover:text-theme-primary shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Icon name="ChevronRight" :size="16" />
@@ -250,6 +253,7 @@ function handleClose() {
               v-for="ss in visibleScreenshots"
               :key="'thumb-' + ss.index"
               @click="scrollToScreenshot(ss.index)"
+              :aria-label="'Go to screenshot ' + (ss.index + 1)"
               class="shrink-0 rounded overflow-hidden border border-theme-primary hover:border-accent transition-colors"
             >
               <img
@@ -303,8 +307,9 @@ function handleClose() {
             <h4 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Install Options</h4>
             <div class="flex flex-col sm:flex-row gap-3">
               <div class="flex-1">
-                <label class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">Port (optional)</label>
+                <label for="install-port" class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">Port (optional)</label>
                 <input
+                  id="install-port"
                   v-model="installPort"
                   type="text"
                   placeholder="e.g. 6100"
@@ -312,8 +317,9 @@ function handleClose() {
                 />
               </div>
               <div class="flex-1">
-                <label class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">FQDN (optional)</label>
+                <label for="install-fqdn" class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">FQDN (optional)</label>
                 <input
+                  id="install-fqdn"
                   v-model="installFqdn"
                   type="text"
                   placeholder="e.g. myapp.cubeos.cube"
@@ -350,6 +356,7 @@ function handleClose() {
           <button
             @click="handleInstallClick"
             :disabled="installing"
+            :aria-label="installing ? 'Installing ' + title : (showInstallOptions ? 'Confirm install ' + title : 'Install ' + title)"
             class="flex items-center gap-2 px-5 py-2 rounded-lg btn-accent text-sm font-medium disabled:opacity-50"
           >
             <Icon v-if="installing" name="Loader2" :size="16" class="animate-spin" />

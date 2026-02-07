@@ -216,6 +216,7 @@ onMounted(async () => {
         <button
           @click="appStore.syncStores()"
           :disabled="appStore.syncing"
+          aria-label="Sync app stores"
           class="flex items-center gap-2 px-3 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
         >
           <Icon 
@@ -229,8 +230,10 @@ onMounted(async () => {
     </div>
 
     <!-- Tabs -->
-    <div class="flex items-center gap-1 p-1 bg-theme-tertiary rounded-lg mb-6 w-fit">
+    <div role="tablist" aria-label="App store sections" class="flex items-center gap-1 p-1 bg-theme-tertiary rounded-lg mb-6 w-fit">
       <button
+        role="tab"
+        :aria-selected="activeTab === 'browse'"
         @click="activeTab = 'browse'"
         class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
         :class="activeTab === 'browse' 
@@ -240,6 +243,8 @@ onMounted(async () => {
         Browse
       </button>
       <button
+        role="tab"
+        :aria-selected="activeTab === 'installed'"
         @click="activeTab = 'installed'"
         class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
         :class="activeTab === 'installed' 
@@ -255,6 +260,8 @@ onMounted(async () => {
         </span>
       </button>
       <button
+        role="tab"
+        :aria-selected="activeTab === 'coreapps'"
         @click="activeTab = 'coreapps'"
         class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
         :class="activeTab === 'coreapps' 
@@ -265,6 +272,8 @@ onMounted(async () => {
         Core Apps
       </button>
       <button
+        role="tab"
+        :aria-selected="activeTab === 'stores'"
         @click="activeTab = 'stores'"
         class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
         :class="activeTab === 'stores' 
@@ -287,6 +296,7 @@ onMounted(async () => {
             @keyup.enter="handleSearch"
             type="text"
             placeholder="Search apps..."
+            aria-label="Search apps"
             class="w-full pl-10 pr-4 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           />
         </div>
@@ -294,6 +304,7 @@ onMounted(async () => {
         <!-- Category Filter -->
         <select
           v-model="appStore.selectedCategory"
+          aria-label="Filter by category"
           class="px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm focus:outline-none focus:border-accent"
         >
           <option value="">All Categories</option>
@@ -405,6 +416,7 @@ onMounted(async () => {
                 @click.stop
                 class="p-2 rounded-lg text-accent hover:bg-accent-muted transition-colors"
                 title="Open Web UI"
+                :aria-label="'Open Web UI for ' + (app.title || app.name)"
               >
                 <Icon name="ExternalLink" :size="16" />
               </a>
@@ -414,6 +426,7 @@ onMounted(async () => {
                 @click.stop
                 class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
                 title="Edit Config"
+                :aria-label="'Edit config for ' + (app.title || app.name)"
               >
                 <Icon name="Settings" :size="16" />
               </router-link>
@@ -423,6 +436,7 @@ onMounted(async () => {
                 @click.stop="appStore.startApp(app.id)"
                 class="p-2 rounded-lg text-success hover:bg-success-muted transition-colors"
                 title="Start"
+                :aria-label="'Start ' + (app.title || app.name)"
               >
                 <Icon name="Play" :size="16" />
               </button>
@@ -432,6 +446,7 @@ onMounted(async () => {
                 @click.stop="appStore.stopApp(app.id)"
                 class="p-2 rounded-lg text-warning hover:bg-warning-muted transition-colors"
                 title="Stop"
+                :aria-label="'Stop ' + (app.title || app.name)"
               >
                 <Icon name="Square" :size="16" />
               </button>
@@ -440,6 +455,7 @@ onMounted(async () => {
                 @click.stop="appStore.restartApp(app.id)"
                 class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
                 title="Restart"
+                :aria-label="'Restart ' + (app.title || app.name)"
               >
                 <Icon name="RotateCw" :size="16" />
               </button>
@@ -449,6 +465,8 @@ onMounted(async () => {
                 class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
                 :class="{ 'bg-theme-tertiary text-theme-primary': expandedInstalledId === app.id }"
                 title="Details"
+                :aria-label="'Details for ' + (app.title || app.name)"
+                :aria-expanded="expandedInstalledId === app.id"
               >
                 <Icon name="Info" :size="16" />
               </button>
@@ -457,6 +475,7 @@ onMounted(async () => {
                 @click.stop="handleRemoveApp(app.id)"
                 class="p-2 rounded-lg text-error hover:bg-error-muted transition-colors"
                 title="Remove"
+                :aria-label="'Remove ' + (app.title || app.name)"
               >
                 <Icon name="Trash2" :size="16" />
               </button>
@@ -656,6 +675,11 @@ onMounted(async () => {
             class="flex items-center gap-4 p-4 rounded-xl border border-theme-primary bg-theme-card cursor-pointer hover:bg-theme-secondary transition-colors"
             :class="{ 'rounded-b-none border-b-0': expandedStoreId === store.id }"
             @click="toggleStoreDetail(store.id)"
+            @keydown.enter="toggleStoreDetail(store.id)"
+            role="button"
+            tabindex="0"
+            :aria-expanded="expandedStoreId === store.id"
+            :aria-label="'Toggle details for ' + store.name"
           >
             <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0">
               <Icon name="Store" :size="20" class="text-accent" />
@@ -675,6 +699,7 @@ onMounted(async () => {
                 :disabled="appStore.syncing"
                 class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
                 title="Sync"
+                :aria-label="'Sync ' + store.name"
               >
                 <Icon name="RefreshCw" :size="16" :class="appStore.syncing ? 'animate-spin' : ''" />
               </button>
@@ -684,6 +709,7 @@ onMounted(async () => {
                 @click.stop="handleRemoveStore(store.id)"
                 class="p-2 rounded-lg text-error hover:bg-error-muted transition-colors"
                 title="Remove"
+                :aria-label="'Remove store ' + store.name"
               >
                 <Icon name="Trash2" :size="16" />
               </button>
@@ -808,12 +834,14 @@ onMounted(async () => {
             v-model="newStoreUrl"
             type="text"
             placeholder="Store URL (e.g. https://casaos.app/store)"
+            aria-label="Store URL"
             class="flex-1 px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           />
           <input
             v-model="newStoreName"
             type="text"
             placeholder="Name (optional)"
+            aria-label="Store name"
             class="sm:w-40 px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           />
           <button
