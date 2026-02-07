@@ -429,7 +429,7 @@ watch(() => systemStore.timezone, (val) => {
             :class="themeStore.isDark ? 'bg-accent' : 'bg-theme-tertiary border border-theme-secondary'"
           >
             <span
-              class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transform transition-transform duration-200"
+              class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-theme-primary shadow transform transition-transform duration-200"
               :class="themeStore.isDark ? 'translate-x-6' : 'translate-x-1'"
             >
               <Icon :name="themeStore.isDark ? 'Moon' : 'Sun'" :size="12" class="text-theme-secondary" />
@@ -450,7 +450,7 @@ watch(() => systemStore.timezone, (val) => {
               aria-label="Reset preferences to defaults"
               class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
               :class="prefsResetSuccess
-                ? 'bg-success text-white'
+                ? 'bg-success text-on-accent'
                 : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-elevated'"
             >
               <Icon v-if="preferencesStore.loading" name="Loader2" :size="12" class="animate-spin" />
@@ -772,7 +772,7 @@ watch(() => systemStore.timezone, (val) => {
           </div>
           <button
             @click="logout"
-            class="px-4 py-2 rounded-lg bg-error hover:bg-error/90 text-white text-xs font-medium transition-colors"
+            class="px-4 py-2 rounded-lg bg-error hover:bg-error/90 text-on-accent text-xs font-medium transition-colors"
           >
             Sign Out
           </button>
@@ -806,7 +806,7 @@ watch(() => systemStore.timezone, (val) => {
               aria-label="Reset setup wizard"
               class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
               :class="setupResetSuccess
-                ? 'bg-success text-white'
+                ? 'bg-success text-on-accent'
                 : 'bg-warning/20 text-warning hover:bg-warning/30'"
             >
               <Icon v-if="setupStore.loading" name="Loader2" :size="12" class="animate-spin" />

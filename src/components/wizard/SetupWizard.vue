@@ -332,7 +332,7 @@ onUnmounted(() => {
           :aria-label="`${step.title}${idx === currentStep ? ' (current)' : idx < currentStep ? ' (completed)' : ''}`"
           :aria-current="idx === currentStep ? 'step' : undefined"
           class="w-10 h-10 rounded-full flex items-center justify-center transition-all"
-          :class="idx === currentStep ? 'bg-accent text-white' : idx < currentStep ? 'bg-accent-muted text-accent' : 'bg-theme-tertiary text-theme-muted'"
+          :class="idx === currentStep ? 'bg-accent text-on-accent' : idx < currentStep ? 'bg-accent-muted text-accent' : 'bg-theme-tertiary text-theme-muted'"
         >
           <Icon :name="step.icon" :size="20" />
         </div>
@@ -346,7 +346,7 @@ onUnmounted(() => {
           <div v-if="currentStep === 0" class="space-y-6">
             <div class="text-center">
               <div class="w-20 h-20 mx-auto mb-6 rounded-2xl accent-gradient flex items-center justify-center">
-                <Icon name="Box" :size="40" class="text-white" />
+                <Icon name="Box" :size="40" class="text-on-accent" />
               </div>
               <h1 class="text-3xl font-bold text-theme-primary mb-2">Welcome to CubeOS</h1>
               <p class="text-theme-tertiary">Let's set up your offline server in just a few steps.</p>
@@ -399,7 +399,7 @@ onUnmounted(() => {
                 :class="wifiEnabled ? 'bg-accent' : 'bg-theme-muted'"
               >
                 <div 
-                  class="absolute top-1 w-4 h-4 bg-white rounded-full transition-transform"
+                  class="absolute top-1 w-4 h-4 bg-theme-primary rounded-full transition-transform"
                   :class="wifiEnabled ? 'translate-x-7' : 'translate-x-1'"
                 ></div>
               </button>
@@ -474,7 +474,7 @@ onUnmounted(() => {
                     class="w-6 h-6 rounded-full border-2 flex items-center justify-center"
                     :class="selectedProfile === profile.id ? 'border-theme-accent bg-accent' : 'border-theme-secondary'"
                   >
-                    <svg v-if="selectedProfile === profile.id" class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <svg v-if="selectedProfile === profile.id" class="w-4 h-4 text-on-accent" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                     </svg>
                   </div>

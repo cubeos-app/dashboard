@@ -370,7 +370,7 @@ function handleFileSubmit() {
           >
             <div
               :class="[
-                'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform',
+                'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-theme-primary transition-transform',
                 autoRefresh ? 'translate-x-4' : 'translate-x-0'
               ]"
             />

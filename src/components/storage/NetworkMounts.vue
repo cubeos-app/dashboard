@@ -720,7 +720,7 @@ function mountSource(mount) {
           tabindex="-1"
           @keydown.escape="showMountModal = false"
         >
-          <div class="absolute inset-0 bg-black/50" @click="showMountModal = false"></div>
+          <div class="absolute inset-0 bg-theme-overlay" @click="showMountModal = false"></div>
           <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-lg border border-theme-primary max-h-[90vh] overflow-y-auto">
             <!-- Modal header -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary sticky top-0 bg-theme-card z-10 rounded-t-2xl">
@@ -742,14 +742,14 @@ function mountSource(mount) {
                     @click="mountForm.type = 'smb'"
                     class="flex-1 px-4 py-2 text-sm font-medium transition-colors"
                     :class="mountForm.type === 'smb'
-                      ? 'bg-accent text-white'
+                      ? 'bg-accent text-on-accent'
                       : 'text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary'"
                   >SMB / CIFS</button>
                   <button
                     @click="mountForm.type = 'nfs'"
                     class="flex-1 px-4 py-2 text-sm font-medium transition-colors"
                     :class="mountForm.type === 'nfs'
-                      ? 'bg-accent text-white'
+                      ? 'bg-accent text-on-accent'
                       : 'text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary'"
                   >NFS</button>
                 </div>
