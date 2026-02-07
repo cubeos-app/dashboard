@@ -233,11 +233,14 @@ function formatSize(bytes) {
       </div>
       <div class="flex items-center gap-2">
         <!-- View mode toggle -->
-        <div class="flex rounded-lg overflow-hidden border border-theme-primary">
+        <div class="flex rounded-lg overflow-hidden border border-theme-primary" role="tablist" aria-label="USB device views">
           <button
             v-for="mode in [{ id: 'all', label: 'All' }, { id: 'storage', label: 'Storage' }, { id: 'tree', label: 'Tree' }]"
             :key="mode.id"
             @click="onViewChange(mode.id)"
+            role="tab"
+            :aria-selected="viewMode === mode.id"
+            :aria-label="'View ' + mode.label + ' devices'"
             class="px-3 py-1.5 text-xs font-medium transition-colors"
             :class="viewMode === mode.id
               ? 'bg-accent text-white'
@@ -249,6 +252,7 @@ function formatSize(bytes) {
           @click="rescan"
           :disabled="storageHalStore.loading"
           class="px-3 py-1.5 text-sm bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 flex items-center gap-1.5 disabled:opacity-50"
+          aria-label="Rescan USB bus"
         >
           <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': storageHalStore.loading }" />
           Rescan
@@ -261,7 +265,7 @@ function formatSize(bytes) {
       <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-sm text-error">{{ actionError }}</p>
-        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">Dismiss</button>
+        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss error">Dismiss</button>
       </div>
     </div>
 
@@ -297,6 +301,7 @@ function formatSize(bytes) {
           @click="filterClass = null"
           class="px-2.5 py-1 text-xs rounded-lg transition-colors"
           :class="filterClass === null ? 'bg-accent text-white' : 'bg-theme-tertiary text-theme-muted hover:text-theme-primary'"
+          aria-label="Show all device classes"
         >All</button>
         <button
           v-for="cls in deviceClasses"
@@ -304,6 +309,7 @@ function formatSize(bytes) {
           @click="filterClass = filterClass === cls ? null : cls"
           class="px-2.5 py-1 text-xs rounded-lg transition-colors capitalize"
           :class="filterClass === cls ? 'bg-accent text-white' : 'bg-theme-tertiary text-theme-muted hover:text-theme-primary'"
+          :aria-label="'Filter by ' + cls"
         >{{ cls }}</button>
       </div>
 
@@ -372,6 +378,7 @@ function formatSize(bytes) {
                         @click="mountDevice(device)"
                         class="p-1.5 text-theme-muted hover:text-success rounded-lg hover:bg-success-muted"
                         title="Mount"
+                        :aria-label="'Mount ' + (device.product || device.name || device.device || 'device')"
                       >
                         <Icon name="FolderInput" :size="14" />
                       </button>
@@ -380,6 +387,7 @@ function formatSize(bytes) {
                         @click="unmountDevice(device)"
                         class="p-1.5 text-theme-muted hover:text-warning rounded-lg hover:bg-warning-muted"
                         title="Unmount"
+                        :aria-label="'Unmount ' + (device.product || device.name || device.device || 'device')"
                       >
                         <Icon name="FolderOutput" :size="14" />
                       </button>
@@ -387,6 +395,7 @@ function formatSize(bytes) {
                         @click="ejectDevice(device)"
                         class="p-1.5 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted"
                         title="Eject"
+                        :aria-label="'Eject ' + (device.product || device.name || device.device || 'device')"
                       >
                         <Icon name="Eject" :size="14" />
                       </button>
@@ -396,6 +405,7 @@ function formatSize(bytes) {
                       @click="resetDevice(device)"
                       class="p-1.5 text-theme-muted hover:text-theme-secondary rounded-lg hover:bg-theme-tertiary"
                       title="Reset USB port"
+                      :aria-label="'Reset ' + (device.product || device.name || device.device || 'device')"
                     >
                       <Icon name="RotateCcw" :size="14" />
                     </button>
@@ -546,6 +556,7 @@ function formatSize(bytes) {
                   v-if="isStorageDevice(device) && !isMounted(device)"
                   @click.stop="mountDevice(device)"
                   class="px-3 py-1.5 text-xs bg-success-muted text-success rounded-lg hover:bg-success/20 flex items-center gap-1.5"
+                  :aria-label="'Mount ' + (device.product || device.name || device.device || 'device')"
                 >
                   <Icon name="FolderInput" :size="12" />
                   Mount
@@ -554,6 +565,7 @@ function formatSize(bytes) {
                   v-if="isStorageDevice(device) && isMounted(device)"
                   @click.stop="unmountDevice(device)"
                   class="px-3 py-1.5 text-xs bg-warning-muted text-warning rounded-lg hover:bg-warning/20 flex items-center gap-1.5"
+                  :aria-label="'Unmount ' + (device.product || device.name || device.device || 'device')"
                 >
                   <Icon name="FolderOutput" :size="12" />
                   Unmount
@@ -562,6 +574,7 @@ function formatSize(bytes) {
                   v-if="isStorageDevice(device)"
                   @click.stop="ejectDevice(device)"
                   class="px-3 py-1.5 text-xs bg-error-muted text-error rounded-lg hover:bg-error/20 flex items-center gap-1.5"
+                  :aria-label="'Eject ' + (device.product || device.name || device.device || 'device')"
                 >
                   <Icon name="Eject" :size="12" />
                   Eject
@@ -570,6 +583,7 @@ function formatSize(bytes) {
                   v-if="device.bus"
                   @click.stop="resetDevice(device)"
                   class="px-3 py-1.5 text-xs bg-theme-tertiary text-theme-secondary rounded-lg hover:bg-theme-secondary/50 flex items-center gap-1.5"
+                  :aria-label="'Reset ' + (device.product || device.name || device.device || 'device')"
                 >
                   <Icon name="RotateCcw" :size="12" />
                   Reset
@@ -628,6 +642,7 @@ function formatSize(bytes) {
                   @click="mountDevice(device)"
                   class="p-2 text-theme-muted hover:text-success rounded-lg hover:bg-success-muted"
                   title="Mount"
+                  :aria-label="'Mount ' + (device.product || device.name || device.label || 'USB Storage')"
                 >
                   <Icon name="FolderInput" :size="16" />
                 </button>
@@ -636,6 +651,7 @@ function formatSize(bytes) {
                   @click="unmountDevice(device)"
                   class="p-2 text-theme-muted hover:text-warning rounded-lg hover:bg-warning-muted"
                   title="Unmount"
+                  :aria-label="'Unmount ' + (device.product || device.name || device.label || 'USB Storage')"
                 >
                   <Icon name="FolderOutput" :size="16" />
                 </button>
@@ -643,6 +659,7 @@ function formatSize(bytes) {
                   @click="ejectDevice(device)"
                   class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted"
                   title="Safely eject"
+                  :aria-label="'Eject ' + (device.product || device.name || device.label || 'USB Storage')"
                 >
                   <Icon name="Eject" :size="16" />
                 </button>
@@ -678,6 +695,7 @@ function formatSize(bytes) {
             :disabled="treeLoading"
             class="p-1.5 text-theme-muted hover:text-theme-secondary rounded-lg hover:bg-theme-tertiary disabled:opacity-50"
             title="Refresh tree"
+            aria-label="Refresh USB tree"
           >
             <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': treeLoading }" />
           </button>

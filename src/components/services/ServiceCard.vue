@@ -206,6 +206,7 @@ function handleToggleFavorite(e) {
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-success hover:bg-success-muted rounded-lg transition-colors"
               title="Start"
+              :aria-label="'Start ' + displayName"
             >
               <Icon name="Play" :size="16" />
             </button>
@@ -217,6 +218,7 @@ function handleToggleFavorite(e) {
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-error hover:bg-error-muted rounded-lg transition-colors"
               title="Stop"
+              :aria-label="'Stop ' + displayName"
             >
               <Icon name="Square" :size="16" />
             </button>
@@ -228,6 +230,7 @@ function handleToggleFavorite(e) {
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-warning hover:bg-warning-muted rounded-lg transition-colors"
               title="Restart"
+              :aria-label="'Restart ' + displayName"
             >
               <Icon name="RotateCw" :size="16" />
             </button>
@@ -240,6 +243,7 @@ function handleToggleFavorite(e) {
                 ? 'text-warning' 
                 : 'text-theme-tertiary hover:text-warning hover:bg-warning-muted'"
               :title="isFavorite ? 'Remove from favorites' : 'Add to favorites'"
+              :aria-label="(isFavorite ? 'Remove ' : 'Add ') + displayName + (isFavorite ? ' from favorites' : ' to favorites')"
             >
               <Icon name="Star" :size="16" :class="{ 'fill-current': isFavorite }" />
             </button>

@@ -274,11 +274,14 @@ function formatBytes(bytes) {
     <!-- Content -->
     <div v-else-if="app" class="space-y-6">
       <!-- Tabs -->
-      <div class="flex items-center gap-1 border-b border-theme-primary">
+      <div class="flex items-center gap-1 border-b border-theme-primary" role="tablist" aria-label="Service details">
         <button
           v-for="tab in ['overview', 'logs', 'docker', 'settings']"
           :key="tab"
           @click="activeTab = tab"
+          role="tab"
+          :aria-selected="activeTab === tab"
+          :aria-controls="'panel-' + tab"
           class="px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px"
           :class="activeTab === tab 
             ? 'text-accent border-accent' 
@@ -289,7 +292,7 @@ function formatBytes(bytes) {
       </div>
       
       <!-- Overview Tab -->
-      <div v-if="activeTab === 'overview'" class="space-y-6">
+      <div v-if="activeTab === 'overview'" id="panel-overview" role="tabpanel" class="space-y-6">
         <!-- Info Grid -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
@@ -354,7 +357,7 @@ function formatBytes(bytes) {
       </div>
       
       <!-- Logs Tab -->
-      <div v-if="activeTab === 'logs'" class="space-y-4">
+      <div v-if="activeTab === 'logs'" id="panel-logs" role="tabpanel" class="space-y-4">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-medium text-theme-secondary">Container Logs</h3>
           <button
@@ -378,7 +381,7 @@ function formatBytes(bytes) {
       </div>
       
       <!-- Docker Tab -->
-      <div v-if="activeTab === 'docker'" class="space-y-6">
+      <div v-if="activeTab === 'docker'" id="panel-docker" role="tabpanel" class="space-y-6">
         <!-- Loading -->
         <div v-if="dockerLoading" class="flex items-center justify-center py-12">
           <Icon name="Loader2" :size="24" class="animate-spin text-accent" />
@@ -516,7 +519,7 @@ function formatBytes(bytes) {
       </div>
       
       <!-- Settings Tab -->
-      <div v-if="activeTab === 'settings'" class="space-y-6">
+      <div v-if="activeTab === 'settings'" id="panel-settings" role="tabpanel" class="space-y-6">
         <!-- Tor Routing -->
         <div class="p-4 rounded-xl bg-theme-card border border-theme-primary">
           <h3 class="text-sm font-medium text-theme-secondary mb-3">Privacy</h3>

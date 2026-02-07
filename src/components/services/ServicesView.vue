@@ -190,6 +190,7 @@ onUnmounted(() => {
             v-if="activeCategory"
             @click="clearCategory"
             class="p-1.5 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+            aria-label="Back to all services"
           >
             <Icon name="ChevronLeft" :size="20" />
           </button>
@@ -208,11 +209,14 @@ onUnmounted(() => {
 
       <div class="flex items-center gap-3">
         <!-- View mode toggle -->
-        <div class="flex items-center bg-theme-tertiary rounded-lg p-1">
+        <div class="flex items-center bg-theme-tertiary rounded-lg p-1" role="tablist" aria-label="View mode">
           <button
             @click="viewMode = 'stacks'"
             class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
             :class="viewMode === 'stacks' ? 'bg-theme-card text-theme-primary shadow-sm' : 'text-theme-secondary hover:text-theme-primary'"
+            role="tab"
+            :aria-selected="viewMode === 'stacks'"
+            aria-label="Stack view"
           >
             <Icon name="Layers" :size="16" />
           </button>
@@ -220,6 +224,9 @@ onUnmounted(() => {
             @click="viewMode = 'grid'"
             class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
             :class="viewMode === 'grid' ? 'bg-theme-card text-theme-primary shadow-sm' : 'text-theme-secondary hover:text-theme-primary'"
+            role="tab"
+            :aria-selected="viewMode === 'grid'"
+            aria-label="Grid view"
           >
             <Icon name="Grid3X3" :size="16" />
           </button>
@@ -232,6 +239,7 @@ onUnmounted(() => {
             v-model="searchQuery"
             type="text"
             placeholder="Search services..."
+            aria-label="Search services"
             class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
           />
         </div>
@@ -245,6 +253,7 @@ onUnmounted(() => {
         :key="category.key"
         @click="selectCategory(category.key)"
         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-theme-tertiary text-theme-secondary hover:bg-theme-card hover:text-theme-primary"
+        :aria-label="'Filter by ' + category.title + ' (' + category.count + ')'"
       >
         <Icon :name="category.icon" :size="18" class="opacity-70" />
         <span>{{ category.title }}</span>
@@ -262,6 +271,9 @@ onUnmounted(() => {
             ? 'bg-accent-muted text-accent ring-1 ring-accent/30' 
             : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-card hover:text-theme-primary'
         ]"
+        role="switch"
+        :aria-checked="showCoreApps"
+        aria-label="Show core services"
       >
         <Icon name="Box" :size="18" class="opacity-70" />
         <span>Show Core</span>
@@ -285,6 +297,10 @@ onUnmounted(() => {
         v-for="app in displayedApps"
         :key="app.name"
         @click="openApp(app)"
+        @keydown.enter="openApp(app)"
+        role="button"
+        tabindex="0"
+        :aria-label="appsStore.getDisplayName(app) + ' — ' + (getHealthStatus(app) === 'healthy' ? 'Running' : getHealthStatus(app))"
         class="group p-4 rounded-xl border border-theme-primary bg-theme-card hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer"
       >
         <div class="flex flex-col items-center text-center">
