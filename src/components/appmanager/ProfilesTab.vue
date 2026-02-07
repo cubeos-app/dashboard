@@ -131,14 +131,14 @@ async function toggleAppInProfile(app) {
         </div>
         <div class="mt-4 flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <button @click="openConfigureModal(profile)" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-theme-secondary hover:text-theme-primary bg-theme-tertiary hover:bg-theme-primary/10 rounded transition-colors">
+            <button @click="openConfigureModal(profile)" :aria-label="'Configure profile ' + profile.name" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-theme-secondary hover:text-theme-primary bg-theme-tertiary hover:bg-theme-primary/10 rounded transition-colors">
               <Icon name="Settings" :size="12" />Configure
             </button>
-            <button v-if="!profile.is_active" @click="activateProfile(profile)" :disabled="activating === profile.name" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-accent hover:bg-accent-hover rounded transition-colors disabled:opacity-50">
+            <button v-if="!profile.is_active" @click="activateProfile(profile)" :disabled="activating === profile.name" :aria-label="'Activate profile ' + profile.name" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-accent hover:bg-accent-hover rounded transition-colors disabled:opacity-50">
               <Icon name="Zap" :size="12" />{{ activating === profile.name ? 'Activating...' : 'Activate' }}
             </button>
           </div>
-          <button v-if="!profile.is_active" @click="deleteProfile(profile)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Delete profile">
+          <button v-if="!profile.is_active" @click="deleteProfile(profile)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Delete profile" :aria-label="'Delete profile ' + profile.name">
             <Icon name="Trash2" :size="14" />
           </button>
         </div>
@@ -149,19 +149,19 @@ async function toggleAppInProfile(app) {
     <div v-if="showCreateModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showCreateModal = false"></div>
-        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6">
+        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6" role="dialog" aria-modal="true" aria-label="Create Profile">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Create Profile</h3>
-            <button @click="showCreateModal = false" class="text-theme-muted hover:text-theme-primary"><Icon name="X" :size="20" /></button>
+            <button @click="showCreateModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
           </div>
           <form @submit.prevent="createProfile" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Name</label>
-              <input v-model="newProfile.name" type="text" required placeholder="My Profile" class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
+              <label for="profile-name" class="block text-sm font-medium text-theme-secondary mb-1">Name</label>
+              <input id="profile-name" v-model="newProfile.name" type="text" required placeholder="My Profile" class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
             </div>
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Description (optional)</label>
-              <textarea v-model="newProfile.description" rows="2" placeholder="Profile description..." class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm"></textarea>
+              <label for="profile-description" class="block text-sm font-medium text-theme-secondary mb-1">Description (optional)</label>
+              <textarea id="profile-description" v-model="newProfile.description" rows="2" placeholder="Profile description..." class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm"></textarea>
             </div>
             <div class="flex justify-end gap-3 pt-4">
               <button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary transition-colors">Cancel</button>
@@ -176,10 +176,10 @@ async function toggleAppInProfile(app) {
     <div v-if="showConfigureModal && selectedProfile" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showConfigureModal = false"></div>
-        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto">
+        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto" role="dialog" aria-modal="true" :aria-label="'Configure profile ' + selectedProfile.name">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Configure: {{ selectedProfile.name }}</h3>
-            <button @click="showConfigureModal = false" class="text-theme-muted hover:text-theme-primary"><Icon name="X" :size="20" /></button>
+            <button @click="showConfigureModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
           </div>
           <p class="text-sm text-theme-secondary mb-4">Select which apps should be enabled when this profile is active:</p>
           <div class="space-y-2">
@@ -191,8 +191,8 @@ async function toggleAppInProfile(app) {
                   <span class="ml-2 text-xs" :class="app.type === 'system' ? 'text-accent' : 'text-theme-muted'">{{ app.type }}</span>
                 </div>
               </div>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" :checked="app.enabled_in_profile" @change="toggleAppInProfile(app)" class="sr-only peer">
+              <label class="relative inline-flex items-center cursor-pointer" :aria-label="'Toggle ' + (app.display_name || app.name) + ' in profile'">
+                <input type="checkbox" :checked="app.enabled_in_profile" @change="toggleAppInProfile(app)" class="sr-only peer" :aria-label="'Enable ' + (app.display_name || app.name)">
                 <div class="w-9 h-5 bg-theme-primary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-theme-primary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
               </label>
             </div>

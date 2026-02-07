@@ -104,7 +104,7 @@ async function importApp() {
         
         <!-- Popular Stores -->
         <div class="space-y-2 mb-4">
-          <button v-for="s in popularStores" :key="s.url" @click="selectStore(s.url)" :class="['w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors', selectedStore === s.url ? 'border-accent bg-accent-muted' : 'border-theme-primary hover:border-accent/50']">
+          <button v-for="s in popularStores" :key="s.url" @click="selectStore(s.url)" :aria-label="'Browse ' + s.name" :class="['w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors', selectedStore === s.url ? 'border-accent bg-accent-muted' : 'border-theme-primary hover:border-accent/50']">
             <span class="text-sm font-medium text-theme-primary">{{ s.name }}</span>
             <Icon name="ChevronRight" :size="16" class="text-theme-muted" />
           </button>
@@ -112,8 +112,8 @@ async function importApp() {
 
         <!-- Custom URL -->
         <div class="flex gap-2">
-          <input v-model="customStoreUrl" type="text" placeholder="Custom store URL..." class="flex-1 rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
-          <button @click="loadCustomStore" class="px-3 py-2 text-sm font-medium text-accent hover:bg-accent-muted rounded-md transition-colors">
+          <input v-model="customStoreUrl" type="text" placeholder="Custom store URL..." aria-label="Custom CasaOS store URL" class="flex-1 rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
+          <button @click="loadCustomStore" class="px-3 py-2 text-sm font-medium text-accent hover:bg-accent-muted rounded-md transition-colors" aria-label="Load custom store">
             <Icon name="ExternalLink" :size="16" />
           </button>
         </div>
@@ -133,7 +133,7 @@ async function importApp() {
                 <p v-if="app.tagline" class="text-xs text-theme-muted line-clamp-1">{{ app.tagline }}</p>
               </div>
             </div>
-            <button @click="previewStoreApp(app)" class="px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent-muted rounded transition-colors">
+            <button @click="previewStoreApp(app)" :aria-label="'Preview ' + (app.title || app.name)" class="px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent-muted rounded transition-colors">
               <Icon name="Eye" :size="14" />
             </button>
           </div>
@@ -147,7 +147,7 @@ async function importApp() {
         <h3 class="text-lg font-medium text-theme-primary mb-4 flex items-center gap-2">
           <Icon name="FileJson" :size="20" />Paste CasaOS JSON
         </h3>
-        <textarea v-model="pastedJson" rows="12" placeholder='Paste CasaOS app JSON here...
+        <textarea v-model="pastedJson" rows="12" aria-label="Paste CasaOS app JSON" placeholder='Paste CasaOS app JSON here...
 
 {
   "name": "my-app",
@@ -182,10 +182,10 @@ async function importApp() {
     <div v-if="showPreviewModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showPreviewModal = false"></div>
-        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
+        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Preview CasaOS app">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Preview: {{ previewApp?.title || previewApp?.name }}</h3>
-            <button @click="showPreviewModal = false" class="text-theme-muted hover:text-theme-primary"><Icon name="X" :size="20" /></button>
+            <button @click="showPreviewModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
           </div>
           <div class="mb-4">
             <h4 class="text-sm font-medium text-theme-secondary mb-2">Generated docker-compose.yml</h4>

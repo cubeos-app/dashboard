@@ -136,7 +136,7 @@ async function releasePort(port, protocol) {
               <td class="px-6 py-4 whitespace-nowrap text-sm text-theme-primary">{{ port.app_name || '-' }}</td>
               <td class="px-6 py-4 text-sm text-theme-secondary hidden sm:table-cell">{{ port.description || '-' }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-right">
-                <button @click="releasePort(port.port, port.protocol)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Release port">
+                <button @click="releasePort(port.port, port.protocol)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Release port" :aria-label="'Release port ' + port.port + '/' + port.protocol">
                   <Icon name="Trash2" :size="14" />
                 </button>
               </td>
@@ -151,6 +151,8 @@ async function releasePort(port, protocol) {
       <button
         @click="showReservedPorts = !showReservedPorts"
         class="flex items-center gap-2 text-sm text-theme-secondary hover:text-theme-primary transition-colors w-full"
+        :aria-expanded="showReservedPorts"
+        aria-label="Toggle reserved system ports"
       >
         <Icon name="ChevronDown" :size="16"
           class="transition-transform duration-200"
@@ -189,40 +191,40 @@ async function releasePort(port, protocol) {
     <div v-if="showAllocateModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showAllocateModal = false"></div>
-        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6">
+        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6" role="dialog" aria-modal="true" aria-label="Allocate Port">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Allocate Port</h3>
-            <button @click="showAllocateModal = false" class="text-theme-muted hover:text-theme-primary"><Icon name="X" :size="20" /></button>
+            <button @click="showAllocateModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
           </div>
           <form @submit.prevent="allocatePort" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Application</label>
-              <select v-model="newPort.app_name" required class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
+              <label for="alloc-app" class="block text-sm font-medium text-theme-secondary mb-1">Application</label>
+              <select id="alloc-app" v-model="newPort.app_name" required class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
                 <option value="">Select an app...</option>
                 <option v-for="app in store.apps" :key="app.id" :value="app.name">{{ app.display_name || app.name }}</option>
               </select>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-1">Port</label>
+                <label for="alloc-port" class="block text-sm font-medium text-theme-secondary mb-1">Port</label>
                 <div class="flex gap-2">
-                  <input v-model.number="newPort.port" type="number" min="1024" max="65535" placeholder="Auto" class="flex-1 rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
-                  <button type="button" @click="findNextPort" class="px-3 py-2 text-xs font-medium text-accent hover:bg-accent-muted rounded-md transition-colors" title="Find next available">
+                  <input id="alloc-port" v-model.number="newPort.port" type="number" min="1024" max="65535" placeholder="Auto" class="flex-1 rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
+                  <button type="button" @click="findNextPort" class="px-3 py-2 text-xs font-medium text-accent hover:bg-accent-muted rounded-md transition-colors" title="Find next available" aria-label="Find next available port">
                     <Icon name="Search" :size="14" />
                   </button>
                 </div>
               </div>
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-1">Protocol</label>
-                <select v-model="newPort.protocol" class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
+                <label for="alloc-protocol" class="block text-sm font-medium text-theme-secondary mb-1">Protocol</label>
+                <select id="alloc-protocol" v-model="newPort.protocol" class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
                   <option value="tcp">TCP</option>
                   <option value="udp">UDP</option>
                 </select>
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Description (optional)</label>
-              <input v-model="newPort.description" type="text" placeholder="Web UI, API, etc." class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
+              <label for="alloc-description" class="block text-sm font-medium text-theme-secondary mb-1">Description (optional)</label>
+              <input id="alloc-description" v-model="newPort.description" type="text" placeholder="Web UI, API, etc." class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
             </div>
             <div class="flex justify-end gap-3 pt-4">
               <button type="button" @click="showAllocateModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary transition-colors">Cancel</button>

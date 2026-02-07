@@ -210,6 +210,7 @@ function hostStatusText(host) {
             :disabled="npmStore.loading"
             class="p-2 bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 disabled:opacity-50"
             title="Refresh"
+            aria-label="Refresh NPM status"
           >
             <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': npmStore.loading }" class="text-theme-secondary" />
           </button>
@@ -222,7 +223,7 @@ function hostStatusText(host) {
       <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-sm text-error">{{ actionError }}</p>
-        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">Dismiss</button>
+        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss error">Dismiss</button>
       </div>
     </div>
 
@@ -282,6 +283,7 @@ function hostStatusText(host) {
                 :disabled="deleteLoading[host.id]"
                 class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50"
                 title="Delete host"
+                :aria-label="'Delete proxy host ' + getDomainDisplay(host)"
               >
                 <Icon v-if="deleteLoading[host.id]" name="Loader2" :size="14" class="animate-spin" />
                 <Icon v-else name="Trash2" :size="14" />
@@ -314,6 +316,7 @@ function hostStatusText(host) {
             :disabled="deleteLoading[host.id]"
             class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50 flex-shrink-0"
             title="Delete host"
+            :aria-label="'Delete proxy host ' + getDomainDisplay(host)"
           >
             <Icon v-if="deleteLoading[host.id]" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else name="Trash2" :size="14" />
@@ -360,7 +363,7 @@ function hostStatusText(host) {
             <!-- Header -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary flex-shrink-0">
               <h3 class="text-lg font-semibold text-theme-primary">Create Proxy Host</h3>
-              <button @click="showCreateModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg">
+              <button @click="showCreateModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg" aria-label="Close">
                 <Icon name="X" :size="18" />
               </button>
             </div>
@@ -368,8 +371,9 @@ function hostStatusText(host) {
             <!-- Form -->
             <div class="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-1">Domain Name(s)</label>
+                <label for="npm-domain-names" class="block text-sm font-medium text-theme-secondary mb-1">Domain Name(s)</label>
                 <input
+                  id="npm-domain-names"
                   v-model="hostForm.domain_names"
                   type="text"
                   class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
@@ -380,8 +384,9 @@ function hostStatusText(host) {
 
               <div class="grid grid-cols-3 gap-3">
                 <div class="col-span-1">
-                  <label class="block text-sm font-medium text-theme-secondary mb-1">Scheme</label>
+                  <label for="npm-scheme" class="block text-sm font-medium text-theme-secondary mb-1">Scheme</label>
                   <select
+                    id="npm-scheme"
                     v-model="hostForm.forward_scheme"
                     class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
                   >
@@ -390,8 +395,9 @@ function hostStatusText(host) {
                   </select>
                 </div>
                 <div class="col-span-1">
-                  <label class="block text-sm font-medium text-theme-secondary mb-1">Forward Host</label>
+                  <label for="npm-forward-host" class="block text-sm font-medium text-theme-secondary mb-1">Forward Host</label>
                   <input
+                    id="npm-forward-host"
                     v-model="hostForm.forward_host"
                     type="text"
                     class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
@@ -399,8 +405,9 @@ function hostStatusText(host) {
                   >
                 </div>
                 <div class="col-span-1">
-                  <label class="block text-sm font-medium text-theme-secondary mb-1">Port</label>
+                  <label for="npm-forward-port" class="block text-sm font-medium text-theme-secondary mb-1">Port</label>
                   <input
+                    id="npm-forward-port"
                     v-model.number="hostForm.forward_port"
                     type="number"
                     min="1"

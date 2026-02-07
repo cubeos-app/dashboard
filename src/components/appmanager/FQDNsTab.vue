@@ -182,12 +182,18 @@ function onAppSelect(appName) {
         class="bg-theme-secondary rounded-lg border border-theme-primary p-4 cursor-pointer hover:border-accent/50 transition-colors"
         :class="{ 'border-accent/50': expandedFQDN === fqdn.fqdn }"
         @click="toggleFQDNDetail(fqdn.fqdn)"
+        @keydown.enter="toggleFQDNDetail(fqdn.fqdn)"
+        role="button"
+        tabindex="0"
+        :aria-expanded="expandedFQDN === fqdn.fqdn"
+        :aria-label="'Toggle details for ' + fqdn.fqdn"
       >
         <!-- Card Header -->
         <div class="flex items-start justify-between">
           <div class="flex-1">
             <a :href="`http${fqdn.ssl_enabled ? 's' : ''}://${fqdn.fqdn}`" target="_blank"
               @click.stop
+              :aria-label="'Open ' + fqdn.fqdn + ' in new tab'"
               class="text-sm font-medium text-accent hover:underline flex items-center gap-1">
               <Icon name="Globe" :size="14" />{{ fqdn.fqdn }}<Icon name="ExternalLink" :size="12" class="text-theme-muted" />
             </a>
@@ -199,7 +205,7 @@ function onAppSelect(appName) {
         </div>
         <div class="mt-3 flex items-center justify-between text-xs text-theme-secondary">
           <span class="flex items-center gap-1"><Icon name="Server" :size="12" />Backend port: {{ fqdn.backend_port }}</span>
-          <button @click.stop="deregisterFQDN(fqdn.fqdn)" class="p-1 text-error hover:bg-error-muted rounded transition-colors" title="Remove domain">
+          <button @click.stop="deregisterFQDN(fqdn.fqdn)" class="p-1 text-error hover:bg-error-muted rounded transition-colors" title="Remove domain" :aria-label="'Remove domain ' + fqdn.fqdn">
             <Icon name="Trash2" :size="14" />
           </button>
         </div>
@@ -216,7 +222,7 @@ function onAppSelect(appName) {
           <!-- Error state -->
           <div v-else-if="fqdnDetailError" class="text-center py-3">
             <p class="text-xs text-error mb-2">{{ fqdnDetailError }}</p>
-            <button @click.stop="loadFQDNDetail(fqdn.fqdn)" class="text-xs text-accent hover:underline">
+            <button @click.stop="loadFQDNDetail(fqdn.fqdn)" class="text-xs text-accent hover:underline" aria-label="Retry loading FQDN details">
               Retry
             </button>
           </div>
@@ -262,6 +268,7 @@ function onAppSelect(appName) {
             <!-- Edit button -->
             <div class="pt-2">
               <button @click.stop="openEditModal(fqdnDetail)"
+                :aria-label="'Edit domain ' + fqdnDetail.fqdn"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary rounded-md transition-colors">
                 <Icon name="Edit3" :size="12" />Edit
               </button>
@@ -275,29 +282,29 @@ function onAppSelect(appName) {
     <div v-if="showRegisterModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showRegisterModal = false"></div>
-        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6">
+        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6" role="dialog" aria-modal="true" aria-label="Register Domain">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Register Domain</h3>
-            <button @click="showRegisterModal = false" class="text-theme-muted hover:text-theme-primary"><Icon name="X" :size="20" /></button>
+            <button @click="showRegisterModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
           </div>
           <form @submit.prevent="registerFQDN" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Application</label>
-              <select v-model="newFQDN.app_name" required @change="onAppSelect(newFQDN.app_name)" class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
+              <label for="reg-app" class="block text-sm font-medium text-theme-secondary mb-1">Application</label>
+              <select id="reg-app" v-model="newFQDN.app_name" required @change="onAppSelect(newFQDN.app_name)" class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
                 <option value="">Select an app...</option>
                 <option v-for="app in store.apps" :key="app.id" :value="app.name">{{ app.display_name || app.name }}</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Subdomain</label>
+              <label for="reg-subdomain" class="block text-sm font-medium text-theme-secondary mb-1">Subdomain</label>
               <div class="flex items-center">
-                <input v-model="newFQDN.subdomain" type="text" required placeholder="my-app" pattern="[a-z0-9-]+" class="flex-1 rounded-l-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
+                <input id="reg-subdomain" v-model="newFQDN.subdomain" type="text" required placeholder="my-app" pattern="[a-z0-9-]+" class="flex-1 rounded-l-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
                 <span class="px-3 py-2 bg-theme-tertiary border border-l-0 border-theme-primary rounded-r-md text-sm text-theme-secondary">.cubeos.cube</span>
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Backend Port</label>
-              <input v-model.number="newFQDN.backend_port" type="number" required min="1" max="65535" class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
+              <label for="reg-backend-port" class="block text-sm font-medium text-theme-secondary mb-1">Backend Port</label>
+              <input id="reg-backend-port" v-model.number="newFQDN.backend_port" type="number" required min="1" max="65535" class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
               <p class="mt-1 text-xs text-theme-muted">The port your app listens on inside the container</p>
             </div>
             <div class="flex items-center">
@@ -317,10 +324,10 @@ function onAppSelect(appName) {
     <div v-if="showEditModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showEditModal = false"></div>
-        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6">
+        <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6" role="dialog" aria-modal="true" aria-label="Edit Domain">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Edit Domain</h3>
-            <button @click="showEditModal = false" class="text-theme-muted hover:text-theme-primary"><Icon name="X" :size="20" /></button>
+            <button @click="showEditModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
           </div>
           <form @submit.prevent="saveEdit" class="space-y-4">
             <!-- App name (read-only) -->
@@ -331,9 +338,9 @@ function onAppSelect(appName) {
 
             <!-- Subdomain -->
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Subdomain</label>
+              <label for="edit-subdomain" class="block text-sm font-medium text-theme-secondary mb-1">Subdomain</label>
               <div class="flex items-center">
-                <input v-model="editData.subdomain" type="text" required placeholder="my-app" pattern="[a-z0-9-]+"
+                <input id="edit-subdomain" v-model="editData.subdomain" type="text" required placeholder="my-app" pattern="[a-z0-9-]+"
                   class="flex-1 rounded-l-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
                 <span class="px-3 py-2 bg-theme-tertiary border border-l-0 border-theme-primary rounded-r-md text-sm text-theme-secondary">.cubeos.cube</span>
               </div>
@@ -344,8 +351,8 @@ function onAppSelect(appName) {
 
             <!-- Backend Port -->
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Backend Port</label>
-              <input v-model.number="editData.backend_port" type="number" required min="1" max="65535"
+              <label for="edit-backend-port" class="block text-sm font-medium text-theme-secondary mb-1">Backend Port</label>
+              <input id="edit-backend-port" v-model.number="editData.backend_port" type="number" required min="1" max="65535"
                 class="w-full rounded-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
               <p class="mt-1 text-xs text-theme-muted">The port your app listens on inside the container</p>
             </div>

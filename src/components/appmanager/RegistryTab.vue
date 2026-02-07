@@ -243,7 +243,7 @@ function getImageTags(image) {
       <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-sm text-error">{{ actionError }}</p>
-        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">Dismiss</button>
+        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss error">Dismiss</button>
       </div>
     </div>
 
@@ -256,7 +256,7 @@ function getImageTags(image) {
           <span v-if="cleanupResult.freed_space"> Freed {{ formatBytes(cleanupResult.freed_space) }}.</span>
           <span v-if="cleanupResult.removed_layers"> Removed {{ cleanupResult.removed_layers }} layer{{ cleanupResult.removed_layers !== 1 ? 's' : '' }}.</span>
         </p>
-        <button @click="cleanupResult = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">Dismiss</button>
+        <button @click="cleanupResult = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss cleanup result">Dismiss</button>
       </div>
     </div>
 
@@ -301,6 +301,7 @@ function getImageTags(image) {
             :disabled="cleanupLoading"
             class="px-3 py-1.5 text-sm bg-warning-muted text-warning rounded-lg hover:opacity-80 disabled:opacity-50 flex items-center gap-1.5"
             title="Remove unused layers"
+            aria-label="Clean up unused registry layers"
           >
             <Icon v-if="cleanupLoading" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else name="Trash2" :size="14" />
@@ -321,6 +322,7 @@ function getImageTags(image) {
             :disabled="registryStore.loading"
             class="p-2 bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 disabled:opacity-50"
             title="Refresh"
+            aria-label="Refresh registry status"
           >
             <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': registryStore.loading }" class="text-theme-secondary" />
           </button>
@@ -375,6 +377,7 @@ function getImageTags(image) {
           v-model="newImageRef"
           type="text"
           placeholder="docker.io/library/nginx:latest"
+          aria-label="Docker image reference to cache"
           class="flex-1 px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
           :disabled="caching"
           @keyup.enter="cacheImage"
@@ -422,6 +425,11 @@ function getImageTags(image) {
           <div
             class="px-6 py-4 flex items-center gap-3 cursor-pointer hover:bg-theme-tertiary/30 transition-colors"
             @click="toggleImageExpand(image.name)"
+            @keydown.enter="toggleImageExpand(image.name)"
+            role="button"
+            tabindex="0"
+            :aria-expanded="expandedImage === image.name"
+            :aria-label="'Toggle details for image ' + image.name"
           >
             <div class="w-9 h-9 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0">
               <Icon name="Container" :size="18" class="text-accent" />
@@ -452,6 +460,7 @@ function getImageTags(image) {
                 :disabled="deleteLoading[image.name]"
                 class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50"
                 title="Delete image"
+                :aria-label="'Delete image ' + image.name"
               >
                 <Icon v-if="deleteLoading[image.name]" name="Loader2" :size="14" class="animate-spin" />
                 <Icon v-else name="Trash2" :size="14" />
@@ -506,6 +515,7 @@ function getImageTags(image) {
                       @click.stop="copyTagRef(image.name, tag)"
                       class="p-0.5 text-theme-muted hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Copy full reference"
+                      :aria-label="'Copy reference for ' + image.name + ':' + tag"
                     >
                       <Icon name="Copy" :size="12" />
                     </button>
@@ -513,6 +523,7 @@ function getImageTags(image) {
                       @click.stop="deleteImageTag(image.name, tag)"
                       class="p-0.5 text-theme-muted hover:text-error opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Delete tag"
+                      :aria-label="'Delete tag ' + tag + ' from ' + image.name"
                     >
                       <Icon name="X" :size="12" />
                     </button>
