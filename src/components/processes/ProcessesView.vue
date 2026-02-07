@@ -199,6 +199,7 @@ async function refresh() {
           :disabled="refreshing"
           class="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
           title="Refresh"
+          aria-label="Refresh processes"
         >
           <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': refreshing }" />
         </button>
@@ -235,12 +236,14 @@ async function refresh() {
           @input="onSearchInput($event.target.value)"
           type="text"
           placeholder="Search processes by name..."
+          aria-label="Search processes"
           class="w-full pl-9 pr-9 py-2.5 rounded-xl border border-theme-primary bg-theme-card text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
         />
         <button
           v-if="localSearch"
           @click="clearSearch"
           class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded text-theme-muted hover:text-theme-primary transition-colors"
+          aria-label="Clear search"
         >
           <Icon name="X" :size="14" />
         </button>
@@ -275,6 +278,8 @@ async function refresh() {
           <button
             @click="showTopCpu = !showTopCpu"
             class="w-full flex items-center justify-between p-4 text-left hover:bg-theme-secondary transition-colors"
+            :aria-expanded="showTopCpu"
+            aria-label="Top CPU consumers"
           >
             <div class="flex items-center gap-2">
               <Icon name="Cpu" :size="16" class="text-accent" />
@@ -316,6 +321,8 @@ async function refresh() {
           <button
             @click="showTopMemory = !showTopMemory"
             class="w-full flex items-center justify-between p-4 text-left hover:bg-theme-secondary transition-colors"
+            :aria-expanded="showTopMemory"
+            aria-label="Top memory consumers"
           >
             <div class="flex items-center gap-2">
               <Icon name="Server" :size="16" class="text-success" />
@@ -362,6 +369,8 @@ async function refresh() {
                 <th
                   @click="toggleSort('pid')"
                   class="px-4 py-3 text-left text-xs font-medium text-theme-tertiary uppercase tracking-wide cursor-pointer hover:text-theme-secondary select-none"
+                  :aria-label="'Sort by PID ' + (sortField === 'pid' ? (sortDir === 'asc' ? 'descending' : 'ascending') : 'descending')"
+                  :aria-sort="sortField === 'pid' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
                 >
                   <span class="inline-flex items-center gap-1">
                     PID
@@ -377,6 +386,8 @@ async function refresh() {
                 <th
                   @click="toggleSort('name')"
                   class="px-4 py-3 text-left text-xs font-medium text-theme-tertiary uppercase tracking-wide cursor-pointer hover:text-theme-secondary select-none"
+                  :aria-label="'Sort by name ' + (sortField === 'name' ? (sortDir === 'asc' ? 'descending' : 'ascending') : 'descending')"
+                  :aria-sort="sortField === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
                 >
                   <span class="inline-flex items-center gap-1">
                     Name
@@ -395,6 +406,8 @@ async function refresh() {
                 <th
                   @click="toggleSort('cpu')"
                   class="px-4 py-3 text-right text-xs font-medium text-theme-tertiary uppercase tracking-wide cursor-pointer hover:text-theme-secondary select-none"
+                  :aria-label="'Sort by CPU ' + (sortField === 'cpu' ? (sortDir === 'asc' ? 'descending' : 'ascending') : 'descending')"
+                  :aria-sort="sortField === 'cpu' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
                 >
                   <span class="inline-flex items-center gap-1 justify-end">
                     CPU%
@@ -410,6 +423,8 @@ async function refresh() {
                 <th
                   @click="toggleSort('memory')"
                   class="px-4 py-3 text-right text-xs font-medium text-theme-tertiary uppercase tracking-wide cursor-pointer hover:text-theme-secondary select-none"
+                  :aria-label="'Sort by memory ' + (sortField === 'memory' ? (sortDir === 'asc' ? 'descending' : 'ascending') : 'descending')"
+                  :aria-sort="sortField === 'memory' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
                 >
                   <span class="inline-flex items-center gap-1 justify-end">
                     Memory%
@@ -460,6 +475,7 @@ async function refresh() {
                       @click.stop="processesStore.terminateProcess(proc.pid, proc.name)"
                       class="p-1 rounded text-theme-muted hover:text-warning hover:bg-warning-muted transition-colors"
                       title="Terminate (SIGTERM)"
+                      :aria-label="'Terminate ' + proc.name + ' (PID ' + proc.pid + ')'"
                     >
                       <Icon name="AlertTriangle" :size="14" />
                     </button>
@@ -467,6 +483,7 @@ async function refresh() {
                       @click.stop="processesStore.killProcess(proc.pid, proc.name)"
                       class="p-1 rounded text-theme-muted hover:text-error hover:bg-error-muted transition-colors"
                       title="Kill (SIGKILL)"
+                      :aria-label="'Kill ' + proc.name + ' (PID ' + proc.pid + ')'"
                     >
                       <Icon name="Skull" :size="14" />
                     </button>
@@ -551,6 +568,7 @@ async function refresh() {
           <button
             @click="processesStore.clearSelected()"
             class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+            aria-label="Close process detail"
           >
             <Icon name="X" :size="16" />
           </button>
@@ -599,6 +617,7 @@ async function refresh() {
             :disabled="processesStore.terminating"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning-muted text-warning text-sm font-medium
                    hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :aria-label="'Terminate ' + processesStore.selectedProcess.name"
           >
             <Icon v-if="processesStore.terminating" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else name="AlertTriangle" :size="14" />
@@ -609,6 +628,7 @@ async function refresh() {
             :disabled="processesStore.killing"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-error-muted text-error text-sm font-medium
                    hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :aria-label="'Kill ' + processesStore.selectedProcess.name"
           >
             <Icon v-if="processesStore.killing" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else name="Skull" :size="14" />

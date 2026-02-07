@@ -208,6 +208,7 @@ function closeSidebar() {
             <button 
               @click="closeSidebar"
               class="p-2 rounded-lg hover:bg-theme-tertiary text-theme-muted"
+              aria-label="Close documentation sidebar"
             >
               <Icon name="X" :size="20" />
             </button>
@@ -220,6 +221,7 @@ function closeSidebar() {
               v-model="searchQuery"
               type="text"
               placeholder="Search docs..."
+              aria-label="Search documentation"
               class="w-full pl-9 pr-3 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent"
               :disabled="!docsAvailable"
             />
@@ -234,13 +236,15 @@ function closeSidebar() {
               @click="navigateTo(result.path)"
               class="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-theme-tertiary transition-colors"
               :class="isActive(result.path) ? 'bg-accent-muted text-accent' : 'text-theme-secondary'"
+              :aria-label="'Go to ' + result.title"
+              :aria-current="isActive(result.path) ? 'page' : undefined"
             >
               {{ result.title }}
             </button>
           </div>
 
           <!-- Tree Navigation -->
-          <nav v-else-if="docsAvailable && docsTree.length > 0" class="space-y-1">
+          <nav v-else-if="docsAvailable && docsTree.length > 0" class="space-y-1" aria-label="Documentation navigation">
             <template v-for="item in docsTree" :key="item.path">
               <div v-if="item.is_dir" class="mb-3">
                 <p class="px-3 py-1 text-xs font-medium text-theme-muted uppercase tracking-wide">
@@ -253,6 +257,8 @@ function closeSidebar() {
                     @click="navigateTo(child.path)"
                     class="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-theme-tertiary transition-colors"
                     :class="isActive(child.path) ? 'bg-accent-muted text-accent font-medium' : 'text-theme-secondary'"
+                    :aria-label="child.title"
+                    :aria-current="isActive(child.path) ? 'page' : undefined"
                   >
                     {{ child.title }}
                   </button>
@@ -263,6 +269,8 @@ function closeSidebar() {
                 @click="navigateTo(item.path)"
                 class="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-theme-tertiary transition-colors"
                 :class="isActive(item.path) ? 'bg-accent-muted text-accent font-medium' : 'text-theme-secondary'"
+                :aria-label="item.title"
+                :aria-current="isActive(item.path) ? 'page' : undefined"
               >
                 {{ item.title }}
               </button>
@@ -284,6 +292,7 @@ function closeSidebar() {
           <button 
             @click="toggleSidebar"
             class="p-2 -ml-2 rounded-lg hover:bg-theme-tertiary text-theme-secondary"
+            aria-label="Open documentation sidebar"
           >
             <Icon name="Menu" :size="20" />
           </button>

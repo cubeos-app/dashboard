@@ -329,6 +329,7 @@ async function refresh() {
           :disabled="refreshing"
           class="p-2 rounded-lg bg-theme-secondary text-theme-secondary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
           title="Refresh all data"
+          aria-label="Refresh monitoring data"
         >
           <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': refreshing }" />
         </button>
@@ -336,11 +337,14 @@ async function refresh() {
     </div>
 
     <!-- ==================== Tab Bar ==================== -->
-    <div class="flex gap-1 p-1 bg-theme-tertiary rounded-lg overflow-x-auto">
+    <div class="flex gap-1 p-1 bg-theme-tertiary rounded-lg overflow-x-auto" role="tablist" aria-label="Monitoring sections">
       <button
         v-for="tab in tabs"
         :key="tab.id"
         @click="activeTab = tab.id"
+        role="tab"
+        :aria-selected="activeTab === tab.id"
+        :aria-label="tab.label"
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap"
         :class="activeTab === tab.id
           ? 'bg-theme-card text-theme-primary shadow-sm'
@@ -374,6 +378,7 @@ async function refresh() {
       <button
         @click="refresh"
         class="inline-flex items-center px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 transition-opacity"
+        aria-label="Retry loading monitoring data"
       >
         <Icon name="RefreshCw" :size="14" class="mr-1.5" />
         Retry
@@ -465,11 +470,14 @@ async function refresh() {
         <!-- Period Selector -->
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-medium text-theme-secondary">History</h2>
-          <div class="flex gap-1 p-0.5 bg-theme-tertiary rounded-lg">
+          <div class="flex gap-1 p-0.5 bg-theme-tertiary rounded-lg" role="radiogroup" aria-label="History time period">
             <button
               v-for="p in periods"
               :key="p.id"
               @click="selectPeriod(p.id)"
+              role="radio"
+              :aria-checked="monitoringStore.historyPeriod === p.id"
+              :aria-label="'Show ' + p.label + ' history'"
               class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
               :class="monitoringStore.historyPeriod === p.id
                 ? 'bg-theme-card text-theme-primary shadow-sm'
@@ -510,6 +518,8 @@ async function refresh() {
                 preserveAspectRatio="none"
                 @mousemove="onChartMouseMove($event, 'cpu')"
                 @mouseleave="onChartMouseLeave"
+                role="img"
+                aria-label="CPU usage history chart"
               >
                 <line
                   v-for="y in [0, 25, 50, 75, 100]"
@@ -548,6 +558,8 @@ async function refresh() {
                 preserveAspectRatio="none"
                 @mousemove="onChartMouseMove($event, 'memory')"
                 @mouseleave="onChartMouseLeave"
+                role="img"
+                aria-label="Memory usage history chart"
               >
                 <line
                   v-for="y in [0, 25, 50, 75, 100]"
@@ -586,6 +598,8 @@ async function refresh() {
                 preserveAspectRatio="none"
                 @mousemove="onChartMouseMove($event, 'disk')"
                 @mouseleave="onChartMouseLeave"
+                role="img"
+                aria-label="Disk usage history chart"
               >
                 <line
                   v-for="y in [0, 25, 50, 75, 100]"
@@ -708,11 +722,12 @@ async function refresh() {
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
               <div>
-                <label class="flex items-center gap-1 text-sm font-medium text-theme-secondary mb-1">
+                <label for="threshold-cpu" class="flex items-center gap-1 text-sm font-medium text-theme-secondary mb-1">
                   <Icon name="Cpu" :size="14" class="text-accent" />
                   CPU Alert (%)
                 </label>
                 <input
+                  id="threshold-cpu"
                   v-model.number="thresholdForm.cpu_percent"
                   type="number" min="0" max="100"
                   class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary
@@ -720,11 +735,12 @@ async function refresh() {
                 />
               </div>
               <div>
-                <label class="flex items-center gap-1 text-sm font-medium text-theme-secondary mb-1">
+                <label for="threshold-memory" class="flex items-center gap-1 text-sm font-medium text-theme-secondary mb-1">
                   <Icon name="Server" :size="14" class="text-accent" />
                   Memory Alert (%)
                 </label>
                 <input
+                  id="threshold-memory"
                   v-model.number="thresholdForm.memory_percent"
                   type="number" min="0" max="100"
                   class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary
@@ -732,11 +748,12 @@ async function refresh() {
                 />
               </div>
               <div>
-                <label class="flex items-center gap-1 text-sm font-medium text-theme-secondary mb-1">
+                <label for="threshold-disk" class="flex items-center gap-1 text-sm font-medium text-theme-secondary mb-1">
                   <Icon name="HardDrive" :size="14" class="text-accent" />
                   Disk Alert (%)
                 </label>
                 <input
+                  id="threshold-disk"
                   v-model.number="thresholdForm.disk_percent"
                   type="number" min="0" max="100"
                   class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary
@@ -744,11 +761,12 @@ async function refresh() {
                 />
               </div>
               <div>
-                <label class="flex items-center gap-1 text-sm font-medium text-theme-secondary mb-1">
+                <label for="threshold-temp" class="flex items-center gap-1 text-sm font-medium text-theme-secondary mb-1">
                   <Icon name="Thermometer" :size="14" class="text-accent" />
                   Temperature Alert (°C)
                 </label>
                 <input
+                  id="threshold-temp"
                   v-model.number="thresholdForm.temperature_c"
                   type="number" min="0" max="100"
                   class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary
@@ -764,6 +782,7 @@ async function refresh() {
                 :disabled="monitoringStore.savingThresholds"
                 class="inline-flex items-center px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium
                        hover:opacity-90 disabled:opacity-50 transition-opacity"
+                aria-label="Save alert thresholds"
               >
                 <Icon
                   v-if="monitoringStore.savingThresholds"
@@ -788,6 +807,8 @@ async function refresh() {
             <button
               @click="wsDebugOpen = !wsDebugOpen"
               class="w-full flex items-center justify-between p-4 text-left hover:bg-theme-secondary transition-colors"
+              :aria-expanded="wsDebugOpen"
+              aria-label="WebSocket debug information"
             >
               <div class="flex items-center gap-2">
                 <Icon name="Wifi" :size="16" class="text-theme-tertiary" />

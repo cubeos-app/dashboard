@@ -297,12 +297,14 @@ onUnmounted(() => {
                 @click="clearChat" 
                 class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-primary transition-colors" 
                 title="Clear chat"
+                aria-label="Clear chat history"
               >
                 <Icon name="Trash2" :size="16" />
               </button>
               <button 
                 @click="handleClose" 
                 class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-primary transition-colors"
+                aria-label="Close chat"
               >
                 <Icon name="X" :size="18" />
               </button>
@@ -319,6 +321,7 @@ onUnmounted(() => {
               <button 
                 @click="pullModel" 
                 class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors"
+                aria-label="Download AI model"
               >
                 Download Model (~400MB)
               </button>
@@ -432,12 +435,14 @@ onUnmounted(() => {
                 :disabled="!isAvailable || !modelReady || isLoading" 
                 type="text" 
                 placeholder="Ask anything about CubeOS..." 
+                aria-label="Chat message"
                 class="flex-1 px-3 py-2 rounded-xl border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed" 
               />
               <button 
                 @click="sendMessage()" 
                 :disabled="!inputMessage.trim() || !isAvailable || !modelReady || isLoading" 
                 class="px-3 py-2 rounded-xl bg-accent text-white hover:bg-accent-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :aria-label="isLoading ? 'Sending message' : 'Send message'"
               >
                 <Icon :name="isLoading ? 'Loader2' : 'Send'" :size="18" :class="isLoading ? 'animate-spin' : ''" />
               </button>

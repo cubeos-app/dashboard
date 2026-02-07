@@ -360,6 +360,9 @@ function handleFileSubmit() {
         <label class="flex items-center gap-2 text-sm text-theme-tertiary cursor-pointer">
           <div
             @click="autoRefresh = !autoRefresh"
+            role="switch"
+            :aria-checked="autoRefresh"
+            aria-label="Auto-refresh logs"
             :class="[
               'relative w-9 h-5 rounded-full transition-colors cursor-pointer',
               autoRefresh ? 'bg-accent' : 'bg-theme-tertiary'
@@ -381,6 +384,7 @@ function handleFileSubmit() {
           :disabled="localLoading"
           class="p-2 rounded-lg bg-theme-tertiary hover:bg-theme-secondary/20 transition-colors disabled:opacity-50"
           title="Refresh"
+          aria-label="Refresh logs"
         >
           <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': localLoading }" class="text-theme-secondary" />
         </button>
@@ -390,6 +394,7 @@ function handleFileSubmit() {
           @click="downloadLogs"
           :disabled="localLogs.length === 0"
           class="px-4 py-2 text-sm font-medium rounded-lg btn-accent hover:bg-[color:var(--accent-hover)] transition-colors disabled:opacity-50"
+          aria-label="Download logs"
         >
           <Icon name="Download" :size="14" class="inline-block mr-1.5" />
           Download
@@ -405,11 +410,14 @@ function handleFileSubmit() {
 
     <!-- Tabs (horizontal scrollable on mobile) -->
     <div class="border-b border-theme-primary overflow-x-auto">
-      <nav class="flex gap-1 min-w-max">
+      <nav class="flex gap-1 min-w-max" role="tablist" aria-label="Log sources">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           @click="activeTab = tab.id"
+          role="tab"
+          :aria-selected="activeTab === tab.id"
+          :aria-label="tab.label + ' logs'"
           class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap"
           :class="activeTab === tab.id
             ? 'border-[color:var(--accent-primary)] text-accent'
@@ -425,8 +433,8 @@ function handleFileSubmit() {
     <div class="flex flex-wrap gap-3">
       <!-- Unit selector (system tab) -->
       <div v-if="isSystemTab" class="flex-1 min-w-[180px]">
-        <label class="block text-xs font-medium text-theme-secondary mb-1">Service Unit</label>
-        <select v-model="selectedUnit" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
+        <label for="log-service-unit" class="block text-xs font-medium text-theme-secondary mb-1">Service Unit</label>
+        <select id="log-service-unit" v-model="selectedUnit" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
           <option value="">All Services</option>
           <option v-for="unit in units" :key="unit" :value="unit">{{ unit }}</option>
         </select>
@@ -434,8 +442,8 @@ function handleFileSubmit() {
 
       <!-- Container selector (container tab) -->
       <div v-if="isContainerTab" class="flex-1 min-w-[180px]">
-        <label class="block text-xs font-medium text-theme-secondary mb-1">Container</label>
-        <select v-model="selectedContainer" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
+        <label for="log-container" class="block text-xs font-medium text-theme-secondary mb-1">Container</label>
+        <select id="log-container" v-model="selectedContainer" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
           <option value="">Select a container...</option>
           <option v-for="c in containers" :key="c" :value="c">{{ c }}</option>
         </select>
@@ -443,10 +451,11 @@ function handleFileSubmit() {
 
       <!-- File path input (file tab) -->
       <div v-if="isFileTab" class="flex-1 min-w-[220px]">
-        <label class="block text-xs font-medium text-theme-secondary mb-1">Log File Path</label>
+        <label for="log-file-path" class="block text-xs font-medium text-theme-secondary mb-1">Log File Path</label>
         <div class="flex gap-2">
           <div class="relative flex-1">
             <input
+              id="log-file-path"
               v-model="filePath"
               type="text"
               placeholder="/var/log/syslog"
@@ -458,6 +467,7 @@ function handleFileSubmit() {
             @click="handleFileSubmit"
             :disabled="!filePath || localLoading"
             class="px-3 py-2 text-sm font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50 shrink-0"
+            aria-label="Load log file"
           >
             Load
           </button>
@@ -468,6 +478,7 @@ function handleFileSubmit() {
             v-for="f in commonLogFiles"
             :key="f"
             @click="filePath = f; fetchLogs()"
+            :aria-label="'Load ' + f"
             :class="[
               'px-2 py-0.5 text-xs rounded-full transition-colors',
               filePath === f
@@ -482,24 +493,24 @@ function handleFileSubmit() {
 
       <!-- HAL category selector (hal-hardware tab) -->
       <div v-if="isHALHardwareTab" class="min-w-[150px]">
-        <label class="block text-xs font-medium text-theme-secondary mb-1">Category</label>
-        <select v-model="halCategory" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
+        <label for="log-hal-category" class="block text-xs font-medium text-theme-secondary mb-1">Category</label>
+        <select id="log-hal-category" v-model="halCategory" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
           <option v-for="cat in halCategories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
         </select>
       </div>
 
       <!-- Log level (applicable tabs) -->
       <div v-if="supportsLevelFilter" class="min-w-[130px]">
-        <label class="block text-xs font-medium text-theme-secondary mb-1">Level</label>
-        <select v-model="logLevel" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
+        <label for="log-level" class="block text-xs font-medium text-theme-secondary mb-1">Level</label>
+        <select id="log-level" v-model="logLevel" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
           <option v-for="level in logLevels" :key="level.value" :value="level.value">{{ level.label }}</option>
         </select>
       </div>
 
       <!-- Line count -->
       <div class="min-w-[100px]">
-        <label class="block text-xs font-medium text-theme-secondary mb-1">Lines</label>
-        <select v-model="lineCount" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
+        <label for="log-line-count" class="block text-xs font-medium text-theme-secondary mb-1">Lines</label>
+        <select id="log-line-count" v-model="lineCount" class="w-full px-3 py-2 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary">
           <option :value="50">50</option>
           <option :value="100">100</option>
           <option :value="200">200</option>
@@ -510,13 +521,15 @@ function handleFileSubmit() {
 
       <!-- Search -->
       <div class="flex-1 min-w-[180px]">
-        <label class="block text-xs font-medium text-theme-secondary mb-1">Search</label>
+        <label for="log-search" class="block text-xs font-medium text-theme-secondary mb-1">Search</label>
         <div class="relative">
           <input
+            id="log-search"
             v-model="searchQuery"
             @keyup.enter="fetchLogs"
             type="text"
             placeholder="Search logs..."
+            aria-label="Search logs"
             class="w-full px-3 py-2 pl-9 text-sm rounded-lg border border-theme-secondary bg-theme-input text-theme-primary"
           />
           <Icon name="Search" :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted" />
