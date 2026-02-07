@@ -555,7 +555,7 @@ function formatDuration(seconds) {
           <span 
             v-if="tab.badge" 
             class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full"
-            :class="activeTab === tab.id ? 'bg-accent text-white' : 'bg-theme-tertiary text-theme-secondary'"
+            :class="activeTab === tab.id ? 'bg-accent text-on-accent' : 'bg-theme-tertiary text-theme-secondary'"
           >
             {{ tab.badge }}
           </span>
@@ -1223,7 +1223,7 @@ function formatDuration(seconds) {
 
     <!-- WiFi AP Config Modal -->
     <Teleport to="body">
-      <div v-if="showAPConfigModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="showAPConfigModal = false" role="dialog" aria-modal="true" aria-label="WiFi Access Point Settings" @keydown.escape="showAPConfigModal = false">
+      <div v-if="showAPConfigModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay" @click.self="showAPConfigModal = false" role="dialog" aria-modal="true" aria-label="WiFi Access Point Settings" @keydown.escape="showAPConfigModal = false">
         <div class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md">
           <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
             <h3 class="text-lg font-semibold text-theme-primary">WiFi Access Point Settings</h3>

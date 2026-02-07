@@ -515,7 +515,7 @@ const uptimeDisplay = computed(() => {
               <button
                 type="submit"
                 :disabled="authStore.loading"
-                class="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-secondary disabled:opacity-50 transition-colors"
+                class="px-4 py-2 bg-accent text-on-accent rounded-lg hover:bg-accent-secondary disabled:opacity-50 transition-colors"
               >
                 {{ authStore.loading ? 'Saving...' : 'Save Password' }}
               </button>
@@ -591,7 +591,7 @@ const uptimeDisplay = computed(() => {
           <button
             @click="handleReboot"
             aria-label="Reboot system"
-            class="px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 transition-colors flex items-center gap-2"
+            class="px-4 py-2 bg-warning text-on-accent rounded-lg hover:bg-warning/90 transition-colors flex items-center gap-2"
           >
             <Icon name="RotateCw" :size="16" />
             Reboot
@@ -599,7 +599,7 @@ const uptimeDisplay = computed(() => {
           <button
             @click="handleShutdown"
             aria-label="Shut down system"
-            class="px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 transition-colors flex items-center gap-2"
+            class="px-4 py-2 bg-error text-on-accent rounded-lg hover:bg-error/90 transition-colors flex items-center gap-2"
           >
             <Icon name="Power" :size="16" />
             Shutdown
@@ -620,7 +620,7 @@ const uptimeDisplay = computed(() => {
             aria-label="Quick backup"
             class="px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 transition-colors"
             :class="quickBackupSuccess
-              ? 'bg-success text-white'
+              ? 'bg-success text-on-accent'
               : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-elevated'"
           >
             <Icon v-if="quickBackupLoading" name="Loader2" :size="14" class="animate-spin" />
@@ -632,7 +632,7 @@ const uptimeDisplay = computed(() => {
           <button
             @click="showCreateBackup = true"
             aria-label="Create backup"
-            class="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-secondary transition-colors flex items-center gap-1.5"
+            class="px-3 py-1.5 bg-accent text-on-accent text-sm rounded-lg hover:bg-accent-secondary transition-colors flex items-center gap-1.5"
           >
             <Icon name="Plus" :size="14" />
             Create Backup
@@ -796,7 +796,7 @@ const uptimeDisplay = computed(() => {
 
     <!-- Create Backup Modal -->
     <Teleport to="body">
-      <div v-if="showCreateBackup" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="showCreateBackup = false">
+      <div v-if="showCreateBackup" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay" @click.self="showCreateBackup = false">
         <div role="dialog" aria-modal="true" aria-labelledby="create-backup-title" class="bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary">
           <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary">
             <h3 id="create-backup-title" class="text-lg font-semibold text-theme-primary">Create Backup</h3>
@@ -841,7 +841,7 @@ const uptimeDisplay = computed(() => {
             <button 
               @click="createBackup"
               :disabled="backupCreating"
-              class="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-secondary disabled:opacity-50 flex items-center gap-2 transition-colors"
+              class="px-4 py-2 bg-accent text-on-accent rounded-lg hover:bg-accent-secondary disabled:opacity-50 flex items-center gap-2 transition-colors"
             >
               <Icon v-if="backupCreating" name="Loader2" :size="16" class="animate-spin" />
               {{ backupCreating ? 'Creating...' : 'Create Backup' }}

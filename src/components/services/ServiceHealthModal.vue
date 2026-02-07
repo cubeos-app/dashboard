@@ -148,7 +148,7 @@ onUnmounted(() => {
         @click.self="close"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm"></div>
         
         <!-- Modal -->
         <div class="relative w-full max-w-lg bg-theme-card rounded-2xl border border-theme-primary shadow-theme-lg overflow-hidden">

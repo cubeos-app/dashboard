@@ -229,7 +229,7 @@ function formatBytes(bytes) {
         <button
           v-if="hasWebUI && isRunning"
           @click="openWebUI"
-          class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors flex items-center gap-2"
+          class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm font-medium hover:bg-accent-secondary transition-colors flex items-center gap-2"
         >
           <Icon name="ExternalLink" :size="16" />
           Open
@@ -561,7 +561,7 @@ function formatBytes(bytes) {
       <p class="text-theme-muted mb-4">The app "{{ appName }}" could not be found.</p>
       <button
         @click="router.push('/services')"
-        class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-secondary transition-colors"
+        class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm font-medium hover:bg-accent-secondary transition-colors"
       >
         Back to Services
       </button>

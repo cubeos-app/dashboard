@@ -157,7 +157,7 @@ onUnmounted(() => {
         @click.self="close"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm"></div>
         
         <!-- Modal -->
         <div class="relative w-full max-w-md bg-theme-card rounded-2xl border border-theme-primary shadow-theme-lg overflow-hidden">
@@ -415,8 +415,8 @@ onUnmounted(() => {
               :class="[
                 'px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors',
                 connecting || (selectedNetwork.security && selectedNetwork.security !== 'open' && !password)
-                  ? 'bg-accent/50 text-white cursor-not-allowed'
-                  : 'bg-accent text-white hover:bg-accent-hover'
+                  ? 'bg-accent/50 text-on-accent cursor-not-allowed'
+                  : 'bg-accent text-on-accent hover:bg-accent-hover'
               ]"
             >
               <Icon v-if="connecting" name="Loader2" :size="16" class="animate-spin" />
