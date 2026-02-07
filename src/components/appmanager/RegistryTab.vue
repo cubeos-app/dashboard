@@ -44,6 +44,8 @@ const actionError = ref(null)
 // Computed
 // ==========================================
 
+const registryHost = computed(() => registryStore.status?.url || 'localhost:5000')
+
 const images = computed(() => {
   const raw = registryStore.images || []
   return raw.map(img => typeof img === 'string' ? { name: img, tags: [] } : img)
@@ -184,7 +186,7 @@ async function deleteImageTag(imageName, tag) {
 }
 
 function copyTagRef(imageName, tag) {
-  const ref = `localhost:5000/${imageName}:${tag}`
+  const ref = `${registryHost.value}/${imageName}:${tag}`
   navigator.clipboard?.writeText(ref)
 }
 
@@ -232,7 +234,7 @@ function getImageTags(image) {
           <p class="text-theme-primary font-medium">Offline Docker Registry</p>
           <p class="mt-1 text-theme-secondary">
             Cache Docker images locally for offline deployment. Images are stored at
-            <code class="bg-theme-tertiary px-1.5 py-0.5 rounded text-xs font-mono">localhost:5000</code>
+            <code class="bg-theme-tertiary px-1.5 py-0.5 rounded text-xs font-mono">{{ registryHost }}</code>
           </p>
         </div>
       </div>
@@ -535,7 +537,7 @@ function getImageTags(image) {
               <!-- Full reference -->
               <div class="mt-2 p-3 bg-theme-secondary/50 rounded-lg">
                 <p class="text-xs text-theme-muted mb-1">Pull Reference</p>
-                <code class="text-xs font-mono text-theme-primary">localhost:5000/{{ image.name }}:{{ getImageTags(image)[0] || 'latest' }}</code>
+                <code class="text-xs font-mono text-theme-primary">{{ registryHost }}/{{ image.name }}:{{ getImageTags(image)[0] || 'latest' }}</code>
               </div>
             </div>
           </div>

@@ -217,7 +217,8 @@ async function deleteBackup(backupId) {
 }
 
 function downloadBackup(backupId) {
-  window.open(`/api/v1/backups/${backupId}/download`, '_blank')
+  const token = api.accessToken ? `?token=${api.accessToken}` : ''
+  window.open(`/api/v1/backups/${backupId}/download${token}`, '_blank')
 }
 
 onMounted(async () => {

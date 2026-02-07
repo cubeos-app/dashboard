@@ -15,6 +15,7 @@ const brandingStore = useBrandingStore()
 const username = ref('')
 const password = ref('')
 const showPassword = ref(false)
+const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
 
 onMounted(() => {
   themeStore.initTheme()
@@ -134,7 +135,7 @@ async function handleSubmit() {
       <!-- Footer -->
       <div class="text-center mt-5 space-y-1.5">
         <p class="text-theme-muted text-[10px]">
-          {{ brandingStore.brandName }} v0.0.11
+          {{ brandingStore.brandName }} {{ appVersion }}
         </p>
         <div class="flex items-center justify-center gap-3 text-[10px]">
           <a 
@@ -149,7 +150,7 @@ async function handleSubmit() {
           </a>
           <span class="text-theme-muted">|</span>
           <a 
-            href="http://cubeos.cube:6010/api/v1/docs/" 
+            href="/api/v1/docs/" 
             target="_blank"
             class="text-theme-tertiary hover:text-theme-secondary transition-colors flex items-center gap-1"
           >

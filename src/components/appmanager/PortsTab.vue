@@ -57,7 +57,7 @@ async function releasePort(port, protocol) {
         <div class="ml-3 text-sm">
           <p class="text-theme-primary font-medium">Port Allocation Ranges</p>
           <p class="mt-1 text-theme-secondary">
-            <strong>System apps:</strong> 6000-6999 | <strong>User apps:</strong> 7000-7999 | <strong>Reserved:</strong> 22, 53, 80, 81, 443, 5001, 8000, 8080, 9009, 11434
+            <strong>System apps:</strong> 6000-6099 | <strong>User apps:</strong> 6100-6999 | <strong>Reserved:</strong> 22, 53, 80, 443, 5000
           </p>
         </div>
       </div>

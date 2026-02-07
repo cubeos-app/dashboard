@@ -11,12 +11,14 @@
  */
 import { computed } from 'vue'
 import { useSystemStore } from '@/stores/system'
+import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useBrandingStore } from '@/stores/branding'
 import Icon from '@/components/ui/Icon.vue'
 
 const emit = defineEmits(['toggle-sidebar'])
 const systemStore = useSystemStore()
+const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const brandingStore = useBrandingStore()
 
@@ -182,9 +184,9 @@ const wsConnected = computed(() => systemStore.wsConnected)
         >
           <div class="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-theme-tertiary transition-colors">
             <div class="w-7 h-7 rounded-full bg-accent-muted flex items-center justify-center">
-              <span class="text-xs font-semibold text-accent">A</span>
+              <span class="text-xs font-semibold text-accent">{{ (authStore.username || 'A').charAt(0).toUpperCase() }}</span>
             </div>
-            <span class="hidden sm:block text-sm font-medium text-theme-primary">admin</span>
+            <span class="hidden sm:block text-sm font-medium text-theme-primary">{{ authStore.username || 'admin' }}</span>
           </div>
         </router-link>
       </div>

@@ -48,9 +48,9 @@ const passwordLoading = ref(false)
 const passwordError = ref('')
 const passwordSuccess = ref('')
 
-// Version info - hardcoded since /system/version doesn't exist in API
+// Version info - sourced from env var, API version from build config
 const versionInfo = ref({
-  version: '0.0.11',
+  version: import.meta.env.VITE_APP_VERSION || 'dev',
   api_version: 'v1'
 })
 
@@ -738,7 +738,7 @@ watch(() => systemStore.timezone, (val) => {
                 GitHub
               </a>
               <a
-                href="http://cubeos.cube:6010/api/v1/docs/"
+                :href="`${window.location.origin}/api/v1/docs/`"
                 target="_blank"
                 rel="noopener"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-theme-primary text-xs text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
