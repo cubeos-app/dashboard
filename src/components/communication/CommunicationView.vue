@@ -67,11 +67,13 @@ async function refresh() {
       await communicationStore.fetchGPSDevices({ signal: s })
     } else if (activeTab.value === 'meshtastic') {
       await Promise.all([
+        communicationStore.fetchMeshtasticDevices({ signal: s }),
         communicationStore.fetchMeshtasticStatus({ signal: s }),
         communicationStore.fetchMeshtasticNodes({ signal: s })
       ])
     } else if (activeTab.value === 'iridium') {
       await Promise.all([
+        communicationStore.fetchIridiumDevices({ signal: s }),
         communicationStore.fetchIridiumStatus({ signal: s }),
         communicationStore.fetchIridiumSignal({ signal: s }),
         communicationStore.fetchIridiumMessages({ signal: s })
