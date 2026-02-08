@@ -183,7 +183,8 @@ async function loadOverviewData() {
     hardwareStore.fetchUptime({ signal: s }),
     hardwareStore.fetchBootConfig({ signal: s }),
     hardwareStore.fetchUPS({ signal: s }),
-    hardwareStore.fetchPowerStatus({ signal: s })
+    hardwareStore.fetchPowerStatus({ signal: s }),
+    hardwareStore.fetchPowerMonitorStatus({ signal: s })
   ])
 }
 
@@ -246,6 +247,33 @@ async function handleBatteryQuickStart() {
     variant: 'warning'
   })) return
   hardwareStore.batteryQuickStart()
+}
+
+const powerMonitorToggling = ref(false)
+
+async function handleTogglePowerMonitor() {
+  const isRunning = hardwareStore.powerMonitor?.running
+  const action = isRunning ? 'Stop' : 'Start'
+
+  if (isRunning && !await confirm({
+    title: 'Stop Power Monitor',
+    message: 'Stop the power monitoring daemon? UPS status will no longer be tracked.',
+    confirmText: 'Stop',
+    variant: 'warning'
+  })) return
+
+  powerMonitorToggling.value = true
+  try {
+    if (isRunning) {
+      await hardwareStore.stopPowerMonitor()
+    } else {
+      await hardwareStore.startPowerMonitor()
+    }
+  } catch {
+    // Store sets error
+  } finally {
+    powerMonitorToggling.value = false
+  }
 }
 
 // Track which tabs have been auto-loaded
@@ -571,6 +599,78 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- Power Monitor Card -->
+          <div class="bg-theme-card border border-theme-primary rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <Icon name="Activity" :size="18" class="text-accent" />
+                <h2 class="text-lg font-semibold text-theme-primary">Power Monitor</h2>
+              </div>
+              <span
+                v-if="hardwareStore.powerMonitor"
+                :class="[
+                  'text-xs font-medium px-2 py-0.5 rounded-full',
+                  hardwareStore.powerMonitor.running ? 'bg-success-muted text-success' : 'bg-neutral-muted text-theme-tertiary'
+                ]"
+              >
+                {{ hardwareStore.powerMonitor.running ? 'Running' : 'Stopped' }}
+              </span>
+            </div>
+
+            <div v-if="hardwareStore.powerMonitor" class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-3">
+                  <div class="flex justify-between">
+                    <span class="text-sm text-theme-secondary">Status</span>
+                    <span class="text-sm font-medium" :class="hardwareStore.powerMonitor.running ? 'text-success' : 'text-theme-muted'">
+                      {{ hardwareStore.powerMonitor.running ? 'Active' : 'Inactive' }}
+                    </span>
+                  </div>
+                  <div v-if="hardwareStore.powerMonitor.ups_model" class="flex justify-between">
+                    <span class="text-sm text-theme-secondary">UPS Model</span>
+                    <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.powerMonitor.ups_model }}</span>
+                  </div>
+                </div>
+                <div class="space-y-3">
+                  <div v-if="hardwareStore.powerMonitor.battery_percent !== undefined" class="flex justify-between">
+                    <span class="text-sm text-theme-secondary">Battery</span>
+                    <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.powerMonitor.battery_percent }}%</span>
+                  </div>
+                  <div v-if="hardwareStore.powerMonitor.ac_power !== undefined" class="flex justify-between">
+                    <span class="text-sm text-theme-secondary">AC Power</span>
+                    <span :class="['text-sm font-medium', hardwareStore.powerMonitor.ac_power ? 'text-success' : 'text-warning']">
+                      {{ hardwareStore.powerMonitor.ac_power ? 'Connected' : 'Disconnected' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Start/Stop toggle -->
+              <div class="flex items-center justify-between pt-3 border-t border-theme-primary">
+                <span class="text-sm text-theme-secondary">Power Monitoring</span>
+                <button
+                  @click="handleTogglePowerMonitor"
+                  :disabled="powerMonitorToggling"
+                  role="switch"
+                  :aria-checked="hardwareStore.powerMonitor?.running"
+                  aria-label="Toggle power monitor"
+                  :class="[
+                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50',
+                    hardwareStore.powerMonitor?.running ? 'bg-success' : 'bg-theme-tertiary'
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'inline-block h-4 w-4 rounded-full bg-theme-primary transition-transform',
+                      hardwareStore.powerMonitor?.running ? 'translate-x-6' : 'translate-x-1'
+                    ]"
+                  />
+                </button>
+              </div>
+            </div>
+            <p v-else class="text-sm text-theme-muted">Power monitor data not available</p>
           </div>
 
           <!-- Throttle Status -->

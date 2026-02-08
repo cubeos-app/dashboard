@@ -2,13 +2,17 @@
 /**
  * CommunicationView.vue
  *
- * Sprint 8 Group 2: Main communication management page.
+ * Main communication management page.
  * Tabbed layout with Bluetooth, Cellular, GPS, Meshtastic, Iridium.
  *
- * Bluetooth + Cellular tabs built here (G2).
- * GPS / Meshtastic / Iridium lazy-loaded from G3.
+ * Bluetooth + Cellular tabs built inline.
+ * GPS / Meshtastic / Iridium lazy-loaded as async components.
  *
- * Uses communicationStore (G1) for all communication data.
+ * Meshtastic and Iridium tabs use lifecycle pattern:
+ *   discover → connect → operate → disconnect
+ * with SSE event streams for real-time updates.
+ *
+ * Uses communicationStore for all communication data.
  * Mirrors HardwareView tab architecture.
  */
 import { ref, defineAsyncComponent } from 'vue'

@@ -37,6 +37,9 @@
  *   GET    /hardware/watchdog              - Watchdog status
  *   POST   /hardware/watchdog/enable       - Enable/configure watchdog
  *   POST   /hardware/watchdog/pet          - Pet the watchdog (debug)
+ *   GET    /hardware/power/monitor         - Power monitor status (running, ups_model)
+ *   POST   /hardware/power/monitor/start   - Start power monitoring (NUT/UPS)
+ *   POST   /hardware/power/monitor/stop    - Stop power monitoring
  *   GET    /hardware/services/{name}       - HAL service status
  *   POST   /hardware/services/{name}/start - Start HAL service
  *   POST   /hardware/services/{name}/stop  - Stop HAL service
@@ -66,6 +69,7 @@ export const useHardwareStore = defineStore('hardware', () => {
   const oneWireDevices = ref(null)
   const rtc = ref(null)
   const watchdog = ref(null)
+  const powerMonitor = ref(null)
   const halServices = ref({})
   const loading = ref(false)
   const error = ref(null)
@@ -570,6 +574,58 @@ export const useHardwareStore = defineStore('hardware', () => {
   }
 
   // ==========================================
+  // Power Monitor
+  // ==========================================
+
+  /**
+   * Fetch power monitor status
+   * GET /hardware/power/monitor
+   * Returns: { running, ups_model, battery_percent?, charging?, ac_power? }
+   */
+  async function fetchPowerMonitorStatus(options = {}) {
+    try {
+      const data = await api.get('/hardware/power/monitor', {}, options)
+      if (data === null) return
+      powerMonitor.value = data
+    } catch (e) {
+      if (e.name === 'AbortError') return
+      powerMonitor.value = null
+    }
+  }
+
+  /**
+   * Start power monitoring (NUT / UPS daemon)
+   * POST /hardware/power/monitor/start
+   */
+  async function startPowerMonitor() {
+    error.value = null
+    try {
+      const data = await api.post('/hardware/power/monitor/start')
+      await fetchPowerMonitorStatus()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Stop power monitoring
+   * POST /hardware/power/monitor/stop
+   */
+  async function stopPowerMonitor() {
+    error.value = null
+    try {
+      const data = await api.post('/hardware/power/monitor/stop')
+      await fetchPowerMonitorStatus()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  // ==========================================
   // HAL Services
   // ==========================================
 
@@ -663,6 +719,7 @@ export const useHardwareStore = defineStore('hardware', () => {
     oneWireDevices,
     rtc,
     watchdog,
+    powerMonitor,
     halServices,
     loading,
     error,
@@ -706,6 +763,11 @@ export const useHardwareStore = defineStore('hardware', () => {
     fetchWatchdog,
     enableWatchdog,
     petWatchdog,
+
+    // Power Monitor
+    fetchPowerMonitorStatus,
+    startPowerMonitor,
+    stopPowerMonitor,
 
     // HAL Services
     fetchHALService,

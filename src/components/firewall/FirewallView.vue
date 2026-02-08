@@ -80,7 +80,8 @@ async function fetchAll() {
     const opts = { signal: signal() }
     await Promise.all([
       firewallStore.fetchStatus(false, opts),
-      firewallStore.fetchRules(false, opts)
+      firewallStore.fetchRules(false, opts),
+      firewallStore.fetchHALFirewallStatus(opts)
     ])
   } catch (e) {
     localError.value = 'Failed to load firewall data'
@@ -298,6 +299,44 @@ function formatDirection(dir) {
       <div class="bg-theme-card rounded-xl p-4 border border-theme-primary">
         <p class="text-xs text-theme-muted uppercase tracking-wide mb-1">Rules</p>
         <p class="text-lg font-semibold text-theme-primary">{{ firewallStore.ruleCount }}</p>
+      </div>
+    </div>
+
+    <!-- HAL Firewall Status -->
+    <div v-if="firewallStore.halFirewallStatus" class="bg-theme-card rounded-xl border border-theme-primary p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <Icon name="Shield" :size="16" class="text-accent" />
+        <h2 class="text-sm font-semibold text-theme-primary">HAL Firewall</h2>
+        <span
+          :class="[
+            'ml-auto text-xs font-medium px-2 py-0.5 rounded-full',
+            firewallStore.halFirewallStatus.active ? 'bg-success-muted text-success' : 'bg-neutral-muted text-theme-tertiary'
+          ]"
+        >
+          {{ firewallStore.halFirewallStatus.active ? 'Active' : 'Inactive' }}
+        </span>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full" :class="firewallStore.halFirewallStatus.active ? 'bg-success' : 'bg-error'"></span>
+          <span class="text-xs text-theme-secondary">Status</span>
+          <span class="text-xs font-medium text-theme-primary ml-auto">{{ firewallStore.halFirewallStatus.active ? 'Active' : 'Inactive' }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Icon name="List" :size="12" class="text-theme-muted" />
+          <span class="text-xs text-theme-secondary">Rules</span>
+          <span class="text-xs font-medium text-theme-primary ml-auto">{{ firewallStore.halFirewallStatus.rules }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full" :class="firewallStore.halFirewallStatus.nat ? 'bg-success' : 'bg-neutral-muted'"></span>
+          <span class="text-xs text-theme-secondary">NAT</span>
+          <span class="text-xs font-medium text-theme-primary ml-auto">{{ firewallStore.halFirewallStatus.nat ? 'Enabled' : 'Disabled' }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full" :class="firewallStore.halFirewallStatus.forwarding ? 'bg-success' : 'bg-neutral-muted'"></span>
+          <span class="text-xs text-theme-secondary">Forwarding</span>
+          <span class="text-xs font-medium text-theme-primary ml-auto">{{ firewallStore.halFirewallStatus.forwarding ? 'Enabled' : 'Disabled' }}</span>
+        </div>
       </div>
     </div>
 

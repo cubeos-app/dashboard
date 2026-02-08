@@ -25,6 +25,7 @@
  * - POST   /firewall/forwarding/disable     - Disable IP forwarding ⚡
  * - GET    /firewall/ipforward              - Get IP forward setting ⚡
  * - PUT    /firewall/ipforward              - Set IP forward setting ⚡
+ * - GET    /firewall/hal/status             - HAL-level firewall status (active, rules, nat, forwarding)
  * 
  * ⚡ = Endpoints verified in Swagger but not yet tested against backend.
  *      TODO: NetworkView still calls some of these directly — migrate to use store.
@@ -47,6 +48,7 @@ export const useFirewallStore = defineStore('firewall', () => {
   const natStatus = ref(null)
   const forwardingStatus = ref(null)
   const ipForward = ref(null)
+  const halFirewallStatus = ref(null)
   
   // ==========================================
   // Computed
@@ -409,6 +411,29 @@ export const useFirewallStore = defineStore('firewall', () => {
   }
   
   // ==========================================
+  // HAL Firewall Status
+  // ==========================================
+
+  /**
+   * Fetch HAL-level firewall status
+   * GET /firewall/hal/status
+   * Returns: { active, rules, nat, forwarding }
+   */
+  async function fetchHALFirewallStatus(options = {}) {
+    try {
+      const response = await api.get('/firewall/hal/status', {}, options)
+      if (response === null) return null
+      halFirewallStatus.value = response
+      return response
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      halFirewallStatus.value = null
+      return null
+    }
+  }
+
+  // ==========================================
   // Port Delete ⚡
   // ==========================================
   
@@ -445,6 +470,7 @@ export const useFirewallStore = defineStore('firewall', () => {
     natStatus,
     forwardingStatus,
     ipForward,
+    halFirewallStatus,
     
     // Computed
     ruleCount,
@@ -484,6 +510,9 @@ export const useFirewallStore = defineStore('firewall', () => {
     
     // IP Forward ⚡
     fetchIpForward,
-    setIpForward
+    setIpForward,
+
+    // HAL Firewall
+    fetchHALFirewallStatus
   }
 })

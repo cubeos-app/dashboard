@@ -333,6 +333,20 @@ async function handleShutdown() {
   await systemStore.shutdown()
 }
 
+// Support Bundle
+const supportBundleLoading = ref(false)
+
+async function downloadSupportBundle() {
+  supportBundleLoading.value = true
+  try {
+    const token = api.accessToken ? `?token=${api.accessToken}` : ''
+    window.open(`/api/v1/support/bundle.zip${token}`, '_blank')
+  } finally {
+    // Brief delay so user sees loading state
+    setTimeout(() => { supportBundleLoading.value = false }, 1000)
+  }
+}
+
 // Uptime display
 const uptimeDisplay = computed(() => {
   return systemStore.info?.uptime_human || systemStore.uptime?.uptime_human || '—'
@@ -379,6 +393,24 @@ const uptimeDisplay = computed(() => {
             <dd class="font-medium text-theme-primary font-mono text-xs">{{ systemStore.piSerial }}</dd>
           </div>
         </dl>
+
+        <!-- Support Bundle -->
+        <div class="mt-5 pt-4 border-t border-theme-primary flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-theme-primary">Support Bundle</p>
+            <p class="text-xs text-theme-muted mt-0.5">Download diagnostic data for troubleshooting</p>
+          </div>
+          <button
+            @click="downloadSupportBundle"
+            :disabled="supportBundleLoading"
+            class="px-4 py-2 text-sm font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-50 flex items-center gap-2"
+            aria-label="Download support bundle"
+          >
+            <Icon v-if="supportBundleLoading" name="Loader2" :size="14" class="animate-spin" />
+            <Icon v-else name="Download" :size="14" />
+            Download Bundle
+          </button>
+        </div>
       </div>
     </div>
 
