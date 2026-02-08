@@ -27,7 +27,7 @@ const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
 // Navigation items
 const navItems = [
   { path: '/', name: 'Dashboard', icon: 'LayoutDashboard' },
-  { path: '/services', name: 'Services', icon: 'Grid3X3', badge: () => appsStore.runningCount },
+  { path: '/apps', name: 'Apps', icon: 'Grid3X3', badge: () => appsStore.runningCount },
   { path: '/appstore', name: 'App Store', icon: 'Store' },
   { path: '/appmanager', name: 'App Manager', icon: 'Boxes' },
   { path: '/network', name: 'Network', icon: 'Wifi' },

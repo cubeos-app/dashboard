@@ -40,7 +40,7 @@ const selectedApp = ref(null)
 // Quick actions for search (pages user can navigate to)
 const quickActions = [
   { name: 'Settings', icon: 'Settings', route: '/settings', keywords: ['settings', 'preferences', 'theme', 'appearance', 'account', 'password'] },
-  { name: 'Services', icon: 'Server', route: '/services', keywords: ['services', 'containers', 'docker', 'swarm'] },
+  { name: 'Apps', icon: 'Server', route: '/apps', keywords: ['apps', 'services', 'containers', 'docker', 'swarm'] },
   { name: 'App Store', icon: 'Store', route: '/appstore', keywords: ['store', 'apps', 'install', 'marketplace'] },
   { name: 'App Manager', icon: 'Package', route: '/appmanager', keywords: ['manager', 'installed', 'apps', 'manage'] },
   { name: 'Network', icon: 'Wifi', route: '/network', keywords: ['network', 'wifi', 'ap', 'firewall', 'internet', 'clients'] },

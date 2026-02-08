@@ -8,7 +8,7 @@
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppsStore } from '@/stores/apps'
-import { useServicesStore } from '@/stores/services'
+import api from '@/api/client'
 import { confirm } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import TorToggle from '@/components/swarm/TorToggle.vue'
@@ -18,7 +18,6 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 const route = useRoute()
 const router = useRouter()
 const appsStore = useAppsStore()
-const servicesStore = useServicesStore()
 const { signal } = useAbortOnUnmount()
 
 const app = ref(null)
@@ -38,7 +37,7 @@ async function handleUninstall() {
   actionLoading.value = true
   try {
     await appsStore.uninstallApp(appName.value)
-    router.push('/services')
+    router.push('/apps')
   } finally {
     actionLoading.value = false
   }
@@ -181,7 +180,7 @@ watch(activeTab, async (tab) => {
 async function fetchDockerDetail() {
   dockerLoading.value = true
   try {
-    const result = await servicesStore.fetchService(appName.value)
+    const result = await api.get(`/services/${encodeURIComponent(appName.value)}`)
     dockerDetail.value = result
   } catch (e) {
     dockerDetail.value = null
@@ -207,8 +206,8 @@ function formatBytes(bytes) {
     <!-- Back button & header -->
     <div class="flex items-center gap-4">
       <button 
-        @click="router.push('/services')"
-        aria-label="Back to services"
+        @click="router.push('/apps')"
+        aria-label="Back to apps"
         class="p-2 rounded-lg hover:bg-theme-tertiary transition-colors"
       >
         <Icon name="ChevronLeft" :size="20" class="text-theme-secondary" />
@@ -560,10 +559,10 @@ function formatBytes(bytes) {
       <h2 class="text-xl font-semibold text-theme-primary mb-2">App Not Found</h2>
       <p class="text-theme-muted mb-4">The app "{{ appName }}" could not be found.</p>
       <button
-        @click="router.push('/services')"
+        @click="router.push('/apps')"
         class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm font-medium hover:bg-accent-secondary transition-colors"
       >
-        Back to Services
+        Back to Apps
       </button>
     </div>
   </div>

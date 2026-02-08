@@ -19,6 +19,7 @@ const systemStore = useSystemStore()
 // Mobile sidebar state
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
+const credentialsBannerDismissed = ref(false)
 
 // HTTP fallback polling interval
 let fallbackInterval = null
@@ -121,6 +122,30 @@ onUnmounted(() => {
           class="flex-1 min-h-[calc(100vh-3.5rem)] p-4 lg:p-5 transition-all duration-300"
           :class="sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-60'"
         >
+          <!-- Default credentials warning -->
+          <div
+            v-if="systemStore.info?.default_credentials && !credentialsBannerDismissed"
+            class="mb-4 flex items-center gap-3 px-4 py-3 rounded-lg bg-yellow-50 border border-yellow-300 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-200"
+            role="alert"
+          >
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <p class="text-sm flex-1">
+              <strong>Security warning:</strong> You are using the default admin password. Please change it in
+              <button @click="$router.push('/settings')" class="underline font-medium hover:no-underline">Settings</button>.
+            </p>
+            <button 
+              @click="credentialsBannerDismissed = true"
+              class="p-1 rounded hover:bg-yellow-200 dark:hover:bg-yellow-800/40 transition-colors"
+              aria-label="Dismiss"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
           <ErrorBoundary>
             <router-view />
           </ErrorBoundary>

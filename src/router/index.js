@@ -22,24 +22,24 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/services',
-    name: 'services',
+    path: '/apps',
+    name: 'apps',
     component: () => import('@/components/apps/AppsView.vue'),
     meta: { requiresAuth: true }
   },
   {
-    path: '/apps',
-    redirect: '/services'
+    path: '/services',
+    redirect: '/apps'
   },
   {
-    path: '/services/:name',
-    name: 'service-detail',
+    path: '/apps/:name',
+    name: 'app-detail',
     component: () => import('@/components/services/ServiceDetailView.vue'),
     meta: { requiresAuth: true }
   },
   {
-    path: '/apps/:name',
-    redirect: to => `/services/${to.params.name}`
+    path: '/services/:name',
+    redirect: to => `/apps/${to.params.name}`
   },
   {
     path: '/network',
