@@ -23,10 +23,6 @@ const { signal } = useAbortOnUnmount()
 const loading = ref(true)
 const actionLoading = ref({})
 
-// Port — for now we support a single Meshtastic device
-// The store uses keyed objects, we extract the first port from status
-const devicePort = ref(null)
-
 // Message form
 const messageText = ref('')
 const messageSent = ref(false)
@@ -42,9 +38,7 @@ const showChannelForm = ref(false)
 // ==========================================
 
 const status = computed(() => {
-  const port = devicePort.value
-  if (!port) return null
-  const s = communicationStore.meshtasticStatuses[port]
+  const s = communicationStore.meshtasticStatus
   if (!s) return null
 
   const connected = s.connected ?? s.online ?? s.status === 'connected'
@@ -65,9 +59,7 @@ const isConnected = computed(() => status.value?.connected === true)
 // ==========================================
 
 const nodes = computed(() => {
-  const port = devicePort.value
-  if (!port) return []
-  const raw = communicationStore.meshtasticNodes[port]
+  const raw = communicationStore.meshtasticNodes
   if (!raw) return []
   const list = Array.isArray(raw) ? raw : (raw.nodes || raw.items || [])
   return list.map(n => ({
@@ -123,13 +115,12 @@ function formatBattery(value) {
 // ==========================================
 
 async function handleSendMessage() {
-  const port = devicePort.value
-  if (!port || !messageText.value.trim()) return
+  if (!messageText.value.trim()) return
 
   actionLoading.value = { ...actionLoading.value, send: true }
   messageSent.value = false
   try {
-    await communicationStore.sendMeshtasticMessage(port, { text: messageText.value.trim() })
+    await communicationStore.sendMeshtasticMessage({ text: messageText.value.trim() })
     messageText.value = ''
     messageSent.value = true
     if (messageSentTimeout) clearTimeout(messageSentTimeout)
@@ -142,8 +133,7 @@ async function handleSendMessage() {
 }
 
 async function handleSetChannel() {
-  const port = devicePort.value
-  if (!port || !channelName.value.trim()) return
+  if (!channelName.value.trim()) return
 
   const ok = await confirm({
     title: 'Set Channel',
@@ -155,11 +145,11 @@ async function handleSetChannel() {
 
   actionLoading.value = { ...actionLoading.value, channel: true }
   try {
-    const payload = { name: channelName.value.trim() }
+    const payload = { index: 0, name: channelName.value.trim(), role: 'PRIMARY' }
     if (channelPSK.value.trim()) {
       payload.psk = channelPSK.value.trim()
     }
-    await communicationStore.setMeshtasticChannel(port, payload)
+    await communicationStore.setMeshtasticChannel(payload)
     channelName.value = ''
     channelPSK.value = ''
     showChannelForm.value = false
@@ -171,12 +161,9 @@ async function handleSetChannel() {
 }
 
 async function handleRefreshNodes() {
-  const port = devicePort.value
-  if (!port) return
-
   actionLoading.value = { ...actionLoading.value, nodes: true }
   try {
-    await communicationStore.fetchMeshtasticNodes(port, { signal: signal() })
+    await communicationStore.fetchMeshtasticNodes({ signal: signal() })
   } catch {
     // Store sets error
   } finally {
@@ -191,15 +178,10 @@ async function handleRefreshNodes() {
 onMounted(async () => {
   loading.value = true
   try {
-    // Try to discover device port from stored status keys or fetch with a default
-    // The store uses keyed objects; for now we use 'default' as the port
-    // In practice, the API may return a device listing in the future
-    const port = 'default'
-    devicePort.value = port
     const s = signal()
     await Promise.all([
-      communicationStore.fetchMeshtasticStatus(port, { signal: s }),
-      communicationStore.fetchMeshtasticNodes(port, { signal: s })
+      communicationStore.fetchMeshtasticStatus({ signal: s }),
+      communicationStore.fetchMeshtasticNodes({ signal: s })
     ])
   } finally {
     loading.value = false

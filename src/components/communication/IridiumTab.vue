@@ -23,9 +23,6 @@ const { signal } = useAbortOnUnmount()
 const loading = ref(true)
 const actionLoading = ref({})
 
-// Port — single Iridium modem expected
-const devicePort = ref(null)
-
 // Send form
 const sbdMessage = ref('')
 const messageSent = ref(false)
@@ -38,9 +35,7 @@ const SBD_MAX_BYTES = 340
 // ==========================================
 
 const status = computed(() => {
-  const port = devicePort.value
-  if (!port) return null
-  const s = communicationStore.iridiumStatuses[port]
+  const s = communicationStore.iridiumStatus
   if (!s) return null
 
   const registered = s.registered ?? s.registration ?? s.network_status ?? null
@@ -76,9 +71,7 @@ const registrationBadge = computed(() => {
 // ==========================================
 
 const signalData = computed(() => {
-  const port = devicePort.value
-  if (!port) return null
-  return communicationStore.iridiumSignals[port] ?? null
+  return communicationStore.iridiumSignal ?? null
 })
 
 const signalBars = computed(() => {
@@ -107,9 +100,7 @@ function barColor(count) {
 // ==========================================
 
 const messages = computed(() => {
-  const port = devicePort.value
-  if (!port) return []
-  const raw = communicationStore.iridiumMessages[port]
+  const raw = communicationStore.iridiumMessages
   if (!raw) return []
   const list = Array.isArray(raw) ? raw : (raw.messages || raw.items || [])
   return list.map(m => ({
@@ -177,8 +168,7 @@ function truncatePreview(text, maxLen = 60) {
 // ==========================================
 
 async function handleSendSBD() {
-  const port = devicePort.value
-  if (!port || !sbdMessage.value.trim() || byteCount.value > SBD_MAX_BYTES) return
+  if (!sbdMessage.value.trim() || byteCount.value > SBD_MAX_BYTES) return
 
   const ok = await confirm({
     title: 'Send SBD Message',
@@ -191,7 +181,7 @@ async function handleSendSBD() {
   actionLoading.value = { ...actionLoading.value, send: true }
   messageSent.value = false
   try {
-    await communicationStore.sendIridiumSBD(port, { message: sbdMessage.value.trim() })
+    await communicationStore.sendIridiumSBD({ text: sbdMessage.value.trim(), format: 'text' })
     sbdMessage.value = ''
     messageSent.value = true
     if (messageSentTimeout) clearTimeout(messageSentTimeout)
@@ -204,12 +194,9 @@ async function handleSendSBD() {
 }
 
 async function handleCheckMailbox() {
-  const port = devicePort.value
-  if (!port) return
-
   actionLoading.value = { ...actionLoading.value, mailbox: true }
   try {
-    await communicationStore.checkIridiumMailbox(port, { signal: signal() })
+    await communicationStore.checkIridiumMailbox({ signal: signal() })
   } catch {
     // Store sets error
   } finally {
@@ -218,12 +205,9 @@ async function handleCheckMailbox() {
 }
 
 async function handleRefreshSignal() {
-  const port = devicePort.value
-  if (!port) return
-
   actionLoading.value = { ...actionLoading.value, signal: true }
   try {
-    await communicationStore.fetchIridiumSignal(port, { signal: signal() })
+    await communicationStore.fetchIridiumSignal({ signal: signal() })
   } catch {
     // Store sets error
   } finally {
@@ -238,13 +222,11 @@ async function handleRefreshSignal() {
 onMounted(async () => {
   loading.value = true
   try {
-    const port = 'default'
-    devicePort.value = port
     const s = signal()
     await Promise.all([
-      communicationStore.fetchIridiumStatus(port, { signal: s }),
-      communicationStore.fetchIridiumSignal(port, { signal: s }),
-      communicationStore.fetchIridiumMessages(port, { signal: s })
+      communicationStore.fetchIridiumStatus({ signal: s }),
+      communicationStore.fetchIridiumSignal({ signal: s }),
+      communicationStore.fetchIridiumMessages({ signal: s })
     ])
   } finally {
     loading.value = false
