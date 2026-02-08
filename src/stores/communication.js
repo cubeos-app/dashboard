@@ -1,9 +1,12 @@
 /**
  * CubeOS Communication Store
  *
- * Sprint 8: Complete communication data layer for MuleCube exotic hardware.
+ * Sprint 8 + HAL API Integration: Complete communication data layer for MuleCube exotic hardware.
  * Provides access to Bluetooth, Cellular, GPS, Meshtastic, and Iridium endpoints.
  * All endpoints proxy through CubeOS API → HAL service.
+ *
+ * Meshtastic and Iridium use a lifecycle pattern: discover → connect → operate → disconnect.
+ * GPS retains the per-port pattern (API kept {port} routes for GPS).
  *
  * API Endpoints:
  *   GET    /communication/bluetooth                       - BT adapter status
@@ -26,15 +29,29 @@
  *   GET    /communication/gps                             - List GPS devices
  *   GET    /communication/gps/{port}/status               - GPS device status
  *   GET    /communication/gps/{port}/position             - GPS position data
- *   GET    /communication/meshtastic/{port}/status        - Meshtastic status
- *   GET    /communication/meshtastic/{port}/nodes         - Meshtastic node list
- *   POST   /communication/meshtastic/{port}/message       - Send Meshtastic message
- *   POST   /communication/meshtastic/{port}/channel       - Set Meshtastic channel
- *   GET    /communication/iridium/{port}/status           - Iridium modem status
- *   GET    /communication/iridium/{port}/signal           - Iridium signal strength
- *   GET    /communication/iridium/{port}/messages         - Iridium SBD messages
- *   POST   /communication/iridium/{port}/send             - Send Iridium SBD
- *   POST   /communication/iridium/{port}/mailbox          - Check Iridium mailbox
+ *   GET    /communication/meshtastic/devices              - List available Meshtastic radios
+ *   POST   /communication/meshtastic/connect              - Connect to radio (auto/serial/ble)
+ *   POST   /communication/meshtastic/disconnect           - Disconnect from radio
+ *   GET    /communication/meshtastic/status               - Radio status (connected, device, nodes)
+ *   GET    /communication/meshtastic/nodes                - Mesh node list
+ *   GET    /communication/meshtastic/position             - Local node GPS position
+ *   GET    /communication/meshtastic/messages             - Message history
+ *   POST   /communication/meshtastic/messages/send        - Send text message {text, to?, channel?}
+ *   POST   /communication/meshtastic/messages/send_raw    - Send raw protobuf {portnum, payload, to?, channel?, want_ack?}
+ *   GET    /communication/meshtastic/config               - Radio configuration
+ *   POST   /communication/meshtastic/channel              - Set channel {index, name, role, psk?, uplink_enabled?, downlink_enabled?}
+ *   GET    /communication/meshtastic/events               - SSE event stream
+ *   GET    /communication/iridium/devices                 - List available satellite modems
+ *   POST   /communication/iridium/connect                 - Connect to modem (auto or explicit port)
+ *   POST   /communication/iridium/disconnect              - Disconnect modem
+ *   GET    /communication/iridium/status                  - Modem status (connected, signal, queues)
+ *   GET    /communication/iridium/signal                  - Signal strength (0-5 bars)
+ *   POST   /communication/iridium/send                    - Send SBD {text, format} or {data, format:"binary"}
+ *   POST   /communication/iridium/mailbox_check           - Check mailbox for incoming MT messages
+ *   GET    /communication/iridium/receive                 - Receive pending MT message
+ *   GET    /communication/iridium/messages                - Message history
+ *   POST   /communication/iridium/clear                   - Clear MO/MT/both buffers {buffer}
+ *   GET    /communication/iridium/events                  - SSE event stream
  */
 
 import { defineStore } from 'pinia'
@@ -62,18 +79,101 @@ export const useCommunicationStore = defineStore('communication', () => {
   const gpsStatuses = ref({})
   const gpsPositions = ref({})
 
-  // Meshtastic
-  const meshtasticStatuses = ref({})
-  const meshtasticNodes = ref({})
+  // Meshtastic — single active connection (lifecycle pattern, no port keys)
+  const meshtasticDevices = ref(null)
+  const meshtasticStatus = ref(null)
+  const meshtasticNodes = ref(null)
+  const meshtasticPosition = ref(null)
+  const meshtasticMessages = ref(null)
+  const meshtasticConfig = ref(null)
+  const meshtasticConnecting = ref(false)
+  const meshtasticEventSource = ref(null)
 
-  // Iridium
-  const iridiumStatuses = ref({})
-  const iridiumSignals = ref({})
-  const iridiumMessages = ref({})
+  // Iridium — single active connection (lifecycle pattern, no port keys)
+  const iridiumDevices = ref(null)
+  const iridiumStatus = ref(null)
+  const iridiumSignal = ref(null)
+  const iridiumMessages = ref(null)
+  const iridiumConnecting = ref(false)
+  const iridiumEventSource = ref(null)
 
   // Common
   const loading = ref(false)
   const error = ref(null)
+
+  // ==========================================
+  // SSE Helpers
+  // ==========================================
+
+  /**
+   * Close an SSE connection stored in a ref.
+   * Aborts the underlying fetch and nulls the ref.
+   * @param {import('vue').Ref} sourceRef - ref holding { controller: AbortController }
+   */
+  function closeSSE(sourceRef) {
+    if (sourceRef.value) {
+      try {
+        sourceRef.value.controller.abort()
+      } catch {
+        // ignore abort errors
+      }
+      sourceRef.value = null
+    }
+  }
+
+  /**
+   * Open an SSE stream using fetch + ReadableStream (supports Bearer auth).
+   * Returns an object with { controller } for cleanup.
+   * @param {string} endpoint - API endpoint path
+   * @param {function} onEvent - callback(eventData) for each parsed SSE event
+   * @param {function} [onError] - callback(error) on stream failure
+   * @returns {{ controller: AbortController }}
+   */
+  function openSSE(endpoint, onEvent, onError) {
+    const controller = new AbortController()
+    const url = `/api/v1${endpoint}`
+    const headers = { ...api.getHeaders(), 'Accept': 'text/event-stream' }
+
+    fetch(url, { headers, signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`SSE connection failed: ${response.status}`)
+        }
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          // Keep the last incomplete line in the buffer
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              const raw = line.slice(5).trim()
+              if (raw) {
+                try {
+                  onEvent(JSON.parse(raw))
+                } catch {
+                  // Non-JSON data line, pass as string
+                  onEvent(raw)
+                }
+              }
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return
+        if (onError) onError(err)
+      })
+
+    return { controller }
+  }
 
   // ==========================================
   // Bluetooth
@@ -436,21 +536,87 @@ export const useCommunicationStore = defineStore('communication', () => {
   }
 
   // ==========================================
-  // Meshtastic
+  // Meshtastic — Lifecycle Pattern
   // ==========================================
 
   /**
-   * Fetch Meshtastic device status
-   * GET /communication/meshtastic/{port}/status
-   * @param {string} port - Meshtastic device port
+   * Fetch available Meshtastic radio devices
+   * GET /communication/meshtastic/devices
    */
-  async function fetchMeshtasticStatus(port, options = {}) {
+  async function fetchMeshtasticDevices(options = {}) {
     loading.value = true
     error.value = null
     try {
-      const data = await api.get(`/communication/meshtastic/${encodeURIComponent(port)}/status`, {}, options)
+      const data = await api.get('/communication/meshtastic/devices', {}, options)
       if (data === null) return null
-      meshtasticStatuses.value = { ...meshtasticStatuses.value, [port]: data }
+      meshtasticDevices.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      meshtasticDevices.value = null
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Connect to a Meshtastic radio
+   * POST /communication/meshtastic/connect
+   * @param {object} [payload] - Connection params:
+   *   {} (auto-detect)
+   *   {transport:"serial", port:"/dev/ttyACM0"}
+   *   {transport:"ble", address:"AA:BB:CC:DD:EE:FF"}
+   */
+  async function connectMeshtastic(payload = {}) {
+    error.value = null
+    meshtasticConnecting.value = true
+    try {
+      const data = await api.post('/communication/meshtastic/connect', payload)
+      await fetchMeshtasticStatus()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      meshtasticConnecting.value = false
+    }
+  }
+
+  /**
+   * Disconnect from the active Meshtastic radio
+   * POST /communication/meshtastic/disconnect
+   */
+  async function disconnectMeshtastic() {
+    error.value = null
+    try {
+      closeSSE(meshtasticEventSource)
+      const data = await api.post('/communication/meshtastic/disconnect')
+      // Reset connected-state refs
+      meshtasticStatus.value = null
+      meshtasticNodes.value = null
+      meshtasticPosition.value = null
+      meshtasticMessages.value = null
+      meshtasticConfig.value = null
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Fetch Meshtastic radio status
+   * GET /communication/meshtastic/status
+   */
+  async function fetchMeshtasticStatus(options = {}) {
+    loading.value = true
+    error.value = null
+    try {
+      const data = await api.get('/communication/meshtastic/status', {}, options)
+      if (data === null) return null
+      meshtasticStatus.value = data
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
@@ -463,14 +629,13 @@ export const useCommunicationStore = defineStore('communication', () => {
 
   /**
    * Fetch Meshtastic mesh node list
-   * GET /communication/meshtastic/{port}/nodes
-   * @param {string} port - Meshtastic device port
+   * GET /communication/meshtastic/nodes
    */
-  async function fetchMeshtasticNodes(port, options = {}) {
+  async function fetchMeshtasticNodes(options = {}) {
     try {
-      const data = await api.get(`/communication/meshtastic/${encodeURIComponent(port)}/nodes`, {}, options)
+      const data = await api.get('/communication/meshtastic/nodes', {}, options)
       if (data === null) return null
-      meshtasticNodes.value = { ...meshtasticNodes.value, [port]: data }
+      meshtasticNodes.value = data
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
@@ -480,15 +645,84 @@ export const useCommunicationStore = defineStore('communication', () => {
   }
 
   /**
-   * Send a Meshtastic message
-   * POST /communication/meshtastic/{port}/message
-   * @param {string} port - Meshtastic device port
-   * @param {object} data - { text, [to] }
+   * Fetch GPS position from connected Meshtastic radio
+   * GET /communication/meshtastic/position
    */
-  async function sendMeshtasticMessage(port, messageData) {
+  async function fetchMeshtasticPosition(options = {}) {
+    try {
+      const data = await api.get('/communication/meshtastic/position', {}, options)
+      if (data === null) return null
+      meshtasticPosition.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Fetch Meshtastic message history
+   * GET /communication/meshtastic/messages
+   */
+  async function fetchMeshtasticMessages(options = {}) {
+    try {
+      const data = await api.get('/communication/meshtastic/messages', {}, options)
+      if (data === null) return null
+      meshtasticMessages.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Fetch Meshtastic radio configuration
+   * GET /communication/meshtastic/config
+   */
+  async function fetchMeshtasticConfig(options = {}) {
+    try {
+      const data = await api.get('/communication/meshtastic/config', {}, options)
+      if (data === null) return null
+      meshtasticConfig.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Send a Meshtastic text message
+   * POST /communication/meshtastic/messages/send
+   * @param {object} messageData - { text, to?, channel? }
+   *   to: destination node ID (0 = broadcast, default)
+   *   channel: channel index (0-7, default 0)
+   */
+  async function sendMeshtasticMessage(messageData) {
     error.value = null
     try {
-      return await api.post(`/communication/meshtastic/${encodeURIComponent(port)}/message`, messageData)
+      return await api.post('/communication/meshtastic/messages/send', messageData)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Send a raw Meshtastic protobuf packet
+   * POST /communication/meshtastic/messages/send_raw
+   * @param {object} rawData - { portnum, payload, to?, channel?, want_ack? }
+   *   portnum: Meshtastic port number (required)
+   *   payload: base64-encoded protobuf data (required)
+   */
+  async function sendMeshtasticRaw(rawData) {
+    error.value = null
+    try {
+      return await api.post('/communication/meshtastic/messages/send_raw', rawData)
     } catch (e) {
       error.value = e.message
       throw e
@@ -497,15 +731,16 @@ export const useCommunicationStore = defineStore('communication', () => {
 
   /**
    * Set Meshtastic channel configuration
-   * POST /communication/meshtastic/{port}/channel
-   * @param {string} port - Meshtastic device port
-   * @param {object} data - { name, psk }
+   * POST /communication/meshtastic/channel
+   * @param {object} channelData - { index, name, role, psk?, uplink_enabled?, downlink_enabled? }
+   *   index: 0-7
+   *   role: "PRIMARY" | "SECONDARY" | "DISABLED"
    */
-  async function setMeshtasticChannel(port, channelData) {
+  async function setMeshtasticChannel(channelData) {
     error.value = null
     try {
-      const data = await api.post(`/communication/meshtastic/${encodeURIComponent(port)}/channel`, channelData)
-      await fetchMeshtasticStatus(port)
+      const data = await api.post('/communication/meshtastic/channel', channelData)
+      await fetchMeshtasticStatus()
       return data
     } catch (e) {
       error.value = e.message
@@ -513,22 +748,102 @@ export const useCommunicationStore = defineStore('communication', () => {
     }
   }
 
+  /**
+   * Open Meshtastic SSE event stream for real-time updates.
+   * Events include incoming messages, node updates, and position reports.
+   * GET /communication/meshtastic/events
+   * @param {function} onEvent - callback(eventData) for each SSE event
+   * @param {function} [onError] - callback(error) on stream failure
+   */
+  function connectMeshtasticSSE(onEvent, onError) {
+    // Close any existing stream first
+    closeSSE(meshtasticEventSource)
+    meshtasticEventSource.value = openSSE(
+      '/communication/meshtastic/events',
+      onEvent,
+      onError
+    )
+  }
+
   // ==========================================
-  // Iridium
+  // Iridium — Lifecycle Pattern
   // ==========================================
 
   /**
-   * Fetch Iridium modem status
-   * GET /communication/iridium/{port}/status
-   * @param {string} port - Iridium modem port
+   * Fetch available Iridium satellite modem devices
+   * GET /communication/iridium/devices
    */
-  async function fetchIridiumStatus(port, options = {}) {
+  async function fetchIridiumDevices(options = {}) {
     loading.value = true
     error.value = null
     try {
-      const data = await api.get(`/communication/iridium/${encodeURIComponent(port)}/status`, {}, options)
+      const data = await api.get('/communication/iridium/devices', {}, options)
       if (data === null) return null
-      iridiumStatuses.value = { ...iridiumStatuses.value, [port]: data }
+      iridiumDevices.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      iridiumDevices.value = null
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Connect to an Iridium satellite modem
+   * POST /communication/iridium/connect
+   * @param {object} [payload] - Connection params:
+   *   {} (auto-detect)
+   *   {port:"/dev/ttyUSB0"}
+   */
+  async function connectIridium(payload = {}) {
+    error.value = null
+    iridiumConnecting.value = true
+    try {
+      const data = await api.post('/communication/iridium/connect', payload)
+      await fetchIridiumStatus()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      iridiumConnecting.value = false
+    }
+  }
+
+  /**
+   * Disconnect from the active Iridium modem
+   * POST /communication/iridium/disconnect
+   */
+  async function disconnectIridium() {
+    error.value = null
+    try {
+      closeSSE(iridiumEventSource)
+      const data = await api.post('/communication/iridium/disconnect')
+      // Reset connected-state refs
+      iridiumStatus.value = null
+      iridiumSignal.value = null
+      iridiumMessages.value = null
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Fetch Iridium modem status
+   * GET /communication/iridium/status
+   */
+  async function fetchIridiumStatus(options = {}) {
+    loading.value = true
+    error.value = null
+    try {
+      const data = await api.get('/communication/iridium/status', {}, options)
+      if (data === null) return null
+      iridiumStatus.value = data
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
@@ -541,14 +856,13 @@ export const useCommunicationStore = defineStore('communication', () => {
 
   /**
    * Fetch Iridium signal strength
-   * GET /communication/iridium/{port}/signal
-   * @param {string} port - Iridium modem port
+   * GET /communication/iridium/signal
    */
-  async function fetchIridiumSignal(port, options = {}) {
+  async function fetchIridiumSignal(options = {}) {
     try {
-      const data = await api.get(`/communication/iridium/${encodeURIComponent(port)}/signal`, {}, options)
+      const data = await api.get('/communication/iridium/signal', {}, options)
       if (data === null) return null
-      iridiumSignals.value = { ...iridiumSignals.value, [port]: data }
+      iridiumSignal.value = data
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
@@ -558,15 +872,14 @@ export const useCommunicationStore = defineStore('communication', () => {
   }
 
   /**
-   * Fetch Iridium SBD messages
-   * GET /communication/iridium/{port}/messages
-   * @param {string} port - Iridium modem port
+   * Fetch Iridium message history
+   * GET /communication/iridium/messages
    */
-  async function fetchIridiumMessages(port, options = {}) {
+  async function fetchIridiumMessages(options = {}) {
     try {
-      const data = await api.get(`/communication/iridium/${encodeURIComponent(port)}/messages`, {}, options)
+      const data = await api.get('/communication/iridium/messages', {}, options)
       if (data === null) return null
-      iridiumMessages.value = { ...iridiumMessages.value, [port]: data }
+      iridiumMessages.value = data
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
@@ -577,15 +890,17 @@ export const useCommunicationStore = defineStore('communication', () => {
 
   /**
    * Send Iridium SBD message
-   * POST /communication/iridium/{port}/send
-   * @param {string} port - Iridium modem port
-   * @param {object} data - { message }
+   * POST /communication/iridium/send
+   * @param {object} messageData - { text, format } or { data, format:"binary" }
+   *   format: "text" or "binary" (required)
+   *   text: message text (max 340 bytes for text format)
+   *   data: base64-encoded binary data (for binary format)
    */
-  async function sendIridiumSBD(port, messageData) {
+  async function sendIridiumSBD(messageData) {
     error.value = null
     try {
-      const data = await api.post(`/communication/iridium/${encodeURIComponent(port)}/send`, messageData)
-      await fetchIridiumMessages(port)
+      const data = await api.post('/communication/iridium/send', messageData)
+      await fetchIridiumMessages()
       return data
     } catch (e) {
       error.value = e.message
@@ -594,22 +909,72 @@ export const useCommunicationStore = defineStore('communication', () => {
   }
 
   /**
-   * Check Iridium mailbox for new messages
-   * POST /communication/iridium/{port}/mailbox
-   * @param {string} port - Iridium modem port
+   * Check Iridium mailbox for incoming MT messages
+   * POST /communication/iridium/mailbox_check
    */
-  async function checkIridiumMailbox(port, options = {}) {
+  async function checkIridiumMailbox(options = {}) {
     error.value = null
     try {
-      const data = await api.post(`/communication/iridium/${encodeURIComponent(port)}/mailbox`, {}, options)
+      const data = await api.post('/communication/iridium/mailbox_check', {}, options)
       if (data === null) return null
-      await fetchIridiumMessages(port)
+      await fetchIridiumMessages()
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
       error.value = e.message
       throw e
     }
+  }
+
+  /**
+   * Receive pending MT (Mobile-Terminated) message from Iridium modem buffer
+   * GET /communication/iridium/receive
+   */
+  async function receiveIridiumMessage(options = {}) {
+    error.value = null
+    try {
+      const data = await api.get('/communication/iridium/receive', {}, options)
+      if (data === null) return null
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Clear Iridium modem buffers
+   * POST /communication/iridium/clear
+   * @param {object} payload - { buffer } where buffer is "mo", "mt", or "both"
+   */
+  async function clearIridiumBuffers(payload) {
+    error.value = null
+    try {
+      const data = await api.post('/communication/iridium/clear', payload)
+      await fetchIridiumMessages()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Open Iridium SSE event stream for real-time updates.
+   * Events include signal changes, incoming messages, and connection state transitions.
+   * GET /communication/iridium/events
+   * @param {function} onEvent - callback(eventData) for each SSE event
+   * @param {function} [onError] - callback(error) on stream failure
+   */
+  function connectIridiumSSE(onEvent, onError) {
+    // Close any existing stream first
+    closeSSE(iridiumEventSource)
+    iridiumEventSource.value = openSSE(
+      '/communication/iridium/events',
+      onEvent,
+      onError
+    )
   }
 
   // ==========================================
@@ -634,17 +999,29 @@ export const useCommunicationStore = defineStore('communication', () => {
     gpsPositions,
 
     // State — Meshtastic
-    meshtasticStatuses,
+    meshtasticDevices,
+    meshtasticStatus,
     meshtasticNodes,
+    meshtasticPosition,
+    meshtasticMessages,
+    meshtasticConfig,
+    meshtasticConnecting,
+    meshtasticEventSource,
 
     // State — Iridium
-    iridiumStatuses,
-    iridiumSignals,
+    iridiumDevices,
+    iridiumStatus,
+    iridiumSignal,
     iridiumMessages,
+    iridiumConnecting,
+    iridiumEventSource,
 
     // State — Common
     loading,
     error,
+
+    // SSE Helpers
+    closeSSE,
 
     // Bluetooth
     fetchBluetooth,
@@ -673,16 +1050,30 @@ export const useCommunicationStore = defineStore('communication', () => {
     fetchGPSPosition,
 
     // Meshtastic
+    fetchMeshtasticDevices,
+    connectMeshtastic,
+    disconnectMeshtastic,
     fetchMeshtasticStatus,
     fetchMeshtasticNodes,
+    fetchMeshtasticPosition,
+    fetchMeshtasticMessages,
+    fetchMeshtasticConfig,
     sendMeshtasticMessage,
+    sendMeshtasticRaw,
     setMeshtasticChannel,
+    connectMeshtasticSSE,
 
     // Iridium
+    fetchIridiumDevices,
+    connectIridium,
+    disconnectIridium,
     fetchIridiumStatus,
     fetchIridiumSignal,
     fetchIridiumMessages,
     sendIridiumSBD,
-    checkIridiumMailbox
+    checkIridiumMailbox,
+    receiveIridiumMessage,
+    clearIridiumBuffers,
+    connectIridiumSSE
   }
 })
