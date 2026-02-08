@@ -64,7 +64,7 @@ const currentPath = computed(() => {
 // Fetch docs tree structure
 async function fetchDocsTree() {
   try {
-    const data = await api.get('/docs/tree')
+    const data = await api.get('/documentation/tree')
     docsTree.value = data || []
     docsAvailable.value = docsTree.value.length > 0
   } catch (e) {
@@ -79,7 +79,7 @@ async function fetchDoc(path) {
   error.value = null
   
   try {
-    currentDoc.value = await api.get(`/docs/${path}`)
+    currentDoc.value = await api.get(`/documentation/${path}`)
   } catch (e) {
     if (e.message && e.message.includes('404')) {
       error.value = 'not_found'
@@ -100,7 +100,7 @@ async function searchDocs() {
   }
   
   try {
-    const data = await api.get('/docs/search', { q: searchQuery.value })
+    const data = await api.get('/documentation/search', { q: searchQuery.value })
     searchResults.value = data || []
   } catch (e) {
     // Search failed silently

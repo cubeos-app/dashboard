@@ -106,13 +106,13 @@ export const useStorageStore = defineStore('storage', () => {
 
   /**
    * Fetch storage mounts
-   * GET /storage/mounts
+   * GET /mounts
    */
   async function fetchMounts(skipLoading = false, options = {}) {
     if (!skipLoading) mountsLoading.value = true
     error.value = null
     try {
-      const response = await api.get('/storage/mounts', {}, options)
+      const response = await api.get('/mounts', {}, options)
       if (response === null) return
       mounts.value = response.mounts || response || []
     } catch (e) {
@@ -125,12 +125,12 @@ export const useStorageStore = defineStore('storage', () => {
 
   /**
    * Add a new mount
-   * POST /storage/mounts
+   * POST /mounts
    */
   async function addMount(config) {
     error.value = null
     try {
-      const result = await api.post('/storage/mounts', config)
+      const result = await api.post('/mounts', config)
       await fetchMounts()
       return result
     } catch (e) {
@@ -141,12 +141,12 @@ export const useStorageStore = defineStore('storage', () => {
 
   /**
    * Remove a mount
-   * DELETE /storage/mounts/{id}
+   * DELETE /mounts/{id}
    */
   async function deleteMount(id) {
     error.value = null
     try {
-      await api.delete(`/storage/mounts/${id}`)
+      await api.delete(`/mounts/${id}`)
       mounts.value = mounts.value.filter(m => m.id !== id)
     } catch (e) {
       error.value = e.message
