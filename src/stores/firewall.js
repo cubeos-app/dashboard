@@ -76,7 +76,25 @@ export const useFirewallStore = defineStore('firewall', () => {
     try {
       const response = await api.get('/firewall/rules', {}, options)
       if (response === null) return
-      rules.value = response.rules || []
+      // API returns rules as map[string][]Rule (e.g. {"filter:INPUT": [...], "filter:FORWARD": [...]})
+      // Flatten to a single array, adding table/chain metadata to each rule
+      const raw = response.rules
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        const allRules = []
+        for (const [key, chainRules] of Object.entries(raw)) {
+          const parts = key.split(':')
+          const table = parts[0] || 'filter'
+          const chain = parts[1] || 'INPUT'
+          if (Array.isArray(chainRules)) {
+            chainRules.forEach(r => allRules.push({ ...r, table, chain }))
+          }
+        }
+        rules.value = allRules
+      } else if (Array.isArray(raw)) {
+        rules.value = raw
+      } else {
+        rules.value = []
+      }
     } catch (e) {
       if (e.name === 'AbortError') return
       error.value = e.message

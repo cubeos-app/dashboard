@@ -17,6 +17,10 @@ const props = defineProps({
   installing: {
     type: Boolean,
     default: false
+  },
+  installError: {
+    type: String,
+    default: null
   }
 })
 
@@ -330,6 +334,12 @@ function handleClose() {
             <p class="mt-2 text-[10px] text-theme-muted">Leave blank to use defaults.</p>
           </div>
         </div>
+      </div>
+
+      <!-- Install Error Banner -->
+      <div v-if="installError" class="px-4 py-3 mx-4 mb-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+        <p class="text-sm text-red-400 font-medium">Installation failed</p>
+        <p class="text-xs text-red-400/80 mt-1">{{ installError }}</p>
       </div>
 
       <!-- Footer -->

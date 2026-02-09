@@ -58,7 +58,7 @@ export const useSystemStore = defineStore('system', () => {
     const h = info.value?.hostname
     const isContainerName = !h || h === 'cubeos-api' || h === 'cubeos_api' || h.startsWith('cubeos-')
     if (!isContainerName) return h
-    return hardware.value?.model || 'CubeOS'
+    return 'CubeOS'
   })
   
   const cpuUsage = computed(() => Math.round(stats.value?.cpu_percent ?? 0))

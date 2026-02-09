@@ -11,6 +11,7 @@ const appStore = useAppStoreStore()
 
 const selectedApp = ref(null)
 const showDetailModal = ref(false)
+const installError = ref(null)
 const activeTab = ref('browse') // browse, installed, coreapps, stores
 const coreApps = ref([])
 const coreAppsError = ref('')
@@ -58,6 +59,7 @@ async function fetchCoreApps() {
 }
 
 function openAppDetail(app) {
+  installError.value = null
   selectedApp.value = app
   showDetailModal.value = true
 }
@@ -68,11 +70,12 @@ function closeDetail() {
 }
 
 async function handleInstall(storeId, appName, options = {}) {
+  installError.value = null
   try {
     await appStore.installApp(storeId, appName, options)
     closeDetail()
   } catch (e) {
-    // Error handled in store
+    installError.value = e.message || 'Installation failed. Check logs for details.'
   }
 }
 
@@ -876,6 +879,7 @@ onMounted(async () => {
       v-if="showDetailModal && selectedApp"
       :app="selectedApp"
       :installing="appStore.installing === `${selectedApp.store_id || ''}/${selectedApp.name || ''}`"
+      :install-error="installError"
       @close="closeDetail"
       @install="handleInstall"
     />
