@@ -6,6 +6,7 @@ import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 import AppCard from './AppCard.vue'
 import AppDetailModal from './AppDetailModal.vue'
+import InstallProgressModal from './InstallProgressModal.vue'
 
 const appStore = useAppStoreStore()
 
@@ -19,6 +20,9 @@ const newStoreUrl = ref('')
 const newStoreName = ref('')
 const addingStore = ref(false)
 const addStoreError = ref('')
+
+// Job progress modal state
+const activeJob = ref(null) // { jobId, jobType, appName, appIcon }
 
 // Store detail expand state (Sources tab)
 const expandedStoreId = ref(null)
@@ -78,11 +82,35 @@ function closeDetail() {
 async function handleInstall(storeId, appName, options = {}) {
   installError.value = null
   try {
-    await appStore.installApp(storeId, appName, options)
+    const result = await appStore.installApp(storeId, appName, options)
     closeDetail()
+    
+    // Open progress modal
+    const app = selectedApp.value
+    activeJob.value = {
+      jobId: result.job_id,
+      jobType: 'install',
+      appName: appStore.getAppTitle(app) || appName,
+      appIcon: app?.icon || '',
+    }
   } catch (e) {
     installError.value = e.message || 'Installation failed. Check logs for details.'
   }
+}
+
+function handleJobDone() {
+  // Refresh installed apps list after job completes
+  appStore.fetchInstalledApps()
+}
+
+function handleJobError(errMsg) {
+  // Refresh anyway in case partial install occurred
+  appStore.fetchInstalledApps()
+}
+
+function handleJobClose() {
+  activeJob.value = null
+  appStore.fetchInstalledApps()
 }
 
 function handleSearch() {
@@ -198,7 +226,22 @@ async function handleRemoveApp(appId) {
     checkboxLabel: 'Also delete app data',
     checkboxDefault: true
   })) return
-  appStore.removeApp(appId, confirmState.checkboxChecked)
+
+  try {
+    const result = await appStore.removeApp(appId, confirmState.checkboxChecked)
+    if (result?.job_id) {
+      // Find app info for the modal
+      const app = appStore.installedApps.find(a => a.id === appId || a.name === appId)
+      activeJob.value = {
+        jobId: result.job_id,
+        jobType: 'uninstall',
+        appName: app?.title || app?.name || appId,
+        appIcon: app?.icon || '',
+      }
+    }
+  } catch (e) {
+    appStore.error = e.message
+  }
 }
 
 async function handleRemoveStore(storeId) {
@@ -898,6 +941,18 @@ onUnmounted(() => {
       :install-error="installError"
       @close="closeDetail"
       @install="handleInstall"
+    />
+
+    <!-- Install/Uninstall Progress Modal -->
+    <InstallProgressModal
+      v-if="activeJob"
+      :job-id="activeJob.jobId"
+      :job-type="activeJob.jobType"
+      :app-name="activeJob.appName"
+      :app-icon="activeJob.appIcon"
+      @done="handleJobDone"
+      @error="handleJobError"
+      @close="handleJobClose"
     />
   </div>
 </template>

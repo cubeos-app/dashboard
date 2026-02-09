@@ -291,7 +291,7 @@ export const useAppStoreStore = defineStore('appstore', () => {
     }
   }
 
-  /** POST /appstore/installed - install from store */
+  /** POST /appstore/installed - install from store (async: returns job_id) */
   async function installApp(storeId, appName, options = {}) {
     installing.value = `${storeId}/${appName}`
     error.value = null
@@ -301,7 +301,7 @@ export const useAppStoreStore = defineStore('appstore', () => {
         app_name: appName,
         ...options
       })
-      await fetchInstalledApps()
+      // result = { job_id: "...", status: "installing" }
       return result
     } catch (e) {
       error.value = e.message
@@ -311,13 +311,14 @@ export const useAppStoreStore = defineStore('appstore', () => {
     }
   }
 
-  /** DELETE /appstore/installed/{appID} */
+  /** DELETE /appstore/installed/{appID} (async: returns job_id) */
   async function removeApp(appId, deleteData = false) {
     error.value = null
     try {
       const params = deleteData ? '?delete_data=true' : ''
-      await api.delete(`/appstore/installed/${encodeURIComponent(appId)}${params}`)
-      await fetchInstalledApps()
+      const result = await api.delete(`/appstore/installed/${encodeURIComponent(appId)}${params}`)
+      // result = { job_id: "...", status: "uninstalling" }
+      return result
     } catch (e) {
       error.value = e.message
       throw e
