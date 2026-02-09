@@ -331,13 +331,17 @@ export const useAppsStore = defineStore('apps', () => {
   }
 
   /**
-   * Check if app has a web UI
+   * Check if app has a browser-friendly web UI.
+   * Respects webui_type from API (auto-detected or user-overridden).
    */
   function hasWebUI(app) {
     const name = app.name.replace('cubeos-', '')
     
-    // Check if explicitly marked as no UI
+    // Check if explicitly marked as no UI in hardcoded list
     if (WEB_UI_SERVICES[name]?.hasUI === false) return false
+    
+    // Check webui_type from API (auto-detected on install or user-overridden)
+    if (app.webui_type === 'api') return false
     
     return getAppUrl(app) !== null
   }

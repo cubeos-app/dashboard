@@ -364,6 +364,19 @@ export const useAppStoreStore = defineStore('appstore', () => {
     }
   }
 
+  /** PUT /appstore/installed/{appID}/webui-type */
+  async function updateWebUIType(appId, webuiType) {
+    try {
+      await api.put(`/appstore/installed/${encodeURIComponent(appId)}/webui-type`, { webui_type: webuiType })
+      // Update local state immediately
+      const app = installedApps.value.find(a => a.id === appId || a.name === appId)
+      if (app) app.webui_type = webuiType
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
   /** POST /appstore/installed/{appID}/action */
   async function appAction(appId, action) {
     try {
@@ -564,6 +577,7 @@ export const useAppStoreStore = defineStore('appstore', () => {
     startApp,
     stopApp,
     restartApp,
+    updateWebUIType,
     appAction,
     
     // Proxy Hosts

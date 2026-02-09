@@ -325,6 +325,15 @@ function handleVolumesSaved() {
   appStore.fetchInstalledApps()
 }
 
+async function toggleWebUIType(app) {
+  const newType = app.webui_type === 'api' ? 'browser' : 'api'
+  try {
+    await appStore.updateWebUIType(app.id || app.name, newType)
+  } catch (e) {
+    console.error('Failed to update webui type:', e)
+  }
+}
+
 async function handleRemoveStore(storeId) {
   if (!await confirm({
     title: 'Remove Store',
@@ -555,7 +564,7 @@ onUnmounted(() => {
             <!-- Actions -->
             <div class="flex items-center gap-2">
               <a
-                v-if="app.webui && app.status === 'running'"
+                v-if="app.webui && app.status === 'running' && app.webui_type !== 'api'"
                 :href="app.webui"
                 target="_blank"
                 @click.stop
@@ -565,6 +574,15 @@ onUnmounted(() => {
               >
                 <Icon name="ExternalLink" :size="16" />
               </a>
+              <button
+                v-else-if="app.webui && app.status === 'running' && app.webui_type === 'api'"
+                @click.stop="expandedInstalledId = expandedInstalledId === app.id ? null : app.id"
+                class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
+                title="API endpoint — click to view details"
+                :aria-label="'View details for ' + (app.title || app.name)"
+              >
+                <Icon name="Info" :size="16" />
+              </button>
 
               <router-link
                 :to="{ name: 'app-config', params: { appId: app.id } }"
@@ -743,7 +761,7 @@ onUnmounted(() => {
               <!-- Quick Actions Row -->
               <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-theme-primary">
                 <a
-                  v-if="installedDetail.webui && (installedDetail.status === 'running' || app.status === 'running')"
+                  v-if="installedDetail.webui && (installedDetail.status === 'running' || app.status === 'running') && app.webui_type !== 'api'"
                   :href="installedDetail.webui"
                   target="_blank"
                   class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-accent hover:bg-accent-muted transition-colors border border-accent/30"
@@ -758,6 +776,15 @@ onUnmounted(() => {
                   <Icon name="Settings" :size="12" />
                   Edit Config
                 </router-link>
+                <button
+                  v-if="installedDetail.webui || app.webui"
+                  @click="toggleWebUIType(app)"
+                  class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-theme-tertiary hover:bg-theme-tertiary transition-colors border border-theme-primary"
+                  :title="app.webui_type === 'api' ? 'Currently opens as status modal — click to switch to browser tab' : 'Currently opens in browser tab — click to switch to status modal'"
+                >
+                  <Icon :name="app.webui_type === 'api' ? 'Monitor' : 'Globe'" :size="12" />
+                  {{ app.webui_type === 'api' ? 'Switch to Browser' : 'Switch to API Mode' }}
+                </button>
               </div>
             </div>
           </div>
