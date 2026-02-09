@@ -418,6 +418,31 @@ export const useAppStoreStore = defineStore('appstore', () => {
   }
 
   // ==========================================
+  // Polling (auto-refresh installed apps status)
+  // ==========================================
+
+  let _pollInterval = null
+  let _pollSubscribers = 0
+  const POLL_INTERVAL_MS = 8000
+
+  function startPolling() {
+    _pollSubscribers++
+    if (_pollSubscribers === 1 && !_pollInterval) {
+      _pollInterval = setInterval(() => {
+        fetchInstalledApps()
+      }, POLL_INTERVAL_MS)
+    }
+  }
+
+  function stopPolling() {
+    _pollSubscribers = Math.max(0, _pollSubscribers - 1)
+    if (_pollSubscribers === 0 && _pollInterval) {
+      clearInterval(_pollInterval)
+      _pollInterval = null
+    }
+  }
+
+  // ==========================================
   // Export
   // ==========================================
   
@@ -474,6 +499,10 @@ export const useAppStoreStore = defineStore('appstore', () => {
     getAppIconUrl,
     getAppScreenshotUrl,
     isInstalled,
-    init
+    init,
+    
+    // Polling
+    startPolling,
+    stopPolling
   }
 })

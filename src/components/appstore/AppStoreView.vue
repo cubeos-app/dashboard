@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useAppStoreStore } from '@/stores/appstore'
 import { confirm, confirmState } from '@/utils/confirmDialog'
 import api from '@/api/client'
@@ -41,9 +41,15 @@ watch(() => appStore.selectedCategory, () => {
 })
 
 // Fetch core apps when tab is activated
-watch(() => activeTab.value, async (newTab) => {
+watch(() => activeTab.value, async (newTab, oldTab) => {
   if (newTab === 'coreapps' && coreApps.value.length === 0) {
     await fetchCoreApps()
+  }
+  // Auto-refresh installed apps while viewing Installed tab
+  if (newTab === 'installed') {
+    appStore.startPolling()
+  } else if (oldTab === 'installed') {
+    appStore.stopPolling()
   }
 })
 
@@ -207,6 +213,14 @@ async function handleRemoveStore(storeId) {
 
 onMounted(async () => {
   await appStore.init()
+  // Start polling if we land directly on the installed tab
+  if (activeTab.value === 'installed') {
+    appStore.startPolling()
+  }
+})
+
+onUnmounted(() => {
+  appStore.stopPolling()
 })
 </script>
 
