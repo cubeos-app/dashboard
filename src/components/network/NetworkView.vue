@@ -1047,6 +1047,16 @@ function formatDuration(seconds) {
                   {{ formatDuration(client.connected_seconds) }}
                 </div>
                 
+                <!-- Kick action (disconnect without blocking) -->
+                <button 
+                  @click="clientsStore.kickClient(client.mac || client.mac_address)"
+                  class="p-2 text-theme-muted hover:text-warning rounded-lg hover:bg-theme-tertiary transition-colors"
+                  title="Kick client (disconnect)"
+                  :aria-label="'Kick ' + (client.hostname || 'device') + ' (' + (client.mac || client.mac_address) + ')'"
+                >
+                  <Icon name="LogOut" :size="18" />
+                </button>
+
                 <!-- Block action -->
                 <button 
                   @click="handleBlockClient(client.mac || client.mac_address)"

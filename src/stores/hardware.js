@@ -71,6 +71,7 @@ export const useHardwareStore = defineStore('hardware', () => {
   const watchdog = ref(null)
   const powerMonitor = ref(null)
   const halServices = ref({})
+  const temperatureZones = ref(null)
   const loading = ref(false)
   const error = ref(null)
 
@@ -438,6 +439,31 @@ export const useHardwareStore = defineStore('hardware', () => {
   }
 
   // ==========================================
+  // Temperature Zones
+  // ==========================================
+
+  /**
+   * Fetch per-zone CPU/GPU temperature breakdown
+   * GET /hardware/temperature
+   * Returns: { zones: [{ name, type, temp_c, critical_c }] }
+   */
+  async function fetchTemperatureZones(options = {}) {
+    const { skipLoading, ...opts } = options
+    if (!skipLoading) { loading.value = true; error.value = null }
+    try {
+      const data = await api.get('/hardware/temperature', {}, opts)
+      if (data === null) return
+      temperatureZones.value = data.zones || data
+    } catch (e) {
+      if (e.name === 'AbortError') return
+      error.value = e.message
+      temperatureZones.value = null
+    } finally {
+      if (!skipLoading) loading.value = false
+    }
+  }
+
+  // ==========================================
   // RTC
   // ==========================================
 
@@ -721,6 +747,7 @@ export const useHardwareStore = defineStore('hardware', () => {
     watchdog,
     powerMonitor,
     halServices,
+    temperatureZones,
     loading,
     error,
 
@@ -752,6 +779,7 @@ export const useHardwareStore = defineStore('hardware', () => {
     fetchBME280,
     fetch1Wire,
     read1Wire,
+    fetchTemperatureZones,
 
     // RTC
     fetchRTC,

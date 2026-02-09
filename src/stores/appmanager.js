@@ -16,6 +16,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/client'
+import { useAppsApi } from '@/composables/useAppsApi'
+
+const appsApi = useAppsApi()
 
 export const useAppManagerStore = defineStore('appmanager', () => {
   // ==========================================
@@ -78,48 +81,48 @@ export const useAppManagerStore = defineStore('appmanager', () => {
    * GET /api/v1/apps
    */
   async function fetchApps() {
-    const response = await api.get('/apps')
+    const response = await appsApi.listApps()
     apps.value = response.apps || []
   }
 
   async function registerApp(appData) {
-    const response = await api.post('/apps', appData)
+    const response = await appsApi.installApp(appData)
     await fetchApps()
     return response
   }
 
   async function unregisterApp(name) {
-    await api.delete(`/apps/${name}`)
+    await appsApi.uninstallApp(name)
     await fetchApps()
   }
 
   async function enableApp(name) {
-    await api.post(`/apps/${name}/enable`)
+    await appsApi.enableApp(name)
     await fetchApps()
   }
 
   async function disableApp(name) {
-    await api.post(`/apps/${name}/disable`)
+    await appsApi.disableApp(name)
     await fetchApps()
   }
 
   async function startApp(name) {
-    await api.post(`/apps/${name}/start`)
+    await appsApi.startApp(name)
     await fetchApps()
   }
 
   async function stopApp(name) {
-    await api.post(`/apps/${name}/stop`)
+    await appsApi.stopApp(name)
     await fetchApps()
   }
 
   async function restartApp(name) {
-    await api.post(`/apps/${name}/restart`)
+    await appsApi.restartApp(name)
     await fetchApps()
   }
 
   async function getAppStatus(name) {
-    return await api.get(`/apps/${name}`)
+    return await appsApi.getApp(name)
   }
 
   // ==========================================

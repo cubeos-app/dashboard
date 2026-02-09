@@ -123,6 +123,34 @@ export const useClientsStore = defineStore('clients', () => {
       loading.value = false
     }
   }
+
+  /**
+   * Kick (disconnect) a client by MAC address without blocking
+   * POST /api/v1/network/wifi/ap/clients/{mac}/kick
+   * @param {string} mac - Client MAC address
+   */
+  async function kickClient(mac) {
+    if (!await confirm({
+      title: 'Kick Client',
+      message: `Disconnect ${mac}? The device can reconnect immediately.`,
+      confirmText: 'Kick',
+      variant: 'warning'
+    })) return false
+
+    loading.value = true
+    error.value = null
+
+    try {
+      await api.post(`/network/wifi/ap/clients/${encodeURIComponent(mac)}/kick`)
+      await fetchClients()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
   
   // ==========================================
   // Export
@@ -145,6 +173,7 @@ export const useClientsStore = defineStore('clients', () => {
     fetchClients,
     fetchCount,
     blockClient,
-    unblockClient
+    unblockClient,
+    kickClient
   }
 })

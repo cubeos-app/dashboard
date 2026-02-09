@@ -11,7 +11,9 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import api from '@/api/client'
+import { useAppsApi } from '@/composables/useAppsApi'
+
+const appsApi = useAppsApi()
 
 // App type constants matching Go backend
 export const APP_TYPES = {
@@ -408,7 +410,7 @@ export const useAppsStore = defineStore('apps', () => {
       if (filterType.value) params.type = filterType.value
       if (filterEnabled.value !== null) params.enabled = filterEnabled.value
       
-      const response = await api.get('/apps', params, options)
+      const response = await appsApi.listApps(params, options)
       if (response === null) return // Aborted
       apps.value = response.apps || []
       lastUpdated.value = new Date()
@@ -427,7 +429,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function getApp(name, options = {}) {
     try {
-      const response = await api.get(`/apps/${encodeURIComponent(name)}`, {}, options)
+      const response = await appsApi.getApp(name, options)
       return response
     } catch (e) {
       if (e.name === 'AbortError') return null
@@ -441,7 +443,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function startApp(name) {
     try {
-      await api.post(`/apps/${encodeURIComponent(name)}/start`)
+      await appsApi.startApp(name)
       await fetchApps() // Refresh to get updated status
       return true
     } catch (e) {
@@ -455,7 +457,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function stopApp(name) {
     try {
-      await api.post(`/apps/${encodeURIComponent(name)}/stop`)
+      await appsApi.stopApp(name)
       await fetchApps()
       return true
     } catch (e) {
@@ -469,7 +471,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function restartApp(name) {
     try {
-      await api.post(`/apps/${encodeURIComponent(name)}/restart`)
+      await appsApi.restartApp(name)
       await fetchApps()
       return true
     } catch (e) {
@@ -483,7 +485,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function enableApp(name) {
     try {
-      await api.post(`/apps/${encodeURIComponent(name)}/enable`)
+      await appsApi.enableApp(name)
       await fetchApps()
       return true
     } catch (e) {
@@ -497,7 +499,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function disableApp(name) {
     try {
-      await api.post(`/apps/${encodeURIComponent(name)}/disable`)
+      await appsApi.disableApp(name)
       await fetchApps()
       return true
     } catch (e) {
@@ -514,7 +516,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function getAppLogs(name, lines = 100, options = {}) {
     try {
-      const response = await api.get(`/apps/${encodeURIComponent(name)}/logs`, { lines }, options)
+      const response = await appsApi.getAppLogs(name, lines, options)
       if (response === null) return [] // Aborted
       return response.logs || []
     } catch (e) {
@@ -529,7 +531,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function setAppTor(name, enabled) {
     try {
-      await api.post(`/apps/${encodeURIComponent(name)}/tor`, { enabled })
+      await appsApi.setAppTor(name, enabled)
       await fetchApps()
       return true
     } catch (e) {
@@ -543,7 +545,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function setAppVPN(name, enabled) {
     try {
-      await api.post(`/apps/${encodeURIComponent(name)}/vpn`, { enabled })
+      await appsApi.setAppVPN(name, enabled)
       await fetchApps()
       return true
     } catch (e) {
@@ -557,7 +559,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function installApp(request) {
     try {
-      const app = await api.post('/apps', request)
+      const app = await appsApi.installApp(request)
       await fetchApps()
       return app
     } catch (e) {
@@ -571,7 +573,7 @@ export const useAppsStore = defineStore('apps', () => {
    */
   async function uninstallApp(name, keepData = false) {
     try {
-      await api.delete(`/apps/${encodeURIComponent(name)}?keep_data=${keepData}`)
+      await appsApi.uninstallApp(name, keepData)
       await fetchApps()
       return true
     } catch (e) {

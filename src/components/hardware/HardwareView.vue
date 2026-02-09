@@ -184,7 +184,8 @@ async function loadOverviewData() {
     hardwareStore.fetchBootConfig({ signal: s }),
     hardwareStore.fetchUPS({ signal: s }),
     hardwareStore.fetchPowerStatus({ signal: s }),
-    hardwareStore.fetchPowerMonitorStatus({ signal: s })
+    hardwareStore.fetchPowerMonitorStatus({ signal: s }),
+    hardwareStore.fetchTemperatureZones({ signal: s, skipLoading: true })
   ])
 }
 
@@ -463,6 +464,25 @@ onUnmounted(() => {
                 <div v-if="uptimeDisplay" class="flex justify-between">
                   <span class="text-sm text-theme-secondary">Uptime</span>
                   <span class="text-sm font-medium text-theme-primary">{{ uptimeDisplay }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Power / Battery Card -->
+          <div v-if="hardwareStore.temperatureZones && hardwareStore.temperatureZones.length > 0" class="bg-theme-card border border-theme-primary rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <Icon name="Thermometer" :size="18" class="text-accent" />
+              <h2 class="text-lg font-semibold text-theme-primary">Thermal Zones</h2>
+            </div>
+            <div class="space-y-3">
+              <div v-for="zone in hardwareStore.temperatureZones" :key="zone.name || zone.type" class="flex items-center justify-between">
+                <span class="text-sm text-theme-secondary">{{ zone.name || zone.type }}</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium" :class="zone.temp_c > 80 ? 'text-error' : zone.temp_c > 65 ? 'text-warning' : 'text-theme-primary'">
+                    {{ zone.temp_c?.toFixed(1) || zone.temp_c }}°C
+                  </span>
+                  <span v-if="zone.critical_c" class="text-xs text-theme-muted">/ {{ zone.critical_c }}°C</span>
                 </div>
               </div>
             </div>
