@@ -46,13 +46,18 @@ const confirmBtnRef = ref(null)
 // Navigation
 // ==========================================
 
-async function browse(path) {
+async function browse(path, allowFallback = false) {
   loading.value = true
   errorMsg.value = ''
 
   const result = await appStore.browseDirectory(path)
 
   if (!result) {
+    // If initial load fails, walk up to a parent that exists
+    if (allowFallback && path !== '/') {
+      const parent = path.replace(/\/[^/]+\/?$/, '') || '/'
+      return browse(parent, true)
+    }
     errorMsg.value = 'Failed to read directory'
     loading.value = false
     return
@@ -127,7 +132,7 @@ function handleKeydown(e) {
 watch(() => props.show, async (visible) => {
   if (visible) {
     const startPath = props.modelValue || props.initialPath || '/'
-    await browse(startPath)
+    await browse(startPath, true)
     await nextTick()
     confirmBtnRef.value?.focus()
   }
