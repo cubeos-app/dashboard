@@ -7,6 +7,7 @@ import Icon from '@/components/ui/Icon.vue'
 import AppCard from './AppCard.vue'
 import AppDetailModal from './AppDetailModal.vue'
 import InstallProgressModal from './InstallProgressModal.vue'
+import InstallConfirmModal from './InstallConfirmModal.vue'
 
 const appStore = useAppStoreStore()
 
@@ -23,6 +24,11 @@ const addStoreError = ref('')
 
 // Job progress modal state
 const activeJob = ref(null) // { jobId, jobType, appName, appIcon }
+
+// Volume preview / install confirm state
+const volumePreview = ref(null)       // VolumePreviewResponse from API
+const showInstallConfirm = ref(false)
+const pendingInstallApp = ref(null)   // { storeId, appName, options, app }
 
 // Store detail expand state (Sources tab)
 const expandedStoreId = ref(null)
@@ -81,12 +87,38 @@ function closeDetail() {
 
 async function handleInstall(storeId, appName, options = {}) {
   installError.value = null
+
+  // If volume_overrides are already provided (from InstallConfirmModal), skip preview
+  if (!options.volume_overrides) {
+    try {
+      const preview = await appStore.previewVolumes(storeId, appName)
+      const hasExternal = preview?.volumes?.some(v => v.is_external && !v.is_config)
+
+      if (hasExternal) {
+        // Stash pending install and show confirm modal
+        volumePreview.value = preview
+        pendingInstallApp.value = {
+          storeId,
+          appName,
+          options,
+          app: selectedApp.value
+        }
+        showInstallConfirm.value = true
+        showDetailModal.value = false
+        return
+      }
+    } catch {
+      // Preview failed — proceed with default install (non-blocking)
+    }
+  }
+
+  // Proceed with actual install
   try {
     const result = await appStore.installApp(storeId, appName, options)
+    const app = selectedApp.value || pendingInstallApp.value?.app
     closeDetail()
-    
+
     // Open progress modal
-    const app = selectedApp.value
     activeJob.value = {
       jobId: result.job_id,
       jobType: 'install',
@@ -96,6 +128,38 @@ async function handleInstall(storeId, appName, options = {}) {
   } catch (e) {
     installError.value = e.message || 'Installation failed. Check logs for details.'
   }
+}
+
+function handleInstallConfirm(volumeOverrides) {
+  const pending = pendingInstallApp.value
+  showInstallConfirm.value = false
+  volumePreview.value = null
+
+  if (!pending) return
+
+  // Merge volume_overrides into options and proceed
+  const options = {
+    ...pending.options,
+    ...(Object.keys(volumeOverrides).length > 0 ? { volume_overrides: volumeOverrides } : {})
+  }
+
+  // Temporarily set selectedApp for the progress modal
+  selectedApp.value = pending.app
+  pendingInstallApp.value = null
+
+  handleInstall(pending.storeId, pending.appName, options)
+}
+
+function handleInstallConfirmCancel() {
+  showInstallConfirm.value = false
+  volumePreview.value = null
+
+  // Re-open detail modal if we have the app
+  if (pendingInstallApp.value?.app) {
+    selectedApp.value = pendingInstallApp.value.app
+    showDetailModal.value = true
+  }
+  pendingInstallApp.value = null
 }
 
 function handleJobDone() {
@@ -941,6 +1005,15 @@ onUnmounted(() => {
       :install-error="installError"
       @close="closeDetail"
       @install="handleInstall"
+    />
+
+    <!-- Volume Confirm Modal (pre-install) -->
+    <InstallConfirmModal
+      v-if="showInstallConfirm && volumePreview && pendingInstallApp"
+      :app="pendingInstallApp.app"
+      :volumes="volumePreview.volumes"
+      @confirm="handleInstallConfirm"
+      @cancel="handleInstallConfirmCancel"
     />
 
     <!-- Install/Uninstall Progress Modal -->
