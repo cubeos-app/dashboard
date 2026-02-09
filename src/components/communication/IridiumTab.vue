@@ -397,7 +397,7 @@ onMounted(async () => {
 onUnmounted(() => {
   if (messageSentTimeout) clearTimeout(messageSentTimeout)
   // Close SSE stream on tab switch / component destroy
-  communicationStore.closeSSE(communicationStore.iridiumEventSource)
+  communicationStore.closeIridiumSSE()
 })
 </script>
 

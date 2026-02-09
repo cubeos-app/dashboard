@@ -108,9 +108,14 @@ export const useCommunicationStore = defineStore('communication', () => {
   /**
    * Close an SSE connection stored in a ref.
    * Aborts the underlying fetch and nulls the ref.
+   *
+   * NOTE: This must only be called with an actual Vue ref, not a Pinia-unwrapped value.
+   * For external callers, use closeMeshtasticSSE() / closeIridiumSSE() instead.
+   *
    * @param {import('vue').Ref} sourceRef - ref holding { controller: AbortController }
    */
   function closeSSE(sourceRef) {
+    if (!sourceRef) return // guard against Pinia-unwrapped null
     if (sourceRef.value) {
       try {
         sourceRef.value.controller.abort()
@@ -119,6 +124,22 @@ export const useCommunicationStore = defineStore('communication', () => {
       }
       sourceRef.value = null
     }
+  }
+
+  /**
+   * Close Meshtastic SSE stream.
+   * Safe to call from outside the store (avoids Pinia ref-unwrapping issues).
+   */
+  function closeMeshtasticSSE() {
+    closeSSE(meshtasticEventSource)
+  }
+
+  /**
+   * Close Iridium SSE stream.
+   * Safe to call from outside the store (avoids Pinia ref-unwrapping issues).
+   */
+  function closeIridiumSSE() {
+    closeSSE(iridiumEventSource)
   }
 
   /**
@@ -1022,6 +1043,8 @@ export const useCommunicationStore = defineStore('communication', () => {
 
     // SSE Helpers
     closeSSE,
+    closeMeshtasticSSE,
+    closeIridiumSSE,
 
     // Bluetooth
     fetchBluetooth,
