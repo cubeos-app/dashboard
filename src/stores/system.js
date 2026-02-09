@@ -221,7 +221,8 @@ export const useSystemStore = defineStore('system', () => {
         fetchStats(options),
         fetchBattery(options),
         fetchHardware(options),
-        fetchWifiClients(options)
+        fetchWifiClients(options),
+        fetchHostname(options)
       ])
     } catch (e) {
       if (e.name === 'AbortError') return
