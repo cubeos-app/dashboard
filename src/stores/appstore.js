@@ -45,6 +45,12 @@
  * 
  * Other:
  *   GET    /appstore/proxy-hosts      - List NPM proxy hosts
+ *
+ * Volumes:
+ *   GET    /appstore/stores/{storeID}/apps/{appName}/volumes - Preview volumes before install
+ *   GET    /appstore/installed/{appID}/volumes               - Get current volume mappings
+ *   PUT    /appstore/installed/{appID}/volumes               - Update paths + redeploy
+ *   GET    /system/browse?path=                              - Directory listing for picker
  */
 
 import { defineStore } from 'pinia'
@@ -381,6 +387,75 @@ export const useAppStoreStore = defineStore('appstore', () => {
       proxyHosts.value = []
     }
   }
+
+  // ==========================================
+  // Volume Management
+  // ==========================================
+
+  /**
+   * Preview volume mappings before install.
+   * GET /appstore/stores/{storeID}/apps/{appName}/volumes
+   * Returns: { app_name, volumes: VolumeMapping[] }
+   */
+  async function previewVolumes(storeId, appName) {
+    try {
+      return await api.get(
+        `/appstore/stores/${encodeURIComponent(storeId)}/apps/${encodeURIComponent(appName)}/volumes`
+      )
+    } catch (e) {
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Get current volume mappings for an installed app.
+   * GET /appstore/installed/{appID}/volumes
+   * Returns: { app_id, app_name, volumes: VolumeMapping[] }
+   */
+  async function getVolumeMappings(appId) {
+    try {
+      return await api.get(
+        `/appstore/installed/${encodeURIComponent(appId)}/volumes`
+      )
+    } catch (e) {
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Update volume paths and redeploy an installed app.
+   * PUT /appstore/installed/{appID}/volumes
+   * @param {string} appId
+   * @param {Array<{container_path: string, new_host_path: string}>} updates
+   * Returns: { success, message }
+   */
+  async function updateVolumeMappings(appId, updates) {
+    try {
+      return await api.put(
+        `/appstore/installed/${encodeURIComponent(appId)}/volumes`,
+        updates
+      )
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Browse host directories for the directory picker.
+   * GET /system/browse?path={path}
+   * Returns: { path, entries: Array<{name, path, is_restricted}> }
+   */
+  async function browseDirectory(path = '/') {
+    try {
+      return await api.get('/system/browse', { path })
+    } catch (e) {
+      error.value = e.message
+      return null
+    }
+  }
   
   // ==========================================
   // Helpers
@@ -493,6 +568,12 @@ export const useAppStoreStore = defineStore('appstore', () => {
     
     // Proxy Hosts
     fetchProxyHosts,
+
+    // Volume Management
+    previewVolumes,
+    getVolumeMappings,
+    updateVolumeMappings,
+    browseDirectory,
     
     // Helpers
     getAppTitle,

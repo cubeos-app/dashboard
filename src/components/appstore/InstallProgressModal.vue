@@ -25,6 +25,7 @@ const INSTALL_STEPS = [
   { key: 'directories', label: 'Creating directories' },
   { key: 'compose', label: 'Preparing containers' },
   { key: 'port', label: 'Allocating port' },
+  { key: 'volumes', label: 'Configuring volumes' },
   { key: 'deploy', label: 'Deploying containers' },
   { key: 'services', label: 'Starting services' },
   { key: 'dns', label: 'Configuring DNS' },
