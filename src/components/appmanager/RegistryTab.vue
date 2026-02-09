@@ -44,7 +44,7 @@ const actionError = ref(null)
 // Computed
 // ==========================================
 
-const registryHost = computed(() => registryStore.status?.url || 'localhost:5000')
+const registryHost = computed(() => registryStore.status?.url || 'Not configured')
 
 const images = computed(() => {
   const raw = registryStore.images || []

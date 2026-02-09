@@ -64,7 +64,8 @@ export const useProcessesStore = defineStore('processes', () => {
     try {
       const response = await api.get('/processes', {}, options)
       if (response === null) return
-      processes.value = response.processes || response || []
+      const data = response.processes ?? response
+      processes.value = Array.isArray(data) ? data : []
     } catch (e) {
       if (e.name === 'AbortError') return
       error.value = e.message
@@ -97,7 +98,8 @@ export const useProcessesStore = defineStore('processes', () => {
     try {
       const response = await api.get('/processes/top/cpu', { limit }, options)
       if (response === null) return
-      topCpu.value = response.processes || response || []
+      const data = response.processes ?? response
+      topCpu.value = Array.isArray(data) ? data : []
     } catch (e) {
       if (e.name === 'AbortError') return
       topCpu.value = []
@@ -114,7 +116,8 @@ export const useProcessesStore = defineStore('processes', () => {
     try {
       const response = await api.get('/processes/top/memory', { limit }, options)
       if (response === null) return
-      topMemory.value = response.processes || response || []
+      const data = response.processes ?? response
+      topMemory.value = Array.isArray(data) ? data : []
     } catch (e) {
       if (e.name === 'AbortError') return
       topMemory.value = []
@@ -137,7 +140,8 @@ export const useProcessesStore = defineStore('processes', () => {
     try {
       const encoded = encodeURIComponent(name.trim())
       const response = await api.get(`/processes/search/${encoded}`)
-      searchResults.value = response.processes || response || []
+      const data = response.processes ?? response
+      searchResults.value = Array.isArray(data) ? data : []
       searchQuery.value = name.trim()
     } catch (e) {
       error.value = e.message

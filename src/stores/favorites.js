@@ -82,7 +82,8 @@ export const useFavoritesStore = defineStore('favorites', () => {
     try {
       const response = await api.get('/favorites', {}, options)
       if (response === null) return
-      favorites.value = response.favorites || response || []
+      const data = response.favorites ?? response
+      favorites.value = Array.isArray(data) ? data : []
     } catch (e) {
       if (e.name === 'AbortError') return
       error.value = e.message

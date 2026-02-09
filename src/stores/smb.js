@@ -64,7 +64,8 @@ export const useSMBStore = defineStore('smb', () => {
     error.value = null
     try {
       const response = await api.get('/smb/shares')
-      shares.value = response.shares || response || []
+      const data = response.shares ?? response
+      shares.value = Array.isArray(data) ? data : []
     } catch (e) {
       error.value = e.message
       if (import.meta.env.DEV) console.error('Failed to fetch SMB shares:', e)

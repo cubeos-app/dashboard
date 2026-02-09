@@ -410,7 +410,7 @@ function hostStatusText(host) {
                     v-model="hostForm.forward_host"
                     type="text"
                     class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
-                    placeholder="10.42.24.1"
+                    placeholder="e.g. 192.168.1.100"
                   >
                 </div>
                 <div class="col-span-1">

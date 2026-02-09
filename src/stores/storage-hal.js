@@ -87,7 +87,8 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
     error.value = null
     try {
       const response = await api.get('/hal/storage/devices')
-      devices.value = response.devices || response || []
+      const data = response.devices ?? response
+      devices.value = Array.isArray(data) ? data : []
     } catch (e) {
       error.value = e.message
     } finally {
@@ -138,7 +139,8 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
   async function fetchUSBStorage() {
     try {
       const response = await api.get('/hal/storage/usb')
-      usbStorage.value = response.devices || response || []
+      const data = response.devices ?? response
+      usbStorage.value = Array.isArray(data) ? data : []
     } catch (e) {
     }
   }
@@ -152,7 +154,8 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
     error.value = null
     try {
       const response = await api.get('/hal/storage/usb/devices')
-      usbDevices.value = response.devices || response || []
+      const data = response.devices ?? response
+      usbDevices.value = Array.isArray(data) ? data : []
     } catch (e) {
       error.value = e.message
     } finally {
@@ -170,7 +173,8 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
     try {
       const encoded = encodeURIComponent(cls)
       const response = await api.get(`/hal/storage/usb/class/${encoded}`)
-      usbDevices.value = response.devices || response || []
+      const data = response.devices ?? response
+      usbDevices.value = Array.isArray(data) ? data : []
     } catch (e) {
       error.value = e.message
     } finally {
@@ -302,7 +306,8 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
     error.value = null
     try {
       const response = await api.get('/hal/storage/network-mounts')
-      networkMounts.value = response.mounts || response || []
+      const data = response.mounts ?? response
+      networkMounts.value = Array.isArray(data) ? data : []
     } catch (e) {
       error.value = e.message
     } finally {

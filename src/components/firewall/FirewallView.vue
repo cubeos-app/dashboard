@@ -566,7 +566,7 @@ function formatDirection(dir) {
                 id="rule-from"
                 v-model="newRule.from"
                 type="text"
-                placeholder="e.g. 10.42.24.0/24"
+                placeholder="e.g. 192.168.1.0/24"
                 class="w-full px-3 py-2 bg-theme-input border border-theme-primary rounded-lg text-sm text-theme-primary placeholder-theme-muted focus:outline-none focus:border-[color:var(--accent-primary)] font-mono"
               />
             </div>

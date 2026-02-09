@@ -67,7 +67,8 @@ export const useRegistryStore = defineStore('registry', () => {
     error.value = null
     try {
       const response = await api.get('/registry/images')
-      images.value = response.images || response.repositories || response || []
+      const data = response.images ?? response.repositories ?? response
+      images.value = Array.isArray(data) ? data : []
     } catch (e) {
       error.value = e.message
     } finally {
@@ -125,7 +126,8 @@ export const useRegistryStore = defineStore('registry', () => {
     try {
       const encoded = encodeURIComponent(name)
       const response = await api.get(`/registry/images/${encoded}/tags`)
-      selectedImageTags.value = response.tags || response || []
+      const data = response.tags ?? response
+      selectedImageTags.value = Array.isArray(data) ? data : []
       selectedImageName.value = name
       return selectedImageTags.value
     } catch (e) {

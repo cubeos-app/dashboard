@@ -62,7 +62,8 @@ export const useNPMStore = defineStore('npm', () => {
     error.value = null
     try {
       const response = await api.get('/npm/hosts')
-      hosts.value = response.hosts || response || []
+      const data = response.hosts ?? response
+      hosts.value = Array.isArray(data) ? data : []
     } catch (e) {
       error.value = e.message
     } finally {

@@ -54,7 +54,8 @@ export const useMountsStore = defineStore('mounts', () => {
     error.value = null
     try {
       const response = await api.get('/mounts')
-      mounts.value = response.mounts || response || []
+      const data = response.mounts ?? response
+      mounts.value = Array.isArray(data) ? data : []
     } catch (e) {
       error.value = e.message
       if (import.meta.env.DEV) console.error('Failed to fetch mounts:', e)

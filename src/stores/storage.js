@@ -114,7 +114,8 @@ export const useStorageStore = defineStore('storage', () => {
     try {
       const response = await api.get('/mounts', {}, options)
       if (response === null) return
-      mounts.value = response.mounts || response || []
+      const data = response.mounts ?? response
+      mounts.value = Array.isArray(data) ? data : []
     } catch (e) {
       if (e.name === 'AbortError') return
       error.value = e.message

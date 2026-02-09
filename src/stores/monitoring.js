@@ -95,7 +95,8 @@ export const useMonitoringStore = defineStore('monitoring', () => {
       const minutes = params.minutes ?? periodMinutesMap[period] ?? 60
 
       const response = await api.get('/monitoring/history', { minutes })
-      history.value = response.data || response.points || response || []
+      const data = response.data ?? response.points ?? response
+      history.value = Array.isArray(data) ? data : []
       // Track the current period selection
       if (params.period) historyPeriod.value = params.period
     } catch (e) {
@@ -113,7 +114,8 @@ export const useMonitoringStore = defineStore('monitoring', () => {
     try {
       const response = await api.get('/monitoring/alerts', {}, options)
       if (response === null) return
-      alerts.value = response.alerts || response || []
+      const data = response.alerts ?? response
+      alerts.value = Array.isArray(data) ? data : []
     } catch (e) {
       if (e.name === 'AbortError') return
       error.value = e.message

@@ -462,7 +462,8 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   async function fetchReservedPorts() {
     try {
       const response = await api.get('/ports/reserved')
-      reservedPorts.value = response.ports || response || []
+      const data = response.ports ?? response
+      reservedPorts.value = Array.isArray(data) ? data : []
     } catch (e) {
       reservedPorts.value = []
     }
