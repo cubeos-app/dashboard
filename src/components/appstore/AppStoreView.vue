@@ -8,6 +8,7 @@ import AppCard from './AppCard.vue'
 import AppDetailModal from './AppDetailModal.vue'
 import InstallProgressModal from './InstallProgressModal.vue'
 import InstallConfirmModal from './InstallConfirmModal.vue'
+import VolumeSettingsModal from './VolumeSettingsModal.vue'
 
 const appStore = useAppStoreStore()
 
@@ -32,6 +33,9 @@ const pendingInstallApp = ref(null)   // { storeId, appName, options, app }
 
 // Store detail expand state (Sources tab)
 const expandedStoreId = ref(null)
+
+// Volume settings modal state
+const volumeSettingsApp = ref(null) // { id, name } or null
 const storeDetail = ref(null)
 const storeDetailLoading = ref(false)
 const storeDetailError = ref(null)
@@ -309,6 +313,21 @@ async function handleRemoveApp(appId) {
 }
 
 async function handleRemoveStore(storeId) {
+
+// Volume settings
+function openVolumeSettings(app) {
+  volumeSettingsApp.value = {
+    id: app.id,
+    name: app.title || app.name
+  }
+}
+
+function handleVolumesSaved() {
+  volumeSettingsApp.value = null
+  appStore.fetchInstalledApps()
+}
+
+async function handleRemoveStore(storeId) {
   if (!await confirm({
     title: 'Remove Store',
     message: 'Remove this app store source? You can re-add it later.',
@@ -558,6 +577,15 @@ onUnmounted(() => {
               >
                 <Icon name="Settings" :size="16" />
               </router-link>
+
+              <button
+                @click.stop="openVolumeSettings(app)"
+                class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
+                title="Volume Settings"
+                :aria-label="'Volume settings for ' + (app.title || app.name)"
+              >
+                <Icon name="HardDrive" :size="16" />
+              </button>
 
               <button
                 v-if="app.status === 'stopped'"
@@ -1014,6 +1042,15 @@ onUnmounted(() => {
       :volumes="volumePreview.volumes"
       @confirm="handleInstallConfirm"
       @cancel="handleInstallConfirmCancel"
+    />
+
+    <!-- Volume Settings Modal (post-install) -->
+    <VolumeSettingsModal
+      v-if="volumeSettingsApp"
+      :app-id="volumeSettingsApp.id"
+      :app-name="volumeSettingsApp.name"
+      @close="volumeSettingsApp = null"
+      @saved="handleVolumesSaved"
     />
 
     <!-- Install/Uninstall Progress Modal -->
