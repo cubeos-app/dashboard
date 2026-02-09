@@ -87,8 +87,9 @@ class ApiClient {
       try {
         const response = await this.request(endpoint, options)
         // Don't retry on client errors (4xx) except 408/429
+        // Also skip 503 (Service Unavailable) — hardware absence won't resolve on retry
         if (response && response.ok) return response
-        if (response && response.status < 500 && response.status !== 408 && response.status !== 429) {
+        if (response && (response.status < 500 || response.status === 503) && response.status !== 408 && response.status !== 429) {
           return response
         }
         // Server error or rate-limited — retry
