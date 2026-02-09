@@ -312,8 +312,6 @@ async function handleRemoveApp(appId) {
   }
 }
 
-async function handleRemoveStore(storeId) {
-
 // Volume settings
 function openVolumeSettings(app) {
   volumeSettingsApp.value = {
