@@ -42,10 +42,29 @@ const props = defineProps({
   loading: {
     type: Boolean,
     default: false
+  },
+  checkboxLabel: {
+    type: String,
+    default: ''
+  },
+  checkboxChecked: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['confirm', 'cancel'])
+const emit = defineEmits(['confirm', 'cancel', 'checkbox-change'])
+
+const localChecked = ref(false)
+
+watch(() => props.checkboxChecked, (val) => {
+  localChecked.value = val
+}, { immediate: true })
+
+function onCheckboxChange(e) {
+  localChecked.value = e.target.checked
+  emit('checkbox-change', localChecked.value)
+}
 
 const variantClasses = {
   danger: 'btn-error',
@@ -98,7 +117,19 @@ watch(() => props.show, (visible) => {
             </div>
             
             <h3 class="text-lg font-semibold text-theme-primary mb-2">{{ title }}</h3>
-            <p v-if="message" class="text-sm text-theme-muted mb-6">{{ message }}</p>
+            <p v-if="message" class="text-sm text-theme-muted mb-4">{{ message }}</p>
+            
+            <!-- Optional checkbox -->
+            <label v-if="checkboxLabel" class="flex items-center gap-2 mb-6 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                :checked="localChecked"
+                @change="onCheckboxChange"
+                class="w-4 h-4 rounded border-theme-primary accent-accent"
+              />
+              <span class="text-sm text-theme-secondary">{{ checkboxLabel }}</span>
+            </label>
+            <div v-else class="mb-2"></div>
             
             <div class="flex gap-3 w-full">
               <button

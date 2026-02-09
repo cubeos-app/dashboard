@@ -9,11 +9,10 @@ import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppsStore } from '@/stores/apps'
 import api from '@/api/client'
-import { confirm } from '@/utils/confirmDialog'
+import { confirm, confirmState } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import TorToggle from '@/components/swarm/TorToggle.vue'
 import Icon from '@/components/ui/Icon.vue'
-import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,14 +28,20 @@ const activeTab = ref('overview')
 const dockerLoading = ref(false)
 const dockerDetail = ref(null)
 
-// Uninstall confirmation
-const showUninstallConfirm = ref(false)
-
 async function handleUninstall() {
-  showUninstallConfirm.value = false
+  if (!await confirm({
+    title: 'Uninstall App',
+    message: `This will stop and remove ${displayName.value} from your system.`,
+    confirmText: 'Uninstall',
+    variant: 'danger',
+    checkboxLabel: 'Also delete app data',
+    checkboxDefault: true
+  })) return
+  
+  const keepData = !confirmState.checkboxChecked
   actionLoading.value = true
   try {
-    await appsStore.uninstallApp(appName.value)
+    await appsStore.uninstallApp(appName.value, keepData)
     router.push('/apps')
   } finally {
     actionLoading.value = false
@@ -530,10 +535,10 @@ function formatBytes(bytes) {
         <div v-if="!isCore" class="p-4 rounded-xl bg-error-muted border border-error-subtle">
           <h3 class="text-sm font-medium text-error mb-3">Danger Zone</h3>
           <p class="text-sm text-theme-muted mb-4">
-            Uninstalling this app will remove it from your system. Data may be preserved depending on your settings.
+            Uninstalling this app will remove it from your system.
           </p>
           <button
-            @click="showUninstallConfirm = true"
+            @click="handleUninstall"
             class="px-4 py-2 rounded-lg btn-error text-sm font-medium transition-colors"
           >
             Uninstall App
@@ -541,16 +546,6 @@ function formatBytes(bytes) {
         </div>
       </div>
       
-      <!-- Uninstall Confirmation -->
-      <ConfirmDialog
-        :show="showUninstallConfirm"
-        title="Uninstall App"
-        :message="`This will remove ${displayName} from your system. Data may be preserved depending on your settings.`"
-        confirm-text="Uninstall"
-        variant="danger"
-        @confirm="handleUninstall"
-        @cancel="showUninstallConfirm = false"
-      />
     </div>
     
     <!-- Not Found -->

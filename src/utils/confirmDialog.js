@@ -27,6 +27,8 @@ export const confirmState = reactive({
   cancelText: 'Cancel',
   variant: 'danger',
   loading: false,
+  checkboxLabel: '',
+  checkboxChecked: false,
   _resolve: null
 })
 
@@ -45,7 +47,9 @@ export function confirm({
   message = '',
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  variant = 'danger'
+  variant = 'danger',
+  checkboxLabel = '',
+  checkboxDefault = false
 } = {}) {
   return new Promise((resolve) => {
     // If a previous dialog is still pending, resolve it as cancelled
@@ -57,6 +61,8 @@ export function confirm({
     confirmState.confirmText = confirmText
     confirmState.cancelText = cancelText
     confirmState.variant = variant
+    confirmState.checkboxLabel = checkboxLabel
+    confirmState.checkboxChecked = checkboxDefault
     confirmState.loading = false
     confirmState._resolve = resolve
     confirmState.show = true

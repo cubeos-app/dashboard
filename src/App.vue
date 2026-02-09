@@ -167,8 +167,11 @@ onUnmounted(() => {
       :cancel-text="confirmState.cancelText"
       :variant="confirmState.variant"
       :loading="confirmState.loading"
+      :checkbox-label="confirmState.checkboxLabel"
+      :checkbox-checked="confirmState.checkboxChecked"
       @confirm="handleConfirm"
       @cancel="handleCancel"
+      @checkbox-change="(v) => confirmState.checkboxChecked = v"
     />
   </div>
 </template>

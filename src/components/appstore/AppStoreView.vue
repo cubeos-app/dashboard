@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAppStoreStore } from '@/stores/appstore'
-import { confirm } from '@/utils/confirmDialog'
+import { confirm, confirmState } from '@/utils/confirmDialog'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 import AppCard from './AppCard.vue'
@@ -186,11 +186,13 @@ function formatDate(dateStr) {
 async function handleRemoveApp(appId) {
   if (!await confirm({
     title: 'Uninstall App',
-    message: 'Uninstall this app? All associated data and volumes may be removed.',
+    message: 'This will stop and remove the app from your system.',
     confirmText: 'Uninstall',
-    variant: 'danger'
+    variant: 'danger',
+    checkboxLabel: 'Also delete app data',
+    checkboxDefault: true
   })) return
-  appStore.removeApp(appId, false)
+  appStore.removeApp(appId, confirmState.checkboxChecked)
 }
 
 async function handleRemoveStore(storeId) {
