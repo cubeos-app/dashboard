@@ -1,12 +1,18 @@
 <script setup>
 /**
- * DashboardView.vue — Session 5 Update
+ * DashboardView.vue — Session C Update
  *
  * Dashboard shell that renders Standard or Advanced sub-view.
  * Hosts the settings gear icon and DashboardSettingsModal centrally
  * so both views share the same settings entry point.
  *
- * Keyboard shortcut: Ctrl+, (or Cmd+,) opens settings.
+ * Session C: Added edit mode toggle (pencil/check button).
+ * When editing: gear hidden, check shown. Escape exits edit mode.
+ * Pass isEditing to sub-views.
+ *
+ * Keyboard shortcuts:
+ *   Ctrl+, (or Cmd+,) opens settings
+ *   Escape exits edit mode
  */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -17,6 +23,7 @@ import { useNetworkStore } from '@/stores/network'
 import { useMonitoringStore } from '@/stores/monitoring'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { useMode } from '@/composables/useMode'
+import { useDashboardEdit } from '@/composables/useDashboardEdit'
 import { safeGetItem, safeSetItem } from '@/utils/storage'
 import Icon from '@/components/ui/Icon.vue'
 import DashboardStandard from './DashboardStandard.vue'
@@ -33,6 +40,7 @@ const networkStore = useNetworkStore()
 const monitoringStore = useMonitoringStore()
 const { signal } = useAbortOnUnmount()
 const { isAdvanced } = useMode()
+const { isEditing, toggleEdit, exitEdit } = useDashboardEdit()
 
 // Chat modal
 const showChatModal = ref(false)
@@ -81,6 +89,7 @@ function openChat() {
 // ─── Keyboard shortcuts ───────────────────────────────────────────
 // Ctrl+K / Cmd+K → focus search (Standard mode)
 // Ctrl+, / Cmd+, → open settings
+// Escape → exit edit mode
 
 function handleFocusSearch() {
   if (!isAdvanced.value && standardDashRef.value?.searchBarRef) {
@@ -89,13 +98,22 @@ function handleFocusSearch() {
 }
 
 function handleKeydown(e) {
+  // Escape → exit edit mode
+  if (e.key === 'Escape' && isEditing.value) {
+    e.preventDefault()
+    exitEdit()
+    return
+  }
+
   const mod = e.metaKey || e.ctrlKey
   if (!mod) return
 
-  // Ctrl+, → open/close settings
+  // Ctrl+, → open/close settings (only when not editing)
   if (e.key === ',') {
     e.preventDefault()
-    showSettings.value = !showSettings.value
+    if (!isEditing.value) {
+      showSettings.value = !showSettings.value
+    }
   }
 }
 
@@ -117,6 +135,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   appsStore.stopPolling()
+  exitEdit()
   window.removeEventListener('cubeos:focus-search', handleFocusSearch)
   window.removeEventListener('keydown', handleKeydown)
 })
@@ -124,20 +143,47 @@ onUnmounted(() => {
 
 <template>
   <div class="p-2 sm:p-4 lg:p-6 relative">
-    <!-- Settings gear (floats above both Standard and Advanced views) -->
-    <button
-      class="absolute top-2 right-2 sm:top-4 sm:right-4 lg:top-6 lg:right-6 w-8 h-8 rounded-lg flex items-center justify-center
-             text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary/50 transition-colors z-10"
-      aria-label="Dashboard settings (Ctrl+,)"
-      title="Dashboard settings (Ctrl+,)"
-      @click="showSettings = true"
-    >
-      <Icon name="Settings2" :size="18" :stroke-width="1.5" />
-    </button>
+    <!-- Edit / Settings controls (floats above both Standard and Advanced views) -->
+    <div class="absolute top-2 right-2 sm:top-4 sm:right-4 lg:top-6 lg:right-6 flex items-center gap-1 z-10">
+      <!-- Edit mode: done/check button -->
+      <button
+        v-if="isEditing"
+        class="w-8 h-8 rounded-lg flex items-center justify-center
+               text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors"
+        aria-label="Done editing"
+        title="Done editing (Esc)"
+        @click="toggleEdit"
+      >
+        <Icon name="Check" :size="18" :stroke-width="2" />
+      </button>
+
+      <!-- Normal mode: edit pencil + settings gear -->
+      <template v-else>
+        <button
+          class="w-8 h-8 rounded-lg flex items-center justify-center
+                 text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary/50 transition-colors"
+          aria-label="Edit layout"
+          title="Edit layout"
+          @click="toggleEdit"
+        >
+          <Icon name="Pencil" :size="16" :stroke-width="1.5" />
+        </button>
+        <button
+          class="w-8 h-8 rounded-lg flex items-center justify-center
+                 text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary/50 transition-colors"
+          aria-label="Dashboard settings (Ctrl+,)"
+          title="Dashboard settings (Ctrl+,)"
+          @click="showSettings = true"
+        >
+          <Icon name="Settings2" :size="18" :stroke-width="1.5" />
+        </button>
+      </template>
+    </div>
 
     <!-- Mode-aware sub-view -->
     <DashboardAdvanced
       v-if="isAdvanced"
+      :is-editing="isEditing"
       @open-app="openApp"
       @toggle-favorite="toggleFavorite"
       @open-chat="openChat"
@@ -145,6 +191,7 @@ onUnmounted(() => {
     <DashboardStandard
       v-else
       ref="standardDashRef"
+      :is-editing="isEditing"
       @open-app="openApp"
       @toggle-favorite="toggleFavorite"
       @open-chat="openChat"
