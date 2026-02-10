@@ -223,10 +223,18 @@ async function sendChat() {
   try {
     const response = await fetch('/api/v1/chat/stream', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: api.getHeaders(),
       body: JSON.stringify({ message: text }),
       signal: chatController.signal
     })
+
+    if (!response.ok) {
+      chatResponse.value = response.status === 503
+        ? 'CubeOS AI is not available. Check that Ollama is running.'
+        : `Chat request failed (HTTP ${response.status})`
+      chatLoading.value = false
+      return
+    }
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
