@@ -10,7 +10,8 @@
  *   - Added Ctrl+K search trigger placeholder
  *   - Responsive: stats hidden below lg, mode toggle hidden on mobile
  */
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -24,6 +25,28 @@ const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const brandingStore = useBrandingStore()
 const { isMobile } = useBreakpoint()
+const router = useRouter()
+
+// ─── Global Ctrl+K / Cmd+K shortcut ─────────────────────────────
+function handleGlobalKeydown(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault()
+    // Dispatch custom event — DashboardView listens for this
+    window.dispatchEvent(new CustomEvent('cubeos:focus-search'))
+    // If not on dashboard, navigate there
+    if (router.currentRoute.value.name !== 'dashboard') {
+      router.push('/')
+    }
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown)
+})
 
 // ─── System Stats ─────────────────────────────────────────────────
 

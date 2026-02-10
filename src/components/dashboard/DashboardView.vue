@@ -1,19 +1,15 @@
 <script setup>
 /**
- * DashboardView.vue
+ * DashboardView.vue — S13 Update
  *
- * S03 — Dashboard shell that renders Standard or Advanced sub-view
- * based on the current UI mode. Handles shared data fetching, search,
- * chat modal, and service health modal.
+ * Dashboard shell that renders Standard or Advanced sub-view
+ * based on the current UI mode. Handles shared data fetching,
+ * chat modal, service health modal, and Ctrl+K search focus.
  *
- * Replaces: components/DashboardView.vue (old flat dashboard)
- *
- * Data loading:
- *   - System stats via systemStore.fetchAll() (also populated by WebSocket)
- *   - Apps via appsStore.fetchApps() + polling
- *   - Favorites via favoritesStore.fetchAll()
- *   - Network status via networkStore.fetchStatus()
- *   - Monitoring data fetched within DashboardAdvanced (Advanced-specific)
+ * S13 changes:
+ *   - Added monitoring store fetch (for AlertBanner alerts)
+ *   - Added Ctrl+K / Cmd+K global shortcut to focus SearchChatBar
+ *   - Recent app tracking via safeSetItem/safeGetItem
  */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -21,6 +17,7 @@ import { useSystemStore } from '@/stores/system'
 import { useAppsStore } from '@/stores/apps'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useNetworkStore } from '@/stores/network'
+import { useMonitoringStore } from '@/stores/monitoring'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { useMode } from '@/composables/useMode'
 import { safeGetItem, safeSetItem } from '@/utils/storage'
@@ -35,6 +32,7 @@ const systemStore = useSystemStore()
 const appsStore = useAppsStore()
 const favoritesStore = useFavoritesStore()
 const networkStore = useNetworkStore()
+const monitoringStore = useMonitoringStore()
 const { signal } = useAbortOnUnmount()
 const { isAdvanced } = useMode()
 
@@ -45,6 +43,9 @@ const chatQuery = ref('')
 // Health modal (for apps without web UI)
 const showHealthModal = ref(false)
 const selectedApp = ref(null)
+
+// Ref to StandardDashboard for Ctrl+K
+const standardDashRef = ref(null)
 
 // ─── App interaction ──────────────────────────────────────────────
 
@@ -76,6 +77,14 @@ function openChat() {
   showChatModal.value = true
 }
 
+// ─── Ctrl+K search focus (via AppHeader custom event) ────────────
+
+function handleFocusSearch() {
+  if (!isAdvanced.value && standardDashRef.value?.searchBarRef) {
+    standardDashRef.value.searchBarRef.focusInput()
+  }
+}
+
 // ─── Lifecycle ────────────────────────────────────────────────────
 
 onMounted(async () => {
@@ -84,13 +93,16 @@ onMounted(async () => {
     systemStore.fetchAll({ signal: s }),
     appsStore.fetchApps({ signal: s }),
     favoritesStore.fetchAll(),
-    networkStore.fetchStatus()
+    networkStore.fetchStatus(),
+    monitoringStore.fetchAlerts({ signal: s })
   ])
   appsStore.startPolling()
+  window.addEventListener('cubeos:focus-search', handleFocusSearch)
 })
 
 onUnmounted(() => {
   appsStore.stopPolling()
+  window.removeEventListener('cubeos:focus-search', handleFocusSearch)
 })
 </script>
 
@@ -111,6 +123,7 @@ onUnmounted(() => {
     />
     <DashboardStandard
       v-else
+      ref="standardDashRef"
       @open-app="openApp"
       @toggle-favorite="toggleFavorite"
       @open-chat="openChat"
