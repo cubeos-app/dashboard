@@ -7,8 +7,43 @@
  * Auto-saves each change via useDashboardConfig composable.
  * Reset to Defaults uses the global confirm dialog.
  */
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, defineComponent, h } from 'vue'
 import { useDashboardConfig } from '@/composables/useDashboardConfig'
+
+// ─── Inline toggle component (render function, used only by this modal) ──
+const SettingsToggle = defineComponent({
+  name: 'SettingsToggle',
+  props: {
+    label: { type: String, required: true },
+    active: { type: Boolean, required: true },
+  },
+  emits: ['toggle'],
+  setup(props, { emit }) {
+    return () =>
+      h('div', { class: 'flex items-center justify-between py-1' }, [
+        h('span', { class: 'text-sm text-theme-secondary' }, props.label),
+        h('button', {
+          class: [
+            'relative w-10 h-[22px] rounded-full transition-colors duration-200 flex-shrink-0',
+            props.active ? 'bg-accent' : 'bg-theme-tertiary border border-theme-primary'
+          ],
+          role: 'switch',
+          'aria-checked': String(props.active),
+          'aria-label': `Toggle ${props.label}`,
+          onClick: () => emit('toggle'),
+        }, [
+          h('span', {
+            class: [
+              'absolute top-0.5 w-[18px] h-[18px] rounded-full transition-transform duration-200 shadow-sm',
+              props.active
+                ? 'translate-x-[22px] bg-on-accent'
+                : 'translate-x-0.5 bg-theme-muted'
+            ]
+          })
+        ])
+      ])
+  }
+})
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
@@ -424,51 +459,6 @@ function handleClose() {
     </Transition>
   </Teleport>
 </template>
-
-<!-- ─── SettingsToggle inline component ───────────────────── -->
-<script>
-/**
- * Tiny inline toggle row used only by this modal.
- * Not extracted to a separate file since it's a settings-specific pattern.
- */
-import { defineComponent, h } from 'vue'
-
-const SettingsToggle = defineComponent({
-  name: 'SettingsToggle',
-  props: {
-    label: { type: String, required: true },
-    active: { type: Boolean, required: true },
-  },
-  emits: ['toggle'],
-  setup(props, { emit }) {
-    return () =>
-      h('div', { class: 'flex items-center justify-between py-1' }, [
-        h('span', { class: 'text-sm text-theme-secondary' }, props.label),
-        h('button', {
-          class: [
-            'relative w-10 h-[22px] rounded-full transition-colors duration-200 flex-shrink-0',
-            props.active ? 'bg-accent' : 'bg-theme-tertiary border border-theme-primary'
-          ],
-          role: 'switch',
-          'aria-checked': String(props.active),
-          'aria-label': `Toggle ${props.label}`,
-          onClick: () => emit('toggle'),
-        }, [
-          h('span', {
-            class: [
-              'absolute top-0.5 w-[18px] h-[18px] rounded-full transition-transform duration-200 shadow-sm',
-              props.active
-                ? 'translate-x-[22px] bg-on-accent'
-                : 'translate-x-0.5 bg-theme-muted'
-            ]
-          })
-        ])
-      ])
-  }
-})
-
-export { SettingsToggle }
-</script>
 
 <style scoped>
 /* Slide-in animation for the settings panel */
