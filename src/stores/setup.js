@@ -18,6 +18,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/client'
 import { confirm } from '@/utils/confirmDialog'
+import { usePreferencesStore } from '@/stores/preferences'
 
 export const useSetupStore = defineStore('setup', () => {
   // ==========================================
@@ -264,7 +265,6 @@ export const useSetupStore = defineStore('setup', () => {
     } catch (e) {
       // Fallback to preferences if /setup/complete fails for any reason
       try {
-        const { usePreferencesStore } = await import('@/stores/preferences')
         const preferencesStore = usePreferencesStore()
         await preferencesStore.savePreferences({ setup_complete: true })
         status.value = { is_complete: true }
