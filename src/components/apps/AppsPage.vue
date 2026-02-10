@@ -210,8 +210,9 @@ const headerSubtitle = computed(() => {
       :app="detailApp"
       @close="closeDetail"
       @install="(storeId, appName, options) => {
+        const appSnapshot = detailApp.value
         closeDetail()
-        startInstall(storeId, appName, detailApp, options)
+        startInstall(storeId, appName, appSnapshot, options)
       }"
     />
 

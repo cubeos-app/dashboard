@@ -109,8 +109,9 @@ onUnmounted(() => {
 <template>
   <div class="p-2 sm:p-4 lg:p-6">
     <PageHeader
+      v-if="isAdvanced"
       title="Dashboard"
-      :subtitle="isAdvanced ? 'System overview and service health' : 'Your offline services at a glance'"
+      subtitle="System overview and service health"
       icon="LayoutDashboard"
     />
 
