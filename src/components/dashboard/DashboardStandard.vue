@@ -28,6 +28,10 @@ import SystemVitals from './SystemVitals.vue'
 import NetworkWidget from './NetworkWidget.vue'
 import DiskWidget from './DiskWidget.vue'
 import SignalsWidget from './SignalsWidget.vue'
+import UptimeLoadWidget from './UptimeLoadWidget.vue'
+import NetworkThroughputWidget from './NetworkThroughputWidget.vue'
+import RecentLogsWidget from './RecentLogsWidget.vue'
+import BatteryWidget from './BatteryWidget.vue'
 import AppLauncher from './AppLauncher.vue'
 import WidgetWrapper from './WidgetWrapper.vue'
 
@@ -50,6 +54,10 @@ const {
   showSignals,
   showQuickActions,
   showAlerts,
+  showUptimeLoad,
+  showNetworkThroughput,
+  showRecentLogs,
+  showBattery,
   showFavorites,
   showRecent,
   showMyApps,
@@ -295,6 +303,26 @@ function isInPair(entry) {
             <!-- ═══ Signals ═══ -->
             <WidgetWrapper v-if="widgetId === 'signals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <SignalsWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Uptime & Load (Session 3) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'uptime_load'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <UptimeLoadWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Network Throughput (Session 3) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'network_throughput'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <NetworkThroughputWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Recent Logs (Session 3) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'recent_logs'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <RecentLogsWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Battery (Session 3) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'battery'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <BatteryWidget />
             </WidgetWrapper>
 
             <!-- ═══ Quick Actions ═══ -->

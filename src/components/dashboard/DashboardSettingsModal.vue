@@ -363,6 +363,10 @@ function closeWidgetPicker() {
                   <SettingsToggle label="Signals" :active="config.showSignals.value" @toggle="toggle('show_signals_widget', config.showSignals.value)" />
                   <SettingsToggle label="Swarm Overview" :active="config.showSwarm.value" @toggle="toggle('show_swarm', config.showSwarm.value)" />
                   <SettingsToggle label="Alerts Feed" :active="config.showAlerts.value" @toggle="toggle('show_alerts', config.showAlerts.value)" />
+                  <SettingsToggle label="Uptime & Load" :active="config.showUptimeLoad.value" @toggle="toggle('show_uptime_load', config.showUptimeLoad.value)" />
+                  <SettingsToggle label="Network Traffic" :active="config.showNetworkThroughput.value" @toggle="toggle('show_network_throughput', config.showNetworkThroughput.value)" />
+                  <SettingsToggle label="Recent Logs" :active="config.showRecentLogs.value" @toggle="toggle('show_recent_logs', config.showRecentLogs.value)" />
+                  <SettingsToggle label="Battery" :active="config.showBattery.value" @toggle="toggle('show_battery', config.showBattery.value)" />
                   <SettingsToggle label="Favorites" :active="config.showFavorites.value" @toggle="toggle('show_favorites', config.showFavorites.value)" />
                   <SettingsToggle label="Core Services" :active="config.showCoreServices.value" @toggle="toggle('show_core_services', config.showCoreServices.value)" />
                   <SettingsToggle label="User Applications" :active="config.showMyApps.value" @toggle="toggle('show_my_apps', config.showMyApps.value)" />
@@ -479,6 +483,10 @@ function closeWidgetPicker() {
                   <SettingsToggle label="Network" :active="config.showNetwork.value" @toggle="toggle('show_network_widget', config.showNetwork.value)" />
                   <SettingsToggle label="Disk Usage" :active="config.showDisk.value" @toggle="toggle('show_disk_widget', config.showDisk.value)" />
                   <SettingsToggle label="Signals" :active="config.showSignals.value" @toggle="toggle('show_signals_widget', config.showSignals.value)" />
+                  <SettingsToggle label="Uptime & Load" :active="config.showUptimeLoad.value" @toggle="toggle('show_uptime_load', config.showUptimeLoad.value)" />
+                  <SettingsToggle label="Network Traffic" :active="config.showNetworkThroughput.value" @toggle="toggle('show_network_throughput', config.showNetworkThroughput.value)" />
+                  <SettingsToggle label="Recent Logs" :active="config.showRecentLogs.value" @toggle="toggle('show_recent_logs', config.showRecentLogs.value)" />
+                  <SettingsToggle label="Battery" :active="config.showBattery.value" @toggle="toggle('show_battery', config.showBattery.value)" />
                   <SettingsToggle label="Status Pill" :active="config.showStatusPill.value" @toggle="toggle('show_status_pill', config.showStatusPill.value)" />
                   <SettingsToggle label="Search / Chat Bar" :active="config.showSearch.value" @toggle="toggle('show_search', config.showSearch.value)" />
                   <SettingsToggle label="Alert Banner" :active="config.showAlerts.value" @toggle="toggle('show_alerts', config.showAlerts.value)" />

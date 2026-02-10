@@ -25,31 +25,39 @@ import { useMode } from '@/composables/useMode'
 
 /** All known widget IDs with metadata */
 export const WIDGET_REGISTRY = {
-  clock:    { label: 'Clock',          icon: 'Clock' },
-  search:   { label: 'Search Bar',     icon: 'Search' },
-  status:   { label: 'Status Pill',    icon: 'Activity' },
-  vitals:   { label: 'System Vitals',  icon: 'Cpu' },
-  network:  { label: 'Network',        icon: 'Wifi' },
-  disk:     { label: 'Disk Usage',     icon: 'HardDrive' },
-  signals:  { label: 'Signals',        icon: 'Radio' },
-  actions:  { label: 'Quick Actions',  icon: 'Zap' },
-  launcher: { label: 'App Launcher',   icon: 'Grid3x3' },
+  clock:               { label: 'Clock',              icon: 'Clock' },
+  search:              { label: 'Search Bar',         icon: 'Search' },
+  status:              { label: 'Status Pill',        icon: 'Activity' },
+  vitals:              { label: 'System Vitals',      icon: 'Cpu' },
+  network:             { label: 'Network',            icon: 'Wifi' },
+  disk:                { label: 'Disk Usage',         icon: 'HardDrive' },
+  signals:             { label: 'Signals',            icon: 'Radio' },
+  uptime_load:         { label: 'Uptime & Load',      icon: 'Clock' },
+  network_throughput:  { label: 'Network Traffic',     icon: 'ArrowUpDown' },
+  recent_logs:         { label: 'Recent Logs',         icon: 'ScrollText' },
+  battery:             { label: 'Battery',             icon: 'Battery' },
+  actions:             { label: 'Quick Actions',       icon: 'Zap' },
+  launcher:            { label: 'App Launcher',        icon: 'Grid3x3' },
 }
 
 export const ALL_WIDGET_IDS = Object.keys(WIDGET_REGISTRY)
 
 /** Advanced-mode section IDs with metadata */
 export const ADVANCED_SECTION_REGISTRY = {
-  gauges:        { label: 'Status Gauges',   icon: 'Activity' },
-  infobar:       { label: 'Info Bar',        icon: 'Info' },
-  disk:          { label: 'Disk Usage',      icon: 'HardDrive' },
-  signals:       { label: 'Signals',         icon: 'Radio' },
-  swarm:         { label: 'Swarm Overview',  icon: 'Layers' },
-  alerts:        { label: 'Alerts Feed',     icon: 'Bell' },
-  favorites:     { label: 'Favorites',       icon: 'Star' },
-  core:          { label: 'Core Services',   icon: 'Box' },
-  'user-apps':   { label: 'User Apps',       icon: 'Package' },
-  'quick-links': { label: 'Quick Links',     icon: 'Zap' },
+  gauges:              { label: 'Status Gauges',       icon: 'Activity' },
+  infobar:             { label: 'Info Bar',            icon: 'Info' },
+  disk:                { label: 'Disk Usage',          icon: 'HardDrive' },
+  signals:             { label: 'Signals',             icon: 'Radio' },
+  swarm:               { label: 'Swarm Overview',      icon: 'Layers' },
+  alerts:              { label: 'Alerts Feed',         icon: 'Bell' },
+  'uptime-load':       { label: 'Uptime & Load',       icon: 'Clock' },
+  'network-throughput':{ label: 'Network Traffic',      icon: 'ArrowUpDown' },
+  'recent-logs':       { label: 'Recent Logs',          icon: 'ScrollText' },
+  'battery':           { label: 'Battery',              icon: 'Battery' },
+  favorites:           { label: 'Favorites',            icon: 'Star' },
+  core:                { label: 'Core Services',        icon: 'Box' },
+  'user-apps':         { label: 'User Apps',            icon: 'Package' },
+  'quick-links':       { label: 'Quick Links',          icon: 'Zap' },
 }
 
 export const ALL_ADVANCED_SECTION_IDS = Object.keys(ADVANCED_SECTION_REGISTRY)
@@ -72,6 +80,10 @@ const STANDARD_GRID_LAYOUT = [
   { row: ['network'] },
   { row: ['disk'] },
   { row: ['signals'] },
+  { row: ['uptime_load'] },
+  { row: ['network_throughput'] },
+  { row: ['recent_logs'] },
+  { row: ['battery'] },
   { row: ['actions'] },
   { row: ['launcher'] },
 ]
@@ -81,6 +93,10 @@ const ADVANCED_GRID_LAYOUT = [
   { row: ['network'] },
   { row: ['disk'] },
   { row: ['signals'] },
+  { row: ['uptime_load'] },
+  { row: ['network_throughput'] },
+  { row: ['recent_logs'] },
+  { row: ['battery'] },
   { row: ['actions'] },
   { row: ['launcher'] },
 ]
@@ -88,6 +104,7 @@ const ADVANCED_GRID_LAYOUT = [
 /** Default advanced section order — all individual IDs, no composites */
 const DEFAULT_ADVANCED_SECTION_ORDER = [
   'gauges', 'infobar', 'disk', 'signals', 'swarm', 'alerts',
+  'uptime-load', 'network-throughput', 'recent-logs', 'battery',
   'favorites', 'core', 'user-apps', 'quick-links'
 ]
 
@@ -106,6 +123,10 @@ const STANDARD_DEFAULTS = {
   show_recent: true,
   show_my_apps: true,
   show_alerts: true,
+  show_uptime_load: false,
+  show_network_throughput: false,
+  show_recent_logs: false,
+  show_battery: true,
   clock_format: '24h',
   date_format: 'long',
   show_seconds: true,
@@ -132,6 +153,10 @@ const ADVANCED_DEFAULTS = {
   show_recent: false,
   show_my_apps: true,
   show_alerts: true,
+  show_uptime_load: true,
+  show_network_throughput: true,
+  show_recent_logs: true,
+  show_battery: true,
   // Advanced-specific section visibility
   show_info_bar: true,
   show_swarm: true,
@@ -270,6 +295,13 @@ export function useDashboardConfig() {
   const showMyApps = computed(() => boolOr(raw.value?.show_my_apps, defaults.value.show_my_apps))
   const showAlerts = computed(() => boolOr(raw.value?.show_alerts, defaults.value.show_alerts))
 
+  // ─── New widget visibility (Session 3) ────────────────────────
+
+  const showUptimeLoad = computed(() => boolOr(raw.value?.show_uptime_load, defaults.value.show_uptime_load ?? false))
+  const showNetworkThroughput = computed(() => boolOr(raw.value?.show_network_throughput, defaults.value.show_network_throughput ?? false))
+  const showRecentLogs = computed(() => boolOr(raw.value?.show_recent_logs, defaults.value.show_recent_logs ?? false))
+  const showBattery = computed(() => boolOr(raw.value?.show_battery, defaults.value.show_battery ?? true))
+
   // ─── Advanced-specific section visibility ─────────────────────
 
   const showInfoBar = computed(() => boolOr(raw.value?.show_info_bar, defaults.value.show_info_bar ?? true))
@@ -335,6 +367,10 @@ export function useDashboardConfig() {
     network: showNetwork.value,
     disk: showDisk.value,
     signals: showSignals.value,
+    uptime_load: showUptimeLoad.value,
+    network_throughput: showNetworkThroughput.value,
+    recent_logs: showRecentLogs.value,
+    battery: showBattery.value,
     actions: showQuickActions.value,
     launcher: true,
   }))
@@ -443,6 +479,12 @@ export function useDashboardConfig() {
     showRecent,
     showMyApps,
     showAlerts,
+
+    // New widgets (Session 3)
+    showUptimeLoad,
+    showNetworkThroughput,
+    showRecentLogs,
+    showBattery,
 
     // Advanced-specific
     showInfoBar,

@@ -26,6 +26,10 @@ import ServiceGrid from './ServiceGrid.vue'
 import AlertsFeed from './AlertsFeed.vue'
 import DiskWidget from './DiskWidget.vue'
 import SignalsWidget from './SignalsWidget.vue'
+import UptimeLoadWidget from './UptimeLoadWidget.vue'
+import NetworkThroughputWidget from './NetworkThroughputWidget.vue'
+import RecentLogsWidget from './RecentLogsWidget.vue'
+import BatteryWidget from './BatteryWidget.vue'
 import WidgetWrapper from './WidgetWrapper.vue'
 import WidgetErrorBoundary from './WidgetErrorBoundary.vue'
 import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
@@ -56,6 +60,10 @@ const {
   showQuickActions,
   showDisk,
   showSignals,
+  showUptimeLoad,
+  showNetworkThroughput,
+  showRecentLogs,
+  showBattery,
   raw,
   updateConfig,
   advancedSectionOrder,
@@ -80,6 +88,10 @@ const sectionVisibility = computed(() => ({
   'signals': showSignals.value,
   'swarm': showSwarm.value,
   'alerts': showAlerts.value,
+  'uptime-load': showUptimeLoad.value,
+  'network-throughput': showNetworkThroughput.value,
+  'recent-logs': showRecentLogs.value,
+  'battery': showBattery.value && systemStore.batteryAvailable,
   'favorites': showFavorites.value && favoriteApps.value.length > 0,
   'core': showCoreServices.value,
   'user-apps': showMyApps.value && userApps.value.length > 0,
@@ -389,6 +401,34 @@ function goToAppStore() { router.push('/appstore') }
             :loading="monitoringStore.loading"
             :limit="6"
           />
+          </WidgetErrorBoundary>
+        </section>
+
+        <!-- ═══ Uptime & Load (Session 3) ═══ -->
+        <section v-if="sectionId === 'uptime-load'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="uptime-load" :label="SECTION_LABELS['uptime-load']" icon="Clock">
+            <UptimeLoadWidget />
+          </WidgetErrorBoundary>
+        </section>
+
+        <!-- ═══ Network Throughput (Session 3) ═══ -->
+        <section v-if="sectionId === 'network-throughput'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="network-throughput" :label="SECTION_LABELS['network-throughput']" icon="ArrowUpDown">
+            <NetworkThroughputWidget />
+          </WidgetErrorBoundary>
+        </section>
+
+        <!-- ═══ Recent Logs (Session 3) ═══ -->
+        <section v-if="sectionId === 'recent-logs'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="recent-logs" :label="SECTION_LABELS['recent-logs']" icon="ScrollText">
+            <RecentLogsWidget />
+          </WidgetErrorBoundary>
+        </section>
+
+        <!-- ═══ Battery (Session 3) ═══ -->
+        <section v-if="sectionId === 'battery'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="battery" :label="SECTION_LABELS['battery']" icon="Battery">
+            <BatteryWidget />
           </WidgetErrorBoundary>
         </section>
 
