@@ -1,19 +1,20 @@
 <script setup>
 /**
- * DashboardSettingsModal.vue — Session 5 (mode-aware)
+ * DashboardSettingsModal.vue — Session A Grid Overhaul
  *
  * Slide-over settings panel for dashboard customization.
  * Detects Standard vs Advanced mode via useDashboardConfig and shows
  * the appropriate toggle set for each mode.
  *
- * Standard: Clock & Date, Widgets, Quick Actions, App Launcher, Widget Order
- * Advanced: Section Visibility (gauges, info bar, swarm, alerts, favorites,
- *           core services, user apps, quick links, disk, signals)
+ * Standard: Clock & Date, Widgets, Quick Actions, App Launcher, Layout (grid rows)
+ * Advanced: Section Visibility, Additional Widgets
  *
- * Auto-saves each change via useDashboardConfig composable.
+ * Session A: Replaced flat "Widget Order" section with "Layout" section
+ * showing grid rows. Each row displays its widget(s) with controls:
+ * move row up/down, split 2→1, merge adjacent 1→2, add/remove widgets.
  */
 import { ref, computed, watch, nextTick, defineComponent, h } from 'vue'
-import { useDashboardConfig } from '@/composables/useDashboardConfig'
+import { useDashboardConfig, WIDGET_REGISTRY, ALL_WIDGET_IDS } from '@/composables/useDashboardConfig'
 
 // ─── Inline toggle component (render function, used only by this modal) ──
 const SettingsToggle = defineComponent({
@@ -148,35 +149,94 @@ function addAction(id) {
   config.updateConfig('quick_actions', [...enabledActions.value, id])
 }
 
-// ─── Widget Order (Standard only) ───────────────────────────
-const WIDGET_LABELS = {
-  clock: 'Clock',
-  search: 'Search Bar',
-  status: 'Status Pill',
-  vitals: 'System Vitals',
-  network: 'Network Widget',
-  'disk-signals': 'Disk & Signals',
-  actions: 'Quick Actions',
-  launcher: 'App Launcher',
+// ─── Grid Layout manipulation (Session A) ───────────────────
+
+/** Widget label helper */
+function widgetLabel(id) {
+  return WIDGET_REGISTRY[id]?.label || id
 }
 
-const WIDGET_ICONS = {
-  clock: 'Clock',
-  search: 'Search',
-  status: 'Activity',
-  vitals: 'Cpu',
-  network: 'Wifi',
-  'disk-signals': 'HardDrive',
-  actions: 'Zap',
-  launcher: 'Grid3x3',
+/** Widget icon helper */
+function widgetIcon(id) {
+  return WIDGET_REGISTRY[id]?.icon || 'Box'
 }
 
-function moveWidget(index, direction) {
-  const list = [...config.widgetOrder.value]
+/** Current grid layout as a mutable copy */
+function getLayoutCopy() {
+  return config.gridLayout.value.map(entry => ({ row: [...entry.row] }))
+}
+
+/** Move a row up or down */
+function moveRow(index, direction) {
+  const rows = getLayoutCopy()
   const newIndex = index + direction
-  if (newIndex < 0 || newIndex >= list.length) return
-  ;[list[index], list[newIndex]] = [list[newIndex], list[index]]
-  config.updateConfig('widget_order', list)
+  if (newIndex < 0 || newIndex >= rows.length) return
+  ;[rows[index], rows[newIndex]] = [rows[newIndex], rows[index]]
+  config.updateGridLayout(rows)
+}
+
+/** Split a 2-widget row into two single-widget rows */
+function splitRow(index) {
+  const rows = getLayoutCopy()
+  const entry = rows[index]
+  if (!entry || entry.row.length < 2) return
+  const [a, b] = entry.row
+  rows.splice(index, 1, { row: [a] }, { row: [b] })
+  config.updateGridLayout(rows)
+}
+
+/** Merge this row with the next row (both must have 1 widget) */
+function mergeWithNext(index) {
+  const rows = getLayoutCopy()
+  const current = rows[index]
+  const next = rows[index + 1]
+  if (!current || !next) return
+  if (current.row.length + next.row.length > 2) return
+  rows.splice(index, 2, { row: [...current.row, ...next.row] })
+  config.updateGridLayout(rows)
+}
+
+/** Remove a widget from a row. If row becomes empty, remove the row. */
+function removeWidgetFromGrid(rowIdx, widgetId) {
+  const rows = getLayoutCopy()
+  const entry = rows[rowIdx]
+  if (!entry) return
+  entry.row = entry.row.filter(id => id !== widgetId)
+  if (entry.row.length === 0) {
+    rows.splice(rowIdx, 1)
+  }
+  config.updateGridLayout(rows)
+}
+
+/** Add an unplaced widget to an existing row (max 2 per row) */
+function addWidgetToRow(rowIdx, widgetId) {
+  const rows = getLayoutCopy()
+  const entry = rows[rowIdx]
+  if (!entry || entry.row.length >= 2) return
+  entry.row.push(widgetId)
+  config.updateGridLayout(rows)
+}
+
+/** Add a widget as a new row at the end */
+function addWidgetAsNewRow(widgetId) {
+  const rows = getLayoutCopy()
+  rows.push({ row: [widgetId] })
+  config.updateGridLayout(rows)
+}
+
+/** Whether a row can merge with the next */
+function canMerge(index) {
+  const rows = config.gridLayout.value
+  const current = rows[index]
+  const next = rows[index + 1]
+  if (!current || !next) return false
+  return current.row.length === 1 && next.row.length === 1
+}
+
+/** Whether a row can accept another widget */
+function canAddToRow(index) {
+  const rows = config.gridLayout.value
+  return rows[index]?.row.length === 1
 }
 
 // ─── Toggle helper ──────────────────────────────────────────
@@ -197,6 +257,26 @@ async function handleReset() {
 
 function handleClose() {
   emit('close')
+}
+
+// ─── Unplaced widget picker state ───────────────────────────
+const showWidgetPicker = ref(null)  // rowIdx or 'new'
+
+function openWidgetPicker(target) {
+  showWidgetPicker.value = target
+}
+
+function pickWidget(widgetId) {
+  if (showWidgetPicker.value === 'new') {
+    addWidgetAsNewRow(widgetId)
+  } else if (typeof showWidgetPicker.value === 'number') {
+    addWidgetToRow(showWidgetPicker.value, widgetId)
+  }
+  showWidgetPicker.value = null
+}
+
+function closeWidgetPicker() {
+  showWidgetPicker.value = null
 }
 </script>
 
@@ -453,32 +533,139 @@ function handleClose() {
                 </div>
               </section>
 
-              <!-- ═══ Section: Widget Order ═══ -->
+              <!-- ═══ Section: Layout (Grid Rows) ═══ -->
               <section>
-                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Widget Order</h3>
-                <div class="space-y-1">
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Layout</h3>
+                <p class="text-xs text-theme-muted mb-3">
+                  Arrange widgets into rows. Each row holds 1-2 widgets side-by-side.
+                </p>
+
+                <div class="space-y-2">
                   <div
-                    v-for="(id, index) in config.widgetOrder.value"
-                    :key="id"
-                    class="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-tertiary"
+                    v-for="(entry, rowIdx) in config.gridLayout.value"
+                    :key="rowIdx"
+                    class="rounded-lg border border-theme-primary bg-theme-tertiary overflow-hidden"
                   >
-                    <Icon :name="WIDGET_ICONS[id] || 'Box'" :size="16" class="text-theme-secondary flex-shrink-0" />
-                    <span class="text-sm text-theme-primary flex-1">{{ WIDGET_LABELS[id] || id }}</span>
+                    <!-- Row header -->
+                    <div class="flex items-center gap-1 px-2 py-1.5 border-b border-theme-primary/50">
+                      <span class="text-[10px] font-semibold text-theme-muted uppercase tracking-wider flex-1">
+                        Row {{ rowIdx + 1 }}
+                        <span class="font-normal normal-case tracking-normal ml-0.5">
+                          ({{ entry.row.length === 1 ? 'full width' : 'side-by-side' }})
+                        </span>
+                      </span>
+
+                      <!-- Row actions -->
+                      <button
+                        :disabled="rowIdx === 0"
+                        class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move row up"
+                        @click="moveRow(rowIdx, -1)"
+                      >
+                        <Icon name="ChevronUp" :size="12" />
+                      </button>
+                      <button
+                        :disabled="rowIdx === config.gridLayout.value.length - 1"
+                        class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move row down"
+                        @click="moveRow(rowIdx, 1)"
+                      >
+                        <Icon name="ChevronDown" :size="12" />
+                      </button>
+
+                      <!-- Split (only for 2-widget rows) -->
+                      <button
+                        v-if="entry.row.length === 2"
+                        class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary transition-colors"
+                        title="Split into two rows"
+                        @click="splitRow(rowIdx)"
+                      >
+                        <Icon name="SplitSquareVertical" :size="12" />
+                      </button>
+
+                      <!-- Merge with next (only for single-widget rows with a single-widget next) -->
+                      <button
+                        v-if="canMerge(rowIdx)"
+                        class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-accent transition-colors"
+                        title="Merge with row below"
+                        @click="mergeWithNext(rowIdx)"
+                      >
+                        <Icon name="Combine" :size="12" />
+                      </button>
+                    </div>
+
+                    <!-- Widgets in this row -->
+                    <div class="divide-y divide-theme-primary/30">
+                      <div
+                        v-for="widgetId in entry.row"
+                        :key="widgetId"
+                        class="flex items-center gap-2 px-3 py-2"
+                      >
+                        <Icon :name="widgetIcon(widgetId)" :size="14" class="text-theme-secondary flex-shrink-0" />
+                        <span class="text-sm text-theme-primary flex-1">{{ widgetLabel(widgetId) }}</span>
+                        <button
+                          class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-error transition-colors"
+                          title="Remove from layout"
+                          @click="removeWidgetFromGrid(rowIdx, widgetId)"
+                        >
+                          <Icon name="X" :size="12" />
+                        </button>
+                      </div>
+
+                      <!-- Add widget to this row (if only 1 widget and unplaced widgets exist) -->
+                      <button
+                        v-if="canAddToRow(rowIdx) && config.unplacedWidgetIds.value.length > 0"
+                        class="w-full flex items-center gap-2 px-3 py-2 text-xs text-theme-muted hover:text-accent hover:bg-accent/5 transition-colors"
+                        @click="openWidgetPicker(rowIdx)"
+                      >
+                        <Icon name="Plus" :size="12" />
+                        <span>Add widget to this row</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Add new row -->
+                <button
+                  v-if="config.unplacedWidgetIds.value.length > 0"
+                  class="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-theme-primary
+                         text-xs text-theme-muted hover:text-accent hover:border-accent/40 transition-colors"
+                  @click="openWidgetPicker('new')"
+                >
+                  <Icon name="Plus" :size="14" />
+                  <span>Add row</span>
+                </button>
+
+                <!-- Unplaced widgets info -->
+                <p v-if="config.unplacedWidgetIds.value.length > 0" class="text-[10px] text-theme-muted mt-2">
+                  {{ config.unplacedWidgetIds.value.length }} widget{{ config.unplacedWidgetIds.value.length !== 1 ? 's' : '' }} not placed:
+                  {{ config.unplacedWidgetIds.value.map(id => widgetLabel(id)).join(', ') }}
+                </p>
+
+                <!-- Widget picker inline popup -->
+                <div
+                  v-if="showWidgetPicker !== null && config.unplacedWidgetIds.value.length > 0"
+                  class="mt-2 p-2 rounded-lg border border-accent/30 bg-theme-secondary"
+                >
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-theme-secondary">Choose widget</span>
                     <button
-                      :disabled="index === 0"
-                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Move up"
-                      @click="moveWidget(index, -1)"
+                      class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary transition-colors"
+                      @click="closeWidgetPicker"
                     >
-                      <Icon name="ChevronUp" :size="14" />
+                      <Icon name="X" :size="12" />
                     </button>
+                  </div>
+                  <div class="flex flex-wrap gap-1.5">
                     <button
-                      :disabled="index === config.widgetOrder.value.length - 1"
-                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Move down"
-                      @click="moveWidget(index, 1)"
+                      v-for="wid in config.unplacedWidgetIds.value"
+                      :key="wid"
+                      class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-theme-primary text-xs text-theme-secondary
+                             hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-colors"
+                      @click="pickWidget(wid)"
                     >
-                      <Icon name="ChevronDown" :size="14" />
+                      <Icon :name="widgetIcon(wid)" :size="12" />
+                      {{ widgetLabel(wid) }}
                     </button>
                   </div>
                 </div>

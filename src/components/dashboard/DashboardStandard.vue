@@ -1,13 +1,14 @@
 <script setup>
 /**
- * DashboardStandard.vue — S13 Visual Upgrade v3 + Session 2/3
+ * DashboardStandard.vue — Session A Grid Overhaul
  *
  * Standard mode ("consumer mode") dashboard.
- * Session 3: All sections respect useDashboardConfig toggles.
- * Widget order is user-configurable. Quick actions filtered/reordered from config.
- * Adjacent vitals+network are grouped into a side-by-side row.
+ * Session A: Replaced flat widget_order + orderedSections with a row-based
+ * grid layout from useDashboardConfig.gridLayout. Each row renders as a
+ * grid grid-cols-1 lg:grid-cols-2 container. Single-item rows span full
+ * width. Two-item rows sit side-by-side.
  *
- * Defaults match the pre-config behavior so nothing changes until the user customizes.
+ * All widgets are rendered via a switch template keyed by widget ID.
  */
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -41,7 +42,8 @@ const {
   showRecent,
   showMyApps,
   quickActions: configQuickActions,
-  widgetOrder,
+  gridLayout,
+  isWidgetVisible,
   favoriteCols,
   myAppsRows,
 } = useDashboardConfig()
@@ -73,25 +75,22 @@ const filteredQuickActions = computed(() => {
     .filter(Boolean)
 })
 
-// ─── Ordered sections (groups adjacent vitals+network) ───────
+// ─── Grid rows (visibility-filtered) ────────────────────────
 
-const orderedSections = computed(() => {
-  const order = widgetOrder.value
-  const result = []
-  let i = 0
-  while (i < order.length) {
-    const key = order[i]
-    const next = order[i + 1]
-    // Group adjacent vitals+network into a side-by-side row
-    if ((key === 'vitals' && next === 'network') || (key === 'network' && next === 'vitals')) {
-      result.push({ id: `${key}-${next}`, type: 'widgets-row', items: [key, next] })
-      i += 2
-    } else {
-      result.push({ id: key, type: key })
-      i++
-    }
-  }
-  return result
+/**
+ * Grid rows with hidden widgets stripped. Each entry has:
+ *   - row: original widget IDs
+ *   - visible: widget IDs that passed visibility check
+ *   - hasSearch: whether this row contains the search widget (for AlertBanner)
+ */
+const gridRows = computed(() => {
+  return gridLayout.value
+    .map(entry => ({
+      row: entry.row,
+      visible: entry.row.filter(id => isWidgetVisible(id)),
+      hasSearch: entry.row.includes('search') && isWidgetVisible('search'),
+    }))
+    .filter(entry => entry.visible.length > 0)
 })
 
 // ─── Grid cols class for quick actions ───────────────────────
@@ -110,17 +109,7 @@ function cardBase() {
 }
 
 // ─── Empty state detection ─────────────────────────────────────
-const isAllHidden = computed(() =>
-  !showClock.value &&
-  !showSearch.value &&
-  !showStatusPill.value &&
-  !showSystemVitals.value &&
-  !showNetwork.value &&
-  !showDisk.value &&
-  !showSignals.value &&
-  !showQuickActions.value &&
-  !showAlerts.value
-)
+const isAllHidden = computed(() => gridRows.value.length === 0)
 </script>
 
 <template>
@@ -139,97 +128,93 @@ const isAllHidden = computed(() =>
       </p>
     </div>
 
-    <!-- Ordered sections from widget_order config -->
-    <template v-for="section in orderedSections" :key="section.id">
-
-      <!-- ═══ Clock ═══ -->
-      <ClockWidget v-if="section.type === 'clock' && showClock" />
-
-      <!-- ═══ Search + Chat bar ═══ -->
-      <template v-if="section.type === 'search'">
-        <SearchChatBar
-          v-if="showSearch"
-          ref="searchBarRef"
-          @open-app="(app) => emit('open-app', app)"
-          @open-chat="emit('open-chat')"
-        />
-        <!-- Alert banner follows search (not in widget_order, has own toggle) -->
-        <AlertBanner v-if="showAlerts" />
-      </template>
-
-      <!-- ═══ Status pill ═══ -->
-      <StatusPill v-if="section.type === 'status' && showStatusPill" />
-
-      <!-- ═══ Widgets row (vitals + network side-by-side) ═══ -->
+    <!-- Grid rows from grid_layout config -->
+    <template v-for="(entry, rowIdx) in gridRows" :key="rowIdx">
+      <!-- Row container: 1-col on mobile, 2-col on lg+ -->
       <div
-        v-if="section.type === 'widgets-row' && (showSystemVitals || showNetwork)"
-        class="grid grid-cols-1 lg:grid-cols-2 gap-4 dash-stagger"
+        class="grid grid-cols-1 gap-4 dash-stagger"
+        :class="entry.visible.length > 1 ? 'lg:grid-cols-2' : ''"
       >
-        <template v-for="w in section.items" :key="w">
-          <SystemVitals v-if="w === 'vitals' && showSystemVitals" />
-          <NetworkWidget v-if="w === 'network' && showNetwork" />
+        <template v-for="widgetId in entry.visible" :key="widgetId">
+
+          <!-- ═══ Clock ═══ -->
+          <ClockWidget
+            v-if="widgetId === 'clock'"
+            :card="true"
+          />
+
+          <!-- ═══ Search + Chat bar ═══ -->
+          <SearchChatBar
+            v-if="widgetId === 'search'"
+            ref="searchBarRef"
+            @open-app="(app) => emit('open-app', app)"
+            @open-chat="emit('open-chat')"
+          />
+
+          <!-- ═══ Status pill ═══ -->
+          <StatusPill v-if="widgetId === 'status'" />
+
+          <!-- ═══ System Vitals ═══ -->
+          <SystemVitals v-if="widgetId === 'vitals'" />
+
+          <!-- ═══ Network ═══ -->
+          <NetworkWidget v-if="widgetId === 'network'" />
+
+          <!-- ═══ Disk ═══ -->
+          <DiskWidget v-if="widgetId === 'disk'" />
+
+          <!-- ═══ Signals ═══ -->
+          <SignalsWidget v-if="widgetId === 'signals'" />
+
+          <!-- ═══ Quick Actions ═══ -->
+          <div v-if="widgetId === 'actions' && filteredQuickActions.length > 0">
+            <div
+              :class="cardBase()"
+              class="rounded-2xl p-4 h-full"
+            >
+              <div class="grid gap-2" :class="quickActionsGridCols">
+                <button
+                  v-for="qa in filteredQuickActions"
+                  :key="qa.id"
+                  class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
+                         hover:bg-theme-tertiary hover:-translate-y-px group"
+                  @click="qa.action()"
+                >
+                  <div
+                    class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
+                    :class="qa.color.split(' ')[0]"
+                  >
+                    <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
+                  </div>
+                  <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
+                    {{ qa.label }}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ App Launcher ═══ -->
+          <div
+            v-if="widgetId === 'launcher'"
+            :class="entry.visible.length === 1 ? '' : ''"
+          >
+            <AppLauncher
+              :show-favorites="showFavorites"
+              :show-recent="showRecent"
+              :show-my-apps="showMyApps"
+              :my-apps-rows="myAppsRows"
+              :favorite-cols="favoriteCols"
+              @open-app="(app) => emit('open-app', app)"
+              @toggle-favorite="(name) => emit('toggle-favorite', name)"
+            />
+          </div>
+
         </template>
       </div>
 
-      <!-- ═══ Individual vitals (not adjacent to network) ═══ -->
-      <div v-if="section.type === 'vitals' && showSystemVitals" class="dash-stagger">
-        <SystemVitals />
-      </div>
-
-      <!-- ═══ Individual network (not adjacent to vitals) ═══ -->
-      <div v-if="section.type === 'network' && showNetwork" class="dash-stagger">
-        <NetworkWidget />
-      </div>
-
-      <!-- ═══ Disk + Signals row (below vitals/network) ═══ -->
-      <div
-        v-if="section.type === 'disk-signals' && (showDisk || showSignals)"
-        class="grid grid-cols-1 lg:grid-cols-2 gap-4 dash-stagger"
-      >
-        <DiskWidget v-if="showDisk" />
-        <SignalsWidget v-if="showSignals" />
-      </div>
-
-      <!-- ═══ Quick Actions ═══ -->
-      <div v-if="section.type === 'actions' && showQuickActions && filteredQuickActions.length > 0" class="dash-stagger">
-        <div
-          :class="cardBase()"
-          class="rounded-2xl p-4"
-        >
-          <div class="grid gap-2" :class="quickActionsGridCols">
-            <button
-              v-for="qa in filteredQuickActions"
-              :key="qa.id"
-              class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
-                     hover:bg-theme-tertiary hover:-translate-y-px group"
-              @click="qa.action()"
-            >
-              <div
-                class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
-                :class="qa.color.split(' ')[0]"
-              >
-                <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
-              </div>
-              <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
-                {{ qa.label }}
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══ App Launcher ═══ -->
-      <AppLauncher
-        v-if="section.type === 'launcher'"
-        :show-favorites="showFavorites"
-        :show-recent="showRecent"
-        :show-my-apps="showMyApps"
-        :my-apps-rows="myAppsRows"
-        :favorite-cols="favoriteCols"
-        @open-app="(app) => emit('open-app', app)"
-        @toggle-favorite="(name) => emit('toggle-favorite', name)"
-      />
-
+      <!-- Alert banner follows the row that contains search (not in grid, always full-width) -->
+      <AlertBanner v-if="entry.hasSearch && showAlerts" />
     </template>
   </div>
 </template>

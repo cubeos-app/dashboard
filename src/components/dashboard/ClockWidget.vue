@@ -1,13 +1,22 @@
 <script setup>
 /**
- * ClockWidget.vue — S13 Visual Upgrade + Session 3 Config
+ * ClockWidget.vue — Session A Grid Overhaul
  *
  * Live clock with date and contextual greeting.
  * Reads clock_format, date_format, show_seconds, show_greeting
  * from useDashboardConfig. Parent controls visibility via show_clock.
+ *
+ * Session A: Added `card` prop. When true, renders inside a glassmorphism
+ * card container matching SystemVitals/NetworkWidget, compact enough for
+ * a half-width grid cell. When false, renders full-bleed (legacy behavior).
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useDashboardConfig } from '@/composables/useDashboardConfig'
+import { useWallpaper } from '@/composables/useWallpaper'
+
+const props = defineProps({
+  card: { type: Boolean, default: true },
+})
 
 const {
   clockFormat,
@@ -15,6 +24,8 @@ const {
   showSeconds,
   showGreeting,
 } = useDashboardConfig()
+
+const { isActive: wallpaperActive } = useWallpaper()
 
 const now = ref(new Date())
 let timer = null
@@ -74,19 +85,50 @@ const greeting = computed(() => {
   if (h < 21) return 'Good evening'
   return 'Good night'
 })
+
+function cardClass() {
+  return wallpaperActive.value
+    ? 'glass'
+    : 'bg-theme-card border border-theme-primary'
+}
 </script>
 
 <template>
   <div class="dash-stagger">
-    <div class="flex items-end justify-between gap-4 py-2">
-      <!-- Left: Clock + date -->
+    <!-- Card mode: glassmorphism container matching SystemVitals/NetworkWidget -->
+    <div
+      v-if="card"
+      :class="cardClass()"
+      class="w-full rounded-2xl p-5 text-left h-full"
+    >
+      <!-- Greeting (conditional) -->
+      <p v-if="showGreeting" class="text-xs text-theme-muted mb-2">
+        {{ greeting }}
+      </p>
+
+      <!-- Time -->
+      <div class="flex items-baseline gap-1">
+        <span class="text-4xl sm:text-5xl font-extralight text-theme-primary tabular-nums tracking-tight leading-none">
+          {{ timeStr }}
+        </span>
+        <span v-if="showSeconds" class="text-base font-light text-theme-muted tabular-nums">
+          {{ seconds }}
+        </span>
+      </div>
+
+      <!-- Date -->
+      <p class="text-xs text-theme-secondary mt-3">
+        {{ dateStr }}
+      </p>
+    </div>
+
+    <!-- Legacy full-bleed mode (card=false) -->
+    <div v-else class="flex items-end justify-between gap-4 py-2">
       <div>
-        <!-- Greeting (conditional) -->
         <p v-if="showGreeting" class="text-sm text-theme-muted mb-1">
           {{ greeting }}
         </p>
 
-        <!-- Time -->
         <div class="flex items-baseline gap-1">
           <span class="text-5xl sm:text-6xl font-extralight text-theme-primary tabular-nums tracking-tight leading-none">
             {{ timeStr }}
@@ -96,7 +138,6 @@ const greeting = computed(() => {
           </span>
         </div>
 
-        <!-- Date -->
         <p class="text-sm text-theme-secondary mt-2">
           {{ dateStr }}
         </p>
