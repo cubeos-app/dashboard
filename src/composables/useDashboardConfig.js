@@ -1,21 +1,20 @@
 /**
  * CubeOS Dashboard Config Composable
  *
- * Reads dashboard configuration from preferencesStore.preferences.dashboard,
- * provides computed getters with sane defaults for every setting, and exposes
- * an updateConfig(key, value) helper that persists changes via PUT /preferences.
+ * Reads dashboard configuration from the current mode's layout config:
+ *   preferencesStore.preferences.dashboard.standard  (when in Standard mode)
+ *   preferencesStore.preferences.dashboard.advanced   (when in Advanced mode)
  *
- * Handles Standard vs Advanced mode configs separately through the layout
- * sub-objects (dashboard.standard / dashboard.advanced).
+ * Provides computed getters with sane defaults for every setting, and exposes
+ * updateConfig(key, value) that persists changes via PUT /preferences, correctly
+ * nesting the update under the current mode key.
  *
  * Usage:
  *   const { showClock, clockFormat, myAppsRows, updateConfig } = useDashboardConfig()
  *
- *   // Read (reactive, with defaults):
  *   <ClockWidget v-if="showClock" />
  *   <span>{{ clockFormat }}</span>
  *
- *   // Write (persists to API):
  *   await updateConfig('show_clock', false)
  *   await updateConfig('my_apps_rows', 3)
  */
@@ -23,40 +22,62 @@ import { computed } from 'vue'
 import { usePreferencesStore } from '@/stores/preferences'
 import { useMode } from '@/composables/useMode'
 
-// ─── Defaults ────────────────────────────────────────────────────
+// ─── Defaults (per mode) ─────────────────────────────────────────
 
-const DEFAULTS = {
+const STANDARD_DEFAULTS = {
   show_clock: true,
+  show_search: true,
+  show_status_pill: true,
   show_system_vitals: true,
-  show_network: true,
-  show_alerts: true,
+  show_network_widget: true,
+  show_disk_widget: false,
+  show_signals_widget: false,
+  show_quick_actions: true,
   show_favorites: true,
+  show_recent: true,
   show_my_apps: true,
-  show_service_grid: true,
+  show_alerts: true,
   clock_format: '24h',
   date_format: 'long',
-  quick_actions: [],
+  show_seconds: true,
+  show_greeting: true,
+  my_apps_rows: 2,
+  favorite_cols: 4,
+  quick_actions: ['add_app', 'network', 'storage', 'ask_cubeos'],
+  widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'actions', 'launcher'],
 }
 
-const LAYOUT_DEFAULTS = {
-  standard: {
-    my_apps_rows: 2,
-    favorite_cols: 4,
-    widget_order: ['clock', 'alerts', 'favorites', 'my_apps', 'system_vitals', 'network'],
-  },
-  advanced: {
-    my_apps_rows: 3,
-    favorite_cols: 6,
-    widget_order: ['alerts', 'system_vitals', 'service_grid', 'network'],
-  },
+const ADVANCED_DEFAULTS = {
+  show_clock: false,
+  show_search: false,
+  show_status_pill: false,
+  show_system_vitals: true,
+  show_network_widget: true,
+  show_disk_widget: false,
+  show_signals_widget: false,
+  show_quick_actions: true,
+  show_favorites: true,
+  show_recent: false,
+  show_my_apps: true,
+  show_alerts: true,
+  clock_format: '24h',
+  date_format: 'long',
+  show_seconds: false,
+  show_greeting: false,
+  my_apps_rows: 3,
+  favorite_cols: 6,
+  quick_actions: ['add_app', 'monitoring', 'logs', 'docs'],
+  widget_order: ['alerts', 'vitals', 'network', 'actions', 'launcher'],
 }
 
-// ─── Helper ──────────────────────────────────────────────────────
+const DEFAULTS_BY_MODE = {
+  standard: STANDARD_DEFAULTS,
+  advanced: ADVANCED_DEFAULTS,
+}
 
-/**
- * Read a boolean field from the dashboard config, returning the default
- * when the field is null/undefined.
- */
+// ─── Helpers ─────────────────────────────────────────────────────
+
+/** Return val if non-null/undefined, otherwise the default. */
 function boolOr(val, def) {
   return val != null ? val : def
 }
@@ -67,135 +88,128 @@ export function useDashboardConfig() {
   const preferencesStore = usePreferencesStore()
   const { isAdvanced } = useMode()
 
-  /** Raw dashboard config object (may be null/undefined) */
-  const raw = computed(() => preferencesStore.preferences?.dashboard)
-
-  /** Current mode key ('standard' | 'advanced') for layout lookups */
+  /** Current mode key: 'standard' | 'advanced' */
   const modeKey = computed(() => isAdvanced.value ? 'advanced' : 'standard')
 
-  /** Current mode's layout config */
-  const layout = computed(() => {
-    const key = modeKey.value
-    return raw.value?.[key] ?? LAYOUT_DEFAULTS[key]
+  /** Defaults for the current mode */
+  const defaults = computed(() => DEFAULTS_BY_MODE[modeKey.value])
+
+  /** Raw layout config for the current mode (may be null/undefined) */
+  const raw = computed(() => {
+    const dash = preferencesStore.preferences?.dashboard
+    return dash?.[modeKey.value]
   })
 
-  // ─── Widget visibility (boolean, default true) ───────────────
+  // ─── Widget visibility (boolean, with mode-specific defaults) ──
 
-  const showClock = computed(() => boolOr(raw.value?.show_clock, DEFAULTS.show_clock))
-  const showSystemVitals = computed(() => boolOr(raw.value?.show_system_vitals, DEFAULTS.show_system_vitals))
-  const showNetwork = computed(() => boolOr(raw.value?.show_network, DEFAULTS.show_network))
-  const showAlerts = computed(() => boolOr(raw.value?.show_alerts, DEFAULTS.show_alerts))
-  const showFavorites = computed(() => boolOr(raw.value?.show_favorites, DEFAULTS.show_favorites))
-  const showMyApps = computed(() => boolOr(raw.value?.show_my_apps, DEFAULTS.show_my_apps))
-  const showServiceGrid = computed(() => boolOr(raw.value?.show_service_grid, DEFAULTS.show_service_grid))
+  const showClock = computed(() => boolOr(raw.value?.show_clock, defaults.value.show_clock))
+  const showSearch = computed(() => boolOr(raw.value?.show_search, defaults.value.show_search))
+  const showStatusPill = computed(() => boolOr(raw.value?.show_status_pill, defaults.value.show_status_pill))
+  const showSystemVitals = computed(() => boolOr(raw.value?.show_system_vitals, defaults.value.show_system_vitals))
+  const showNetwork = computed(() => boolOr(raw.value?.show_network_widget, defaults.value.show_network_widget))
+  const showDisk = computed(() => boolOr(raw.value?.show_disk_widget, defaults.value.show_disk_widget))
+  const showSignals = computed(() => boolOr(raw.value?.show_signals_widget, defaults.value.show_signals_widget))
+  const showQuickActions = computed(() => boolOr(raw.value?.show_quick_actions, defaults.value.show_quick_actions))
+  const showFavorites = computed(() => boolOr(raw.value?.show_favorites, defaults.value.show_favorites))
+  const showRecent = computed(() => boolOr(raw.value?.show_recent, defaults.value.show_recent))
+  const showMyApps = computed(() => boolOr(raw.value?.show_my_apps, defaults.value.show_my_apps))
+  const showAlerts = computed(() => boolOr(raw.value?.show_alerts, defaults.value.show_alerts))
 
-  // ─── Display format preferences ─────────────────────────────
+  // ─── Clock & date settings ────────────────────────────────────
 
-  const clockFormat = computed(() => raw.value?.clock_format || DEFAULTS.clock_format)
-  const dateFormat = computed(() => raw.value?.date_format || DEFAULTS.date_format)
+  const clockFormat = computed(() => raw.value?.clock_format || defaults.value.clock_format)
+  const dateFormat = computed(() => raw.value?.date_format || defaults.value.date_format)
+  const showSeconds = computed(() => boolOr(raw.value?.show_seconds, defaults.value.show_seconds))
+  const showGreeting = computed(() => boolOr(raw.value?.show_greeting, defaults.value.show_greeting))
 
-  // ─── Quick actions ──────────────────────────────────────────
+  // ─── Layout settings ──────────────────────────────────────────
 
-  const quickActions = computed(() => raw.value?.quick_actions ?? DEFAULTS.quick_actions)
+  const myAppsRows = computed(() => raw.value?.my_apps_rows || defaults.value.my_apps_rows)
+  const favoriteCols = computed(() => raw.value?.favorite_cols || defaults.value.favorite_cols)
+  const quickActions = computed(() => raw.value?.quick_actions ?? defaults.value.quick_actions)
+  const widgetOrder = computed(() => raw.value?.widget_order ?? defaults.value.widget_order)
 
-  // ─── Layout (mode-specific) ─────────────────────────────────
-
-  const myAppsRows = computed(() =>
-    layout.value?.my_apps_rows ?? LAYOUT_DEFAULTS[modeKey.value].my_apps_rows
-  )
-
-  const favoriteCols = computed(() =>
-    layout.value?.favorite_cols ?? LAYOUT_DEFAULTS[modeKey.value].favorite_cols
-  )
-
-  const widgetOrder = computed(() =>
-    layout.value?.widget_order ?? LAYOUT_DEFAULTS[modeKey.value].widget_order
-  )
-
-  // ─── Persistence ────────────────────────────────────────────
-
-  // Layout-specific keys that go under dashboard.standard or dashboard.advanced
-  const LAYOUT_KEYS = new Set(['my_apps_rows', 'favorite_cols', 'widget_order'])
+  // ─── Persistence ──────────────────────────────────────────────
 
   /**
    * Update a single dashboard config key and persist via PUT /preferences.
+   * The value is nested under dashboard.[currentMode].[key] automatically.
    *
-   * For layout-specific keys (my_apps_rows, favorite_cols, widget_order),
-   * the value is nested under the current mode's layout object.
-   *
-   * @param {string} key - Config key (e.g. 'show_clock', 'clock_format', 'my_apps_rows')
+   * @param {string} key - Config key matching the JSON field (e.g. 'show_clock', 'clock_format')
    * @param {*} value - New value
    * @returns {Promise<boolean>} Success
    */
   async function updateConfig(key, value) {
-    let dashUpdate
-
-    if (LAYOUT_KEYS.has(key)) {
-      // Nest under current mode's layout
-      dashUpdate = {
+    return preferencesStore.savePreferences({
+      dashboard: {
         [modeKey.value]: { [key]: value },
-      }
-    } else {
-      dashUpdate = { [key]: value }
-    }
-
-    return preferencesStore.savePreferences({ dashboard: dashUpdate })
+      },
+    })
   }
 
   /**
    * Batch-update multiple dashboard config keys at once.
    *
-   * @param {Object} updates - Key-value pairs to update
+   * @param {Object} updates - Key-value pairs (e.g. { show_clock: false, clock_format: '12h' })
    * @returns {Promise<boolean>} Success
    */
   async function updateConfigs(updates) {
-    const dashUpdate = {}
-    const layoutUpdate = {}
+    return preferencesStore.savePreferences({
+      dashboard: {
+        [modeKey.value]: updates,
+      },
+    })
+  }
 
-    for (const [key, value] of Object.entries(updates)) {
-      if (LAYOUT_KEYS.has(key)) {
-        layoutUpdate[key] = value
-      } else {
-        dashUpdate[key] = value
-      }
-    }
-
-    // Merge layout keys under current mode
-    if (Object.keys(layoutUpdate).length > 0) {
-      dashUpdate[modeKey.value] = layoutUpdate
-    }
-
-    return preferencesStore.savePreferences({ dashboard: dashUpdate })
+  /**
+   * Reset current mode's dashboard config to defaults.
+   * Sends null for the mode key, which the backend interprets as "remove overrides".
+   *
+   * @returns {Promise<boolean>} Success
+   */
+  async function resetDefaults() {
+    return preferencesStore.savePreferences({
+      dashboard: {
+        [modeKey.value]: null,
+      },
+    })
   }
 
   return {
     // Widget visibility
     showClock,
+    showSearch,
+    showStatusPill,
     showSystemVitals,
     showNetwork,
-    showAlerts,
+    showDisk,
+    showSignals,
+    showQuickActions,
     showFavorites,
+    showRecent,
     showMyApps,
-    showServiceGrid,
+    showAlerts,
 
-    // Display format
+    // Clock & date
     clockFormat,
     dateFormat,
+    showSeconds,
+    showGreeting,
 
-    // Quick actions
-    quickActions,
-
-    // Layout (mode-aware)
+    // Layout
     myAppsRows,
     favoriteCols,
+    quickActions,
     widgetOrder,
 
     // Raw access
     raw,
     modeKey,
+    defaults,
 
     // Persistence
     updateConfig,
     updateConfigs,
+    resetDefaults,
   }
 }
