@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAppsStore } from '@/stores/apps'
 import { useBrandingStore } from '@/stores/branding'
 import Icon from '@/components/ui/Icon.vue'
+import { makeFqdn } from '@/utils/domain'
 
 const props = defineProps({
   collapsed: {
@@ -46,10 +47,10 @@ const navItems = [
 
 // FQDN mappings for quick links - all services go through NPM reverse proxy
 const QUICK_LINK_FQDNS = {
-  'dockge': { name: 'Dockge', fqdn: 'dockge.cubeos.cube', icon: 'Box' },
-  'portainer': { name: 'Portainer', fqdn: 'portainer.cubeos.cube', icon: 'Box' },
-  'uptime': { name: 'Uptime Kuma', fqdn: 'uptime.cubeos.cube', icon: 'Activity' },
-  'pihole': { name: 'Pi-hole', fqdn: 'pihole.cubeos.cube', path: '/admin', icon: 'Shield' }
+  'dockge': { name: 'Dockge', fqdn: makeFqdn('dockge'), icon: 'Box' },
+  'portainer': { name: 'Portainer', fqdn: makeFqdn('portainer'), icon: 'Box' },
+  'uptime': { name: 'Uptime Kuma', fqdn: makeFqdn('uptime'), icon: 'Activity' },
+  'pihole': { name: 'Pi-hole', fqdn: makeFqdn('pihole'), path: '/admin', icon: 'Shield' }
 }
 
 // Quick links to external services - using FQDNs, not IP:port

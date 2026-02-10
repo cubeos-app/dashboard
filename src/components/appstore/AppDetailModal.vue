@@ -2,6 +2,7 @@
 import { computed, ref, nextTick, onMounted } from 'vue'
 import { useAppStoreStore } from '@/stores/appstore'
 import Icon from '@/components/ui/Icon.vue'
+import { makePlaceholder } from '@/utils/domain'
 
 const appStore = useAppStoreStore()
 const modalRef = ref(null)
@@ -326,7 +327,7 @@ function handleClose() {
                   id="install-fqdn"
                   v-model="installFqdn"
                   type="text"
-                  placeholder="e.g. myapp.cubeos.cube"
+                  :placeholder="'e.g. ' + makePlaceholder('myapp')"
                   class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                 />
               </div>
@@ -337,9 +338,9 @@ function handleClose() {
       </div>
 
       <!-- Install Error Banner -->
-      <div v-if="installError" class="px-4 py-3 mx-4 mb-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-        <p class="text-sm text-red-400 font-medium">Installation failed</p>
-        <p class="text-xs text-red-400/80 mt-1">{{ installError }}</p>
+      <div v-if="installError" class="px-4 py-3 mx-4 mb-3 bg-error-muted border border-error-subtle rounded-lg">
+        <p class="text-sm text-error font-medium">Installation failed</p>
+        <p class="text-xs text-error/80 mt-1">{{ installError }}</p>
       </div>
 
       <!-- Footer -->

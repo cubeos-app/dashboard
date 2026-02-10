@@ -19,6 +19,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useNPMStore } from '@/stores/npm'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
+import { makePlaceholder } from '@/utils/domain'
 
 const npmStore = useNPMStore()
 
@@ -386,7 +387,7 @@ function hostStatusText(host) {
                   v-model="hostForm.domain_names"
                   type="text"
                   class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
-                  placeholder="app.cubeos.cube"
+                  :placeholder="makePlaceholder('app')"
                 >
                 <p class="mt-1 text-xs text-theme-muted">Comma-separated for multiple domains</p>
               </div>

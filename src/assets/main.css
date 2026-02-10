@@ -91,6 +91,9 @@
     --scrollbar-track: #18181b;
     --scrollbar-thumb: #3f3f46;
     --scrollbar-hover: #52525b;
+
+    /* Wallpaper overlay (Standard mode) */
+    --wallpaper-overlay-rgb: 9, 9, 11;
   }
 
   /* -------------------------------------------------------------------------
@@ -155,6 +158,9 @@
     --scrollbar-track: #f4f4f5;
     --scrollbar-thumb: #d4d4d8;
     --scrollbar-hover: #a1a1aa;
+
+    /* Wallpaper overlay (Standard mode) */
+    --wallpaper-overlay-rgb: 255, 255, 255;
   }
 
   /* Legacy theme aliases for backwards compatibility */

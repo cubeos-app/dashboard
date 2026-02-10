@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useAppManagerStore } from '@/stores/appmanager'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
+import { makeFqdn, getCubeDomain, getDomainSuffix } from '@/utils/domain'
 
 const store = useAppManagerStore()
 
@@ -27,7 +28,7 @@ const editError = ref('')
 // Live preview for edit modal
 const editPreviewFQDN = computed(() => {
   const sub = editData.value.subdomain || 'app'
-  return `${sub}.cubeos.cube`
+  return makeFqdn(sub)
 })
 
 // Format date for display
@@ -100,7 +101,7 @@ async function saveEdit() {
     showEditModal.value = false
     // Refresh detail if still expanded
     if (expandedFQDN.value === editingFQDN.value) {
-      const newFqdn = editData.value.subdomain + '.cubeos.cube'
+      const newFqdn = makeFqdn(editData.value.subdomain)
       expandedFQDN.value = newFqdn
       await loadFQDNDetail(newFqdn)
     }
@@ -155,7 +156,7 @@ function onAppSelect(appName) {
           <p class="text-theme-primary font-medium">Pi-hole DNS Integration</p>
           <p class="mt-1 text-theme-secondary">
             Registered domains are automatically added to Pi-hole's custom DNS.
-            Access apps at <code class="bg-theme-tertiary px-1 rounded">subdomain.cubeos.cube</code>
+            Access apps at <code class="bg-theme-tertiary px-1 rounded">subdomain{{ getDomainSuffix() }}</code>
           </p>
         </div>
       </div>
@@ -299,7 +300,7 @@ function onAppSelect(appName) {
               <label for="reg-subdomain" class="block text-sm font-medium text-theme-secondary mb-1">Subdomain</label>
               <div class="flex items-center">
                 <input id="reg-subdomain" v-model="newFQDN.subdomain" type="text" required placeholder="my-app" pattern="[a-z0-9-]+" class="flex-1 rounded-l-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
-                <span class="px-3 py-2 bg-theme-tertiary border border-l-0 border-theme-primary rounded-r-md text-sm text-theme-secondary">.cubeos.cube</span>
+                <span class="px-3 py-2 bg-theme-tertiary border border-l-0 border-theme-primary rounded-r-md text-sm text-theme-secondary">{{ getDomainSuffix() }}</span>
               </div>
             </div>
             <div>
@@ -342,7 +343,7 @@ function onAppSelect(appName) {
               <div class="flex items-center">
                 <input id="edit-subdomain" v-model="editData.subdomain" type="text" required placeholder="my-app" pattern="[a-z0-9-]+"
                   class="flex-1 rounded-l-md border-theme-primary bg-theme-primary text-theme-primary focus:ring-accent focus:border-accent text-sm">
-                <span class="px-3 py-2 bg-theme-tertiary border border-l-0 border-theme-primary rounded-r-md text-sm text-theme-secondary">.cubeos.cube</span>
+                <span class="px-3 py-2 bg-theme-tertiary border border-l-0 border-theme-primary rounded-r-md text-sm text-theme-secondary">{{ getDomainSuffix() }}</span>
               </div>
               <p class="mt-1 text-xs text-theme-muted">
                 Preview: <span class="font-mono text-theme-primary">{{ editPreviewFQDN }}</span>

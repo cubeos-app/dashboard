@@ -40,6 +40,21 @@ export const usePreferencesStore = defineStore('preferences', () => {
   /** Language preference shortcut */
   const language = computed(() => preferences.value?.language ?? 'en')
 
+  /** UI mode: 'standard' or 'advanced' (default: advanced for existing users) */
+  const uiMode = computed(() => preferences.value?.ui_mode ?? 'advanced')
+
+  /** Whether the UI is in advanced mode */
+  const isAdvanced = computed(() => uiMode.value === 'advanced')
+
+  /** Whether the UI is in standard mode */
+  const isStandard = computed(() => uiMode.value === 'standard')
+
+  /** Wallpaper preference for Standard mode */
+  const wallpaper = computed(() => preferences.value?.wallpaper ?? {
+    type: 'preset',
+    value: 'topo'
+  })
+
   // ==========================================
   // Actions
   // ==========================================
@@ -115,6 +130,24 @@ export const usePreferencesStore = defineStore('preferences', () => {
     }
   }
 
+  /**
+   * Toggle or set UI mode (standard/advanced).
+   * Persists via PUT /preferences.
+   * @param {'standard'|'advanced'} [mode] - If omitted, toggles current mode
+   */
+  async function setUiMode(mode) {
+    const newMode = mode || (uiMode.value === 'advanced' ? 'standard' : 'advanced')
+    return savePreferences({ ui_mode: newMode })
+  }
+
+  /**
+   * Update wallpaper preference.
+   * @param {{ type: 'preset'|'custom'|'none', value: string|null }} wp
+   */
+  async function setWallpaper(wp) {
+    return savePreferences({ wallpaper: wp })
+  }
+
   // ==========================================
   // Export
   // ==========================================
@@ -130,10 +163,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
     setupComplete,
     theme,
     language,
+    uiMode,
+    isAdvanced,
+    isStandard,
+    wallpaper,
 
     // Actions
     fetchPreferences,
     savePreferences,
-    resetPreferences
+    resetPreferences,
+    setUiMode,
+    setWallpaper
   }
 })

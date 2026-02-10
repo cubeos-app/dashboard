@@ -125,7 +125,7 @@ onUnmounted(() => {
           <!-- Default credentials warning -->
           <div
             v-if="systemStore.info?.default_credentials && !credentialsBannerDismissed"
-            class="mb-4 flex items-center gap-3 px-4 py-3 rounded-lg bg-yellow-50 border border-yellow-300 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-200"
+            class="mb-4 flex items-center gap-3 px-4 py-3 rounded-lg bg-warning-muted border border-warning-subtle text-warning"
             role="alert"
           >
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,7 +137,7 @@ onUnmounted(() => {
             </p>
             <button 
               @click="credentialsBannerDismissed = true"
-              class="p-1 rounded hover:bg-yellow-200 dark:hover:bg-yellow-800/40 transition-colors"
+              class="p-1 rounded hover:bg-theme-tertiary transition-colors"
               aria-label="Dismiss"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

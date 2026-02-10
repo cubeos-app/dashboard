@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
+import { safeGetRaw } from '@/utils/storage'
 
 const props = defineProps({
   /** App display name */
@@ -72,8 +73,7 @@ function connect() {
   // Build SSE URL. The API client adds /api/v1 prefix, but EventSource
   // needs a raw URL. Auth token is sent via query param since EventSource
   // doesn't support custom headers.
-  const token = localStorage.getItem('cubeos_access_token') ||
-    sessionStorage.getItem('cubeos_access_token') || ''
+  const token = safeGetRaw('cubeos_access_token') || ''
   const url = `/api/v1/appstore/jobs/${encodeURIComponent(props.jobId)}${token ? '?token=' + encodeURIComponent(token) : ''}`
 
   eventSource = new EventSource(url)

@@ -12,6 +12,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAppsApi } from '@/composables/useAppsApi'
+import { makeFqdn } from '@/utils/domain'
 
 const appsApi = useAppsApi()
 
@@ -113,12 +114,12 @@ const SERVICE_NAMES = {
 // Services with web UI - FQDN-only, no ports
 // All services must go through NPM reverse proxy
 const WEB_UI_SERVICES = {
-  'pihole': { fqdn: 'pihole.cubeos.cube', path: '/admin' },
-  'npm': { fqdn: 'npm.cubeos.cube' },
-  'dozzle': { fqdn: 'dozzle.cubeos.cube' },
-  'ollama': { fqdn: 'ollama.cubeos.cube', path: '/api/tags', hasUI: false },
-  'registry': { fqdn: 'registry.cubeos.cube', path: '/v2/', hasUI: false },
-  'chromadb': { fqdn: 'chromadb.cubeos.cube', hasUI: false },
+  'pihole': { fqdn: makeFqdn('pihole'), path: '/admin' },
+  'npm': { fqdn: makeFqdn('npm') },
+  'dozzle': { fqdn: makeFqdn('dozzle') },
+  'ollama': { fqdn: makeFqdn('ollama'), path: '/api/tags', hasUI: false },
+  'registry': { fqdn: makeFqdn('registry'), path: '/v2/', hasUI: false },
+  'chromadb': { fqdn: makeFqdn('chromadb'), hasUI: false },
 }
 
 export const useAppsStore = defineStore('apps', () => {
