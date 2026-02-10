@@ -1,44 +1,43 @@
 <script setup>
 /**
  * AppHeader.vue
- * 
- * Top navigation header with system stats display.
- * 
- * Fixes:
- * - Uptime calculated from uptime_seconds in systemStore.info
- * - Battery only shows when HAL reports available: true
- * - Temperature and other stats from systemStore.stats
+ *
+ * S02 — Top header bar with system stats, mode toggle, and user actions.
+ *
+ * Changes from S01:
+ *   - Removed mobile hamburger (MobileNav.vue handles mobile navigation)
+ *   - Added ModeToggle (compact) for desktop/tablet
+ *   - Added Ctrl+K search trigger placeholder
+ *   - Responsive: stats hidden below lg, mode toggle hidden on mobile
  */
 import { computed } from 'vue'
 import { useSystemStore } from '@/stores/system'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useBrandingStore } from '@/stores/branding'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import Icon from '@/components/ui/Icon.vue'
+import ModeToggle from '@/components/ui/ModeToggle.vue'
 
-const emit = defineEmits(['toggle-sidebar'])
 const systemStore = useSystemStore()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const brandingStore = useBrandingStore()
+const { isMobile } = useBreakpoint()
 
-// Format uptime from seconds
+// ─── System Stats ─────────────────────────────────────────────────
+
 const uptimeFormatted = computed(() => {
-  // Try uptime from info first, then from uptime object
   const seconds = systemStore.info?.uptime_seconds || systemStore.uptime?.uptime_seconds || 0
-  
   if (seconds === 0) return '—'
-  
   const days = Math.floor(seconds / 86400)
   const hours = Math.floor((seconds % 86400) / 3600)
   const mins = Math.floor((seconds % 3600) / 60)
-  
   if (days > 0) return `${days}d ${hours}h`
   if (hours > 0) return `${hours}h ${mins}m`
   return `${mins}m`
 })
 
-// Stats from /system/stats endpoint
 const cpuPercent = computed(() => Math.round(systemStore.stats?.cpu_percent || 0))
 const memPercent = computed(() => Math.round(systemStore.stats?.memory_percent || 0))
 const diskPercent = computed(() => Math.round(systemStore.stats?.disk_percent || 0))
@@ -47,18 +46,9 @@ const temperature = computed(() => {
   return Math.round(temp * 10) / 10
 })
 
-/**
- * Battery - only show if HAL reports battery hardware is available
- * The power computed in systemStore returns:
- * - available: boolean
- * - battery_percent: number (0-100)
- * - is_charging: boolean
- */
 const batteryPercent = computed(() => {
-  // Must have power data and battery must be available
   if (!systemStore.power?.available) return null
   const pct = systemStore.power?.battery_percent
-  // Must be a valid number >= 0
   if (pct === null || pct === undefined || pct < 0) return null
   return Math.round(pct)
 })
@@ -67,25 +57,14 @@ const batteryCharging = computed(() => {
   return systemStore.power?.is_charging || systemStore.power?.charging || false
 })
 
-// WebSocket connection status for the live indicator
 const wsConnected = computed(() => systemStore.wsConnected)
 </script>
 
 <template>
   <header class="fixed top-0 left-0 right-0 z-50 h-14 border-b glass border-theme-primary">
     <div class="flex items-center justify-between h-full px-4 lg:px-6">
-      <!-- Left: Menu + Logo -->
-      <div class="flex items-center gap-3">
-        <!-- Mobile menu button -->
-        <button
-          @click="$emit('toggle-sidebar')"
-          aria-label="Toggle navigation menu"
-          class="lg:hidden p-2 -ml-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-        >
-          <Icon name="Menu" :size="20" />
-        </button>
-
-        <!-- Logo -->
+      <!-- Left: Logo -->
+      <div class="flex items-center gap-2.5">
         <router-link to="/" class="flex items-center gap-2.5">
           <img :src="brandingStore.brandLogo" :alt="brandingStore.brandName" class="w-9 h-9" />
           <span class="text-lg font-semibold tracking-tight text-theme-primary hidden sm:block">
@@ -94,14 +73,14 @@ const wsConnected = computed(() => systemStore.wsConnected)
         </router-link>
       </div>
 
-      <!-- Center: System stats (desktop only) -->
+      <!-- Center: System stats (desktop/wide only) -->
       <div class="hidden lg:flex items-center gap-0.5">
-        <!-- Connection mode indicator -->
-        <div 
+        <!-- Connection indicator -->
+        <div
           class="flex items-center gap-1 px-2 py-1 rounded-md text-xs"
           :title="wsConnected ? 'Real-time WebSocket connection' : 'Polling (HTTP fallback)'"
         >
-          <span 
+          <span
             class="w-1.5 h-1.5 rounded-full"
             :class="wsConnected ? 'bg-success animate-pulse' : 'bg-warning'"
           ></span>
@@ -139,28 +118,39 @@ const wsConnected = computed(() => systemStore.wsConnected)
         <div class="w-px h-3 bg-theme-primary mx-1"></div>
 
         <!-- Temperature -->
-        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs"
-             :class="temperature > 80 ? 'text-error' : temperature > 70 ? 'text-warning' : 'text-theme-secondary'">
+        <div
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs"
+          :class="temperature > 80 ? 'text-error' : temperature > 70 ? 'text-warning' : 'text-theme-secondary'"
+        >
           <Icon name="Thermometer" :size="13" class="text-theme-muted" />
           <span class="font-medium tabular-nums">{{ temperature }}°C</span>
         </div>
 
-        <!-- Battery (only if hardware present) -->
+        <!-- Battery (if hardware present) -->
         <template v-if="batteryPercent !== null">
           <div class="w-px h-3 bg-theme-primary mx-1"></div>
-          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs"
-               :class="batteryPercent < 20 ? 'text-error' : batteryPercent < 40 ? 'text-warning' : 'text-theme-secondary'">
+          <div
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs"
+            :class="batteryPercent < 20 ? 'text-error' : batteryPercent < 40 ? 'text-warning' : 'text-theme-secondary'"
+          >
             <Icon :name="batteryCharging ? 'BatteryCharging' : 'Battery'" :size="13" class="text-theme-muted" />
             <span class="font-medium tabular-nums">{{ batteryPercent }}%</span>
           </div>
         </template>
       </div>
 
-      <!-- Right: Actions -->
+      <!-- Right: Mode toggle + actions -->
       <div class="flex items-center gap-1.5">
+        <!-- Mode toggle (hidden on mobile — shown in NavDrawer instead) -->
+        <div v-if="!isMobile" class="hidden md:block">
+          <ModeToggle compact />
+        </div>
+
+        <div class="hidden md:block w-px h-4 bg-theme-primary mx-1"></div>
+
         <!-- Theme indicator -->
         <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-theme-muted text-xs">
-          <div 
+          <div
             class="w-2.5 h-2.5 rounded-full"
             :style="{ backgroundColor: themeStore.currentTheme.preview.accent }"
           ></div>

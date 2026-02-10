@@ -1,8 +1,32 @@
+/**
+ * CubeOS Router
+ *
+ * S02 — Route structure aligned with the 7+2 sidebar IA.
+ *
+ * New consolidated pages will be built in S03-S10. Until then, routes
+ * point to existing view components. Old bookmark URLs redirect to
+ * the new consolidated paths with ?tab= query params.
+ *
+ * Route structure:
+ *   /               → Dashboard
+ *   /apps           → Apps (tabs: my-apps, store, manager)
+ *   /apps/:name     → App detail
+ *   /network        → Network (tabs: overview, wifi, firewall, vpn, dns, clients, traffic)
+ *   /storage        → Storage (tabs: overview, usb, backups, devices, mounts, smb)
+ *   /system         → System (tabs: overview, monitoring, processes, logs, hardware)
+ *   /communication  → Communication
+ *   /media          → Media
+ *   /docs           → Docs
+ *   /settings       → Settings
+ *   /login          → Login (guest only)
+ *   /setup          → First boot wizard (guest only)
+ */
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSetupStore } from '@/stores/setup'
 
 const routes = [
+  // ─── Guest routes ─────────────────────────────────────────────
   {
     path: '/setup',
     name: 'setup',
@@ -15,6 +39,8 @@ const routes = [
     component: () => import('@/components/auth/LoginView.vue'),
     meta: { guest: true }
   },
+
+  // ─── Primary pages (sidebar items) ────────────────────────────
   {
     path: '/',
     name: 'dashboard',
@@ -28,18 +54,10 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/services',
-    redirect: '/apps'
-  },
-  {
     path: '/apps/:name',
     name: 'app-detail',
     component: () => import('@/components/services/ServiceDetailView.vue'),
     meta: { requiresAuth: true }
-  },
-  {
-    path: '/services/:name',
-    redirect: to => `/apps/${to.params.name}`
   },
   {
     path: '/network',
@@ -48,18 +66,17 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/firewall',
-    name: 'firewall',
-    component: () => import('@/components/firewall/FirewallView.vue'),
+    path: '/storage',
+    name: 'storage',
+    component: () => import('@/components/storage/StorageView.vue'),
     meta: { requiresAuth: true }
   },
   {
-    path: '/vpn',
-    name: 'vpn',
-    component: () => import('@/components/vpn/VPNManager.vue'),
+    path: '/system',
+    name: 'system',
+    component: () => import('@/components/system/SystemView.vue'),
     meta: { requiresAuth: true }
   },
-  // Sprint 8: Communication & Media
   {
     path: '/communication',
     name: 'communication',
@@ -72,41 +89,12 @@ const routes = [
     component: () => import('@/components/media/MediaView.vue'),
     meta: { requiresAuth: true }
   },
+
+  // ─── Footer pages ─────────────────────────────────────────────
   {
-    path: '/logs',
-    name: 'logs',
-    component: () => import('@/components/logs/LogsView.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/storage',
-    name: 'storage',
-    component: () => import('@/components/storage/StorageView.vue'),
-    meta: { requiresAuth: true }
-  },
-  // Sprint 4: Monitoring & Processes
-  {
-    path: '/monitoring',
-    name: 'monitoring',
-    component: () => import('@/components/monitoring/MonitoringView.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/processes',
-    name: 'processes',
-    component: () => import('@/components/processes/ProcessesView.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/hardware',
-    name: 'hardware',
-    component: () => import('@/components/hardware/HardwareView.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/system',
-    name: 'system',
-    component: () => import('@/components/system/SystemView.vue'),
+    path: '/docs/:pathMatch(.*)*',
+    name: 'docs',
+    component: () => import('@/components/docs/DocsView.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -115,6 +103,8 @@ const routes = [
     component: () => import('@/components/settings/SettingsView.vue'),
     meta: { requiresAuth: true }
   },
+
+  // ─── App Store / Manager (still accessible, will become tabs) ─
   {
     path: '/appstore',
     name: 'appstore',
@@ -134,12 +124,44 @@ const routes = [
     component: () => import('@/components/appmanager/AppManagerView.vue'),
     meta: { requiresAuth: true }
   },
+
+  // ─── Backward-compat redirects ────────────────────────────────
+  // Old standalone routes → consolidated pages with tab query param.
+  // These ensure bookmarks and external links keep working.
   {
-    path: '/docs/:pathMatch(.*)*',
-    name: 'docs',
-    component: () => import('@/components/docs/DocsView.vue'),
-    meta: { requiresAuth: true }
+    path: '/services',
+    redirect: '/apps'
   },
+  {
+    path: '/services/:name',
+    redirect: to => `/apps/${to.params.name}`
+  },
+  {
+    path: '/firewall',
+    redirect: '/network?tab=firewall'
+  },
+  {
+    path: '/vpn',
+    redirect: '/network?tab=vpn'
+  },
+  {
+    path: '/monitoring',
+    redirect: '/system?tab=monitoring'
+  },
+  {
+    path: '/processes',
+    redirect: '/system?tab=processes'
+  },
+  {
+    path: '/logs',
+    redirect: '/system?tab=logs'
+  },
+  {
+    path: '/hardware',
+    redirect: '/system?tab=hardware'
+  },
+
+  // ─── Catch-all ────────────────────────────────────────────────
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
@@ -150,27 +172,29 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash }
+    return { top: 0 }
+  }
 })
 
-// Navigation guard for authentication and setup status
+// ─── Navigation Guard ─────────────────────────────────────────────
+
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
-  // useSetupStore() is safe here — pinia is installed before router in main.js
   const setupStore = useSetupStore()
 
-  // Always check setup status first (before auth)
-  // fetchStatus() returns cached data on subsequent calls (no redundant API hits)
+  // Always check setup status first
   const statusData = await setupStore.fetchStatus()
   const isSetupDone = statusData?.is_complete === true
 
-  // If setup not done and not going to setup page, redirect to setup
   if (!isSetupDone && to.name !== 'setup') {
     next({ name: 'setup' })
     return
   }
 
-  // If setup is done, proceed with normal auth flow
   // Initialize auth on first navigation if we have a token but no user
   if (authStore.token && !authStore.user) {
     await authStore.init()
@@ -182,10 +206,8 @@ router.beforeEach(async (to, from, next) => {
   const isAuthenticated = authStore.isAuthenticated
 
   if (requiresAuth && !isAuthenticated) {
-    // Redirect to login if not authenticated
     next({ name: 'login', query: { redirect: to.fullPath } })
   } else if (isGuest && isAuthenticated && !isSetup) {
-    // Redirect to dashboard if already authenticated (except for setup)
     next({ name: 'dashboard' })
   } else {
     next()
@@ -194,14 +216,14 @@ router.beforeEach(async (to, from, next) => {
 
 export default router
 
-// Reset setup store on HMR to prevent stale state during development
+// Reset setup store on HMR
 if (import.meta.hot) {
   import.meta.hot.accept(() => {
     try {
       const setupStore = useSetupStore()
       setupStore.clearStatus()
     } catch (e) {
-      // Pinia may not be ready during HMR — safe to ignore
+      // Pinia may not be ready during HMR
     }
   })
 }
