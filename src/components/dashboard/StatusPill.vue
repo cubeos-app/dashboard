@@ -12,7 +12,10 @@ import { useSystemStore } from '@/stores/system'
 import { useAppsStore } from '@/stores/apps'
 import { useNetworkStore } from '@/stores/network'
 import { useWallpaper } from '@/composables/useWallpaper'
+import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import Icon from '@/components/ui/Icon.vue'
+
+const { showStatusPill } = useDashboardConfig()
 
 const router = useRouter()
 const systemStore = useSystemStore()
@@ -79,7 +82,7 @@ function cardBase() {
 </script>
 
 <template>
-  <div class="dash-stagger">
+  <div v-if="showStatusPill" class="dash-stagger">
     <!-- Main status bar -->
     <button
       :class="pillBg"

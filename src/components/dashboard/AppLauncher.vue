@@ -1,16 +1,13 @@
 <script setup>
 /**
- * AppLauncher.vue — S13 Visual Upgrade v2
+ * AppLauncher.vue — S13 Visual Upgrade v2 + Session 3 Config
  *
  * Combined app launcher for Standard dashboard.
  * Sections: Favorites (hero cards), Recently Used (scroll strip), My Apps (grid).
  *
- * Visual features:
- *   - Per-app color accents via appColors utility
- *   - Brand SVG icons via AppIcon component
- *   - Elevated cards with shadow depth
- *   - Glow hover effects matching app color
- *   - Staggered entry animation per card
+ * Session 3: Accepts config props to control section visibility,
+ * favorite grid columns, and my apps row limit.
+ * Defaults preserve pre-config behavior.
  */
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -24,7 +21,13 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 
 const props = defineProps({
   favorites: { type: Array, default: null },
-  recentApps: { type: Array, default: null }
+  recentApps: { type: Array, default: null },
+  // Dashboard config props (passed from DashboardStandard)
+  showFavorites: { type: Boolean, default: true },
+  showRecent: { type: Boolean, default: true },
+  showMyApps: { type: Boolean, default: true },
+  myAppsRows: { type: Number, default: 0 },    // 0 = show all, 1-5 = limit rows
+  favoriteCols: { type: Number, default: 4 },   // 2-6
 })
 
 const emit = defineEmits(['open-app', 'toggle-favorite'])
@@ -60,6 +63,33 @@ const userApps = computed(() => {
   return appsStore.apps.filter(a => !infraTypes.has(a.type))
 })
 
+/** User apps limited by myAppsRows config (0 = all, else rows × 3 cols) */
+const visibleUserApps = computed(() => {
+  if (props.myAppsRows === 0) return userApps.value
+  // Max 3 columns on desktop → limit = rows × 3
+  const limit = props.myAppsRows * 3
+  return userApps.value.slice(0, limit)
+})
+
+const hasMoreApps = computed(() => {
+  return props.myAppsRows > 0 && userApps.value.length > visibleUserApps.value.length
+})
+
+// ─── Favorites grid class (responsive, respects favoriteCols) ──
+
+const favGridClass = computed(() => {
+  // Mobile always 2 cols, sm 3 cols (or favCols if smaller), lg uses configured value
+  const cols = props.favoriteCols
+  const colsMap = {
+    2: 'grid-cols-2',
+    3: 'grid-cols-2 sm:grid-cols-3',
+    4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
+    5: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
+    6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
+  }
+  return colsMap[cols] || colsMap[4]
+})
+
 // ─── Helpers ─────────────────────────────────────────────────────
 
 function statusDot(app) {
@@ -85,7 +115,7 @@ function cardBase() {
 <template>
   <div class="space-y-8">
     <!-- ★ Favorites (hero) ──────────────────────────────────────── -->
-    <section class="dash-stagger">
+    <section v-if="showFavorites" class="dash-stagger">
       <h2 class="text-[11px] font-semibold text-theme-tertiary uppercase tracking-widest mb-3 flex items-center gap-2">
         <Icon name="Star" :size="12" class="text-amber-400" />
         Favorites
@@ -110,8 +140,8 @@ function cardBase() {
         </button>
       </div>
 
-      <!-- Favorites grid — bigger hero cards -->
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <!-- Favorites grid — bigger hero cards, columns from config -->
+      <div v-else class="grid gap-3" :class="favGridClass">
         <button
           v-for="(app, idx) in favoriteApps"
           :key="app.name"
@@ -156,7 +186,7 @@ function cardBase() {
     </section>
 
     <!-- Recently Used (horizontal scroll) ───────────────────────── -->
-    <section v-if="recentApps.length > 0" class="dash-stagger">
+    <section v-if="showRecent && recentApps.length > 0" class="dash-stagger">
       <h2 class="text-[11px] font-semibold text-theme-tertiary uppercase tracking-widest mb-3 flex items-center gap-2">
         <Icon name="Clock" :size="12" />
         Recent
@@ -190,8 +220,8 @@ function cardBase() {
       </div>
     </section>
 
-    <!-- My Apps (full grid) ─────────────────────────────────────── -->
-    <section v-if="userApps.length > 0" class="dash-stagger">
+    <!-- My Apps (full grid, row-limited) ─────────────────────────── -->
+    <section v-if="showMyApps && userApps.length > 0" class="dash-stagger">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-[11px] font-semibold text-theme-tertiary uppercase tracking-widest flex items-center gap-2">
           <Icon name="Grid3x3" :size="12" />
@@ -207,7 +237,7 @@ function cardBase() {
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <button
-          v-for="(app, idx) in userApps"
+          v-for="(app, idx) in visibleUserApps"
           :key="app.name"
           :class="[
             cardBase(),
@@ -247,10 +277,20 @@ function cardBase() {
           <Icon name="ChevronRight" :size="14" class="text-theme-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         </button>
       </div>
+
+      <!-- "Show more" hint when row-limited -->
+      <p v-if="hasMoreApps" class="text-center mt-3">
+        <button
+          class="text-[11px] text-theme-muted hover:text-accent transition-colors"
+          @click="router.push('/apps')"
+        >
+          +{{ userApps.length - visibleUserApps.length }} more apps
+        </button>
+      </p>
     </section>
 
     <!-- No apps at all -->
-    <section v-if="favoriteApps.length === 0 && userApps.length === 0" class="dash-stagger">
+    <section v-if="showFavorites && showMyApps && favoriteApps.length === 0 && userApps.length === 0" class="dash-stagger">
       <div :class="cardBase()" class="p-10 rounded-2xl text-center">
         <div class="w-16 h-16 rounded-3xl bg-accent-muted flex items-center justify-center mx-auto mb-4">
           <Icon name="Package" :size="28" class="text-accent" />
