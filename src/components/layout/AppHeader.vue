@@ -111,9 +111,10 @@ const hostname = computed(() => systemStore.hostname || 'CubeOS')
           <span class="text-theme-muted font-medium">{{ wsConnected ? 'LIVE' : 'POLL' }}</span>
         </div>
 
+        <div class="w-px h-3 bg-theme-primary mx-1"></div>
+
         <!-- Hostname badge -->
         <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs">
-          <span class="w-1.5 h-1.5 rounded-full bg-success"></span>
           <span class="text-theme-secondary font-medium">{{ hostname }}</span>
         </div>
 
