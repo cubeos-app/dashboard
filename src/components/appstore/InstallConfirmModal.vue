@@ -50,12 +50,14 @@ const title = computed(() => {
 })
 
 // Split volumes into external (user-facing) and config (collapsed)
+const safeVolumes = computed(() => Array.isArray(props.volumes) ? props.volumes : [])
+
 const externalVolumes = computed(() =>
-  props.volumes.filter(v => v.is_external && !v.is_config)
+  safeVolumes.value.filter(v => v.is_external && !v.is_config)
 )
 
 const configVolumes = computed(() =>
-  props.volumes.filter(v => v.is_config || !v.is_external)
+  safeVolumes.value.filter(v => v.is_config || !v.is_external)
 )
 
 const showConfigSection = ref(false)
@@ -111,7 +113,7 @@ function handleConfirm() {
   // Build volume_overrides map: only include actual overrides
   const volumeOverrides = {}
   for (const [containerPath, hostPath] of Object.entries(overrides.value)) {
-    const vol = props.volumes.find(v => v.container_path === containerPath)
+    const vol = safeVolumes.value.find(v => v.container_path === containerPath)
     if (vol && hostPath !== vol.current_host_path) {
       volumeOverrides[containerPath] = hostPath
     }

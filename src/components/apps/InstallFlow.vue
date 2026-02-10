@@ -64,7 +64,8 @@ async function loadVolumes() {
   loadError.value = ''
   try {
     const result = await appStoreStore.previewVolumes(props.storeId, props.appName)
-    volumes.value = result?.volumes || result || []
+    const vols = result?.volumes ?? result
+    volumes.value = Array.isArray(vols) ? vols : []
     // If no volumes to confirm, skip straight to install in Standard mode
     if (!isAdvanced.value && volumes.value.length === 0) {
       await doInstall({})
