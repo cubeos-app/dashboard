@@ -14,6 +14,7 @@
  */
 import { ref, computed, watch, nextTick, defineComponent, h } from 'vue'
 import { useDashboardConfig, WIDGET_REGISTRY, ALL_WIDGET_IDS, ADVANCED_SECTION_REGISTRY } from '@/composables/useDashboardConfig'
+import { useDashboardResize } from '@/composables/useDashboardResize'
 
 // ─── Inline toggle component (render function, used only by this modal) ──
 const SettingsToggle = defineComponent({
@@ -61,6 +62,7 @@ const emit = defineEmits(['close'])
 
 const { trapFocus } = useFocusTrap()
 const config = useDashboardConfig()
+const resize = useDashboardResize()
 
 const panelRef = ref(null)
 
@@ -711,6 +713,29 @@ function closeWidgetPicker() {
                       >
                         <Icon :name="widgetIcon(widgetId)" :size="14" class="text-theme-secondary flex-shrink-0" />
                         <span class="text-sm text-theme-primary flex-1">{{ widgetLabel(widgetId) }}</span>
+
+                        <!-- Width selector (only for single-widget rows) -->
+                        <select
+                          v-if="entry.row.length === 1"
+                          class="text-[10px] px-1.5 py-0.5 rounded bg-theme-tertiary border border-theme-primary
+                                 text-theme-secondary cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent/50"
+                          :value="resize.getWidgetWidth(widgetId)"
+                          @change="resize.updateWidgetWidth(widgetId, $event.target.value)"
+                        >
+                          <option value="full">Full</option>
+                          <option value="half">Half</option>
+                        </select>
+
+                        <!-- Collapse toggle -->
+                        <button
+                          class="w-5 h-5 rounded flex items-center justify-center transition-colors"
+                          :class="resize.isCollapsed(widgetId) ? 'text-accent' : 'text-theme-muted hover:text-theme-primary'"
+                          :title="resize.isCollapsed(widgetId) ? 'Expand widget' : 'Collapse widget'"
+                          @click="resize.toggleCollapse(widgetId)"
+                        >
+                          <Icon :name="resize.isCollapsed(widgetId) ? 'Minimize2' : 'Maximize2'" :size="12" />
+                        </button>
+
                         <button
                           class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-error transition-colors"
                           title="Remove from layout"

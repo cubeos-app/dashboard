@@ -116,6 +116,7 @@ const STANDARD_DEFAULTS = {
   widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'disk', 'signals', 'actions', 'launcher'],
   grid_layout: STANDARD_GRID_LAYOUT,
   widget_opacity: { clock: CLOCK_DEFAULT_OPACITY },
+  widget_dimensions: {},
 }
 
 const ADVANCED_DEFAULTS = {
@@ -145,6 +146,7 @@ const ADVANCED_DEFAULTS = {
   widget_order: ['alerts', 'vitals', 'network', 'disk', 'signals', 'actions', 'launcher'],
   grid_layout: ADVANCED_GRID_LAYOUT,
   widget_opacity: {},
+  widget_dimensions: {},
   advanced_section_order: DEFAULT_ADVANCED_SECTION_ORDER,
 }
 

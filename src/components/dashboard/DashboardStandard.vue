@@ -18,6 +18,7 @@ import { useRouter } from 'vue-router'
 import { useWallpaper } from '@/composables/useWallpaper'
 import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
+import { useDashboardResize } from '@/composables/useDashboardResize'
 import Icon from '@/components/ui/Icon.vue'
 import ClockWidget from './ClockWidget.vue'
 import SearchChatBar from './SearchChatBar.vue'
@@ -37,6 +38,7 @@ const props = defineProps({
 const router = useRouter()
 const { isActive: wallpaperActive } = useWallpaper()
 const { handleDrop, dragWidgetId } = useDashboardEdit()
+const { getWidgetWidth } = useDashboardResize()
 
 const {
   showClock,
@@ -156,6 +158,23 @@ function canAcceptSideDrop(entry) {
   if (entry.visible.includes(dragWidgetId.value)) return false
   return true
 }
+
+/**
+ * Determine the CSS grid class for a row.
+ * - 2 widgets: always 2 columns on lg+
+ * - 1 widget with 'half' width: 2 columns on lg+ (widget spans 1)
+ * - 1 widget with 'full' width: 1 column (default)
+ */
+function rowGridClass(entry) {
+  if (entry.visible.length > 1) return 'lg:grid-cols-2'
+  if (entry.visible.length === 1 && getWidgetWidth(entry.visible[0]) === 'half') return 'lg:grid-cols-2'
+  return ''
+}
+
+/** Whether a widget is in a row with another widget */
+function isInPair(entry) {
+  return entry.visible.length > 1
+}
 </script>
 
 <template>
@@ -165,7 +184,7 @@ function canAcceptSideDrop(entry) {
       v-if="isEditing"
       class="text-center py-2 text-xs text-theme-muted select-none animate-fade-in"
     >
-      Drag widgets to rearrange. Drop beside a widget to pair them side-by-side.
+      Drag widgets to rearrange. Drop beside a widget to pair them side-by-side. Double-click edges to resize.
     </div>
 
     <!-- Empty state when all widgets hidden -->
@@ -232,20 +251,20 @@ function canAcceptSideDrop(entry) {
           </div>
         </template>
 
-        <!-- Main grid: 1-col mobile, 2-col lg+ when paired -->
+        <!-- Main grid: 1-col mobile, variable lg+ based on widget dimensions -->
         <div
           class="grid grid-cols-1 gap-4 dash-stagger"
-          :class="{ 'lg:grid-cols-2': entry.visible.length > 1 }"
+          :class="rowGridClass(entry)"
         >
           <template v-for="widgetId in entry.visible" :key="widgetId">
 
             <!-- ═══ Clock ═══ -->
-            <WidgetWrapper v-if="widgetId === 'clock'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <WidgetWrapper v-if="widgetId === 'clock'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <ClockWidget :card="true" />
             </WidgetWrapper>
 
             <!-- ═══ Search + Chat bar ═══ -->
-            <WidgetWrapper v-if="widgetId === 'search'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <WidgetWrapper v-if="widgetId === 'search'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <SearchChatBar
                 ref="searchBarRef"
                 @open-app="(app) => emit('open-app', app)"
@@ -254,32 +273,32 @@ function canAcceptSideDrop(entry) {
             </WidgetWrapper>
 
             <!-- ═══ Status pill ═══ -->
-            <WidgetWrapper v-if="widgetId === 'status'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <WidgetWrapper v-if="widgetId === 'status'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <StatusPill />
             </WidgetWrapper>
 
             <!-- ═══ System Vitals ═══ -->
-            <WidgetWrapper v-if="widgetId === 'vitals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <WidgetWrapper v-if="widgetId === 'vitals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <SystemVitals />
             </WidgetWrapper>
 
             <!-- ═══ Network ═══ -->
-            <WidgetWrapper v-if="widgetId === 'network'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <WidgetWrapper v-if="widgetId === 'network'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <NetworkWidget />
             </WidgetWrapper>
 
             <!-- ═══ Disk ═══ -->
-            <WidgetWrapper v-if="widgetId === 'disk'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <WidgetWrapper v-if="widgetId === 'disk'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <DiskWidget />
             </WidgetWrapper>
 
             <!-- ═══ Signals ═══ -->
-            <WidgetWrapper v-if="widgetId === 'signals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <WidgetWrapper v-if="widgetId === 'signals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <SignalsWidget />
             </WidgetWrapper>
 
             <!-- ═══ Quick Actions ═══ -->
-            <WidgetWrapper v-if="widgetId === 'actions' && filteredQuickActions.length > 0" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <WidgetWrapper v-if="widgetId === 'actions' && filteredQuickActions.length > 0" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <div>
                 <div
                   :class="cardBase()"
@@ -314,6 +333,7 @@ function canAcceptSideDrop(entry) {
               :widget-id="widgetId"
               :editing="isEditing"
               :row-idx="entry.layoutIdx"
+              :in-pair="isInPair(entry)"
             >
               <div>
                 <AppLauncher

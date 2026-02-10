@@ -27,6 +27,7 @@ import AlertsFeed from './AlertsFeed.vue'
 import DiskWidget from './DiskWidget.vue'
 import SignalsWidget from './SignalsWidget.vue'
 import WidgetWrapper from './WidgetWrapper.vue'
+import WidgetErrorBoundary from './WidgetErrorBoundary.vue'
 import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
 
 const props = defineProps({
@@ -212,7 +213,7 @@ function goToAppStore() { router.push('/appstore') }
       v-if="isEditing"
       class="text-center py-2 text-xs text-theme-muted select-none"
     >
-      Drag sections to reorder. Each widget moves independently.
+      Drag sections to reorder. Each widget moves independently. Double-click edges to resize.
     </div>
 
     <!-- Empty state when all sections hidden -->
@@ -267,6 +268,7 @@ function goToAppStore() { router.push('/appstore') }
 
         <!-- ═══ Status Gauges ═══ -->
         <section v-if="sectionId === 'gauges'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="gauges" :label="SECTION_LABELS['gauges']" icon="Activity">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatusCard label="CPU" :value="cpuUsage" unit="%" icon="Cpu" />
             <StatusCard
@@ -292,10 +294,12 @@ function goToAppStore() { router.push('/appstore') }
               :thresholds="{ warning: 65, critical: 80 }"
             />
           </div>
+          </WidgetErrorBoundary>
         </section>
 
         <!-- ═══ Info Bar ═══ -->
         <section v-if="sectionId === 'infobar'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="infobar" :label="SECTION_LABELS['infobar']" icon="Info">
           <div class="rounded-xl border border-theme-primary bg-theme-card p-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
             <div class="flex items-center gap-2">
               <Icon name="Activity" :size="14" class="text-success" />
@@ -353,6 +357,7 @@ function goToAppStore() { router.push('/appstore') }
               </span>
             </div>
           </div>
+          </WidgetErrorBoundary>
         </section>
 
         <!-- ═══ Disk (independent) ═══ -->
@@ -371,20 +376,25 @@ function goToAppStore() { router.push('/appstore') }
 
         <!-- ═══ Swarm Overview (independent) ═══ -->
         <section v-if="sectionId === 'swarm'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="swarm" :label="SECTION_LABELS['swarm']" icon="Layers">
           <SwarmOverview />
+          </WidgetErrorBoundary>
         </section>
 
         <!-- ═══ Alerts Feed (independent) ═══ -->
         <section v-if="sectionId === 'alerts'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="alerts" :label="SECTION_LABELS['alerts']" icon="Bell">
           <AlertsFeed
             :alerts="alerts"
             :loading="monitoringStore.loading"
             :limit="6"
           />
+          </WidgetErrorBoundary>
         </section>
 
         <!-- ═══ Favorites ═══ -->
         <section v-if="sectionId === 'favorites'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="favorites" :label="SECTION_LABELS['favorites']" icon="Star">
           <h2 class="text-xs font-semibold text-theme-tertiary uppercase tracking-wider mb-3 flex items-center gap-2">
             <Icon name="Star" :size="12" class="text-warning" />
             Favorites
@@ -402,33 +412,37 @@ function goToAppStore() { router.push('/appstore') }
               </button>
             </div>
           </div>
+          </WidgetErrorBoundary>
         </section>
 
         <!-- ═══ Core Services ═══ -->
-        <ServiceGrid
-          v-if="sectionId === 'core'"
-          :apps="coreApps"
-          :loading="appsStore.loading"
-          :detailed="true"
-          title="Core Services"
-          title-icon="Box"
-          @open="(app) => emit('open-app', app)"
-          @toggle-favorite="(name) => emit('toggle-favorite', name)"
-        />
+        <WidgetErrorBoundary v-if="sectionId === 'core'" widget-id="core" :label="SECTION_LABELS['core']" icon="Box">
+          <ServiceGrid
+            :apps="coreApps"
+            :loading="appsStore.loading"
+            :detailed="true"
+            title="Core Services"
+            title-icon="Box"
+            @open="(app) => emit('open-app', app)"
+            @toggle-favorite="(name) => emit('toggle-favorite', name)"
+          />
+        </WidgetErrorBoundary>
 
         <!-- ═══ User Apps ═══ -->
-        <ServiceGrid
-          v-if="sectionId === 'user-apps'"
-          :apps="userApps"
-          :detailed="true"
-          title="User Applications"
-          title-icon="Package"
-          @open="(app) => emit('open-app', app)"
-          @toggle-favorite="(name) => emit('toggle-favorite', name)"
-        />
+        <WidgetErrorBoundary v-if="sectionId === 'user-apps'" widget-id="user-apps" :label="SECTION_LABELS['user-apps']" icon="Package">
+          <ServiceGrid
+            :apps="userApps"
+            :detailed="true"
+            title="User Applications"
+            title-icon="Package"
+            @open="(app) => emit('open-app', app)"
+            @toggle-favorite="(name) => emit('toggle-favorite', name)"
+          />
+        </WidgetErrorBoundary>
 
         <!-- ═══ Quick Links ═══ -->
         <section v-if="sectionId === 'quick-links'" class="animate-fade-in">
+          <WidgetErrorBoundary widget-id="quick-links" :label="SECTION_LABELS['quick-links']" icon="Zap">
           <div class="flex flex-wrap gap-2">
             <button
               class="flex items-center gap-2 px-3 py-2 rounded-lg border border-theme-primary bg-theme-card hover:border-accent/40 text-xs text-theme-secondary transition-all"
@@ -465,6 +479,7 @@ function goToAppStore() { router.push('/appstore') }
               Ask CubeOS
             </button>
           </div>
+          </WidgetErrorBoundary>
         </section>
         </div>
       </div>
