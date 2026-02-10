@@ -39,6 +39,10 @@ export const ALL_WIDGET_IDS = Object.keys(WIDGET_REGISTRY)
 
 // ─── Default grid layouts ───────────────────────────────────
 
+/** Default per-widget opacity (0=transparent, 100=opaque) */
+const DEFAULT_OPACITY = 100
+const CLOCK_DEFAULT_OPACITY = 0  // backward compat: clock was fully transparent
+
 const STANDARD_GRID_LAYOUT = [
   { row: ['clock'] },
   { row: ['search'] },
@@ -80,6 +84,7 @@ const STANDARD_DEFAULTS = {
   quick_actions: ['add_app', 'network', 'storage', 'ask_cubeos'],
   widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'disk-signals', 'actions', 'launcher'],
   grid_layout: STANDARD_GRID_LAYOUT,
+  widget_opacity: { clock: CLOCK_DEFAULT_OPACITY },
 }
 
 const ADVANCED_DEFAULTS = {
@@ -108,6 +113,7 @@ const ADVANCED_DEFAULTS = {
   quick_actions: ['add_app', 'monitoring', 'logs', 'docs'],
   widget_order: ['alerts', 'vitals', 'network', 'disk-signals', 'actions', 'launcher'],
   grid_layout: ADVANCED_GRID_LAYOUT,
+  widget_opacity: {},
 }
 
 const DEFAULTS_BY_MODE = {
@@ -277,6 +283,38 @@ export function useDashboardConfig() {
     return visibilityMap.value[id] ?? true
   }
 
+  // ─── Widget Opacity (Session B) ───────────────────────────────
+
+  /**
+   * Raw widget_opacity map from config.
+   * Keys are widget IDs, values are 0–100.
+   */
+  const widgetOpacity = computed(() => {
+    return raw.value?.widget_opacity ?? defaults.value.widget_opacity ?? {}
+  })
+
+  /**
+   * Get opacity for a widget (0–100).
+   * Clock defaults to 0 (transparent) for backward compat; all others default to 100.
+   */
+  function getOpacity(widgetId) {
+    const stored = widgetOpacity.value[widgetId]
+    if (stored != null) return stored
+    return widgetId === 'clock' ? CLOCK_DEFAULT_OPACITY : DEFAULT_OPACITY
+  }
+
+  /** Persist opacity for a single widget */
+  async function updateOpacity(widgetId, value) {
+    const current = { ...widgetOpacity.value }
+    current[widgetId] = value
+    return updateConfig('widget_opacity', current)
+  }
+
+  /** Reset all opacities to defaults */
+  async function resetAllOpacity() {
+    return updateConfig('widget_opacity', defaults.value.widget_opacity ?? {})
+  }
+
   // ─── Persistence ──────────────────────────────────────────────
 
   async function updateConfig(key, value) {
@@ -346,6 +384,12 @@ export function useDashboardConfig() {
     unplacedWidgetIds,
     visibilityMap,
     isWidgetVisible,
+
+    // Widget opacity (Session B)
+    widgetOpacity,
+    getOpacity,
+    updateOpacity,
+    resetAllOpacity,
 
     // Raw access
     raw,

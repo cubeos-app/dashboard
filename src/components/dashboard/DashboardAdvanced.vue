@@ -24,6 +24,7 @@ import ServiceGrid from './ServiceGrid.vue'
 import AlertsFeed from './AlertsFeed.vue'
 import DiskWidget from './DiskWidget.vue'
 import SignalsWidget from './SignalsWidget.vue'
+import WidgetWrapper from './WidgetWrapper.vue'
 import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
 
 const router = useRouter()
@@ -256,8 +257,12 @@ function goToAppStore() { router.push('/appstore') }
       v-if="showDisk || showSignals"
       class="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-fade-in"
     >
-      <DiskWidget v-if="showDisk" />
-      <SignalsWidget v-if="showSignals" />
+      <WidgetWrapper v-if="showDisk" widget-id="disk">
+        <DiskWidget />
+      </WidgetWrapper>
+      <WidgetWrapper v-if="showSignals" widget-id="signals">
+        <SignalsWidget />
+      </WidgetWrapper>
     </div>
 
     <!-- Main Grid: Swarm + Alerts side by side -->

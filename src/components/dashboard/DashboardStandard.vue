@@ -24,6 +24,7 @@ import NetworkWidget from './NetworkWidget.vue'
 import DiskWidget from './DiskWidget.vue'
 import SignalsWidget from './SignalsWidget.vue'
 import AppLauncher from './AppLauncher.vue'
+import WidgetWrapper from './WidgetWrapper.vue'
 
 const router = useRouter()
 const { isActive: wallpaperActive } = useWallpaper()
@@ -138,77 +139,91 @@ const isAllHidden = computed(() => gridRows.value.length === 0)
         <template v-for="widgetId in entry.visible" :key="widgetId">
 
           <!-- ═══ Clock ═══ -->
-          <ClockWidget
-            v-if="widgetId === 'clock'"
-            :card="true"
-          />
+          <WidgetWrapper v-if="widgetId === 'clock'" :widget-id="widgetId">
+            <ClockWidget :card="true" />
+          </WidgetWrapper>
 
           <!-- ═══ Search + Chat bar ═══ -->
-          <SearchChatBar
-            v-if="widgetId === 'search'"
-            ref="searchBarRef"
-            @open-app="(app) => emit('open-app', app)"
-            @open-chat="emit('open-chat')"
-          />
+          <WidgetWrapper v-if="widgetId === 'search'" :widget-id="widgetId">
+            <SearchChatBar
+              ref="searchBarRef"
+              @open-app="(app) => emit('open-app', app)"
+              @open-chat="emit('open-chat')"
+            />
+          </WidgetWrapper>
 
           <!-- ═══ Status pill ═══ -->
-          <StatusPill v-if="widgetId === 'status'" />
+          <WidgetWrapper v-if="widgetId === 'status'" :widget-id="widgetId">
+            <StatusPill />
+          </WidgetWrapper>
 
           <!-- ═══ System Vitals ═══ -->
-          <SystemVitals v-if="widgetId === 'vitals'" />
+          <WidgetWrapper v-if="widgetId === 'vitals'" :widget-id="widgetId">
+            <SystemVitals />
+          </WidgetWrapper>
 
           <!-- ═══ Network ═══ -->
-          <NetworkWidget v-if="widgetId === 'network'" />
+          <WidgetWrapper v-if="widgetId === 'network'" :widget-id="widgetId">
+            <NetworkWidget />
+          </WidgetWrapper>
 
           <!-- ═══ Disk ═══ -->
-          <DiskWidget v-if="widgetId === 'disk'" />
+          <WidgetWrapper v-if="widgetId === 'disk'" :widget-id="widgetId">
+            <DiskWidget />
+          </WidgetWrapper>
 
           <!-- ═══ Signals ═══ -->
-          <SignalsWidget v-if="widgetId === 'signals'" />
+          <WidgetWrapper v-if="widgetId === 'signals'" :widget-id="widgetId">
+            <SignalsWidget />
+          </WidgetWrapper>
 
           <!-- ═══ Quick Actions ═══ -->
-          <div v-if="widgetId === 'actions' && filteredQuickActions.length > 0">
-            <div
-              :class="cardBase()"
-              class="rounded-2xl p-4 h-full"
-            >
-              <div class="grid gap-2" :class="quickActionsGridCols">
-                <button
-                  v-for="qa in filteredQuickActions"
-                  :key="qa.id"
-                  class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
-                         hover:bg-theme-tertiary hover:-translate-y-px group"
-                  @click="qa.action()"
-                >
-                  <div
-                    class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
-                    :class="qa.color.split(' ')[0]"
+          <WidgetWrapper v-if="widgetId === 'actions' && filteredQuickActions.length > 0" :widget-id="widgetId">
+            <div>
+              <div
+                :class="cardBase()"
+                class="rounded-2xl p-4 h-full"
+              >
+                <div class="grid gap-2" :class="quickActionsGridCols">
+                  <button
+                    v-for="qa in filteredQuickActions"
+                    :key="qa.id"
+                    class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
+                           hover:bg-theme-tertiary hover:-translate-y-px group"
+                    @click="qa.action()"
                   >
-                    <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
-                  </div>
-                  <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
-                    {{ qa.label }}
-                  </span>
-                </button>
+                    <div
+                      class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
+                      :class="qa.color.split(' ')[0]"
+                    >
+                      <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
+                    </div>
+                    <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
+                      {{ qa.label }}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          </WidgetWrapper>
 
           <!-- ═══ App Launcher ═══ -->
-          <div
+          <WidgetWrapper
             v-if="widgetId === 'launcher'"
-            :class="entry.visible.length === 1 ? '' : ''"
+            :widget-id="widgetId"
           >
-            <AppLauncher
-              :show-favorites="showFavorites"
-              :show-recent="showRecent"
-              :show-my-apps="showMyApps"
-              :my-apps-rows="myAppsRows"
-              :favorite-cols="favoriteCols"
-              @open-app="(app) => emit('open-app', app)"
-              @toggle-favorite="(name) => emit('toggle-favorite', name)"
-            />
-          </div>
+            <div>
+              <AppLauncher
+                :show-favorites="showFavorites"
+                :show-recent="showRecent"
+                :show-my-apps="showMyApps"
+                :my-apps-rows="myAppsRows"
+                :favorite-cols="favoriteCols"
+                @open-app="(app) => emit('open-app', app)"
+                @toggle-favorite="(name) => emit('toggle-favorite', name)"
+              />
+            </div>
+          </WidgetWrapper>
 
         </template>
       </div>

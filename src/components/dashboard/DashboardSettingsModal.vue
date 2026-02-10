@@ -262,6 +262,12 @@ function handleClose() {
 // ─── Unplaced widget picker state ───────────────────────────
 const showWidgetPicker = ref(null)  // rowIdx or 'new'
 
+// ─── Appearance section (Session B) ─────────────────────────
+const appearanceOpen = ref(false)
+
+/** Widget IDs that are placed in the grid (for opacity sliders) */
+const opacityWidgets = computed(() => config.placedWidgetIds.value)
+
 function openWidgetPicker(target) {
   showWidgetPicker.value = target
 }
@@ -355,6 +361,48 @@ function closeWidgetPicker() {
                   <SettingsToggle label="Disk Usage" :active="config.showDisk.value" @toggle="toggle('show_disk_widget', config.showDisk.value)" />
                   <SettingsToggle label="Signals" :active="config.showSignals.value" @toggle="toggle('show_signals_widget', config.showSignals.value)" />
                 </div>
+              </section>
+
+              <!-- Section: Appearance (Advanced) -->
+              <section>
+                <button
+                  class="w-full flex items-center justify-between text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3"
+                  @click="appearanceOpen = !appearanceOpen"
+                >
+                  <span>Appearance</span>
+                  <Icon
+                    :name="appearanceOpen ? 'ChevronUp' : 'ChevronDown'"
+                    :size="14"
+                    class="text-theme-muted transition-transform"
+                  />
+                </button>
+                <template v-if="appearanceOpen">
+                  <p class="text-xs text-theme-muted mb-3">
+                    Card background opacity. 0 = transparent, 100 = opaque.
+                  </p>
+                  <div class="space-y-3">
+                    <div
+                      v-for="wid in ['disk', 'signals']"
+                      :key="wid"
+                      class="flex items-center gap-3"
+                    >
+                      <Icon :name="widgetIcon(wid)" :size="14" class="text-theme-secondary flex-shrink-0" />
+                      <span class="text-sm text-theme-secondary flex-1 min-w-0 truncate">{{ widgetLabel(wid) }}</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        :value="config.getOpacity(wid)"
+                        class="w-20 accent-accent flex-shrink-0"
+                        @input="config.updateOpacity(wid, parseInt($event.target.value))"
+                      />
+                      <span class="text-xs font-mono text-theme-muted w-8 text-right flex-shrink-0">
+                        {{ config.getOpacity(wid) }}
+                      </span>
+                    </div>
+                  </div>
+                </template>
               </section>
             </template>
 
@@ -531,6 +579,55 @@ function closeWidgetPicker() {
                     </div>
                   </div>
                 </div>
+              </section>
+
+              <!-- ═══ Section: Appearance (Session B) ═══ -->
+              <section>
+                <button
+                  class="w-full flex items-center justify-between text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3"
+                  @click="appearanceOpen = !appearanceOpen"
+                >
+                  <span>Appearance</span>
+                  <Icon
+                    :name="appearanceOpen ? 'ChevronUp' : 'ChevronDown'"
+                    :size="14"
+                    class="text-theme-muted transition-transform"
+                  />
+                </button>
+
+                <template v-if="appearanceOpen">
+                  <p class="text-xs text-theme-muted mb-3">
+                    Control card background opacity per widget. 0 = transparent, 100 = opaque.
+                  </p>
+                  <div class="space-y-3">
+                    <div
+                      v-for="wid in opacityWidgets"
+                      :key="wid"
+                      class="flex items-center gap-3"
+                    >
+                      <Icon :name="widgetIcon(wid)" :size="14" class="text-theme-secondary flex-shrink-0" />
+                      <span class="text-sm text-theme-secondary flex-1 min-w-0 truncate">{{ widgetLabel(wid) }}</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        :value="config.getOpacity(wid)"
+                        class="w-20 accent-accent flex-shrink-0"
+                        @input="config.updateOpacity(wid, parseInt($event.target.value))"
+                      />
+                      <span class="text-xs font-mono text-theme-muted w-8 text-right flex-shrink-0">
+                        {{ config.getOpacity(wid) }}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    class="mt-3 text-xs text-theme-muted hover:text-accent transition-colors"
+                    @click="config.resetAllOpacity()"
+                  >
+                    Reset all to defaults
+                  </button>
+                </template>
               </section>
 
               <!-- ═══ Section: Layout (Grid Rows) ═══ -->
