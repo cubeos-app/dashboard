@@ -110,6 +110,35 @@ const DEFAULT_ADVANCED_SECTION_ORDER = [
 
 // ─── Defaults (per mode) ─────────────────────────────────────
 
+/**
+ * Default per-widget refresh intervals in seconds.
+ * Widgets covered by WebSocket won't poll when WS is connected.
+ * Widgets set to 0 mean "manual only" (no auto-refresh).
+ */
+const DEFAULT_REFRESH_INTERVALS = {
+  vitals: 2,
+  network: 5,
+  disk: 10,
+  signals: 10,
+  status: 5,
+  uptime_load: 60,
+  network_throughput: 5,
+  recent_logs: 15,
+  battery: 30,
+}
+
+/** Available refresh interval options for the settings UI (seconds) */
+export const REFRESH_INTERVAL_OPTIONS = [
+  { value: 1,  label: '1s' },
+  { value: 2,  label: '2s' },
+  { value: 5,  label: '5s' },
+  { value: 10, label: '10s' },
+  { value: 15, label: '15s' },
+  { value: 30, label: '30s' },
+  { value: 60, label: '1 min' },
+  { value: 0,  label: 'Manual' },
+]
+
 const STANDARD_DEFAULTS = {
   show_clock: true,
   show_search: true,
@@ -138,6 +167,7 @@ const STANDARD_DEFAULTS = {
   grid_layout: STANDARD_GRID_LAYOUT,
   widget_opacity: { clock: CLOCK_DEFAULT_OPACITY },
   widget_dimensions: {},
+  widget_refresh_intervals: {},
 }
 
 const ADVANCED_DEFAULTS = {
@@ -172,6 +202,7 @@ const ADVANCED_DEFAULTS = {
   grid_layout: ADVANCED_GRID_LAYOUT,
   widget_opacity: {},
   widget_dimensions: {},
+  widget_refresh_intervals: {},
   advanced_section_order: DEFAULT_ADVANCED_SECTION_ORDER,
 }
 
@@ -434,6 +465,46 @@ export function useDashboardConfig() {
     return updateConfig('widget_opacity', defaults.value.widget_opacity ?? {})
   }
 
+  // ─── Per-Widget Refresh Intervals (Session 5) ─────────────────
+
+  /**
+   * Raw widget_refresh_intervals map from config.
+   * Keys are widget IDs, values are seconds (0 = manual).
+   */
+  const widgetRefreshIntervals = computed(() => {
+    return raw.value?.widget_refresh_intervals ?? defaults.value.widget_refresh_intervals ?? {}
+  })
+
+  /**
+   * Get refresh interval for a widget in seconds.
+   * Falls back to DEFAULT_REFRESH_INTERVALS, then 10s.
+   *
+   * @param {string} widgetId - Widget identifier
+   * @returns {number} Interval in seconds (0 = manual/disabled)
+   */
+  function getRefreshInterval(widgetId) {
+    const stored = widgetRefreshIntervals.value[widgetId]
+    if (stored != null) return stored
+    return DEFAULT_REFRESH_INTERVALS[widgetId] ?? 10
+  }
+
+  /**
+   * Persist refresh interval for a single widget.
+   *
+   * @param {string} widgetId - Widget identifier
+   * @param {number} seconds - Interval in seconds (0 = manual)
+   */
+  async function updateRefreshInterval(widgetId, seconds) {
+    const current = { ...widgetRefreshIntervals.value }
+    current[widgetId] = seconds
+    return updateConfig('widget_refresh_intervals', current)
+  }
+
+  /** Reset all refresh intervals to defaults */
+  async function resetAllRefreshIntervals() {
+    return updateConfig('widget_refresh_intervals', {})
+  }
+
   // ─── Persistence ──────────────────────────────────────────────
 
   async function updateConfig(key, value) {
@@ -519,6 +590,12 @@ export function useDashboardConfig() {
     getOpacity,
     updateOpacity,
     resetAllOpacity,
+
+    // Widget refresh intervals (Session 5)
+    widgetRefreshIntervals,
+    getRefreshInterval,
+    updateRefreshInterval,
+    resetAllRefreshIntervals,
 
     // Raw access
     raw,

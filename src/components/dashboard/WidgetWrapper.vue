@@ -1,6 +1,6 @@
 <script setup>
 /**
- * WidgetWrapper.vue — Session 4
+ * WidgetWrapper.vue — Session 5
  *
  * Thin wrapper that controls per-widget:
  *   - Card background opacity (Session B)
@@ -8,14 +8,16 @@
  *   - Resize handles for width and height (Session 2)
  *   - Error boundary isolation (Session 2)
  *   - Touch-based DnD for mobile (Session 4)
+ *   - Per-widget auto-refresh with WS bypass (Session 5)
  *
- * Touch DnD (Session 4):
- *   - Long-press (300ms) initiates drag on touch devices.
- *   - Ghost element follows finger. Source widget dims.
- *   - Drop zones highlight on hover. Auto-scroll near edges.
- *   - Haptic feedback on drag start and successful drop.
- *   - Short taps pass through to child elements normally.
- *   - Touch vs mouse detected automatically — never fire both.
+ * Auto-Refresh (Session 5):
+ *   - Each widget has a configurable refresh interval (from useDashboardConfig).
+ *   - When the interval fires, emits 'refresh' so the child widget can re-fetch data.
+ *   - If the widget is covered by WebSocket (e.g., vitals, disk, network),
+ *     polling is automatically suppressed while WS is connected.
+ *   - Static widgets (clock, search, actions, launcher) never poll.
+ *   - Interval restarts immediately when the configured value changes.
+ *   - Polling pauses when the tab is hidden (visibilitychange).
  *
  * Props:
  *   widget-id    — widget ID for opacity, dimensions, drag, and error context
@@ -23,11 +25,12 @@
  *   row-idx      — the row index this widget lives in (for drag source tracking)
  *   in-pair      — whether this widget shares a row with another (disables width resize)
  */
-import { computed, ref, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useDashboardConfig, WIDGET_REGISTRY } from '@/composables/useDashboardConfig'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
 import { useDashboardResize } from '@/composables/useDashboardResize'
 import { useTouchDrag } from '@/composables/useTouchDrag'
+import { useWidgetWebSocket } from '@/composables/useWidgetWebSocket'
 import WidgetErrorBoundary from './WidgetErrorBoundary.vue'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -38,7 +41,9 @@ const props = defineProps({
   inPair: { type: Boolean, default: false },
 })
 
-const { getOpacity } = useDashboardConfig()
+const emit = defineEmits(['refresh'])
+
+const { getOpacity, getRefreshInterval } = useDashboardConfig()
 const { startDrag, endDrag, handleDrop, dragWidgetId } = useDashboardEdit()
 const {
   getWidgetHeight,
@@ -55,6 +60,11 @@ const {
   onTouchEnd: touchEnd,
   onTouchCancel: touchCancel,
 } = useTouchDrag()
+const {
+  isLiveViaWS,
+  needsPolling,
+  isStaticWidget,
+} = useWidgetWebSocket()
 
 const isDragging = ref(false)
 const isResizingHeight = ref(false)
@@ -99,6 +109,88 @@ const widgetCollapsed = computed(() => isCollapsed(props.widgetId))
 
 /** Whether width resize is available (not in a pair) */
 const canResizeWidth = computed(() => !props.inPair)
+
+// ─── Per-widget auto-refresh (Session 5) ─────────────────
+
+/** Whether this widget is receiving live data via WebSocket */
+const widgetIsLive = computed(() => isLiveViaWS(props.widgetId))
+
+/** Resolved refresh interval in seconds */
+const refreshIntervalSecs = computed(() => getRefreshInterval(props.widgetId))
+
+let refreshTimer = null
+let isPageVisible = true
+
+/**
+ * Start or restart the per-widget refresh timer.
+ * Skips if: widget is static, WS is covering it, interval is 0 (manual),
+ * or the page is hidden.
+ */
+function startRefreshTimer() {
+  stopRefreshTimer()
+
+  // Static widgets (clock, search, etc.) never need polling
+  if (isStaticWidget(props.widgetId)) return
+
+  // WS-covered widgets skip polling when WS is connected
+  if (widgetIsLive.value) return
+
+  // Manual mode (0s) or invalid interval
+  const seconds = refreshIntervalSecs.value
+  if (!seconds || seconds <= 0) return
+
+  // Don't poll while page is hidden
+  if (!isPageVisible) return
+
+  refreshTimer = setInterval(() => {
+    emit('refresh')
+  }, seconds * 1000)
+}
+
+function stopRefreshTimer() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+/**
+ * Handle page visibility changes — pause polling when tab is hidden,
+ * resume (with immediate refresh) when tab becomes visible again.
+ */
+function onVisibilityChange() {
+  isPageVisible = document.visibilityState === 'visible'
+  if (isPageVisible) {
+    // Immediate refresh when coming back to the tab
+    if (needsPolling(props.widgetId)) {
+      emit('refresh')
+    }
+    startRefreshTimer()
+  } else {
+    stopRefreshTimer()
+  }
+}
+
+// Watch for changes that should restart the timer:
+// - WS connection state (widget becomes live or loses WS)
+// - Configured refresh interval changes
+// - Widget collapse state (don't poll collapsed widgets)
+watch(
+  [widgetIsLive, refreshIntervalSecs, widgetCollapsed],
+  () => {
+    if (widgetCollapsed.value) {
+      stopRefreshTimer()
+    } else {
+      startRefreshTimer()
+    }
+  }
+)
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  // Start timer after a brief delay to let the widget mount and do its initial fetch
+  setTimeout(() => startRefreshTimer(), 500)
+})
 
 // ─── HTML5 Drag handlers (desktop) ────────────────────────
 
@@ -202,6 +294,8 @@ function expandWidget() {
 // ─── Cleanup ────────────────────────────────────────────────
 
 onBeforeUnmount(() => {
+  stopRefreshTimer()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   window.removeEventListener('mousemove', onResizeMouseMove)
   window.removeEventListener('mouseup', onResizeMouseUp)
 })
@@ -235,6 +329,12 @@ onBeforeUnmount(() => {
     >
       <Icon name="GripHorizontal" :size="12" class="text-theme-muted" />
       <span class="text-[10px] font-medium text-theme-secondary whitespace-nowrap">{{ widgetLabel }}</span>
+      <!-- Live WS indicator (Session 5) -->
+      <span
+        v-if="widgetIsLive"
+        class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"
+        title="Live via WebSocket"
+      ></span>
     </div>
 
     <!-- Right edge resize handle (width toggle, edit mode only, not in pairs) -->

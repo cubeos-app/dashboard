@@ -1,14 +1,13 @@
 <script setup>
 /**
- * DashboardView.vue — Session C Update
+ * DashboardView.vue — Session 5 Update
  *
  * Dashboard shell that renders Standard or Advanced sub-view.
  * Hosts the settings gear icon and DashboardSettingsModal centrally
  * so both views share the same settings entry point.
  *
  * Session C: Added edit mode toggle (pencil/check button).
- * When editing: gear hidden, check shown. Escape exits edit mode.
- * Pass isEditing to sub-views.
+ * Session 5: Added WebSocket connection state indicator.
  *
  * Keyboard shortcuts:
  *   Ctrl+, (or Cmd+,) opens settings
@@ -24,6 +23,7 @@ import { useMonitoringStore } from '@/stores/monitoring'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { useMode } from '@/composables/useMode'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
+import { useWidgetWebSocket, WS_STATE } from '@/composables/useWidgetWebSocket'
 import { safeGetItem, safeSetItem } from '@/utils/storage'
 import Icon from '@/components/ui/Icon.vue'
 import DashboardStandard from './DashboardStandard.vue'
@@ -41,6 +41,7 @@ const monitoringStore = useMonitoringStore()
 const { signal } = useAbortOnUnmount()
 const { isAdvanced } = useMode()
 const { isEditing, toggleEdit, exitEdit } = useDashboardEdit()
+const { wsConnectionState } = useWidgetWebSocket()
 
 // Chat modal
 const showChatModal = ref(false)
@@ -145,6 +146,26 @@ onUnmounted(() => {
   <div class="p-2 sm:p-4 lg:p-6 relative">
     <!-- Edit / Settings controls (floats above both Standard and Advanced views) -->
     <div class="absolute top-2 right-2 sm:top-4 sm:right-4 lg:top-6 lg:right-6 flex items-center gap-1 z-10">
+      <!-- WebSocket connection indicator (Session 5) -->
+      <div
+        class="flex items-center gap-1 mr-1"
+        :title="wsConnectionState === 'connected'
+          ? 'Live updates active'
+          : 'Polling mode (WebSocket disconnected)'"
+      >
+        <span
+          class="w-2 h-2 rounded-full transition-colors duration-300"
+          :class="{
+            'bg-emerald-400': wsConnectionState === 'connected',
+            'bg-theme-muted': wsConnectionState === 'disconnected',
+          }"
+        ></span>
+        <span
+          v-if="wsConnectionState === 'connected'"
+          class="text-[10px] text-emerald-400 font-medium hidden sm:inline"
+        >Live</span>
+      </div>
+
       <!-- Edit mode: done/check button -->
       <button
         v-if="isEditing"

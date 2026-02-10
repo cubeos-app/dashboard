@@ -13,8 +13,9 @@
  * No more grouped "Disk & Signals" — each widget has its own toggle and opacity.
  */
 import { ref, computed, watch, nextTick, defineComponent, h } from 'vue'
-import { useDashboardConfig, WIDGET_REGISTRY, ALL_WIDGET_IDS, ADVANCED_SECTION_REGISTRY } from '@/composables/useDashboardConfig'
+import { useDashboardConfig, WIDGET_REGISTRY, ALL_WIDGET_IDS, ADVANCED_SECTION_REGISTRY, REFRESH_INTERVAL_OPTIONS } from '@/composables/useDashboardConfig'
 import { useDashboardResize } from '@/composables/useDashboardResize'
+import { useWidgetWebSocket } from '@/composables/useWidgetWebSocket'
 
 // ─── Inline toggle component (render function, used only by this modal) ──
 const SettingsToggle = defineComponent({
@@ -63,11 +64,15 @@ const emit = defineEmits(['close'])
 const { trapFocus } = useFocusTrap()
 const config = useDashboardConfig()
 const resize = useDashboardResize()
+const wsInfo = useWidgetWebSocket()
 
 const panelRef = ref(null)
 
 /** Whether we're editing Advanced or Standard config */
 const isAdvancedMode = computed(() => config.modeKey.value === 'advanced')
+
+// Collapsible section states
+const refreshRateOpen = ref(false)
 
 // Auto-focus panel on open
 watch(() => props.show, (visible) => {
@@ -298,6 +303,30 @@ function pickWidget(widgetId) {
 function closeWidgetPicker() {
   showWidgetPicker.value = null
 }
+
+// ─── Refresh Rate helpers (Session 5) ──────────────────────
+
+/**
+ * Widgets that have configurable refresh rates.
+ * Excludes static widgets (clock, search, actions, launcher).
+ */
+const refreshableWidgets = computed(() => {
+  if (isAdvancedMode.value) {
+    // In Advanced mode, show refresh for all data-driven sections
+    return ['vitals', 'disk', 'signals', 'uptime_load', 'network_throughput', 'recent_logs', 'battery', 'network', 'status']
+  }
+  // In Standard mode, use the placed widgets that are not static
+  return config.placedWidgetIds.value.filter(
+    id => !wsInfo.isStaticWidget(id)
+  )
+})
+
+/** Format a refresh interval for display */
+function formatRefreshLabel(seconds) {
+  if (seconds === 0) return 'Manual'
+  if (seconds < 60) return `${seconds}s`
+  return `${seconds / 60} min`
+}
 </script>
 
 <template>
@@ -418,6 +447,66 @@ function closeWidgetPicker() {
                     @click="config.resetAllOpacity()"
                   >
                     Reset all to defaults
+                  </button>
+                </template>
+              </section>
+
+              <!-- Section: Refresh Rate (Session 5 — Advanced mode) -->
+              <section>
+                <button
+                  class="w-full flex items-center justify-between text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3"
+                  @click="refreshRateOpen = !refreshRateOpen"
+                >
+                  <span>Refresh Rate</span>
+                  <Icon
+                    :name="refreshRateOpen ? 'ChevronUp' : 'ChevronDown'"
+                    :size="14"
+                    class="text-theme-muted transition-transform"
+                  />
+                </button>
+                <template v-if="refreshRateOpen">
+                  <p class="text-xs text-theme-muted mb-3">
+                    Per-widget polling interval. Widgets receiving live WebSocket data skip polling automatically.
+                  </p>
+                  <div class="space-y-2">
+                    <div
+                      v-for="wid in refreshableWidgets"
+                      :key="'adv-refresh-' + wid"
+                      class="flex items-center gap-3"
+                    >
+                      <Icon :name="(WIDGET_REGISTRY[wid] || ADVANCED_SECTION_REGISTRY[wid])?.icon || 'Box'" :size="14" class="text-theme-secondary flex-shrink-0" />
+                      <span class="text-sm text-theme-secondary flex-1 min-w-0 truncate">
+                        {{ (WIDGET_REGISTRY[wid] || ADVANCED_SECTION_REGISTRY[wid])?.label || wid }}
+                      </span>
+
+                      <!-- Live badge OR dropdown -->
+                      <template v-if="wsInfo.isWsCoverable(wid) && wsInfo.isWsActive.value">
+                        <span class="flex items-center gap-1 text-[10px] text-emerald-400 font-medium flex-shrink-0">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          Live
+                        </span>
+                      </template>
+                      <template v-else>
+                        <select
+                          class="text-[10px] px-1.5 py-0.5 rounded bg-theme-tertiary border border-theme-primary
+                                 text-theme-secondary cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent/50 flex-shrink-0"
+                          :value="config.getRefreshInterval(wid)"
+                          @change="config.updateRefreshInterval(wid, parseInt($event.target.value))"
+                        >
+                          <option
+                            v-for="opt in REFRESH_INTERVAL_OPTIONS"
+                            :key="opt.value"
+                            :value="opt.value"
+                          >{{ opt.label }}</option>
+                        </select>
+                      </template>
+                    </div>
+                  </div>
+                  <button
+                    class="mt-3 text-xs text-theme-muted hover:text-accent transition-colors"
+                    @click="config.resetAllRefreshIntervals()"
+                  >
+                    Reset to defaults
                   </button>
                 </template>
               </section>
@@ -647,6 +736,64 @@ function closeWidgetPicker() {
                     @click="config.resetAllOpacity()"
                   >
                     Reset all to defaults
+                  </button>
+                </template>
+              </section>
+
+              <!-- ═══ Section: Refresh Rate (Session 5) ═══ -->
+              <section>
+                <button
+                  class="w-full flex items-center justify-between text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3"
+                  @click="refreshRateOpen = !refreshRateOpen"
+                >
+                  <span>Refresh Rate</span>
+                  <Icon
+                    :name="refreshRateOpen ? 'ChevronUp' : 'ChevronDown'"
+                    :size="14"
+                    class="text-theme-muted transition-transform"
+                  />
+                </button>
+                <template v-if="refreshRateOpen">
+                  <p class="text-xs text-theme-muted mb-3">
+                    Per-widget polling interval. Widgets receiving live WebSocket data skip polling automatically.
+                  </p>
+                  <div class="space-y-2">
+                    <div
+                      v-for="wid in refreshableWidgets"
+                      :key="'std-refresh-' + wid"
+                      class="flex items-center gap-3"
+                    >
+                      <Icon :name="widgetIcon(wid)" :size="14" class="text-theme-secondary flex-shrink-0" />
+                      <span class="text-sm text-theme-secondary flex-1 min-w-0 truncate">{{ widgetLabel(wid) }}</span>
+
+                      <!-- Live badge OR dropdown -->
+                      <template v-if="wsInfo.isWsCoverable(wid) && wsInfo.isWsActive.value">
+                        <span class="flex items-center gap-1 text-[10px] text-emerald-400 font-medium flex-shrink-0">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          Live
+                        </span>
+                      </template>
+                      <template v-else>
+                        <select
+                          class="text-[10px] px-1.5 py-0.5 rounded bg-theme-tertiary border border-theme-primary
+                                 text-theme-secondary cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent/50 flex-shrink-0"
+                          :value="config.getRefreshInterval(wid)"
+                          @change="config.updateRefreshInterval(wid, parseInt($event.target.value))"
+                        >
+                          <option
+                            v-for="opt in REFRESH_INTERVAL_OPTIONS"
+                            :key="opt.value"
+                            :value="opt.value"
+                          >{{ opt.label }}</option>
+                        </select>
+                      </template>
+                    </div>
+                  </div>
+                  <button
+                    class="mt-3 text-xs text-theme-muted hover:text-accent transition-colors"
+                    @click="config.resetAllRefreshIntervals()"
+                  >
+                    Reset to defaults
                   </button>
                 </template>
               </section>
