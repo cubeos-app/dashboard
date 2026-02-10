@@ -28,7 +28,7 @@ import { useMode } from '@/composables/useMode'
 const props = defineProps({
   storeId: { type: String, required: true },
   appName: { type: String, required: true },
-  app: { type: Object, required: true },
+  app: { type: Object, default: () => ({}) },
   options: { type: Object, default: () => ({}) }
 })
 

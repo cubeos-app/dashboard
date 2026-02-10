@@ -19,7 +19,7 @@ import Icon from '@/components/ui/Icon.vue'
 import DirectoryBrowser from '@/components/ui/DirectoryBrowser.vue'
 
 const props = defineProps({
-  app: { type: Object, required: true },
+  app: { type: Object, default: () => ({}) },
   volumes: { type: Array, required: true }
 })
 
@@ -146,7 +146,7 @@ function handleCancel() {
       <div class="flex items-start gap-4 p-5 border-b border-theme-primary flex-shrink-0">
         <div class="w-12 h-12 rounded-xl bg-theme-tertiary flex items-center justify-center flex-shrink-0">
           <img
-            v-if="app.icon"
+            v-if="app?.icon"
             :src="app.icon"
             :alt="title"
             class="w-9 h-9 rounded-lg object-contain"

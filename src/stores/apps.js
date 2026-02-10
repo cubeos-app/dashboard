@@ -280,14 +280,16 @@ export const useAppsStore = defineStore('apps', () => {
    * Get a display-friendly name for an app
    */
   function getAppDisplayName(app) {
+    if (!app) return 'Unknown'
     if (app.display_name) return app.display_name
-    return SERVICE_NAMES[app.name] || formatName(app.name)
+    return SERVICE_NAMES[app.name] || formatName(app.name || 'unknown')
   }
 
   /**
    * Get the Lucide icon name for an app
    */
   function getAppIcon(app) {
+    if (!app?.name) return SERVICE_ICONS.default
     // Try direct match first
     if (SERVICE_ICONS[app.name]) return SERVICE_ICONS[app.name]
     

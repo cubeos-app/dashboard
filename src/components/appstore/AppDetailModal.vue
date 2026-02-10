@@ -158,7 +158,7 @@ function handleClose() {
         <!-- App Icon -->
         <div class="w-16 h-16 rounded-xl bg-theme-tertiary flex items-center justify-center flex-shrink-0">
           <img 
-            v-if="app.icon" 
+            v-if="app?.icon" 
             :src="app.icon" 
             :alt="title"
             class="w-12 h-12 rounded-lg object-contain"

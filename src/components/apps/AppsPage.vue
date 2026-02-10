@@ -210,15 +210,17 @@ const headerSubtitle = computed(() => {
       :app="detailApp"
       @close="closeDetail"
       @install="(storeId, appName, options) => {
-        const appSnapshot = detailApp.value
+        const snap = detailApp.value
+        if (snap) {
+          startInstall(storeId, appName, snap, options)
+        }
         closeDetail()
-        startInstall(storeId, appName, appSnapshot, options)
       }"
     />
 
     <!-- Install Flow -->
     <InstallFlow
-      v-if="showInstall && installTarget"
+      v-if="showInstall && installTarget && installTarget.app"
       :store-id="installTarget.storeId"
       :app-name="installTarget.appName"
       :app="installTarget.app"

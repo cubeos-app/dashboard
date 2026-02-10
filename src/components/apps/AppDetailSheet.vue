@@ -21,7 +21,7 @@ import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
-  app: { type: Object, required: true }
+  app: { type: Object, default: () => ({}) }
 })
 
 const emit = defineEmits(['close', 'install'])
@@ -37,6 +37,7 @@ const sheetRef = ref(null)
 // Store catalog apps have store_id or title.en_us
 // Installed/running apps have status.running or deploy_mode
 const isCatalogApp = computed(() => {
+  if (!props.app) return false
   return !!(props.app.store_id || props.app.title?.en_us || props.app.title?.en_US)
     && !props.app.deploy_mode
     && !props.app.status
@@ -242,7 +243,7 @@ function handleClose() {
         <!-- App Icon -->
         <div class="w-14 h-14 rounded-xl bg-theme-tertiary flex items-center justify-center flex-shrink-0">
           <img
-            v-if="isCatalogApp && app.icon"
+            v-if="isCatalogApp && app?.icon"
             :src="app.icon"
             :alt="displayName"
             class="w-10 h-10 rounded-lg object-contain"
