@@ -36,6 +36,9 @@ const chatLoading = ref(false)
 let chatController = null
 let debounceTimer = null
 
+// Platform detection for keyboard shortcut hint
+const isMac = typeof window !== 'undefined' && window.navigator?.platform?.includes('Mac')
+
 // ─── Placeholder rotation ────────────────────────────────────────
 const placeholders = [
   'Search apps, settings, or ask CubeOS...',
@@ -274,7 +277,7 @@ function cardClass() {
       <Icon name="Search" :size="18" class="text-theme-muted shrink-0" />
       <span class="text-sm text-theme-muted truncate">{{ currentPlaceholder }}</span>
       <kbd class="hidden sm:inline-flex items-center gap-0.5 ml-auto px-1.5 py-0.5 rounded text-[10px] font-mono text-theme-muted bg-theme-tertiary border border-theme-primary">
-        <span class="text-xs">{{ navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl' }}</span>
+        <span class="text-xs">{{ isMac ? '\u2318' : 'Ctrl' }}</span>
         <span>K</span>
       </kbd>
     </button>

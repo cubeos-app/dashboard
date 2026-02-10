@@ -40,8 +40,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
   /** Language preference shortcut */
   const language = computed(() => preferences.value?.language ?? 'en')
 
-  /** UI mode: 'standard' or 'advanced' (default: advanced for existing users) */
-  const uiMode = computed(() => preferences.value?.ui_mode ?? 'advanced')
+  /** UI mode: 'standard' or 'advanced' (default: standard for consumer-friendly UX) */
+  const uiMode = computed(() => preferences.value?.ui_mode ?? 'standard')
 
   /** Whether the UI is in advanced mode */
   const isAdvanced = computed(() => uiMode.value === 'advanced')
