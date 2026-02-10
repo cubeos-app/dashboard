@@ -1,27 +1,27 @@
 <script setup>
 /**
- * DashboardStandard.vue — S13 Visual Upgrade v2
+ * DashboardStandard.vue — S13 Visual Upgrade v3
  *
  * Standard mode ("consumer mode") dashboard.
- * Composition:
+ * Layout:
  *   ClockWidget → SearchChatBar → AlertBanner → StatusPill
- *   → SystemVitals + Quick Actions (side by side on desktop)
+ *   → SystemVitals + NetworkWidget (side by side on desktop)
+ *   → Quick Actions (6-item strip, 3×2 on mobile, 6×1 on desktop)
  *   → AppLauncher (favorites, recent, my apps)
  */
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWallpaper } from '@/composables/useWallpaper'
-import { useSystemStore } from '@/stores/system'
 import Icon from '@/components/ui/Icon.vue'
 import ClockWidget from './ClockWidget.vue'
 import SearchChatBar from './SearchChatBar.vue'
 import AlertBanner from './AlertBanner.vue'
 import StatusPill from './StatusPill.vue'
 import SystemVitals from './SystemVitals.vue'
+import NetworkWidget from './NetworkWidget.vue'
 import AppLauncher from './AppLauncher.vue'
 
 const router = useRouter()
-const systemStore = useSystemStore()
 const { isActive: wallpaperActive } = useWallpaper()
 
 const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
@@ -33,35 +33,39 @@ defineExpose({ searchBarRef })
 const quickActions = [
   {
     label: 'Add App',
-    subtitle: 'Browse the store',
     icon: 'Plus',
-    iconBg: 'bg-emerald-500/15',
-    iconColor: 'text-emerald-400',
+    color: 'bg-emerald-500/15 text-emerald-400',
     action: () => router.push('/apps?tab=store')
   },
   {
     label: 'Network',
-    subtitle: 'WiFi & connectivity',
     icon: 'Wifi',
-    iconBg: 'bg-indigo-500/15',
-    iconColor: 'text-indigo-400',
+    color: 'bg-indigo-500/15 text-indigo-400',
     action: () => router.push('/network')
   },
   {
+    label: 'Storage',
+    icon: 'HardDrive',
+    color: 'bg-amber-500/15 text-amber-400',
+    action: () => router.push('/storage')
+  },
+  {
     label: 'Ask CubeOS',
-    subtitle: 'AI assistant',
     icon: 'MessageSquare',
-    iconBg: 'bg-violet-500/15',
-    iconColor: 'text-violet-400',
+    color: 'bg-violet-500/15 text-violet-400',
     action: () => emit('open-chat')
   },
   {
-    label: 'Storage',
-    subtitle: 'Disks & backups',
-    icon: 'HardDrive',
-    iconBg: 'bg-amber-500/15',
-    iconColor: 'text-amber-400',
-    action: () => router.push('/storage')
+    label: 'System',
+    icon: 'Settings2',
+    color: 'bg-cyan-500/15 text-cyan-400',
+    action: () => router.push('/system')
+  },
+  {
+    label: 'Settings',
+    icon: 'SlidersHorizontal',
+    color: 'bg-rose-500/15 text-rose-400',
+    action: () => router.push('/settings')
   }
 ]
 
@@ -90,45 +94,36 @@ function cardBase() {
     <!-- Status pill -->
     <StatusPill />
 
-    <!-- System Vitals + Quick Actions — side by side on desktop -->
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 dash-stagger">
-      <div class="lg:col-span-3">
-        <SystemVitals />
-      </div>
+    <!-- System Vitals + Network Widget — side by side on desktop -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 dash-stagger">
+      <SystemVitals />
+      <NetworkWidget />
+    </div>
 
-      <div class="lg:col-span-2">
-        <div
-          :class="cardBase()"
-          class="rounded-2xl p-5 h-full"
-        >
-          <div class="flex items-center gap-2 mb-4">
-            <div class="w-7 h-7 rounded-lg bg-theme-tertiary flex items-center justify-center">
-              <Icon name="Zap" :size="14" class="text-theme-secondary" />
-            </div>
-            <span class="text-xs font-semibold text-theme-tertiary uppercase tracking-wider">Quick Actions</span>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2.5">
-            <button
-              v-for="(qa, idx) in quickActions"
-              :key="qa.label"
-              class="flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200
-                     hover:bg-theme-tertiary hover:-translate-y-px group"
-              :style="{ animationDelay: `${idx * 50}ms` }"
-              @click="qa.action()"
+    <!-- Quick Actions — 6 items, horizontal strip -->
+    <div class="dash-stagger">
+      <div
+        :class="cardBase()"
+        class="rounded-2xl p-4"
+      >
+        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          <button
+            v-for="qa in quickActions"
+            :key="qa.label"
+            class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
+                   hover:bg-theme-tertiary hover:-translate-y-px group"
+            @click="qa.action()"
+          >
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
+              :class="qa.color.split(' ')[0]"
             >
-              <div
-                class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
-                :class="qa.iconBg"
-              >
-                <Icon :name="qa.icon" :size="18" :class="qa.iconColor" />
-              </div>
-              <div class="text-center">
-                <span class="text-xs font-medium text-theme-primary block">{{ qa.label }}</span>
-                <span class="text-[10px] text-theme-muted">{{ qa.subtitle }}</span>
-              </div>
-            </button>
-          </div>
+              <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
+            </div>
+            <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
+              {{ qa.label }}
+            </span>
+          </button>
         </div>
       </div>
     </div>
