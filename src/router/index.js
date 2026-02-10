@@ -62,7 +62,7 @@ const routes = [
   {
     path: '/network',
     name: 'network',
-    component: () => import('@/components/network/NetworkView.vue'),
+    component: () => import('@/components/network/NetworkPage.vue'),
     meta: { requiresAuth: true }
   },
   {
