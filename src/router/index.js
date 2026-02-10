@@ -80,13 +80,13 @@ const routes = [
   {
     path: '/communication',
     name: 'communication',
-    component: () => import('@/components/communication/CommunicationView.vue'),
+    component: () => import('@/components/communication/CommunicationPage.vue'),
     meta: { requiresAuth: true }
   },
   {
     path: '/media',
     name: 'media',
-    component: () => import('@/components/media/MediaView.vue'),
+    component: () => import('@/components/media/MediaPage.vue'),
     meta: { requiresAuth: true }
   },
 

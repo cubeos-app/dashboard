@@ -9,10 +9,11 @@
  *
  * Slides up from bottom with backdrop overlay.
  */
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBrandingStore } from '@/stores/branding'
 import { useMode } from '@/composables/useMode'
+import { useHardwareDetection } from '@/composables/useHardwareDetection'
 import Icon from '@/components/ui/Icon.vue'
 import ModeToggle from '@/components/ui/ModeToggle.vue'
 
@@ -27,24 +28,32 @@ const emit = defineEmits(['close', 'navigate'])
 const route = useRoute()
 const brandingStore = useBrandingStore()
 const { isAdvanced } = useMode()
+const { hasCommHardware, hasMediaHardware } = useHardwareDetection()
 const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
 
 // ─── All Navigation Items ─────────────────────────────────────────
-// Includes items not in the bottom tab bar
-const drawerItems = [
-  { heading: 'Main' },
-  { path: '/', name: 'Dashboard', icon: 'LayoutDashboard' },
-  { path: '/apps', name: 'Apps', icon: 'Grid3X3' },
-  { path: '/network', name: 'Network', icon: 'Globe' },
-  { path: '/storage', name: 'Storage', icon: 'HardDrive' },
-  { path: '/system', name: 'System', icon: 'Settings2' },
-  { heading: 'Hardware' },
-  { path: '/communication', name: 'Communication', icon: 'Radio' },
-  { path: '/media', name: 'Media', icon: 'Volume2' },
-  { heading: 'Other' },
-  { path: '/docs', name: 'Docs', icon: 'BookOpen' },
-  { path: '/settings', name: 'Settings', icon: 'SlidersHorizontal' }
-]
+// Includes items not in the bottom tab bar, filtered by hardware detection
+const drawerItems = computed(() => {
+  const items = [
+    { heading: 'Main' },
+    { path: '/', name: 'Dashboard', icon: 'LayoutDashboard' },
+    { path: '/apps', name: 'Apps', icon: 'Grid3X3' },
+    { path: '/network', name: 'Network', icon: 'Globe' },
+    { path: '/storage', name: 'Storage', icon: 'HardDrive' },
+    { path: '/system', name: 'System', icon: 'Settings2' }
+  ]
+  if (hasCommHardware.value || hasMediaHardware.value) {
+    items.push({ heading: 'Hardware' })
+    if (hasCommHardware.value) items.push({ path: '/communication', name: 'Communication', icon: 'Radio' })
+    if (hasMediaHardware.value) items.push({ path: '/media', name: 'Media', icon: 'Volume2' })
+  }
+  items.push(
+    { heading: 'Other' },
+    { path: '/docs', name: 'Docs', icon: 'BookOpen' },
+    { path: '/settings', name: 'Settings', icon: 'SlidersHorizontal' }
+  )
+  return items
+})
 
 function isActive(path) {
   if (path === '/') return route.path === '/'

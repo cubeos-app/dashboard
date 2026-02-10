@@ -12,11 +12,13 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useCommunicationStore } from '@/stores/communication'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useMode } from '@/composables/useMode'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const communicationStore = useCommunicationStore()
 const { signal } = useAbortOnUnmount()
+const { isAdvanced } = useMode()
 
 const loading = ref(true)
 const selectedPort = ref(null)
@@ -257,10 +259,10 @@ onUnmounted(() => {
 
       <template v-else>
         <!-- ======================================== -->
-        <!-- Device Selector (if multiple GPS) -->
+        <!-- Device Selector (Advanced, multiple GPS) -->
         <!-- ======================================== -->
         <div
-          v-if="deviceList.length > 1"
+          v-if="isAdvanced && deviceList.length > 1"
           class="bg-theme-card border border-theme-primary rounded-xl p-5"
         >
           <div class="flex items-center gap-2 mb-3">
@@ -340,8 +342,9 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Auto-refresh toggle -->
+            <!-- Auto-refresh toggle (Advanced) -->
             <button
+              v-if="isAdvanced"
               @click="toggleAutoRefresh"
               role="switch"
               :aria-checked="autoRefresh"
@@ -419,9 +422,9 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Speed / Heading row -->
+            <!-- Speed / Heading row (Advanced) -->
             <div
-              v-if="formatSpeed(position.speed) || formatHeading(position.heading)"
+              v-if="isAdvanced && (formatSpeed(position.speed) || formatHeading(position.heading))"
               class="flex items-center gap-6 mt-4 pt-4 border-t border-theme-primary"
             >
               <div v-if="formatSpeed(position.speed)" class="flex items-center gap-2">

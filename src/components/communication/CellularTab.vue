@@ -12,12 +12,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useCommunicationStore } from '@/stores/communication'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useMode } from '@/composables/useMode'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const communicationStore = useCommunicationStore()
 const { signal } = useAbortOnUnmount()
+const { isAdvanced } = useMode()
 
 const loading = ref(true)
 const actionLoading = ref({})
@@ -387,7 +389,7 @@ onMounted(async () => {
                   </span>
                 </div>
 
-                <div class="flex items-center gap-4 mt-2 flex-wrap">
+                <div v-if="isAdvanced" class="flex items-center gap-4 mt-2 flex-wrap">
                   <span v-if="modem.manufacturer" class="text-xs text-theme-muted">
                     {{ modem.manufacturer }}
                   </span>
@@ -446,7 +448,7 @@ onMounted(async () => {
               <!-- Modem actions -->
               <div class="flex items-center gap-2">
                 <button
-                  v-if="!isModemConnected(modem)"
+                  v-if="isAdvanced && !isModemConnected(modem)"
                   @click="toggleApnForm(modem.id)"
                   :aria-label="'Configure APN for ' + modem.name"
                   :aria-expanded="apnFormVisible[modem.id] ? 'true' : 'false'"
@@ -486,9 +488,9 @@ onMounted(async () => {
               </div>
             </div>
 
-            <!-- APN Configuration Form (collapsible) -->
+            <!-- APN Configuration Form (Advanced, collapsible) -->
             <div
-              v-if="!isModemConnected(modem) && apnFormVisible[modem.id]"
+              v-if="isAdvanced && !isModemConnected(modem) && apnFormVisible[modem.id]"
               class="mt-4 p-4 bg-theme-tertiary rounded-lg space-y-3"
             >
               <p class="text-xs font-medium text-theme-secondary uppercase tracking-wider">APN Configuration</p>
@@ -542,9 +544,9 @@ onMounted(async () => {
       </div>
 
       <!-- ======================================== -->
-      <!-- Android Tethering Section -->
+      <!-- Android Tethering Section (Advanced) -->
       <!-- ======================================== -->
-      <div class="bg-theme-card border border-theme-primary rounded-xl p-5">
+      <div v-if="isAdvanced" class="bg-theme-card border border-theme-primary rounded-xl p-5">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div class="flex items-center gap-3">
             <div

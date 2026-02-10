@@ -13,7 +13,7 @@
  *
  * Mode-aware:
  *   Terminal link only visible in Advanced mode.
- *   Communication/Media always visible (S09 will add HAL hardware gating).
+ *   Communication/Media gated by HAL hardware detection (S09).
  */
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -21,6 +21,7 @@ import { useAppsStore } from '@/stores/apps'
 import { useBrandingStore } from '@/stores/branding'
 import { useMode } from '@/composables/useMode'
 import { useBreakpoint } from '@/composables/useBreakpoint'
+import { useHardwareDetection } from '@/composables/useHardwareDetection'
 import Icon from '@/components/ui/Icon.vue'
 
 const route = useRoute()
@@ -29,6 +30,7 @@ const appsStore = useAppsStore()
 const brandingStore = useBrandingStore()
 const { isAdvanced } = useMode()
 const { isMobile, isWide } = useBreakpoint()
+const { hasCommHardware, hasMediaHardware } = useHardwareDetection()
 const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
 
 /** Whether icon rail is expanded on hover (tablet/desktop only) */
@@ -36,7 +38,7 @@ const hovered = ref(false)
 
 // ─── Navigation Items ─────────────────────────────────────────────
 
-const primaryNavItems = [
+const allPrimaryNavItems = [
   { path: '/', name: 'Dashboard', icon: 'LayoutDashboard' },
   { path: '/apps', name: 'Apps', icon: 'Grid3X3', badge: () => appsStore.runningCount },
   { path: '/network', name: 'Network', icon: 'Globe' },
@@ -45,6 +47,14 @@ const primaryNavItems = [
   { path: '/communication', name: 'Communication', icon: 'Radio' },
   { path: '/media', name: 'Media', icon: 'Volume2' }
 ]
+
+const primaryNavItems = computed(() => {
+  return allPrimaryNavItems.filter(item => {
+    if (item.path === '/communication' && !hasCommHardware.value) return false
+    if (item.path === '/media' && !hasMediaHardware.value) return false
+    return true
+  })
+})
 
 const footerNavItems = computed(() => {
   const items = [

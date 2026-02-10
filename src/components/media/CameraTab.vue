@@ -13,12 +13,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMediaStore } from '@/stores/media'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useMode } from '@/composables/useMode'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const mediaStore = useMediaStore()
 const { signal } = useAbortOnUnmount()
+const { isAdvanced } = useMode()
 
 const loading = ref(true)
 const actionLoading = ref({})
@@ -268,8 +270,8 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Camera list (if multiple) -->
-          <div v-if="cameraList.length > 1" class="mt-4 pt-4 border-t border-theme-primary">
+          <!-- Camera list (Advanced, multiple) -->
+          <div v-if="isAdvanced && cameraList.length > 1" class="mt-4 pt-4 border-t border-theme-primary">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div
                 v-for="camera in cameraList"
@@ -285,9 +287,9 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Supported resolutions -->
+          <!-- Supported resolutions (Advanced) -->
           <div
-            v-if="cameraInfo?.resolutions?.length"
+            v-if="isAdvanced && cameraInfo?.resolutions?.length"
             class="mt-4 pt-4 border-t border-theme-primary"
           >
             <p class="text-xs text-theme-muted uppercase tracking-wider mb-2">Supported Resolutions</p>
@@ -363,9 +365,9 @@ onUnmounted(() => {
         </div>
 
         <!-- ======================================== -->
-        <!-- Stream Section -->
+        <!-- Stream Section (Advanced) -->
         <!-- ======================================== -->
-        <div class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
+        <div v-if="isAdvanced" class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
           <div class="px-5 py-4 border-b border-theme-primary">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div class="flex items-center gap-2">

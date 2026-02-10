@@ -9,15 +9,17 @@
  * Touch targets: min 44×44pt per Apple/Material guidelines.
  * Fixed to bottom, sits above content. Safe area padding for notch devices.
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBreakpoint } from '@/composables/useBreakpoint'
+import { useHardwareDetection } from '@/composables/useHardwareDetection'
 import Icon from '@/components/ui/Icon.vue'
 import NavDrawer from '@/components/layout/NavDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { isMobile } = useBreakpoint()
+const { hasCommHardware, hasMediaHardware } = useHardwareDetection()
 
 const drawerOpen = ref(false)
 
@@ -29,7 +31,13 @@ const tabItems = [
 ]
 
 /** Pages that live under the "More" menu — if active, highlight More tab */
-const morePages = ['/system', '/communication', '/media', '/docs', '/settings']
+const morePages = computed(() => {
+  const pages = ['/system']
+  if (hasCommHardware.value) pages.push('/communication')
+  if (hasMediaHardware.value) pages.push('/media')
+  pages.push('/docs', '/settings')
+  return pages
+})
 
 function isActive(path) {
   if (path === '/') return route.path === '/'
@@ -37,7 +45,7 @@ function isActive(path) {
 }
 
 function isMoreActive() {
-  return morePages.some(p => route.path.startsWith(p))
+  return morePages.value.some(p => route.path.startsWith(p))
 }
 
 function navigate(path) {

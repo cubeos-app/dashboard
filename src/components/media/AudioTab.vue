@@ -13,11 +13,13 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useMediaStore } from '@/stores/media'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useMode } from '@/composables/useMode'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const mediaStore = useMediaStore()
 const { signal } = useAbortOnUnmount()
+const { isAdvanced } = useMode()
 
 const loading = ref(true)
 const actionLoading = ref({})
@@ -298,9 +300,9 @@ onUnmounted(() => {
         </div>
 
         <!-- ======================================== -->
-        <!-- Playback Devices -->
+        <!-- Playback Devices (Advanced) -->
         <!-- ======================================== -->
-        <div class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
+        <div v-if="isAdvanced" class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
           <div class="px-5 py-4 border-b border-theme-primary">
             <div class="flex items-center gap-2">
               <Icon name="Speaker" :size="18" class="text-accent" />
@@ -356,9 +358,9 @@ onUnmounted(() => {
         </div>
 
         <!-- ======================================== -->
-        <!-- Capture Devices -->
+        <!-- Capture Devices (Advanced) -->
         <!-- ======================================== -->
-        <div class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
+        <div v-if="isAdvanced" class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
           <div class="px-5 py-4 border-b border-theme-primary">
             <div class="flex items-center gap-2">
               <Icon name="Mic" :size="18" class="text-accent" />
