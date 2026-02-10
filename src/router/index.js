@@ -68,7 +68,7 @@ const routes = [
   {
     path: '/storage',
     name: 'storage',
-    component: () => import('@/components/storage/StorageView.vue'),
+    component: () => import('@/components/storage/StoragePage.vue'),
     meta: { requiresAuth: true }
   },
   {
