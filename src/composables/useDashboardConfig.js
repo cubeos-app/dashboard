@@ -44,7 +44,7 @@ const STANDARD_DEFAULTS = {
   my_apps_rows: 2,
   favorite_cols: 4,
   quick_actions: ['add_app', 'network', 'storage', 'ask_cubeos'],
-  widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'actions', 'launcher'],
+  widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'disk-signals', 'actions', 'launcher'],
 }
 
 const ADVANCED_DEFAULTS = {
@@ -67,7 +67,7 @@ const ADVANCED_DEFAULTS = {
   my_apps_rows: 3,
   favorite_cols: 6,
   quick_actions: ['add_app', 'monitoring', 'logs', 'docs'],
-  widget_order: ['alerts', 'vitals', 'network', 'actions', 'launcher'],
+  widget_order: ['alerts', 'vitals', 'network', 'disk-signals', 'actions', 'launcher'],
 }
 
 const DEFAULTS_BY_MODE = {

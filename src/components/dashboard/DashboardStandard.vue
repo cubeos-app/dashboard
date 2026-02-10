@@ -20,6 +20,8 @@ import AlertBanner from './AlertBanner.vue'
 import StatusPill from './StatusPill.vue'
 import SystemVitals from './SystemVitals.vue'
 import NetworkWidget from './NetworkWidget.vue'
+import DiskWidget from './DiskWidget.vue'
+import SignalsWidget from './SignalsWidget.vue'
 import AppLauncher from './AppLauncher.vue'
 import DashboardSettingsModal from './DashboardSettingsModal.vue'
 
@@ -32,6 +34,8 @@ const {
   showStatusPill,
   showSystemVitals,
   showNetwork,
+  showDisk,
+  showSignals,
   showQuickActions,
   showAlerts,
   showFavorites,
@@ -162,6 +166,15 @@ function cardBase() {
       <!-- ═══ Individual network (not adjacent to vitals) ═══ -->
       <div v-if="section.type === 'network' && showNetwork" class="dash-stagger">
         <NetworkWidget />
+      </div>
+
+      <!-- ═══ Disk + Signals row (below vitals/network) ═══ -->
+      <div
+        v-if="section.type === 'disk-signals' && (showDisk || showSignals)"
+        class="grid grid-cols-1 lg:grid-cols-2 gap-4 dash-stagger"
+      >
+        <DiskWidget v-if="showDisk" />
+        <SignalsWidget v-if="showSignals" />
       </div>
 
       <!-- ═══ Quick Actions ═══ -->
