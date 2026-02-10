@@ -1,18 +1,21 @@
 <script setup>
 /**
- * WidgetWrapper.vue — Session 2
+ * WidgetWrapper.vue — Session 4
  *
  * Thin wrapper that controls per-widget:
  *   - Card background opacity (Session B)
  *   - Drag-and-drop in edit mode (Session C / Session 1)
  *   - Resize handles for width and height (Session 2)
  *   - Error boundary isolation (Session 2)
+ *   - Touch-based DnD for mobile (Session 4)
  *
- * Resize behavior (edit mode only):
- *   - Right edge: col-resize cursor. Double-click to toggle half↔full width.
- *   - Bottom edge: row-resize cursor. Drag to set explicit pixel height.
- *     Double-click to toggle auto↔collapsed.
- *   - Collapsed state: shows only header (icon + label + expand button).
+ * Touch DnD (Session 4):
+ *   - Long-press (300ms) initiates drag on touch devices.
+ *   - Ghost element follows finger. Source widget dims.
+ *   - Drop zones highlight on hover. Auto-scroll near edges.
+ *   - Haptic feedback on drag start and successful drop.
+ *   - Short taps pass through to child elements normally.
+ *   - Touch vs mouse detected automatically — never fire both.
  *
  * Props:
  *   widget-id    — widget ID for opacity, dimensions, drag, and error context
@@ -20,10 +23,11 @@
  *   row-idx      — the row index this widget lives in (for drag source tracking)
  *   in-pair      — whether this widget shares a row with another (disables width resize)
  */
-import { computed, ref } from 'vue'
+import { computed, ref, onBeforeUnmount } from 'vue'
 import { useDashboardConfig, WIDGET_REGISTRY } from '@/composables/useDashboardConfig'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
 import { useDashboardResize } from '@/composables/useDashboardResize'
+import { useTouchDrag } from '@/composables/useTouchDrag'
 import WidgetErrorBoundary from './WidgetErrorBoundary.vue'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -35,7 +39,7 @@ const props = defineProps({
 })
 
 const { getOpacity } = useDashboardConfig()
-const { startDrag, endDrag, dragWidgetId } = useDashboardEdit()
+const { startDrag, endDrag, handleDrop, dragWidgetId } = useDashboardEdit()
 const {
   getWidgetHeight,
   isCollapsed,
@@ -43,11 +47,23 @@ const {
   toggleCollapse,
   updateWidgetHeight,
 } = useDashboardResize()
+const {
+  isDraggingTouch,
+  touchDragWidgetId,
+  onTouchStart: touchStart,
+  onTouchMove: touchMove,
+  onTouchEnd: touchEnd,
+  onTouchCancel: touchCancel,
+} = useTouchDrag()
 
 const isDragging = ref(false)
 const isResizingHeight = ref(false)
 const resizeStartY = ref(0)
 const resizeStartHeight = ref(0)
+const wrapperRef = ref(null)
+
+// Track if we're using touch to prevent HTML5 DnD from firing
+const isTouchDevice = ref(false)
 
 /** Normalized opacity: 0–100 config → 0–1 CSS */
 const normalizedOpacity = computed(() => getOpacity(props.widgetId) / 100)
@@ -72,8 +88,11 @@ const widgetMeta = computed(() => WIDGET_REGISTRY[props.widgetId] || { label: pr
 const widgetLabel = computed(() => widgetMeta.value.label)
 const widgetIcon = computed(() => widgetMeta.value.icon)
 
-/** Whether this specific widget is being dragged */
-const isBeingDragged = computed(() => dragWidgetId.value === props.widgetId)
+/** Whether this specific widget is being dragged (HTML5 or touch) */
+const isBeingDragged = computed(() =>
+  dragWidgetId.value === props.widgetId ||
+  touchDragWidgetId.value === props.widgetId
+)
 
 /** Whether the widget is currently collapsed */
 const widgetCollapsed = computed(() => isCollapsed(props.widgetId))
@@ -81,9 +100,13 @@ const widgetCollapsed = computed(() => isCollapsed(props.widgetId))
 /** Whether width resize is available (not in a pair) */
 const canResizeWidth = computed(() => !props.inPair)
 
-// ─── Drag handlers ──────────────────────────────────────────
+// ─── HTML5 Drag handlers (desktop) ────────────────────────
 
 function onDragStart(e) {
+  if (isTouchDevice.value) {
+    e.preventDefault()
+    return
+  }
   isDragging.value = true
   startDrag(props.widgetId, props.rowIdx)
   e.dataTransfer.effectAllowed = 'move'
@@ -93,6 +116,35 @@ function onDragStart(e) {
 function onDragEnd() {
   isDragging.value = false
   endDrag()
+}
+
+// ─── Touch drag handlers (mobile) ─────────────────────────
+
+function onWrapperTouchStart(e) {
+  if (!props.editing || isResizingHeight.value) return
+
+  // Mark that we're on a touch device to suppress HTML5 DnD
+  isTouchDevice.value = true
+
+  touchStart(e, props.widgetId, props.rowIdx, wrapperRef.value)
+}
+
+function onWrapperTouchMove(e) {
+  if (!isDraggingTouch.value) return
+  touchMove(e)
+}
+
+function onWrapperTouchEnd(e) {
+  if (!isDraggingTouch.value) {
+    // Reset touch device flag after a brief delay
+    // (allows detecting switch back to mouse)
+    return
+  }
+  touchEnd(e, handleDrop)
+}
+
+function onWrapperTouchCancel() {
+  touchCancel()
 }
 
 // ─── Width resize (right edge) ──────────────────────────────
@@ -146,19 +198,32 @@ function onBottomEdgeDblClick() {
 function expandWidget() {
   toggleCollapse(props.widgetId)
 }
+
+// ─── Cleanup ────────────────────────────────────────────────
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', onResizeMouseMove)
+  window.removeEventListener('mouseup', onResizeMouseUp)
+})
 </script>
 
 <template>
   <div
+    ref="wrapperRef"
     class="widget-wrap h-full relative"
     :class="{
-      'ring-2 ring-dashed ring-accent/30 rounded-2xl cursor-grab active:cursor-grabbing': editing && !isDragging && !isResizingHeight,
+      'ring-2 ring-dashed ring-accent/30 rounded-2xl cursor-grab active:cursor-grabbing': editing && !isDragging && !isResizingHeight && !isDraggingTouch,
       'opacity-30 scale-95': isDragging,
+      'touch-drag-source': isDraggingTouch && touchDragWidgetId === widgetId,
     }"
     :style="wrapperStyle"
-    :draggable="editing && !isResizingHeight"
+    :draggable="editing && !isResizingHeight && !isTouchDevice"
     @dragstart="editing ? onDragStart($event) : null"
     @dragend="editing ? onDragEnd() : null"
+    @touchstart.passive="editing ? onWrapperTouchStart($event) : null"
+    @touchmove="onWrapperTouchMove($event)"
+    @touchend="onWrapperTouchEnd($event)"
+    @touchcancel="onWrapperTouchCancel()"
   >
     <!-- Drag handle badge (visible only in edit mode) -->
     <div
@@ -166,7 +231,7 @@ function expandWidget() {
       class="absolute -top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2.5 py-1
              rounded-full bg-theme-secondary border border-theme-primary shadow-lg cursor-grab
              active:cursor-grabbing select-none transition-opacity"
-      :class="isDragging ? 'opacity-0' : 'opacity-100'"
+      :class="isBeingDragged ? 'opacity-0' : 'opacity-100'"
     >
       <Icon name="GripHorizontal" :size="12" class="text-theme-muted" />
       <span class="text-[10px] font-medium text-theme-secondary whitespace-nowrap">{{ widgetLabel }}</span>
@@ -260,6 +325,13 @@ function expandWidget() {
 /* Smooth transitions for drag/resize state */
 .widget-wrap {
   transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Touch drag source — applied by useTouchDrag via inline styles,
+   but we keep this class for any additional styling needs */
+.touch-drag-source {
+  opacity: 0.3;
+  transform: scale(0.95);
 }
 
 /* ─── Right edge resize handle (width) ───────────────────────── */

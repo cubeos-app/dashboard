@@ -1,6 +1,6 @@
 <script setup>
 /**
- * DashboardAdvanced.vue — Session 1
+ * DashboardAdvanced.vue — Session 4
  *
  * Advanced mode ("kung fu mode") dashboard view.
  * All sections respect useDashboardConfig toggles for customization.
@@ -10,8 +10,15 @@
  * - 'swarm-alerts' → separate 'swarm' and 'alerts' sections
  * Each section is independently positionable via DnD.
  * Uses advancedSectionOrder from useDashboardConfig (with composite ID migration).
+ *
+ * SESSION 4: Touch DnD for mobile.
+ * - Sections support long-press (300ms) to initiate touch drag.
+ * - Ghost follows finger, source dims, drop targets highlight.
+ * - Section reordering via touch works same as HTML5 DnD.
+ * - Auto-scroll near viewport edges during touch drag.
+ * - Haptic feedback on drag start + successful drop.
  */
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useAppsStore, DEPLOY_MODES } from '@/stores/apps'
@@ -20,6 +27,7 @@ import { useMonitoringStore } from '@/stores/monitoring'
 import { useNetworkStore } from '@/stores/network'
 import { useDashboardConfig, ADVANCED_SECTION_REGISTRY } from '@/composables/useDashboardConfig'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useTouchDrag } from '@/composables/useTouchDrag'
 import Icon from '@/components/ui/Icon.vue'
 import StatusCard from './StatusCard.vue'
 import ServiceGrid from './ServiceGrid.vue'
@@ -47,6 +55,19 @@ const networkStore = useNetworkStore()
 const { signal } = useAbortOnUnmount()
 
 const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
+
+// ─── Touch DnD ──────────────────────────────────────────────────
+const {
+  isDraggingTouch,
+  touchDragWidgetId,
+  registerDropZone,
+  clearDropZones,
+  refreshZoneRects,
+  onTouchStart: touchDragStart,
+  onTouchMove: touchDragMove,
+  onTouchEnd: touchDragEnd,
+  onTouchCancel: touchDragCancel,
+} = useTouchDrag()
 
 // ─── Dashboard config ──────────────────────────────────────────
 const {
@@ -102,7 +123,7 @@ const visibleSections = computed(() =>
   advancedSectionOrder.value.filter(id => sectionVisibility.value[id])
 )
 
-// ─── Section drag state ─────────────────────────────────────────
+// ─── Section drag state (HTML5 DnD) ─────────────────────────────
 const dragSectionId = ref(null)
 const dragOverSectionId = ref(null)
 
@@ -132,11 +153,16 @@ function onSectionDragLeave(e, sectionId) {
 function onSectionDrop(e, targetSectionId) {
   e.preventDefault()
   const srcId = dragSectionId.value
-  if (!srcId || srcId === targetSectionId) {
-    dragSectionId.value = null
-    dragOverSectionId.value = null
-    return
-  }
+  executeSectionReorder(srcId, targetSectionId)
+  dragSectionId.value = null
+  dragOverSectionId.value = null
+}
+
+/**
+ * Execute section reorder — shared by both HTML5 DnD and touch DnD.
+ */
+function executeSectionReorder(srcId, targetSectionId) {
+  if (!srcId || srcId === targetSectionId) return
 
   const order = [...advancedSectionOrder.value]
   const srcIdx = order.indexOf(srcId)
@@ -147,9 +173,96 @@ function onSectionDrop(e, targetSectionId) {
   order.splice(destIdx, 0, srcId)
 
   updateAdvancedSectionOrder(order)
-  dragSectionId.value = null
-  dragOverSectionId.value = null
 }
+
+// ─── Touch drag handlers for sections ───────────────────────────
+
+// Track if this is a touch device to prevent HTML5 DnD conflict
+const isTouchActive = ref(false)
+
+// Store refs to section DOM elements for touch drag + drop zone registration
+const sectionRefs = ref({})
+
+function setSectionRef(sectionId) {
+  return (el) => {
+    if (el) {
+      sectionRefs.value[sectionId] = el
+    } else {
+      delete sectionRefs.value[sectionId]
+    }
+  }
+}
+
+function onSectionTouchStart(e, sectionId) {
+  if (!props.isEditing) return
+  isTouchActive.value = true
+
+  const el = sectionRefs.value[sectionId]
+  if (!el) return
+
+  // Use a dummy rowIdx of 0 since Advanced mode doesn't use row-based layout
+  touchDragStart(e, sectionId, 0, el)
+}
+
+function onSectionTouchMove(e) {
+  if (!isDraggingTouch.value) return
+  touchDragMove(e)
+}
+
+function onSectionTouchEnd(e) {
+  if (!isDraggingTouch.value) return
+  // Pass null for standard drop, executeSectionReorder for section drop
+  touchDragEnd(e, null, executeSectionReorder)
+}
+
+function onSectionTouchCancel() {
+  touchDragCancel()
+}
+
+/** Whether any drag is active (HTML5 or touch) */
+const isAnyDragActive = computed(() =>
+  !!dragSectionId.value || isDraggingTouch.value
+)
+
+// ─── Register sections as touch drop zones ──────────────────────
+
+function registerSectionDropZones() {
+  clearDropZones()
+
+  if (!props.isEditing) return
+
+  nextTick(() => {
+    for (const sectionId of visibleSections.value) {
+      const el = sectionRefs.value[sectionId]
+      if (!el || !el.isConnected) continue
+
+      registerDropZone(
+        `section-${sectionId}`,
+        el,
+        'section',
+        sectionId,
+        'section'
+      )
+    }
+
+    refreshZoneRects()
+  })
+}
+
+watch(() => props.isEditing, (editing) => {
+  if (editing) {
+    nextTick(registerSectionDropZones)
+  } else {
+    clearDropZones()
+    isTouchActive.value = false
+  }
+})
+
+watch(visibleSections, () => {
+  if (props.isEditing) {
+    nextTick(registerSectionDropZones)
+  }
+}, { deep: true })
 
 // ─── Empty state detection ─────────────────────────────────────
 const isAllHidden = computed(() => visibleSections.value.length === 0)
@@ -209,6 +322,14 @@ onMounted(async () => {
     monitoringStore.fetchWebSocketInfo({ signal: s }),
     monitoringStore.fetchHistory({ period: '1h' })
   ])
+
+  if (props.isEditing) {
+    nextTick(registerSectionDropZones)
+  }
+})
+
+onBeforeUnmount(() => {
+  clearDropZones()
 })
 
 // Navigation helpers
@@ -225,7 +346,8 @@ function goToAppStore() { router.push('/appstore') }
       v-if="isEditing"
       class="text-center py-2 text-xs text-theme-muted select-none"
     >
-      Drag sections to reorder. Each widget moves independently. Double-click edges to resize.
+      <span class="hidden sm:inline">Drag sections to reorder. Each widget moves independently. Double-click edges to resize.</span>
+      <span class="sm:hidden">Long-press and drag to reorder sections.</span>
     </div>
 
     <!-- Empty state when all sections hidden -->
@@ -245,18 +367,23 @@ function goToAppStore() { router.push('/appstore') }
     <!-- Sections rendered in order — each is independently draggable -->
     <template v-for="sectionId in visibleSections" :key="sectionId">
       <div
+        :ref="setSectionRef(sectionId)"
         class="relative"
         :class="{
           'ring-2 ring-dashed ring-accent/30 rounded-xl p-1 cursor-grab active:cursor-grabbing': isEditing,
           'opacity-30': dragSectionId === sectionId,
           'ring-accent/60 bg-accent/5': dragOverSectionId === sectionId && dragSectionId !== sectionId,
         }"
-        :draggable="isEditing"
+        :draggable="isEditing && !isTouchActive"
         @dragstart="isEditing ? onSectionDragStart($event, sectionId) : null"
         @dragend="isEditing ? onSectionDragEnd() : null"
         @dragover.prevent="isEditing ? onSectionDragOver($event, sectionId) : null"
         @dragleave="isEditing ? onSectionDragLeave($event, sectionId) : null"
         @drop="isEditing ? onSectionDrop($event, sectionId) : null"
+        @touchstart.passive="isEditing ? onSectionTouchStart($event, sectionId) : null"
+        @touchmove="onSectionTouchMove($event)"
+        @touchend="onSectionTouchEnd($event)"
+        @touchcancel="onSectionTouchCancel()"
       >
         <!-- Drag handle (edit mode) -->
         <div

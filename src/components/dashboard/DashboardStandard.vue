@@ -1,6 +1,6 @@
 <script setup>
 /**
- * DashboardStandard.vue — Session 1
+ * DashboardStandard.vue — Session 4
  *
  * Standard mode ("consumer mode") dashboard.
  * Row-based grid layout from useDashboardConfig.gridLayout.
@@ -11,14 +11,21 @@
  * - Drag to left/right of a single widget → pairs side-by-side in that row
  * - Drag out of a 2-widget row → remaining widget auto-expands to full width
  *
+ * SESSION 4: Touch DnD for mobile.
+ * - Drop zones registered with useTouchDrag on mount and refreshed on layout changes.
+ * - Touch events handled by WidgetWrapper + useTouchDrag composable.
+ * - Both HTML5 DnD (desktop) and touch DnD (mobile) work without conflict.
+ * - Drop zones highlight with .touch-drop-active class during touch drag.
+ *
  * HTML5 Drag and Drop API — no library dependency.
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWallpaper } from '@/composables/useWallpaper'
 import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
 import { useDashboardResize } from '@/composables/useDashboardResize'
+import { useTouchDrag } from '@/composables/useTouchDrag'
 import Icon from '@/components/ui/Icon.vue'
 import ClockWidget from './ClockWidget.vue'
 import SearchChatBar from './SearchChatBar.vue'
@@ -43,6 +50,13 @@ const router = useRouter()
 const { isActive: wallpaperActive } = useWallpaper()
 const { handleDrop, dragWidgetId } = useDashboardEdit()
 const { getWidgetWidth } = useDashboardResize()
+const {
+  isDraggingTouch,
+  touchDragWidgetId,
+  registerDropZone,
+  clearDropZones,
+  refreshZoneRects,
+} = useTouchDrag()
 
 const {
   showClock,
@@ -73,8 +87,22 @@ const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
 const searchBarRef = ref(null)
 defineExpose({ searchBarRef })
 
+// ─── Template refs for touch drop zone registration ────────────
+// Store refs to drop zone DOM elements for touch hit-testing.
+const dropZoneRefs = ref({})
+
+function setDropZoneRef(key) {
+  return (el) => {
+    if (el) {
+      dropZoneRefs.value[key] = el
+    } else {
+      delete dropZoneRefs.value[key]
+    }
+  }
+}
+
 // ─── Drop zone state ──────────────────────────────────────────────
-// Tracks which drop zone is currently highlighted.
+// Tracks which drop zone is currently highlighted (HTML5 DnD).
 // Keys use the ORIGINAL gridLayout index (layoutIdx), not the filtered row index.
 const activeDropZone = ref(null)
 
@@ -160,12 +188,19 @@ const isAllHidden = computed(() => gridRows.value.length === 0)
 /**
  * Whether a row can accept a side drop (only single-widget rows).
  * Also checks that the dragged widget isn't already in this row.
+ * Works for both HTML5 DnD and touch DnD.
  */
 function canAcceptSideDrop(entry) {
   if (entry.visible.length !== 1) return false
-  if (entry.visible.includes(dragWidgetId.value)) return false
+  const dragging = dragWidgetId.value || touchDragWidgetId.value
+  if (entry.visible.includes(dragging)) return false
   return true
 }
+
+/**
+ * Whether any drag is active (HTML5 or touch).
+ */
+const isAnyDragActive = computed(() => !!dragWidgetId.value || isDraggingTouch.value)
 
 /**
  * Determine the CSS grid class for a row.
@@ -183,6 +218,63 @@ function rowGridClass(entry) {
 function isInPair(entry) {
   return entry.visible.length > 1
 }
+
+// ─── Touch drop zone registration ─────────────────────────────────
+// Register all visible drop zones with the touch drag system whenever
+// the layout or editing state changes. This lets the touch system
+// hit-test zones during touchmove.
+
+function registerAllDropZones() {
+  clearDropZones()
+
+  if (!props.isEditing) return
+
+  nextTick(() => {
+    const refs = dropZoneRefs.value
+
+    for (const [key, el] of Object.entries(refs)) {
+      if (!el || !el.isConnected) continue
+
+      // Parse the key format: "position-layoutIdx"
+      const parts = key.split('-')
+      const position = parts[0] // 'before', 'after', 'left', 'right'
+      const layoutIdx = parseInt(parts.slice(1).join('-'), 10)
+
+      if (isNaN(layoutIdx)) continue
+
+      const type = (position === 'left' || position === 'right') ? 'side' : 'row'
+      registerDropZone(key, el, position, layoutIdx, type)
+    }
+
+    // Refresh cached rects after registration
+    refreshZoneRects()
+  })
+}
+
+// Re-register when editing changes or layout changes
+watch(() => props.isEditing, (editing) => {
+  if (editing) {
+    nextTick(registerAllDropZones)
+  } else {
+    clearDropZones()
+  }
+})
+
+watch(gridRows, () => {
+  if (props.isEditing) {
+    nextTick(registerAllDropZones)
+  }
+}, { deep: true })
+
+onMounted(() => {
+  if (props.isEditing) {
+    nextTick(registerAllDropZones)
+  }
+})
+
+onBeforeUnmount(() => {
+  clearDropZones()
+})
 </script>
 
 <template>
@@ -192,7 +284,8 @@ function isInPair(entry) {
       v-if="isEditing"
       class="text-center py-2 text-xs text-theme-muted select-none animate-fade-in"
     >
-      Drag widgets to rearrange. Drop beside a widget to pair them side-by-side. Double-click edges to resize.
+      <span class="hidden sm:inline">Drag widgets to rearrange. Drop beside a widget to pair them side-by-side. Double-click edges to resize.</span>
+      <span class="sm:hidden">Long-press and drag to rearrange widgets.</span>
     </div>
 
     <!-- Empty state when all widgets hidden -->
@@ -213,7 +306,8 @@ function isInPair(entry) {
     <template v-for="(entry, filteredIdx) in gridRows" :key="entry.layoutIdx">
       <!-- Drop zone BEFORE this row (insert as new row) -->
       <div
-        v-if="isEditing && dragWidgetId"
+        v-if="isEditing && isAnyDragActive"
+        :ref="setDropZoneRef(`before-${entry.layoutIdx}`)"
         class="drop-zone-row"
         :class="isDropActive('before', entry.layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
         @dragover.prevent="onDragOver($event, 'before', entry.layoutIdx)"
@@ -230,10 +324,12 @@ function isInPair(entry) {
         <!--
           Side drop zones: appear when dragging next to a single-widget row.
           Only shown for rows with exactly 1 visible widget.
+          Works for both HTML5 DnD and touch DnD.
         -->
-        <template v-if="isEditing && dragWidgetId && canAcceptSideDrop(entry)">
+        <template v-if="isEditing && isAnyDragActive && canAcceptSideDrop(entry)">
           <!-- Left side drop zone -->
           <div
+            :ref="setDropZoneRef(`left-${entry.layoutIdx}`)"
             class="drop-zone-side drop-zone-side-left"
             :class="isDropActive('left', entry.layoutIdx) ? 'drop-zone-side-active' : 'drop-zone-side-idle'"
             @dragover.prevent="onDragOver($event, 'left', entry.layoutIdx)"
@@ -247,6 +343,7 @@ function isInPair(entry) {
 
           <!-- Right side drop zone -->
           <div
+            :ref="setDropZoneRef(`right-${entry.layoutIdx}`)"
             class="drop-zone-side drop-zone-side-right"
             :class="isDropActive('right', entry.layoutIdx) ? 'drop-zone-side-active' : 'drop-zone-side-idle'"
             @dragover.prevent="onDragOver($event, 'right', entry.layoutIdx)"
@@ -386,7 +483,8 @@ function isInPair(entry) {
 
     <!-- Drop zone AFTER last row (append as new row) -->
     <div
-      v-if="isEditing && dragWidgetId && gridRows.length > 0"
+      v-if="isEditing && isAnyDragActive && gridRows.length > 0"
+      :ref="setDropZoneRef(`after-${gridRows[gridRows.length - 1].layoutIdx}`)"
       class="drop-zone-row"
       :class="isDropActive('after', gridRows[gridRows.length - 1].layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
       @dragover.prevent="onDragOver($event, 'after', gridRows[gridRows.length - 1].layoutIdx)"
@@ -429,6 +527,13 @@ function isInPair(entry) {
   opacity: 1;
 }
 
+/* Touch drag active highlight (applied via JS class toggle) */
+.drop-zone-row.touch-drop-active {
+  border: 2px dashed var(--accent, #6366f1);
+  background-color: rgba(99, 102, 241, 0.12);
+  opacity: 1;
+}
+
 .drop-zone-indicator {
   display: flex;
   align-items: center;
@@ -437,7 +542,8 @@ function isInPair(entry) {
   pointer-events: none;
 }
 
-.drop-zone-active .drop-zone-indicator {
+.drop-zone-active .drop-zone-indicator,
+.touch-drop-active .drop-zone-indicator {
   color: var(--accent, #6366f1);
 }
 
@@ -484,12 +590,20 @@ function isInPair(entry) {
   opacity: 1;
 }
 
+/* Touch drag active highlight for side zones */
+.drop-zone-side.touch-drop-active {
+  border: 2px dashed var(--accent, #6366f1);
+  background-color: rgba(99, 102, 241, 0.15);
+  opacity: 1;
+}
+
 .drop-zone-side-indicator {
   color: var(--text-muted, rgba(255,255,255,0.4));
   pointer-events: none;
 }
 
-.drop-zone-side-active .drop-zone-side-indicator {
+.drop-zone-side-active .drop-zone-side-indicator,
+.drop-zone-side.touch-drop-active .drop-zone-side-indicator {
   color: var(--accent, #6366f1);
 }
 
