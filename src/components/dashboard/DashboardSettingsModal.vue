@@ -433,11 +433,15 @@ function formatRefreshLabel(seconds) {
                 </p>
               </section>
 
-              <!-- Section: Section Visibility (Session 1 — individual toggles) -->
+              <!-- Section: Section Visibility (Session 1 — individual toggles, Session 7 — gauge widgets) -->
               <section>
                 <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Section Visibility</h3>
                 <div class="space-y-3">
                   <SettingsToggle label="Status Gauges (CPU/Mem/Disk/Temp)" :active="config.showSystemVitals.value" @toggle="toggle('show_system_vitals', config.showSystemVitals.value)" />
+                  <SettingsToggle label="CPU Gauge" :active="config.showCpuGauge.value" @toggle="toggle('show_cpu_gauge', config.showCpuGauge.value)" />
+                  <SettingsToggle label="Memory Gauge" :active="config.showMemoryGauge.value" @toggle="toggle('show_memory_gauge', config.showMemoryGauge.value)" />
+                  <SettingsToggle label="Disk Gauge" :active="config.showDiskGauge.value" @toggle="toggle('show_disk_gauge', config.showDiskGauge.value)" />
+                  <SettingsToggle label="Temperature Gauge" :active="config.showTempGauge.value" @toggle="toggle('show_temp_gauge', config.showTempGauge.value)" />
                   <SettingsToggle label="System Info Bar" :active="config.showInfoBar.value" @toggle="toggle('show_info_bar', config.showInfoBar.value)" />
                   <SettingsToggle label="Disk Usage" :active="config.showDisk.value" @toggle="toggle('show_disk_widget', config.showDisk.value)" />
                   <SettingsToggle label="Signals" :active="config.showSignals.value" @toggle="toggle('show_signals_widget', config.showSignals.value)" />
@@ -679,6 +683,15 @@ function formatRefreshLabel(seconds) {
                   <SettingsToggle label="Status Pill" :active="config.showStatusPill.value" @toggle="toggle('show_status_pill', config.showStatusPill.value)" />
                   <SettingsToggle label="Search / Chat Bar" :active="config.showSearch.value" @toggle="toggle('show_search', config.showSearch.value)" />
                   <SettingsToggle label="Alert Banner" :active="config.showAlerts.value" @toggle="toggle('show_alerts', config.showAlerts.value)" />
+                  <!-- Session 7: Individual gauge widgets -->
+                  <SettingsToggle label="CPU Gauge" :active="config.showCpuGauge.value" @toggle="toggle('show_cpu_gauge', config.showCpuGauge.value)" />
+                  <SettingsToggle label="Memory Gauge" :active="config.showMemoryGauge.value" @toggle="toggle('show_memory_gauge', config.showMemoryGauge.value)" />
+                  <SettingsToggle label="Disk Gauge" :active="config.showDiskGauge.value" @toggle="toggle('show_disk_gauge', config.showDiskGauge.value)" />
+                  <SettingsToggle label="Temperature Gauge" :active="config.showTempGauge.value" @toggle="toggle('show_temp_gauge', config.showTempGauge.value)" />
+                  <!-- Session 7: Cross-mode widgets -->
+                  <SettingsToggle label="Swarm Overview" :active="config.showSwarm.value" @toggle="toggle('show_swarm', config.showSwarm.value)" />
+                  <SettingsToggle label="Core Services" :active="config.showCoreServices.value" @toggle="toggle('show_core_services', config.showCoreServices.value)" />
+                  <SettingsToggle label="Info Bar" :active="config.showInfoBar.value" @toggle="toggle('show_info_bar', config.showInfoBar.value)" />
                 </div>
               </section>
 

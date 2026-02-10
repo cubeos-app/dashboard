@@ -26,6 +26,8 @@ import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
 import { useDashboardResize } from '@/composables/useDashboardResize'
 import { useTouchDrag } from '@/composables/useTouchDrag'
+import { useAppsStore } from '@/stores/apps'
+import { useMonitoringStore } from '@/stores/monitoring'
 import Icon from '@/components/ui/Icon.vue'
 import ClockWidget from './ClockWidget.vue'
 import SearchChatBar from './SearchChatBar.vue'
@@ -40,6 +42,16 @@ import NetworkThroughputWidget from './NetworkThroughputWidget.vue'
 import RecentLogsWidget from './RecentLogsWidget.vue'
 import BatteryWidget from './BatteryWidget.vue'
 import AppLauncher from './AppLauncher.vue'
+import FavoritesWidget from './FavoritesWidget.vue'
+import RecentAppsWidget from './RecentAppsWidget.vue'
+import MyAppsWidget from './MyAppsWidget.vue'
+import CpuGaugeWidget from './CpuGaugeWidget.vue'
+import MemoryGaugeWidget from './MemoryGaugeWidget.vue'
+import DiskGaugeWidget from './DiskGaugeWidget.vue'
+import TempGaugeWidget from './TempGaugeWidget.vue'
+import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
+import ServiceGrid from './ServiceGrid.vue'
+import AlertsFeed from './AlertsFeed.vue'
 import WidgetWrapper from './WidgetWrapper.vue'
 
 const props = defineProps({
@@ -83,6 +95,13 @@ const {
 } = useDashboardConfig()
 
 const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
+
+// ─── Stores for cross-mode widgets (Session 7) ──────────────────
+const appsStore = useAppsStore()
+const monitoringStore = useMonitoringStore()
+
+const coreApps = computed(() => appsStore.coreApps)
+const alerts = computed(() => monitoringStore.alerts)
 
 const searchBarRef = ref(null)
 defineExpose({ searchBarRef })
@@ -474,7 +493,7 @@ onBeforeUnmount(() => {
               </div>
             </WidgetWrapper>
 
-            <!-- ═══ App Launcher ═══ -->
+            <!-- ═══ App Launcher (DEPRECATED — kept for migration) ═══ -->
             <WidgetWrapper
               v-if="widgetId === 'launcher'"
               :widget-id="widgetId"
@@ -493,6 +512,64 @@ onBeforeUnmount(() => {
                   @toggle-favorite="(name) => emit('toggle-favorite', name)"
                 />
               </div>
+            </WidgetWrapper>
+
+            <!-- ═══ Favorites (Session 7 — decomposed from launcher) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'favorites'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <FavoritesWidget @open-app="(app) => emit('open-app', app)" />
+            </WidgetWrapper>
+
+            <!-- ═══ Recent Apps (Session 7 — decomposed from launcher) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'recent_apps'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <RecentAppsWidget @open-app="(app) => emit('open-app', app)" />
+            </WidgetWrapper>
+
+            <!-- ═══ My Apps (Session 7 — decomposed from launcher) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'my_apps'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <MyAppsWidget @open-app="(app) => emit('open-app', app)" />
+            </WidgetWrapper>
+
+            <!-- ═══ CPU Gauge (Session 7 — decomposed from gauges) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'cpu_gauge'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <CpuGaugeWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Memory Gauge (Session 7) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'memory_gauge'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <MemoryGaugeWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Disk Gauge (Session 7) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'disk_gauge'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <DiskGaugeWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Temperature Gauge (Session 7) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'temp_gauge'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <TempGaugeWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Swarm Overview (Session 7 — cross-mode) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'swarm'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <SwarmOverview />
+            </WidgetWrapper>
+
+            <!-- ═══ Core Services (Session 7 — cross-mode) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'core_services'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <ServiceGrid
+                :apps="coreApps"
+                :loading="appsStore.loading"
+                :detailed="true"
+                title="Core Services"
+                title-icon="Box"
+                @open="(app) => emit('open-app', app)"
+                @toggle-favorite="(name) => emit('toggle-favorite', name)"
+              />
+            </WidgetWrapper>
+
+            <!-- ═══ Alerts Feed (Session 7 — cross-mode) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'alerts'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <AlertsFeed :alerts="alerts" :loading="monitoringStore.loading" :limit="6" />
             </WidgetWrapper>
 
           </template>

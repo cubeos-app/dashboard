@@ -1,18 +1,11 @@
 /**
  * CubeOS Dashboard Config Composable
  *
- * Reads dashboard configuration from the current mode's layout config:
- *   preferencesStore.preferences.dashboard.standard  (when in Standard mode)
- *   preferencesStore.preferences.dashboard.advanced   (when in Advanced mode)
- *
- * Provides computed getters with sane defaults for every setting, and exposes
- * updateConfig(key, value) that persists changes via PUT /preferences, correctly
- * nesting the update under the current mode key.
- *
- * SESSION 1: Changed default grid layouts to single-widget rows.
- * Removed forced pairing in migrateWidgetOrderToGrid().
- * Added migrateAdvancedSectionOrder() to expand composite IDs.
- * Advanced mode now uses the same grid-row layout engine as Standard.
+ * SESSION 7: Unified WIDGET_REGISTRY replaces dual registries.
+ * - AppLauncher decomposed into favorites, recent_apps, my_apps
+ * - Gauges decomposed into cpu_gauge, memory_gauge, disk_gauge, temp_gauge
+ * - Migration from 'launcher' → 3 widgets, 'gauges' → 4 widgets
+ * - ADVANCED_SECTION_REGISTRY kept as deprecated alias for backward compat
  *
  * Usage:
  *   const { gridLayout, updateGridLayout, updateConfig } = useDashboardConfig()
@@ -21,14 +14,23 @@ import { computed } from 'vue'
 import { usePreferencesStore } from '@/stores/preferences'
 import { useMode } from '@/composables/useMode'
 
-// ─── Widget registry ────────────────────────────────────────
+// ─── Unified Widget Registry (Session 7) ────────────────────────
 
-/** All known widget IDs with metadata */
+/** All known widget IDs with metadata — single source of truth for both modes */
 export const WIDGET_REGISTRY = {
+  // Information widgets
   clock:               { label: 'Clock',              icon: 'Clock' },
   search:              { label: 'Search Bar',         icon: 'Search' },
   status:              { label: 'Status Pill',        icon: 'Activity' },
+  infobar:             { label: 'Info Bar',           icon: 'Info' },
+  alerts:              { label: 'Alerts Feed',        icon: 'Bell' },
+
+  // System monitoring
   vitals:              { label: 'System Vitals',      icon: 'Cpu' },
+  cpu_gauge:           { label: 'CPU Gauge',          icon: 'Cpu' },
+  memory_gauge:        { label: 'Memory Gauge',       icon: 'MemoryStick' },
+  disk_gauge:          { label: 'Disk Gauge',         icon: 'HardDrive' },
+  temp_gauge:          { label: 'Temperature Gauge',  icon: 'Thermometer' },
   network:             { label: 'Network',            icon: 'Wifi' },
   disk:                { label: 'Disk Usage',         icon: 'HardDrive' },
   signals:             { label: 'Signals',            icon: 'Radio' },
@@ -36,15 +38,33 @@ export const WIDGET_REGISTRY = {
   network_throughput:  { label: 'Network Traffic',     icon: 'ArrowUpDown' },
   recent_logs:         { label: 'Recent Logs',         icon: 'ScrollText' },
   battery:             { label: 'Battery',             icon: 'Battery' },
+
+  // Container management
+  swarm:               { label: 'Swarm Overview',     icon: 'Layers' },
+  core_services:       { label: 'Core Services',      icon: 'Box' },
+
+  // App widgets (decomposed from launcher — Session 7)
+  favorites:           { label: 'Favorites',          icon: 'Star' },
+  recent_apps:         { label: 'Recent Apps',        icon: 'Clock' },
+  my_apps:             { label: 'My Apps',            icon: 'Grid3x3' },
+
+  // Actions
   actions:             { label: 'Quick Actions',       icon: 'Zap' },
-  launcher:            { label: 'App Launcher',        icon: 'Grid3x3' },
+
+  // DEPRECATED — kept for migration only. Do not use for new layouts.
+  launcher:            { label: 'App Launcher (Legacy)', icon: 'Grid3x3', deprecated: true },
 }
 
-export const ALL_WIDGET_IDS = Object.keys(WIDGET_REGISTRY)
+export const ALL_WIDGET_IDS = Object.keys(WIDGET_REGISTRY).filter(
+  id => !WIDGET_REGISTRY[id].deprecated
+)
 
-/** Advanced-mode section IDs with metadata */
+/**
+ * DEPRECATED — backward compatibility alias for Advanced mode.
+ * Session 8 will remove usage of this.
+ */
 export const ADVANCED_SECTION_REGISTRY = {
-  gauges:              { label: 'Status Gauges',       icon: 'Activity' },
+  gauges:              { label: 'Status Gauges',       icon: 'Activity', deprecated: true },
   infobar:             { label: 'Info Bar',            icon: 'Info' },
   disk:                { label: 'Disk Usage',          icon: 'HardDrive' },
   signals:             { label: 'Signals',             icon: 'Radio' },
@@ -62,16 +82,12 @@ export const ADVANCED_SECTION_REGISTRY = {
 
 export const ALL_ADVANCED_SECTION_IDS = Object.keys(ADVANCED_SECTION_REGISTRY)
 
-// ─── Default grid layouts ───────────────────────────────────
+// ─── Default grid layouts ───────────────────────────────────────
 
-/** Default per-widget opacity (0=transparent, 100=opaque) */
 const DEFAULT_OPACITY = 100
-const CLOCK_DEFAULT_OPACITY = 0  // backward compat: clock was fully transparent
+const CLOCK_DEFAULT_OPACITY = 0
 
-/**
- * SESSION 1: All single-widget rows by default.
- * Users can pair widgets via DnD (drag to side) or Settings modal (Merge).
- */
+/** SESSION 7: Default Standard layout uses decomposed widget IDs. */
 const STANDARD_GRID_LAYOUT = [
   { row: ['clock'] },
   { row: ['search'] },
@@ -85,7 +101,9 @@ const STANDARD_GRID_LAYOUT = [
   { row: ['recent_logs'] },
   { row: ['battery'] },
   { row: ['actions'] },
-  { row: ['launcher'] },
+  { row: ['favorites'] },
+  { row: ['recent_apps'] },
+  { row: ['my_apps'] },
 ]
 
 const ADVANCED_GRID_LAYOUT = [
@@ -98,10 +116,10 @@ const ADVANCED_GRID_LAYOUT = [
   { row: ['recent_logs'] },
   { row: ['battery'] },
   { row: ['actions'] },
-  { row: ['launcher'] },
+  { row: ['favorites'] },
+  { row: ['my_apps'] },
 ]
 
-/** Default advanced section order — all individual IDs, no composites */
 const DEFAULT_ADVANCED_SECTION_ORDER = [
   'gauges', 'infobar', 'disk', 'signals', 'swarm', 'alerts',
   'uptime-load', 'network-throughput', 'recent-logs', 'battery',
@@ -110,11 +128,6 @@ const DEFAULT_ADVANCED_SECTION_ORDER = [
 
 // ─── Defaults (per mode) ─────────────────────────────────────
 
-/**
- * Default per-widget refresh intervals in seconds.
- * Widgets covered by WebSocket won't poll when WS is connected.
- * Widgets set to 0 mean "manual only" (no auto-refresh).
- */
 const DEFAULT_REFRESH_INTERVALS = {
   vitals: 2,
   network: 5,
@@ -125,9 +138,12 @@ const DEFAULT_REFRESH_INTERVALS = {
   network_throughput: 5,
   recent_logs: 15,
   battery: 30,
+  cpu_gauge: 2,
+  memory_gauge: 2,
+  disk_gauge: 10,
+  temp_gauge: 5,
 }
 
-/** Available refresh interval options for the settings UI (seconds) */
 export const REFRESH_INTERVAL_OPTIONS = [
   { value: 1,  label: '1s' },
   { value: 2,  label: '2s' },
@@ -156,6 +172,13 @@ const STANDARD_DEFAULTS = {
   show_network_throughput: false,
   show_recent_logs: false,
   show_battery: true,
+  show_cpu_gauge: false,
+  show_memory_gauge: false,
+  show_disk_gauge: false,
+  show_temp_gauge: false,
+  show_swarm: false,
+  show_core_services: false,
+  show_info_bar: false,
   clock_format: '24h',
   date_format: 'long',
   show_seconds: true,
@@ -163,7 +186,7 @@ const STANDARD_DEFAULTS = {
   my_apps_rows: 2,
   favorite_cols: 4,
   quick_actions: ['add_app', 'network', 'storage', 'ask_cubeos'],
-  widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'disk', 'signals', 'actions', 'launcher'],
+  widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'disk', 'signals', 'actions', 'favorites', 'recent_apps', 'my_apps'],
   grid_layout: STANDARD_GRID_LAYOUT,
   widget_opacity: { clock: CLOCK_DEFAULT_OPACITY },
   widget_dimensions: {},
@@ -188,7 +211,10 @@ const ADVANCED_DEFAULTS = {
   show_network_throughput: true,
   show_recent_logs: true,
   show_battery: true,
-  // Advanced-specific section visibility
+  show_cpu_gauge: true,
+  show_memory_gauge: true,
+  show_disk_gauge: true,
+  show_temp_gauge: true,
   show_info_bar: true,
   show_swarm: true,
   show_core_services: true,
@@ -199,7 +225,7 @@ const ADVANCED_DEFAULTS = {
   my_apps_rows: 3,
   favorite_cols: 6,
   quick_actions: ['add_app', 'monitoring', 'logs', 'docs'],
-  widget_order: ['alerts', 'vitals', 'network', 'disk', 'signals', 'actions', 'launcher'],
+  widget_order: ['alerts', 'vitals', 'network', 'disk', 'signals', 'actions', 'favorites', 'my_apps'],
   grid_layout: ADVANCED_GRID_LAYOUT,
   widget_opacity: {},
   widget_dimensions: {},
@@ -215,42 +241,70 @@ const DEFAULTS_BY_MODE = {
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-/** Return val if non-null/undefined, otherwise the default. */
 function boolOr(val, def) {
   return val != null ? val : def
 }
 
 /**
  * Migrate a flat widget_order array to grid_layout rows.
- * Handles the legacy 'disk-signals' composite key by splitting it.
- *
- * SESSION 1: No longer forces vitals+network pairing. Each widget
- * gets its own row, matching the new single-widget-row default.
+ * SESSION 7: Also expands 'launcher' to decomposed widgets.
  */
 function migrateWidgetOrderToGrid(order) {
   if (!Array.isArray(order) || order.length === 0) return null
   const rows = []
   for (let i = 0; i < order.length; i++) {
     const key = order[i]
-
-    // Legacy composite key: 'disk-signals' → two separate rows
     if (key === 'disk-signals') {
       rows.push({ row: ['disk'] })
       rows.push({ row: ['signals'] })
       continue
     }
-
-    // Every widget gets its own row
+    if (key === 'launcher') {
+      rows.push({ row: ['favorites'] })
+      rows.push({ row: ['recent_apps'] })
+      rows.push({ row: ['my_apps'] })
+      continue
+    }
     rows.push({ row: [key] })
   }
   return rows
 }
 
 /**
+ * SESSION 7: Migrate grid_layout containing 'launcher' to decomposed widgets.
+ * Returns null if no migration needed.
+ */
+function migrateLauncherInGrid(layout) {
+  if (!Array.isArray(layout)) return null
+
+  let hasLauncher = false
+  for (const entry of layout) {
+    if (entry.row && entry.row.includes('launcher')) {
+      hasLauncher = true
+      break
+    }
+  }
+  if (!hasLauncher) return null
+
+  const migrated = []
+  for (const entry of layout) {
+    if (entry.row && entry.row.includes('launcher')) {
+      const otherWidgets = entry.row.filter(id => id !== 'launcher')
+      if (otherWidgets.length > 0) {
+        migrated.push({ row: otherWidgets })
+      }
+      migrated.push({ row: ['favorites'] })
+      migrated.push({ row: ['recent_apps'] })
+      migrated.push({ row: ['my_apps'] })
+    } else {
+      migrated.push({ row: [...entry.row] })
+    }
+  }
+  return migrated
+}
+
+/**
  * Migrate legacy advanced_section_order with composite IDs.
- * Expands 'disk-signals' → 'disk', 'signals' and
- * 'swarm-alerts' → 'swarm', 'alerts', preserving relative order.
- * Returns null if no migration needed (no composite IDs found).
  */
 function migrateAdvancedSectionOrder(order) {
   if (!Array.isArray(order)) return null
@@ -274,7 +328,6 @@ function migrateAdvancedSectionOrder(order) {
 
   if (!hasComposite) return null
 
-  // Ensure all expected section IDs are present
   for (const id of DEFAULT_ADVANCED_SECTION_ORDER) {
     if (!expanded.includes(id)) {
       expanded.push(id)
@@ -284,10 +337,6 @@ function migrateAdvancedSectionOrder(order) {
   return expanded
 }
 
-/**
- * Validate a grid_layout structure. Returns true if it's a valid
- * array of {row: string[]} objects where each row has 1-2 items.
- */
 function isValidGridLayout(layout) {
   if (!Array.isArray(layout) || layout.length === 0) return false
   return layout.every(
@@ -301,19 +350,14 @@ export function useDashboardConfig() {
   const preferencesStore = usePreferencesStore()
   const { isAdvanced } = useMode()
 
-  /** Current mode key: 'standard' | 'advanced' */
   const modeKey = computed(() => isAdvanced.value ? 'advanced' : 'standard')
-
-  /** Defaults for the current mode */
   const defaults = computed(() => DEFAULTS_BY_MODE[modeKey.value])
-
-  /** Raw layout config for the current mode (may be null/undefined) */
   const raw = computed(() => {
     const dash = preferencesStore.preferences?.dashboard
     return dash?.[modeKey.value]
   })
 
-  // ─── Widget visibility (boolean, with mode-specific defaults) ──
+  // ─── Widget visibility ──────────────────────────────────────
 
   const showClock = computed(() => boolOr(raw.value?.show_clock, defaults.value.show_clock))
   const showSearch = computed(() => boolOr(raw.value?.show_search, defaults.value.show_search))
@@ -327,70 +371,59 @@ export function useDashboardConfig() {
   const showRecent = computed(() => boolOr(raw.value?.show_recent, defaults.value.show_recent))
   const showMyApps = computed(() => boolOr(raw.value?.show_my_apps, defaults.value.show_my_apps))
   const showAlerts = computed(() => boolOr(raw.value?.show_alerts, defaults.value.show_alerts))
-
-  // ─── New widget visibility (Session 3) ────────────────────────
-
   const showUptimeLoad = computed(() => boolOr(raw.value?.show_uptime_load, defaults.value.show_uptime_load ?? false))
   const showNetworkThroughput = computed(() => boolOr(raw.value?.show_network_throughput, defaults.value.show_network_throughput ?? false))
   const showRecentLogs = computed(() => boolOr(raw.value?.show_recent_logs, defaults.value.show_recent_logs ?? false))
   const showBattery = computed(() => boolOr(raw.value?.show_battery, defaults.value.show_battery ?? true))
 
-  // ─── Advanced-specific section visibility ─────────────────────
+  // Individual gauges (Session 7)
+  const showCpuGauge = computed(() => boolOr(raw.value?.show_cpu_gauge, defaults.value.show_cpu_gauge ?? false))
+  const showMemoryGauge = computed(() => boolOr(raw.value?.show_memory_gauge, defaults.value.show_memory_gauge ?? false))
+  const showDiskGauge = computed(() => boolOr(raw.value?.show_disk_gauge, defaults.value.show_disk_gauge ?? false))
+  const showTempGauge = computed(() => boolOr(raw.value?.show_temp_gauge, defaults.value.show_temp_gauge ?? false))
 
-  const showInfoBar = computed(() => boolOr(raw.value?.show_info_bar, defaults.value.show_info_bar ?? true))
-  const showSwarm = computed(() => boolOr(raw.value?.show_swarm, defaults.value.show_swarm ?? true))
-  const showCoreServices = computed(() => boolOr(raw.value?.show_core_services, defaults.value.show_core_services ?? true))
+  // Cross-mode (Session 7)
+  const showInfoBar = computed(() => boolOr(raw.value?.show_info_bar, defaults.value.show_info_bar ?? false))
+  const showSwarm = computed(() => boolOr(raw.value?.show_swarm, defaults.value.show_swarm ?? false))
+  const showCoreServices = computed(() => boolOr(raw.value?.show_core_services, defaults.value.show_core_services ?? false))
 
-  // ─── Clock & date settings ────────────────────────────────────
-
+  // Clock & date
   const clockFormat = computed(() => raw.value?.clock_format || defaults.value.clock_format)
   const dateFormat = computed(() => raw.value?.date_format || defaults.value.date_format)
   const showSeconds = computed(() => boolOr(raw.value?.show_seconds, defaults.value.show_seconds))
   const showGreeting = computed(() => boolOr(raw.value?.show_greeting, defaults.value.show_greeting))
 
-  // ─── Layout settings ──────────────────────────────────────────
-
+  // Layout settings
   const myAppsRows = computed(() => raw.value?.my_apps_rows || defaults.value.my_apps_rows)
   const favoriteCols = computed(() => raw.value?.favorite_cols || defaults.value.favorite_cols)
   const quickActions = computed(() => raw.value?.quick_actions ?? defaults.value.quick_actions)
   const widgetOrder = computed(() => raw.value?.widget_order ?? defaults.value.widget_order)
 
-  // ─── Grid Layout (Session A, updated Session 1) ───────────────
+  // ─── Grid Layout ────────────────────────────────────────────
 
-  /**
-   * Resolved grid layout: array of { row: string[] } objects.
-   * Priority: raw grid_layout → migrate from widget_order → mode default.
-   */
   const gridLayout = computed(() => {
-    // 1. Try stored grid_layout
     const stored = raw.value?.grid_layout
-    if (isValidGridLayout(stored)) return stored
-
-    // 2. Migrate from legacy widget_order
+    if (isValidGridLayout(stored)) {
+      const launcherMigrated = migrateLauncherInGrid(stored)
+      if (launcherMigrated) return launcherMigrated
+      return stored
+    }
     const order = raw.value?.widget_order
     const migrated = migrateWidgetOrderToGrid(order)
     if (migrated) return migrated
-
-    // 3. Fall back to mode default
     return defaults.value.grid_layout
   })
 
-  /**
-   * Flat list of all widget IDs present in the current grid layout.
-   */
   const placedWidgetIds = computed(() => {
     return gridLayout.value.flatMap(entry => entry.row)
   })
 
-  /**
-   * Widget IDs not currently placed in the grid.
-   */
   const unplacedWidgetIds = computed(() => {
     const placed = new Set(placedWidgetIds.value)
     return ALL_WIDGET_IDS.filter(id => !placed.has(id))
   })
 
-  // ─── Visibility map (widget ID → boolean) ─────────────────────
+  // ─── Visibility map ─────────────────────────────────────────
 
   const visibilityMap = computed(() => ({
     clock: showClock.value,
@@ -405,24 +438,29 @@ export function useDashboardConfig() {
     recent_logs: showRecentLogs.value,
     battery: showBattery.value,
     actions: showQuickActions.value,
-    launcher: true,
+    favorites: showFavorites.value,
+    recent_apps: showRecent.value,
+    my_apps: showMyApps.value,
+    cpu_gauge: showCpuGauge.value,
+    memory_gauge: showMemoryGauge.value,
+    disk_gauge: showDiskGauge.value,
+    temp_gauge: showTempGauge.value,
+    swarm: showSwarm.value,
+    core_services: showCoreServices.value,
+    alerts: showAlerts.value,
+    infobar: showInfoBar.value,
+    launcher: true, // deprecated, always visible for migration
   }))
 
-  /** Check if a widget is visible */
   function isWidgetVisible(id) {
     return visibilityMap.value[id] ?? true
   }
 
-  // ─── Advanced section order (Session 1) ───────────────────────
+  // ─── Advanced section order (deprecated in Session 8) ──────
 
-  /**
-   * Resolved advanced section order with migration from composite IDs.
-   * Returns array of individual section IDs.
-   */
   const advancedSectionOrder = computed(() => {
     const stored = raw.value?.advanced_section_order
     if (Array.isArray(stored) && stored.length > 0) {
-      // Check if migration is needed (composite IDs present)
       const migrated = migrateAdvancedSectionOrder(stored)
       if (migrated) return migrated
       return stored
@@ -430,104 +468,69 @@ export function useDashboardConfig() {
     return defaults.value.advanced_section_order ?? DEFAULT_ADVANCED_SECTION_ORDER
   })
 
-  /** Persist advanced section order */
   async function updateAdvancedSectionOrder(order) {
     return updateConfig('advanced_section_order', order)
   }
 
-  // ─── Widget Opacity (Session B) ───────────────────────────────
+  // ─── Widget Opacity ─────────────────────────────────────────
 
-  /**
-   * Raw widget_opacity map from config.
-   * Keys are widget IDs, values are 0–100.
-   */
   const widgetOpacity = computed(() => {
     return raw.value?.widget_opacity ?? defaults.value.widget_opacity ?? {}
   })
 
-  /**
-   * Get opacity for a widget (0–100).
-   * Clock defaults to 0 (transparent) for backward compat; all others default to 100.
-   */
   function getOpacity(widgetId) {
     const stored = widgetOpacity.value[widgetId]
     if (stored != null) return stored
     return widgetId === 'clock' ? CLOCK_DEFAULT_OPACITY : DEFAULT_OPACITY
   }
 
-  /** Persist opacity for a single widget */
   async function updateOpacity(widgetId, value) {
     const current = { ...widgetOpacity.value }
     current[widgetId] = value
     return updateConfig('widget_opacity', current)
   }
 
-  /** Reset all opacities to defaults */
   async function resetAllOpacity() {
     return updateConfig('widget_opacity', defaults.value.widget_opacity ?? {})
   }
 
-  // ─── Per-Widget Refresh Intervals (Session 5) ─────────────────
+  // ─── Per-Widget Refresh Intervals ───────────────────────────
 
-  /**
-   * Raw widget_refresh_intervals map from config.
-   * Keys are widget IDs, values are seconds (0 = manual).
-   */
   const widgetRefreshIntervals = computed(() => {
     return raw.value?.widget_refresh_intervals ?? defaults.value.widget_refresh_intervals ?? {}
   })
 
-  /**
-   * Get refresh interval for a widget in seconds.
-   * Falls back to DEFAULT_REFRESH_INTERVALS, then 10s.
-   *
-   * @param {string} widgetId - Widget identifier
-   * @returns {number} Interval in seconds (0 = manual/disabled)
-   */
   function getRefreshInterval(widgetId) {
     const stored = widgetRefreshIntervals.value[widgetId]
     if (stored != null) return stored
     return DEFAULT_REFRESH_INTERVALS[widgetId] ?? 10
   }
 
-  /**
-   * Persist refresh interval for a single widget.
-   *
-   * @param {string} widgetId - Widget identifier
-   * @param {number} seconds - Interval in seconds (0 = manual)
-   */
   async function updateRefreshInterval(widgetId, seconds) {
     const current = { ...widgetRefreshIntervals.value }
     current[widgetId] = seconds
     return updateConfig('widget_refresh_intervals', current)
   }
 
-  /** Reset all refresh intervals to defaults */
   async function resetAllRefreshIntervals() {
     return updateConfig('widget_refresh_intervals', {})
   }
 
-  // ─── Layout Lock (Session 6) ─────────────────────────────────
+  // ─── Layout Lock ────────────────────────────────────────────
 
-  /**
-   * Whether the layout is locked (prevents entering edit mode).
-   * Persisted per-mode.
-   */
   const isLayoutLocked = computed(() => {
     return boolOr(raw.value?.layout_locked, defaults.value.layout_locked ?? false)
   })
 
-  /** Toggle layout lock on/off and persist */
   async function toggleLayoutLock() {
     return updateConfig('layout_locked', !isLayoutLocked.value)
   }
 
-  /** Explicitly set layout lock state */
   async function setLayoutLocked(locked) {
     return updateConfig('layout_locked', locked)
   }
 
-  // ─── Persistence ──────────────────────────────────────────────
+  // ─── Persistence ────────────────────────────────────────────
 
   async function updateConfig(key, value) {
     return preferencesStore.savePreferences({
@@ -545,7 +548,6 @@ export function useDashboardConfig() {
     })
   }
 
-  /** Persist a new grid layout */
   async function updateGridLayout(rows) {
     return updateConfig('grid_layout', rows)
   }
@@ -559,80 +561,21 @@ export function useDashboardConfig() {
   }
 
   return {
-    // Widget visibility
-    showClock,
-    showSearch,
-    showStatusPill,
-    showSystemVitals,
-    showNetwork,
-    showDisk,
-    showSignals,
-    showQuickActions,
-    showFavorites,
-    showRecent,
-    showMyApps,
-    showAlerts,
-
-    // New widgets (Session 3)
-    showUptimeLoad,
-    showNetworkThroughput,
-    showRecentLogs,
-    showBattery,
-
-    // Advanced-specific
-    showInfoBar,
-    showSwarm,
-    showCoreServices,
-
-    // Clock & date
-    clockFormat,
-    dateFormat,
-    showSeconds,
-    showGreeting,
-
-    // Layout
-    myAppsRows,
-    favoriteCols,
-    quickActions,
-    widgetOrder,
-
-    // Grid layout (Session A, updated Session 1)
-    gridLayout,
-    placedWidgetIds,
-    unplacedWidgetIds,
-    visibilityMap,
-    isWidgetVisible,
-
-    // Advanced section order (Session 1)
-    advancedSectionOrder,
-    updateAdvancedSectionOrder,
-
-    // Widget opacity (Session B)
-    widgetOpacity,
-    getOpacity,
-    updateOpacity,
-    resetAllOpacity,
-
-    // Widget refresh intervals (Session 5)
-    widgetRefreshIntervals,
-    getRefreshInterval,
-    updateRefreshInterval,
-    resetAllRefreshIntervals,
-
-    // Layout lock (Session 6)
-    isLayoutLocked,
-    toggleLayoutLock,
-    setLayoutLocked,
-
-    // Raw access
-    raw,
-    modeKey,
-    defaults,
-
-    // Persistence
-    updateConfig,
-    updateConfigs,
-    updateGridLayout,
-    resetDefaults,
+    showClock, showSearch, showStatusPill, showSystemVitals,
+    showNetwork, showDisk, showSignals, showQuickActions,
+    showFavorites, showRecent, showMyApps, showAlerts,
+    showUptimeLoad, showNetworkThroughput, showRecentLogs, showBattery,
+    showCpuGauge, showMemoryGauge, showDiskGauge, showTempGauge,
+    showInfoBar, showSwarm, showCoreServices,
+    clockFormat, dateFormat, showSeconds, showGreeting,
+    myAppsRows, favoriteCols, quickActions, widgetOrder,
+    gridLayout, placedWidgetIds, unplacedWidgetIds,
+    visibilityMap, isWidgetVisible,
+    advancedSectionOrder, updateAdvancedSectionOrder,
+    widgetOpacity, getOpacity, updateOpacity, resetAllOpacity,
+    widgetRefreshIntervals, getRefreshInterval, updateRefreshInterval, resetAllRefreshIntervals,
+    isLayoutLocked, toggleLayoutLock, setLayoutLocked,
+    raw, modeKey, defaults,
+    updateConfig, updateConfigs, updateGridLayout, resetDefaults,
   }
 }
