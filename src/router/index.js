@@ -120,7 +120,7 @@ const routes = [
   {
     path: '/appmanager',
     name: 'appmanager',
-    component: () => import('@/components/appmanager/AppManagerView.vue'),
+    redirect: '/apps?tab=manager',
     meta: { requiresAuth: true }
   },
 

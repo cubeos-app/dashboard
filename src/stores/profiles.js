@@ -1,21 +1,15 @@
 /**
- * CubeOS Profiles Store
- * 
- * Dedicated profile store used by ProfilesView and SystemView.
- * 
- * NOTE: Profile management also exists in appmanager.js (used by ProfilesTab).
- * The two stores share the same API endpoints but serve different UI components:
- *   - profiles.js  → ProfilesView (main profiles page), SystemView
- *   - appmanager.js → ProfilesTab (within App Manager), includes setProfileApp
- * 
- * TODO: Consider consolidating into a single store to avoid dual sources of truth.
- *       If consolidating, keep this store's richer API (activeProfile tracking,
- *       helper methods) and add appmanager.js's setProfileApp here.
- * 
+ * CubeOS Profiles Store — Single source of truth for profile operations
+ *
+ * S05: Consolidated from dual stores (profiles.js + appmanager.js).
+ *      ProfilesTab now imports from here instead of appmanager.js.
+ *
  * Verified endpoints:
  * - GET /api/v1/profiles - List profiles
- * - POST /api/v1/profiles/{name}/apply - Apply profile
+ * - GET /api/v1/profiles/{name} - Get profile detail
  * - POST /api/v1/profiles - Create profile
+ * - POST /api/v1/profiles/{name}/apply - Apply profile
+ * - PUT /api/v1/profiles/{name}/apps/{appId} - Toggle app in profile
  */
 
 import { defineStore } from 'pinia'
@@ -150,6 +144,24 @@ export const useProfilesStore = defineStore('profiles', () => {
     return false
   }
   
+  /**
+   * Toggle app enabled/disabled within a profile
+   * PUT /api/v1/profiles/{name}/apps/{appId}
+   */
+  async function setProfileApp(profileName, appId, enabled) {
+    error.value = null
+    try {
+      await api.put(
+        `/profiles/${encodeURIComponent(profileName)}/apps/${encodeURIComponent(appId)}`,
+        { enabled }
+      )
+      await fetchProfiles()
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+  
   // ==========================================
   // Helper Methods
   // ==========================================
@@ -215,6 +227,7 @@ export const useProfilesStore = defineStore('profiles', () => {
     applyProfile,
     createProfile,
     deleteProfile,
+    setProfileApp,
     
     // Helpers
     getProfileByName,

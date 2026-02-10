@@ -24,6 +24,11 @@ import MyAppsTab from './MyAppsTab.vue'
 import AppStoreTab from './AppStoreTab.vue'
 import AppDetailSheet from './AppDetailSheet.vue'
 import InstallFlow from './InstallFlow.vue'
+import AppManagerTab from './AppManagerTab.vue'
+import DockerTab from './DockerTab.vue'
+import RegistryTab from './RegistryTab.vue'
+import PortsTab from './PortsTab.vue'
+import ProfilesTab from './ProfilesTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,7 +45,15 @@ const TAB_DEFS = computed(() => {
     { key: 'my-apps', label: 'My Apps', icon: 'Grid3X3' },
     { key: 'store', label: 'App Store', icon: 'Store' },
   ]
-  // Advanced-only tabs are handled by S05
+  if (isAdvanced.value) {
+    tabs.push(
+      { key: 'manager', label: 'Manager', icon: 'Settings' },
+      { key: 'docker', label: 'Docker', icon: 'Container' },
+      { key: 'registry', label: 'Registry', icon: 'Archive' },
+      { key: 'ports', label: 'Ports', icon: 'Plug' },
+      { key: 'profiles', label: 'Profiles', icon: 'Layers' }
+    )
+  }
   return tabs
 })
 
@@ -52,6 +65,13 @@ watch(() => route.query.tab, (tab) => {
     activeTab.value = tab
   }
 }, { immediate: true })
+
+// Reset to 'my-apps' if current tab becomes invalid (e.g., mode switch)
+watch(TAB_DEFS, (tabs) => {
+  if (!tabs.some(t => t.key === activeTab.value)) {
+    activeTab.value = 'my-apps'
+  }
+})
 
 function setTab(key) {
   activeTab.value = key
@@ -147,7 +167,7 @@ const headerSubtitle = computed(() => {
     <div
       role="tablist"
       aria-label="Apps sections"
-      class="flex items-center gap-1 p-1 bg-theme-tertiary rounded-lg w-fit"
+      class="flex items-center gap-1 p-1 bg-theme-tertiary rounded-lg overflow-x-auto scrollbar-hide"
     >
       <button
         v-for="tab in TAB_DEFS"
@@ -155,7 +175,7 @@ const headerSubtitle = computed(() => {
         role="tab"
         :aria-selected="activeTab === tab.key"
         @click="setTab(tab.key)"
-        class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+        class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0"
         :class="activeTab === tab.key
           ? 'bg-theme-card text-theme-primary shadow-sm'
           : 'text-theme-secondary hover:text-theme-primary'"
@@ -177,6 +197,12 @@ const headerSubtitle = computed(() => {
       @open-detail="openDetail"
       @install="startInstall"
     />
+
+    <AppManagerTab v-if="activeTab === 'manager'" />
+    <DockerTab v-if="activeTab === 'docker'" />
+    <RegistryTab v-if="activeTab === 'registry'" />
+    <PortsTab v-if="activeTab === 'ports'" />
+    <ProfilesTab v-if="activeTab === 'profiles'" />
 
     <!-- App Detail Sheet (slide-over) -->
     <AppDetailSheet
