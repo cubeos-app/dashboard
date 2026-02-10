@@ -93,6 +93,17 @@ const {
   updateAdvancedSectionOrder,
 } = useDashboardConfig()
 
+// ─── App lists (must be declared before sectionVisibility to avoid TDZ) ──
+const coreApps = computed(() => appsStore.coreApps)
+const userApps = computed(() => appsStore.userApps)
+const allApps = computed(() => appsStore.apps || [])
+
+const favoriteApps = computed(() => {
+  return favoritesStore.favoriteNames()
+    .map(name => appsStore.getAppByName(name))
+    .filter(Boolean)
+})
+
 // ─── Section order (Advanced-specific, Session 1 — individual IDs) ──
 
 const SECTION_LABELS = computed(() => {
@@ -285,17 +296,7 @@ const runningCount = computed(() => appsStore.runningCount)
 const totalCount = computed(() => appsStore.appCount)
 const healthyCount = computed(() => appsStore.healthyCount)
 
-// All apps for the full grid
-const coreApps = computed(() => appsStore.coreApps)
-const userApps = computed(() => appsStore.userApps)
-const allApps = computed(() => appsStore.apps || [])
 
-// Favorites
-const favoriteApps = computed(() => {
-  return favoritesStore.favoriteNames()
-    .map(name => appsStore.getAppByName(name))
-    .filter(Boolean)
-})
 
 // Network
 const networkMode = computed(() => networkStore.currentMode || 'unknown')
