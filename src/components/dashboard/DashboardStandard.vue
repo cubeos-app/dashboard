@@ -48,7 +48,7 @@ const props = defineProps({
 
 const router = useRouter()
 const { isActive: wallpaperActive } = useWallpaper()
-const { handleDrop, dragWidgetId } = useDashboardEdit()
+const { handleDrop, dragWidgetId, canUndo, canRedo, undo, redo, undoCount, redoCount } = useDashboardEdit()
 const { getWidgetWidth } = useDashboardResize()
 const {
   isDraggingTouch,
@@ -284,6 +284,28 @@ onBeforeUnmount(() => {
       v-if="isEditing"
       class="text-center py-2 text-xs text-theme-muted select-none animate-fade-in"
     >
+      <div class="flex items-center justify-center gap-3 mb-1">
+        <button
+          class="flex items-center gap-1 px-2 py-1 rounded-md transition-colors text-[11px]"
+          :class="canUndo ? 'text-theme-secondary hover:bg-theme-tertiary' : 'text-theme-muted/30 cursor-not-allowed'"
+          :disabled="!canUndo"
+          @click="undo"
+          title="Undo (Ctrl+Z)"
+        >
+          <Icon name="Undo2" :size="12" />
+          Undo<template v-if="undoCount > 0"> ({{ undoCount }})</template>
+        </button>
+        <button
+          class="flex items-center gap-1 px-2 py-1 rounded-md transition-colors text-[11px]"
+          :class="canRedo ? 'text-theme-secondary hover:bg-theme-tertiary' : 'text-theme-muted/30 cursor-not-allowed'"
+          :disabled="!canRedo"
+          @click="redo"
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          <Icon name="Redo2" :size="12" />
+          Redo<template v-if="redoCount > 0"> ({{ redoCount }})</template>
+        </button>
+      </div>
       <span class="hidden sm:inline">Drag widgets to rearrange. Drop beside a widget to pair them side-by-side. Double-click edges to resize.</span>
       <span class="sm:hidden">Long-press and drag to rearrange widgets.</span>
     </div>

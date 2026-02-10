@@ -26,6 +26,7 @@ import { useFavoritesStore } from '@/stores/favorites'
 import { useMonitoringStore } from '@/stores/monitoring'
 import { useNetworkStore } from '@/stores/network'
 import { useDashboardConfig, ADVANCED_SECTION_REGISTRY } from '@/composables/useDashboardConfig'
+import { useDashboardEdit } from '@/composables/useDashboardEdit'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { useTouchDrag } from '@/composables/useTouchDrag'
 import Icon from '@/components/ui/Icon.vue'
@@ -53,6 +54,7 @@ const favoritesStore = useFavoritesStore()
 const monitoringStore = useMonitoringStore()
 const networkStore = useNetworkStore()
 const { signal } = useAbortOnUnmount()
+const { canUndo, canRedo, undo, redo, undoCount, redoCount } = useDashboardEdit()
 
 const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
 
@@ -346,6 +348,28 @@ function goToAppStore() { router.push('/appstore') }
       v-if="isEditing"
       class="text-center py-2 text-xs text-theme-muted select-none"
     >
+      <div class="flex items-center justify-center gap-3 mb-1">
+        <button
+          class="flex items-center gap-1 px-2 py-1 rounded-md transition-colors text-[11px]"
+          :class="canUndo ? 'text-theme-secondary hover:bg-theme-tertiary' : 'text-theme-muted/30 cursor-not-allowed'"
+          :disabled="!canUndo"
+          @click="undo"
+          title="Undo (Ctrl+Z)"
+        >
+          <Icon name="Undo2" :size="12" />
+          Undo<template v-if="undoCount > 0"> ({{ undoCount }})</template>
+        </button>
+        <button
+          class="flex items-center gap-1 px-2 py-1 rounded-md transition-colors text-[11px]"
+          :class="canRedo ? 'text-theme-secondary hover:bg-theme-tertiary' : 'text-theme-muted/30 cursor-not-allowed'"
+          :disabled="!canRedo"
+          @click="redo"
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          <Icon name="Redo2" :size="12" />
+          Redo<template v-if="redoCount > 0"> ({{ redoCount }})</template>
+        </button>
+      </div>
       <span class="hidden sm:inline">Drag sections to reorder. Each widget moves independently. Double-click edges to resize.</span>
       <span class="sm:hidden">Long-press and drag to reorder sections.</span>
     </div>

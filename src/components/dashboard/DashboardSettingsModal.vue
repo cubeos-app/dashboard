@@ -16,6 +16,7 @@ import { ref, computed, watch, nextTick, defineComponent, h } from 'vue'
 import { useDashboardConfig, WIDGET_REGISTRY, ALL_WIDGET_IDS, ADVANCED_SECTION_REGISTRY, REFRESH_INTERVAL_OPTIONS } from '@/composables/useDashboardConfig'
 import { useDashboardResize } from '@/composables/useDashboardResize'
 import { useWidgetWebSocket } from '@/composables/useWidgetWebSocket'
+import { useDashboardPresets, BUILT_IN_PRESETS } from '@/composables/useDashboardPresets'
 
 // ─── Inline toggle component (render function, used only by this modal) ──
 const SettingsToggle = defineComponent({
@@ -59,12 +60,13 @@ const props = defineProps({
   show: { type: Boolean, required: true }
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'open-presets'])
 
 const { trapFocus } = useFocusTrap()
 const config = useDashboardConfig()
 const resize = useDashboardResize()
 const wsInfo = useWidgetWebSocket()
+const presets = useDashboardPresets()
 
 const panelRef = ref(null)
 
@@ -382,6 +384,55 @@ function formatRefreshLabel(seconds) {
             <!-- ══════════════════════════════════════════════ -->
             <template v-if="isAdvancedMode">
 
+              <!-- Section: Presets (Session 6) -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Presets</h3>
+                <button
+                  class="w-full flex items-center gap-3 p-3 rounded-xl border border-theme-primary bg-theme-secondary/30
+                         hover:border-accent/40 hover:bg-accent/5 transition-all text-left"
+                  @click="emit('open-presets'); emit('close')"
+                >
+                  <div class="w-9 h-9 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="LayoutTemplate" :size="16" class="text-theme-secondary" />
+                  </div>
+                  <div class="min-w-0">
+                    <span class="text-sm font-medium text-theme-primary">Choose a Preset</span>
+                    <p class="text-[11px] text-theme-muted">One-click layouts for common use cases</p>
+                  </div>
+                  <Icon name="ChevronRight" :size="14" class="text-theme-muted ml-auto flex-shrink-0" />
+                </button>
+              </section>
+
+              <!-- Section: Layout Lock (Session 6) -->
+              <section>
+                <div class="flex items-center justify-between py-1">
+                  <div class="flex items-center gap-2">
+                    <Icon name="Lock" :size="14" class="text-theme-secondary" />
+                    <span class="text-sm text-theme-secondary">Lock layout</span>
+                  </div>
+                  <button
+                    class="relative w-10 h-[22px] rounded-full transition-colors duration-200 flex-shrink-0"
+                    :class="config.isLayoutLocked.value ? 'bg-warning' : 'bg-theme-tertiary border border-theme-primary'"
+                    role="switch"
+                    :aria-checked="String(config.isLayoutLocked.value)"
+                    aria-label="Toggle layout lock"
+                    @click="config.toggleLayoutLock()"
+                  >
+                    <span
+                      :class="[
+                        'absolute top-0.5 w-[18px] h-[18px] rounded-full transition-transform duration-200 shadow-sm',
+                        config.isLayoutLocked.value
+                          ? 'translate-x-[22px] bg-white'
+                          : 'translate-x-0.5 bg-theme-muted'
+                      ]"
+                    ></span>
+                  </button>
+                </div>
+                <p v-if="config.isLayoutLocked.value" class="text-[11px] text-warning/70 mt-1">
+                  Layout editing is disabled. Toggle off to make changes.
+                </p>
+              </section>
+
               <!-- Section: Section Visibility (Session 1 — individual toggles) -->
               <section>
                 <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Section Visibility</h3>
@@ -516,6 +567,55 @@ function formatRefreshLabel(seconds) {
             <!-- ═══ STANDARD MODE SECTIONS ═══════════════════ -->
             <!-- ══════════════════════════════════════════════ -->
             <template v-else>
+
+              <!-- Section: Presets (Session 6) -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Presets</h3>
+                <button
+                  class="w-full flex items-center gap-3 p-3 rounded-xl border border-theme-primary bg-theme-secondary/30
+                         hover:border-accent/40 hover:bg-accent/5 transition-all text-left"
+                  @click="emit('open-presets'); emit('close')"
+                >
+                  <div class="w-9 h-9 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0">
+                    <Icon name="LayoutTemplate" :size="16" class="text-theme-secondary" />
+                  </div>
+                  <div class="min-w-0">
+                    <span class="text-sm font-medium text-theme-primary">Choose a Preset</span>
+                    <p class="text-[11px] text-theme-muted">One-click layouts for common use cases</p>
+                  </div>
+                  <Icon name="ChevronRight" :size="14" class="text-theme-muted ml-auto flex-shrink-0" />
+                </button>
+              </section>
+
+              <!-- Section: Layout Lock (Session 6) -->
+              <section>
+                <div class="flex items-center justify-between py-1">
+                  <div class="flex items-center gap-2">
+                    <Icon name="Lock" :size="14" class="text-theme-secondary" />
+                    <span class="text-sm text-theme-secondary">Lock layout</span>
+                  </div>
+                  <button
+                    class="relative w-10 h-[22px] rounded-full transition-colors duration-200 flex-shrink-0"
+                    :class="config.isLayoutLocked.value ? 'bg-warning' : 'bg-theme-tertiary border border-theme-primary'"
+                    role="switch"
+                    :aria-checked="String(config.isLayoutLocked.value)"
+                    aria-label="Toggle layout lock"
+                    @click="config.toggleLayoutLock()"
+                  >
+                    <span
+                      :class="[
+                        'absolute top-0.5 w-[18px] h-[18px] rounded-full transition-transform duration-200 shadow-sm',
+                        config.isLayoutLocked.value
+                          ? 'translate-x-[22px] bg-white'
+                          : 'translate-x-0.5 bg-theme-muted'
+                      ]"
+                    ></span>
+                  </button>
+                </div>
+                <p v-if="config.isLayoutLocked.value" class="text-[11px] text-warning/70 mt-1">
+                  Layout editing is disabled. Toggle off to make changes.
+                </p>
+              </section>
 
               <!-- ═══ Section: Clock & Date ═══ -->
               <section>
@@ -964,13 +1064,23 @@ function formatRefreshLabel(seconds) {
 
           <!-- Footer -->
           <div class="flex items-center justify-between p-5 border-t border-theme-primary flex-shrink-0">
-            <button
-              @click="handleReset"
-              class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-warning hover:bg-warning/10 transition-colors"
-            >
-              <Icon name="RotateCcw" :size="14" />
-              Reset to Defaults
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                @click="handleReset"
+                class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-warning hover:bg-warning/10 transition-colors"
+              >
+                <Icon name="RotateCcw" :size="14" />
+                Reset
+              </button>
+              <button
+                @click="presets.downloadExport()"
+                class="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs text-theme-muted hover:text-theme-secondary hover:bg-theme-tertiary transition-colors"
+                title="Export layout as JSON"
+              >
+                <Icon name="Download" :size="12" />
+                Export
+              </button>
+            </div>
             <button
               @click="handleClose"
               class="px-4 py-2 rounded-lg bg-theme-tertiary text-sm text-theme-secondary hover:text-theme-primary transition-colors"

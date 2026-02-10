@@ -168,6 +168,7 @@ const STANDARD_DEFAULTS = {
   widget_opacity: { clock: CLOCK_DEFAULT_OPACITY },
   widget_dimensions: {},
   widget_refresh_intervals: {},
+  layout_locked: false,
 }
 
 const ADVANCED_DEFAULTS = {
@@ -203,6 +204,7 @@ const ADVANCED_DEFAULTS = {
   widget_opacity: {},
   widget_dimensions: {},
   widget_refresh_intervals: {},
+  layout_locked: false,
   advanced_section_order: DEFAULT_ADVANCED_SECTION_ORDER,
 }
 
@@ -505,6 +507,26 @@ export function useDashboardConfig() {
     return updateConfig('widget_refresh_intervals', {})
   }
 
+  // ─── Layout Lock (Session 6) ─────────────────────────────────
+
+  /**
+   * Whether the layout is locked (prevents entering edit mode).
+   * Persisted per-mode.
+   */
+  const isLayoutLocked = computed(() => {
+    return boolOr(raw.value?.layout_locked, defaults.value.layout_locked ?? false)
+  })
+
+  /** Toggle layout lock on/off and persist */
+  async function toggleLayoutLock() {
+    return updateConfig('layout_locked', !isLayoutLocked.value)
+  }
+
+  /** Explicitly set layout lock state */
+  async function setLayoutLocked(locked) {
+    return updateConfig('layout_locked', locked)
+  }
+
   // ─── Persistence ──────────────────────────────────────────────
 
   async function updateConfig(key, value) {
@@ -596,6 +618,11 @@ export function useDashboardConfig() {
     getRefreshInterval,
     updateRefreshInterval,
     resetAllRefreshIntervals,
+
+    // Layout lock (Session 6)
+    isLayoutLocked,
+    toggleLayoutLock,
+    setLayoutLocked,
 
     // Raw access
     raw,

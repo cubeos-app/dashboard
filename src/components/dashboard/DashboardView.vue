@@ -1,6 +1,6 @@
 <script setup>
 /**
- * DashboardView.vue — Session 5 Update
+ * DashboardView.vue — Session 6 Update
  *
  * Dashboard shell that renders Standard or Advanced sub-view.
  * Hosts the settings gear icon and DashboardSettingsModal centrally
@@ -8,10 +8,14 @@
  *
  * Session C: Added edit mode toggle (pencil/check button).
  * Session 5: Added WebSocket connection state indicator.
+ * Session 6: Added layout lock icon, undo/redo keyboard shortcuts + buttons,
+ *            preset picker modal.
  *
  * Keyboard shortcuts:
  *   Ctrl+, (or Cmd+,) opens settings
  *   Escape exits edit mode
+ *   Ctrl+Z (or Cmd+Z) undo layout change (edit mode only)
+ *   Ctrl+Shift+Z (or Cmd+Shift+Z) redo layout change (edit mode only)
  */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -22,6 +26,7 @@ import { useNetworkStore } from '@/stores/network'
 import { useMonitoringStore } from '@/stores/monitoring'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { useMode } from '@/composables/useMode'
+import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
 import { useWidgetWebSocket, WS_STATE } from '@/composables/useWidgetWebSocket'
 import { safeGetItem, safeSetItem } from '@/utils/storage'
@@ -29,6 +34,7 @@ import Icon from '@/components/ui/Icon.vue'
 import DashboardStandard from './DashboardStandard.vue'
 import DashboardAdvanced from './DashboardAdvanced.vue'
 import DashboardSettingsModal from './DashboardSettingsModal.vue'
+import PresetPickerModal from './PresetPickerModal.vue'
 import AskCubeOS from '@/components/chat/AskCubeOS.vue'
 import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
 
@@ -40,7 +46,8 @@ const networkStore = useNetworkStore()
 const monitoringStore = useMonitoringStore()
 const { signal } = useAbortOnUnmount()
 const { isAdvanced } = useMode()
-const { isEditing, toggleEdit, exitEdit } = useDashboardEdit()
+const { isLayoutLocked } = useDashboardConfig()
+const { isEditing, toggleEdit, exitEdit, undo, redo, canUndo, canRedo, undoCount, redoCount } = useDashboardEdit()
 const { wsConnectionState } = useWidgetWebSocket()
 
 // Chat modal
@@ -53,6 +60,13 @@ const selectedApp = ref(null)
 
 // Settings modal (shared between Standard and Advanced)
 const showSettings = ref(false)
+
+// Preset picker modal (Session 6)
+const showPresetPicker = ref(false)
+
+// Lock toast (shown when clicking lock icon)
+const showLockToast = ref(false)
+let lockToastTimer = null
 
 // Ref to StandardDashboard for Ctrl+K
 const standardDashRef = ref(null)
@@ -87,10 +101,33 @@ function openChat() {
   showChatModal.value = true
 }
 
+// ─── Lock icon handler ────────────────────────────────────────────
+
+function handleLockedClick() {
+  // Show a brief toast directing user to settings
+  showLockToast.value = true
+  if (lockToastTimer) clearTimeout(lockToastTimer)
+  lockToastTimer = setTimeout(() => {
+    showLockToast.value = false
+  }, 2500)
+}
+
+// ─── Edit toggle with lock check ──────────────────────────────────
+
+function handleEditToggle() {
+  if (isLayoutLocked.value && !isEditing.value) {
+    handleLockedClick()
+    return
+  }
+  toggleEdit()
+}
+
 // ─── Keyboard shortcuts ───────────────────────────────────────────
 // Ctrl+K / Cmd+K → focus search (Standard mode)
 // Ctrl+, / Cmd+, → open settings
 // Escape → exit edit mode
+// Ctrl+Z → undo (edit mode)
+// Ctrl+Shift+Z → redo (edit mode)
 
 function handleFocusSearch() {
   if (!isAdvanced.value && standardDashRef.value?.searchBarRef) {
@@ -108,6 +145,20 @@ function handleKeydown(e) {
 
   const mod = e.metaKey || e.ctrlKey
   if (!mod) return
+
+  // Ctrl+Z → undo (edit mode only)
+  if (e.key === 'z' && !e.shiftKey && isEditing.value) {
+    e.preventDefault()
+    undo()
+    return
+  }
+
+  // Ctrl+Shift+Z → redo (edit mode only)
+  if (e.key === 'z' && e.shiftKey && isEditing.value) {
+    e.preventDefault()
+    redo()
+    return
+  }
 
   // Ctrl+, → open/close settings (only when not editing)
   if (e.key === ',') {
@@ -137,6 +188,7 @@ onMounted(async () => {
 onUnmounted(() => {
   appsStore.stopPolling()
   exitEdit()
+  if (lockToastTimer) clearTimeout(lockToastTimer)
   window.removeEventListener('cubeos:focus-search', handleFocusSearch)
   window.removeEventListener('keydown', handleKeydown)
 })
@@ -166,29 +218,83 @@ onUnmounted(() => {
         >Live</span>
       </div>
 
-      <!-- Edit mode: done/check button -->
-      <button
-        v-if="isEditing"
-        class="w-8 h-8 rounded-lg flex items-center justify-center
-               text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors"
-        aria-label="Done editing"
-        title="Done editing (Esc)"
-        @click="toggleEdit"
-      >
-        <Icon name="Check" :size="18" :stroke-width="2" />
-      </button>
-
-      <!-- Normal mode: edit pencil + settings gear -->
-      <template v-else>
+      <!-- Edit mode: undo/redo buttons + done/check button (Session 6) -->
+      <template v-if="isEditing">
+        <!-- Undo button -->
         <button
+          class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors relative"
+          :class="canUndo
+            ? 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary/50'
+            : 'text-theme-muted/30 cursor-not-allowed'"
+          :disabled="!canUndo"
+          aria-label="Undo (Ctrl+Z)"
+          :title="`Undo (${undoCount})`"
+          @click="undo"
+        >
+          <Icon name="Undo2" :size="16" :stroke-width="1.5" />
+          <span
+            v-if="undoCount > 0"
+            class="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-accent text-on-accent text-[8px] font-bold flex items-center justify-center"
+          >{{ undoCount > 9 ? '9+' : undoCount }}</span>
+        </button>
+
+        <!-- Redo button -->
+        <button
+          class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors relative"
+          :class="canRedo
+            ? 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary/50'
+            : 'text-theme-muted/30 cursor-not-allowed'"
+          :disabled="!canRedo"
+          aria-label="Redo (Ctrl+Shift+Z)"
+          :title="`Redo (${redoCount})`"
+          @click="redo"
+        >
+          <Icon name="Redo2" :size="16" :stroke-width="1.5" />
+          <span
+            v-if="redoCount > 0"
+            class="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-accent text-on-accent text-[8px] font-bold flex items-center justify-center"
+          >{{ redoCount > 9 ? '9+' : redoCount }}</span>
+        </button>
+
+        <!-- Done/check button -->
+        <button
+          class="w-8 h-8 rounded-lg flex items-center justify-center
+                 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors"
+          aria-label="Done editing"
+          title="Done editing (Esc)"
+          @click="toggleEdit"
+        >
+          <Icon name="Check" :size="18" :stroke-width="2" />
+        </button>
+      </template>
+
+      <!-- Normal mode: lock/edit pencil + settings gear -->
+      <template v-else>
+        <!-- Lock icon (shown when layout is locked, replaces pencil) -->
+        <button
+          v-if="isLayoutLocked"
+          class="w-8 h-8 rounded-lg flex items-center justify-center
+                 text-warning/60 hover:text-warning hover:bg-warning/10 transition-colors"
+          aria-label="Layout is locked"
+          title="Layout is locked. Unlock in Settings."
+          @click="handleLockedClick"
+        >
+          <Icon name="Lock" :size="16" :stroke-width="1.5" />
+        </button>
+
+        <!-- Edit pencil (shown when layout is NOT locked) -->
+        <button
+          v-else
           class="w-8 h-8 rounded-lg flex items-center justify-center
                  text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary/50 transition-colors"
           aria-label="Edit layout"
           title="Edit layout"
-          @click="toggleEdit"
+          @click="handleEditToggle"
         >
           <Icon name="Pencil" :size="16" :stroke-width="1.5" />
         </button>
+
+        <!-- Settings gear -->
         <button
           class="w-8 h-8 rounded-lg flex items-center justify-center
                  text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary/50 transition-colors"
@@ -200,6 +306,18 @@ onUnmounted(() => {
         </button>
       </template>
     </div>
+
+    <!-- Lock toast (Session 6) -->
+    <Transition name="toast-fade">
+      <div
+        v-if="showLockToast"
+        class="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-theme-card border border-warning/30
+               shadow-lg flex items-center gap-2 text-sm text-warning"
+      >
+        <Icon name="Lock" :size="14" />
+        <span>Layout is locked. Unlock in Settings.</span>
+      </div>
+    </Transition>
 
     <!-- Mode-aware sub-view -->
     <DashboardAdvanced
@@ -223,6 +341,12 @@ onUnmounted(() => {
     <DashboardSettingsModal
       :show="showSettings"
       @close="showSettings = false"
+      @open-presets="showPresetPicker = true"
+    />
+
+    <PresetPickerModal
+      :show="showPresetPicker"
+      @close="showPresetPicker = false"
     />
 
     <AskCubeOS
@@ -239,3 +363,18 @@ onUnmounted(() => {
     />
   </div>
 </template>
+
+<style scoped>
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast-fade-enter-from {
+  opacity: 0;
+  transform: translate(-50%, -8px);
+}
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -8px);
+}
+</style>

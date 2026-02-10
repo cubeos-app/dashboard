@@ -1,17 +1,18 @@
 /**
- * useDashboardEdit.js — Session 1
+ * useDashboardEdit.js — Session 6
  *
  * Manages dashboard edit mode state: editing toggle, drag tracking,
- * drop handling, and layout persistence. Uses HTML5 Drag and Drop API.
+ * drop handling, layout persistence, and undo/redo history.
  *
  * SESSION 1: Restored left/right position handling in handleDrop().
- * DnD now supports both vertical reorder (before/after) AND side-by-side
- * pairing (left/right). Max 2 widgets per row enforced.
+ * SESSION 6: Added undo/redo stack. Before each layout mutation, the
+ *            current state is pushed to the undo stack. Max 20 entries.
+ *            Stacks are cleared on exit edit mode.
  *
  * Usage:
- *   const { isEditing, toggleEdit, startDrag, endDrag, handleDrop } = useDashboardEdit()
+ *   const { isEditing, toggleEdit, handleDrop, undo, redo, undoCount, redoCount } = useDashboardEdit()
  */
-import { ref, readonly } from 'vue'
+import { ref, readonly, computed } from 'vue'
 import { useDashboardConfig } from '@/composables/useDashboardConfig'
 
 // ─── Shared state (singleton across components) ──────────────
@@ -19,15 +20,89 @@ const isEditing = ref(false)
 const dragWidgetId = ref(null)
 const dragSourceRowIdx = ref(null)
 
-export function useDashboardEdit() {
-  const { gridLayout, updateGridLayout } = useDashboardConfig()
+// ─── Undo/Redo stacks (Session 6) ────────────────────────────
+const MAX_HISTORY = 20
+const undoStack = ref([])   // Array of { gridLayout, advancedSectionOrder }
+const redoStack = ref([])
 
-  /** Toggle edit mode on/off. Clears drag state on exit. */
+export function useDashboardEdit() {
+  const config = useDashboardConfig()
+  const { gridLayout, updateGridLayout, advancedSectionOrder, updateAdvancedSectionOrder } = config
+
+  // ─── Snapshot helpers ───────────────────────────────────────
+
+  /** Capture the current layout state as a snapshot */
+  function captureSnapshot() {
+    return {
+      gridLayout: gridLayout.value.map(entry => ({ row: [...entry.row] })),
+      advancedSectionOrder: advancedSectionOrder.value ? [...advancedSectionOrder.value] : null,
+    }
+  }
+
+  /** Push current state to undo stack. Clears redo stack (new branch). */
+  function pushUndo() {
+    const snapshot = captureSnapshot()
+    undoStack.value.push(snapshot)
+    if (undoStack.value.length > MAX_HISTORY) {
+      undoStack.value.shift() // Remove oldest entry
+    }
+    redoStack.value = [] // New mutation clears redo
+  }
+
+  /** Restore a snapshot to the layout */
+  async function restoreSnapshot(snapshot) {
+    if (snapshot.gridLayout) {
+      await updateGridLayout(snapshot.gridLayout)
+    }
+    if (snapshot.advancedSectionOrder) {
+      await updateAdvancedSectionOrder(snapshot.advancedSectionOrder)
+    }
+  }
+
+  // ─── Public undo/redo ───────────────────────────────────────
+
+  /** Undo the last layout change */
+  async function undo() {
+    if (undoStack.value.length === 0) return
+
+    // Save current state to redo stack before undoing
+    const currentSnapshot = captureSnapshot()
+    redoStack.value.push(currentSnapshot)
+
+    // Pop the last undo state and restore it
+    const previousSnapshot = undoStack.value.pop()
+    await restoreSnapshot(previousSnapshot)
+  }
+
+  /** Redo the last undone layout change */
+  async function redo() {
+    if (redoStack.value.length === 0) return
+
+    // Save current state to undo stack before redoing
+    const currentSnapshot = captureSnapshot()
+    undoStack.value.push(currentSnapshot)
+
+    // Pop the last redo state and restore it
+    const redoneSnapshot = redoStack.value.pop()
+    await restoreSnapshot(redoneSnapshot)
+  }
+
+  const undoCount = computed(() => undoStack.value.length)
+  const redoCount = computed(() => redoStack.value.length)
+  const canUndo = computed(() => undoStack.value.length > 0)
+  const canRedo = computed(() => redoStack.value.length > 0)
+
+  // ─── Edit mode toggle ──────────────────────────────────────
+
+  /** Toggle edit mode on/off. Clears drag state and undo/redo stacks on exit. */
   function toggleEdit() {
     isEditing.value = !isEditing.value
     if (!isEditing.value) {
       dragWidgetId.value = null
       dragSourceRowIdx.value = null
+      // Clear stacks on exit — changes are already persisted
+      undoStack.value = []
+      redoStack.value = []
     }
   }
 
@@ -36,7 +111,11 @@ export function useDashboardEdit() {
     isEditing.value = false
     dragWidgetId.value = null
     dragSourceRowIdx.value = null
+    undoStack.value = []
+    redoStack.value = []
   }
+
+  // ─── Drag helpers ──────────────────────────────────────────
 
   /**
    * Called on dragstart. Records which widget is being dragged.
@@ -63,11 +142,7 @@ export function useDashboardEdit() {
    *   - 'left': insert widget to the LEFT of existing widget in targetRowIdx
    *   - 'right': insert widget to the RIGHT of existing widget in targetRowIdx
    *
-   * For left/right: row must have exactly 1 widget (max 2 per row enforced).
-   * If the target row already has 2 widgets, the drop is rejected.
-   *
-   * @param {number} targetRowIdx — row index (in unfiltered gridLayout) to drop relative to
-   * @param {'before'|'after'|'left'|'right'} position
+   * SESSION 6: Pushes current state to undo stack before mutating.
    */
   function handleDrop(targetRowIdx, position) {
     const wid = dragWidgetId.value
@@ -90,6 +165,9 @@ export function useDashboardEdit() {
       }
     }
 
+    // Push current state to undo stack BEFORE mutating
+    pushUndo()
+
     // 1. Find and remove widget from its source row
     for (let i = layout.length - 1; i >= 0; i--) {
       const idx = layout[i].row.indexOf(wid)
@@ -111,21 +189,17 @@ export function useDashboardEdit() {
 
     // 2. Insert widget at the target position
     if (position === 'left') {
-      // Insert at the beginning of the target row
       const targetRow = layout[targetRowIdx]
       if (targetRow && targetRow.row.length < 2) {
         targetRow.row.unshift(wid)
       } else {
-        // Fallback: insert as new row before target
         layout.splice(targetRowIdx, 0, { row: [wid] })
       }
     } else if (position === 'right') {
-      // Insert at the end of the target row
       const targetRow = layout[targetRowIdx]
       if (targetRow && targetRow.row.length < 2) {
         targetRow.row.push(wid)
       } else {
-        // Fallback: insert as new row after target
         const insertIdx = Math.min(targetRowIdx + 1, layout.length)
         layout.splice(insertIdx, 0, { row: [wid] })
       }
@@ -146,14 +220,28 @@ export function useDashboardEdit() {
   /**
    * Reorder entire rows (for Advanced mode).
    * Moves a row from srcIdx to destIdx.
+   * SESSION 6: Pushes to undo stack before mutating.
    */
   function reorderRow(srcIdx, destIdx) {
     const layout = gridLayout.value.map(entry => ({ row: [...entry.row] }))
     if (srcIdx < 0 || srcIdx >= layout.length) return
     if (destIdx < 0 || destIdx >= layout.length) return
+
+    pushUndo()
+
     const [moved] = layout.splice(srcIdx, 1)
     layout.splice(destIdx, 0, moved)
     updateGridLayout(layout)
+  }
+
+  /**
+   * Push undo state externally — for use by settings modal operations
+   * (split, merge, remove, add) that mutate layout outside of handleDrop.
+   */
+  function pushUndoExternal() {
+    if (isEditing.value) {
+      pushUndo()
+    }
   }
 
   return {
@@ -166,5 +254,14 @@ export function useDashboardEdit() {
     endDrag,
     handleDrop,
     reorderRow,
+
+    // Undo/redo (Session 6)
+    undo,
+    redo,
+    undoCount,
+    redoCount,
+    canUndo,
+    canRedo,
+    pushUndoExternal,
   }
 }
