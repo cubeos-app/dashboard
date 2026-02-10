@@ -210,10 +210,7 @@ const headerSubtitle = computed(() => {
       :app="detailApp"
       @close="closeDetail"
       @install="(storeId, appName, options) => {
-        const snap = detailApp.value
-        if (snap) {
-          startInstall(storeId, appName, snap, options)
-        }
+        startInstall(storeId, appName, detailApp, options)
         closeDetail()
       }"
     />
