@@ -9,10 +9,9 @@
  * updateConfig(key, value) that persists changes via PUT /preferences, correctly
  * nesting the update under the current mode key.
  *
- * SESSION 1: Changed default grid layouts to single-widget rows.
- * Removed forced pairing in migrateWidgetOrderToGrid().
- * Added migrateAdvancedSectionOrder() to expand composite IDs.
- * Advanced mode now uses the same grid-row layout engine as Standard.
+ * SESSION A: Added grid_layout support (array of {row: string[]} objects).
+ * Replaces flat widget_order with row-based layout. Backward compatible:
+ * auto-derives grid_layout from widget_order if grid_layout is absent.
  *
  * Usage:
  *   const { gridLayout, updateGridLayout, updateConfig } = useDashboardConfig()
@@ -38,57 +37,27 @@ export const WIDGET_REGISTRY = {
 
 export const ALL_WIDGET_IDS = Object.keys(WIDGET_REGISTRY)
 
-/** Advanced-mode section IDs with metadata */
-export const ADVANCED_SECTION_REGISTRY = {
-  gauges:        { label: 'Status Gauges',   icon: 'Activity' },
-  infobar:       { label: 'Info Bar',        icon: 'Info' },
-  disk:          { label: 'Disk Usage',      icon: 'HardDrive' },
-  signals:       { label: 'Signals',         icon: 'Radio' },
-  swarm:         { label: 'Swarm Overview',  icon: 'Layers' },
-  alerts:        { label: 'Alerts Feed',     icon: 'Bell' },
-  favorites:     { label: 'Favorites',       icon: 'Star' },
-  core:          { label: 'Core Services',   icon: 'Box' },
-  'user-apps':   { label: 'User Apps',       icon: 'Package' },
-  'quick-links': { label: 'Quick Links',     icon: 'Zap' },
-}
-
-export const ALL_ADVANCED_SECTION_IDS = Object.keys(ADVANCED_SECTION_REGISTRY)
-
 // ─── Default grid layouts ───────────────────────────────────
 
 /** Default per-widget opacity (0=transparent, 100=opaque) */
 const DEFAULT_OPACITY = 100
 const CLOCK_DEFAULT_OPACITY = 0  // backward compat: clock was fully transparent
 
-/**
- * SESSION 1: All single-widget rows by default.
- * Users can pair widgets via DnD (drag to side) or Settings modal (Merge).
- */
 const STANDARD_GRID_LAYOUT = [
   { row: ['clock'] },
   { row: ['search'] },
   { row: ['status'] },
-  { row: ['vitals'] },
-  { row: ['network'] },
-  { row: ['disk'] },
-  { row: ['signals'] },
+  { row: ['vitals', 'network'] },
+  { row: ['disk', 'signals'] },
   { row: ['actions'] },
   { row: ['launcher'] },
 ]
 
 const ADVANCED_GRID_LAYOUT = [
-  { row: ['vitals'] },
-  { row: ['network'] },
-  { row: ['disk'] },
-  { row: ['signals'] },
+  { row: ['vitals', 'network'] },
+  { row: ['disk', 'signals'] },
   { row: ['actions'] },
   { row: ['launcher'] },
-]
-
-/** Default advanced section order — all individual IDs, no composites */
-const DEFAULT_ADVANCED_SECTION_ORDER = [
-  'gauges', 'infobar', 'disk', 'signals', 'swarm', 'alerts',
-  'favorites', 'core', 'user-apps', 'quick-links'
 ]
 
 // ─── Defaults (per mode) ─────────────────────────────────────
@@ -113,7 +82,7 @@ const STANDARD_DEFAULTS = {
   my_apps_rows: 2,
   favorite_cols: 4,
   quick_actions: ['add_app', 'network', 'storage', 'ask_cubeos'],
-  widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'disk', 'signals', 'actions', 'launcher'],
+  widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'disk-signals', 'actions', 'launcher'],
   grid_layout: STANDARD_GRID_LAYOUT,
   widget_opacity: { clock: CLOCK_DEFAULT_OPACITY },
 }
@@ -142,10 +111,9 @@ const ADVANCED_DEFAULTS = {
   my_apps_rows: 3,
   favorite_cols: 6,
   quick_actions: ['add_app', 'monitoring', 'logs', 'docs'],
-  widget_order: ['alerts', 'vitals', 'network', 'disk', 'signals', 'actions', 'launcher'],
+  widget_order: ['alerts', 'vitals', 'network', 'disk-signals', 'actions', 'launcher'],
   grid_layout: ADVANCED_GRID_LAYOUT,
   widget_opacity: {},
-  advanced_section_order: DEFAULT_ADVANCED_SECTION_ORDER,
 }
 
 const DEFAULTS_BY_MODE = {
@@ -163,65 +131,38 @@ function boolOr(val, def) {
 /**
  * Migrate a flat widget_order array to grid_layout rows.
  * Handles the legacy 'disk-signals' composite key by splitting it.
- *
- * SESSION 1: No longer forces vitals+network pairing. Each widget
- * gets its own row, matching the new single-widget-row default.
+ * Groups adjacent vitals+network into a paired row.
  */
 function migrateWidgetOrderToGrid(order) {
   if (!Array.isArray(order) || order.length === 0) return null
   const rows = []
-  for (let i = 0; i < order.length; i++) {
+  let i = 0
+  while (i < order.length) {
     const key = order[i]
+    const next = order[i + 1]
 
-    // Legacy composite key: 'disk-signals' → two separate rows
+    // Legacy composite key: 'disk-signals' → paired row
     if (key === 'disk-signals') {
-      rows.push({ row: ['disk'] })
-      rows.push({ row: ['signals'] })
+      rows.push({ row: ['disk', 'signals'] })
+      i++
       continue
     }
 
-    // Every widget gets its own row
+    // Group adjacent vitals+network into a paired row
+    if (
+      (key === 'vitals' && next === 'network') ||
+      (key === 'network' && next === 'vitals')
+    ) {
+      rows.push({ row: [key, next] })
+      i += 2
+      continue
+    }
+
+    // Single-widget row
     rows.push({ row: [key] })
+    i++
   }
   return rows
-}
-
-/**
- * Migrate legacy advanced_section_order with composite IDs.
- * Expands 'disk-signals' → 'disk', 'signals' and
- * 'swarm-alerts' → 'swarm', 'alerts', preserving relative order.
- * Returns null if no migration needed (no composite IDs found).
- */
-function migrateAdvancedSectionOrder(order) {
-  if (!Array.isArray(order)) return null
-
-  const COMPOSITES = {
-    'disk-signals': ['disk', 'signals'],
-    'swarm-alerts': ['swarm', 'alerts'],
-  }
-
-  let hasComposite = false
-  const expanded = []
-
-  for (const id of order) {
-    if (COMPOSITES[id]) {
-      hasComposite = true
-      expanded.push(...COMPOSITES[id])
-    } else {
-      expanded.push(id)
-    }
-  }
-
-  if (!hasComposite) return null
-
-  // Ensure all expected section IDs are present
-  for (const id of DEFAULT_ADVANCED_SECTION_ORDER) {
-    if (!expanded.includes(id)) {
-      expanded.push(id)
-    }
-  }
-
-  return expanded
 }
 
 /**
@@ -288,7 +229,7 @@ export function useDashboardConfig() {
   const quickActions = computed(() => raw.value?.quick_actions ?? defaults.value.quick_actions)
   const widgetOrder = computed(() => raw.value?.widget_order ?? defaults.value.widget_order)
 
-  // ─── Grid Layout (Session A, updated Session 1) ───────────────
+  // ─── Grid Layout (Session A) ──────────────────────────────────
 
   /**
    * Resolved grid layout: array of { row: string[] } objects.
@@ -340,28 +281,6 @@ export function useDashboardConfig() {
   /** Check if a widget is visible */
   function isWidgetVisible(id) {
     return visibilityMap.value[id] ?? true
-  }
-
-  // ─── Advanced section order (Session 1) ───────────────────────
-
-  /**
-   * Resolved advanced section order with migration from composite IDs.
-   * Returns array of individual section IDs.
-   */
-  const advancedSectionOrder = computed(() => {
-    const stored = raw.value?.advanced_section_order
-    if (Array.isArray(stored) && stored.length > 0) {
-      // Check if migration is needed (composite IDs present)
-      const migrated = migrateAdvancedSectionOrder(stored)
-      if (migrated) return migrated
-      return stored
-    }
-    return defaults.value.advanced_section_order ?? DEFAULT_ADVANCED_SECTION_ORDER
-  })
-
-  /** Persist advanced section order */
-  async function updateAdvancedSectionOrder(order) {
-    return updateConfig('advanced_section_order', order)
   }
 
   // ─── Widget Opacity (Session B) ───────────────────────────────
@@ -459,16 +378,12 @@ export function useDashboardConfig() {
     quickActions,
     widgetOrder,
 
-    // Grid layout (Session A, updated Session 1)
+    // Grid layout (Session A)
     gridLayout,
     placedWidgetIds,
     unplacedWidgetIds,
     visibilityMap,
     isWidgetVisible,
-
-    // Advanced section order (Session 1)
-    advancedSectionOrder,
-    updateAdvancedSectionOrder,
 
     // Widget opacity (Session B)
     widgetOpacity,

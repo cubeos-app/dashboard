@@ -1,12 +1,12 @@
 /**
- * useDashboardEdit.js — Session 1
+ * useDashboardEdit.js — DnD Bugfix
  *
  * Manages dashboard edit mode state: editing toggle, drag tracking,
  * drop handling, and layout persistence. Uses HTML5 Drag and Drop API.
  *
- * SESSION 1: Restored left/right position handling in handleDrop().
- * DnD now supports both vertical reorder (before/after) AND side-by-side
- * pairing (left/right). Max 2 widgets per row enforced.
+ * BUGFIX: Simplified handleDrop to row-reorder only (before/after).
+ * Removed left/right position handling that grouped widgets side-by-side.
+ * DnD now only moves entire rows up/down, per user requirement.
  *
  * Usage:
  *   const { isEditing, toggleEdit, startDrag, endDrag, handleDrop } = useDashboardEdit()
@@ -55,19 +55,13 @@ export function useDashboardEdit() {
   }
 
   /**
-   * Handle a drop event. Moves the dragged widget to the target location.
-   *
-   * SESSION 1: Supports four positions:
-   *   - 'before': insert widget as new row before targetRowIdx
-   *   - 'after': insert widget as new row after targetRowIdx
-   *   - 'left': insert widget to the LEFT of existing widget in targetRowIdx
-   *   - 'right': insert widget to the RIGHT of existing widget in targetRowIdx
-   *
-   * For left/right: row must have exactly 1 widget (max 2 per row enforced).
-   * If the target row already has 2 widgets, the drop is rejected.
+   * Handle a drop event. Moves the dragged widget's row to the target location.
+   * Row-reorder only: moves entire rows up/down. No side-by-side pairing.
    *
    * @param {number} targetRowIdx — row index (in unfiltered gridLayout) to drop relative to
-   * @param {'before'|'after'|'left'|'right'} position
+   * @param {'before'|'after'} position
+   *   - 'before': insert widget as new row before targetRowIdx
+   *   - 'after': insert widget as new row after targetRowIdx
    */
   function handleDrop(targetRowIdx, position) {
     const wid = dragWidgetId.value
@@ -76,32 +70,19 @@ export function useDashboardEdit() {
     // Deep-clone current layout
     const layout = gridLayout.value.map(entry => ({ row: [...entry.row] }))
 
-    // For left/right: check that the target row can accept another widget
-    if (position === 'left' || position === 'right') {
-      const targetRow = layout[targetRowIdx]
-      if (!targetRow || targetRow.row.length >= 2) {
-        endDrag()
-        return
-      }
-      // Don't drop onto self (widget already in this row)
-      if (targetRow.row.includes(wid)) {
-        endDrag()
-        return
-      }
-    }
-
     // 1. Find and remove widget from its source row
+    let removedFromIdx = -1
     for (let i = layout.length - 1; i >= 0; i--) {
       const idx = layout[i].row.indexOf(wid)
       if (idx !== -1) {
         layout[i].row.splice(idx, 1)
+        removedFromIdx = i
         // Remove row if now empty
         if (layout[i].row.length === 0) {
           layout.splice(i, 1)
-          // Adjust targetRowIdx if the removed row was before it
+          // Adjust targetRowIdx if the removed row was before/at it
           if (i < targetRowIdx) targetRowIdx--
           else if (i === targetRowIdx) {
-            // Target row was removed — fall back to safe insert
             targetRowIdx = Math.min(targetRowIdx, layout.length)
           }
         }
@@ -109,27 +90,8 @@ export function useDashboardEdit() {
       }
     }
 
-    // 2. Insert widget at the target position
-    if (position === 'left') {
-      // Insert at the beginning of the target row
-      const targetRow = layout[targetRowIdx]
-      if (targetRow && targetRow.row.length < 2) {
-        targetRow.row.unshift(wid)
-      } else {
-        // Fallback: insert as new row before target
-        layout.splice(targetRowIdx, 0, { row: [wid] })
-      }
-    } else if (position === 'right') {
-      // Insert at the end of the target row
-      const targetRow = layout[targetRowIdx]
-      if (targetRow && targetRow.row.length < 2) {
-        targetRow.row.push(wid)
-      } else {
-        // Fallback: insert as new row after target
-        const insertIdx = Math.min(targetRowIdx + 1, layout.length)
-        layout.splice(insertIdx, 0, { row: [wid] })
-      }
-    } else if (position === 'before') {
+    // 2. Insert widget as a new single-widget row at the target position
+    if (position === 'before') {
       const insertIdx = Math.max(0, Math.min(targetRowIdx, layout.length))
       layout.splice(insertIdx, 0, { row: [wid] })
     } else {

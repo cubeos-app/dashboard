@@ -1,15 +1,19 @@
 <script setup>
 /**
- * DashboardAdvanced.vue — Session 1
+ * DashboardAdvanced.vue — Session C Fix
  *
  * Advanced mode ("kung fu mode") dashboard view.
  * All sections respect useDashboardConfig toggles for customization.
  *
- * SESSION 1: Broke composite sections into independent draggable widgets.
- * - 'disk-signals' → separate 'disk' and 'signals' sections
- * - 'swarm-alerts' → separate 'swarm' and 'alerts' sections
- * Each section is independently positionable via DnD.
- * Uses advancedSectionOrder from useDashboardConfig (with composite ID migration).
+ * Session C: Added isEditing prop. When editing, sections show drag handles
+ * and can be reordered via HTML5 Drag and Drop (row-level only, no 2-col pairing).
+ * Section order persists via config key 'advanced_section_order'.
+ *
+ * FIX: Added transparent interaction overlay per section during edit mode.
+ * Without this overlay, interactive elements inside sections (buttons, links,
+ * card click handlers) capture mousedown events and prevent the parent's
+ * HTML5 draggable from initiating the drag. The overlay sits above section
+ * content but below the drag handle badge.
  */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -18,7 +22,7 @@ import { useAppsStore, DEPLOY_MODES } from '@/stores/apps'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useMonitoringStore } from '@/stores/monitoring'
 import { useNetworkStore } from '@/stores/network'
-import { useDashboardConfig, ADVANCED_SECTION_REGISTRY } from '@/composables/useDashboardConfig'
+import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
 import StatusCard from './StatusCard.vue'
@@ -57,28 +61,40 @@ const {
   showSignals,
   raw,
   updateConfig,
-  advancedSectionOrder,
-  updateAdvancedSectionOrder,
 } = useDashboardConfig()
 
-// ─── Section order (Advanced-specific, Session 1 — individual IDs) ──
+// ─── Section order (Advanced-specific) ──────────────────────────
 
-const SECTION_LABELS = computed(() => {
-  const labels = {}
-  for (const [id, meta] of Object.entries(ADVANCED_SECTION_REGISTRY)) {
-    labels[id] = meta.label
+const DEFAULT_SECTION_ORDER = [
+  'gauges', 'infobar', 'disk-signals', 'swarm-alerts',
+  'favorites', 'core', 'user-apps', 'quick-links'
+]
+
+const SECTION_LABELS = {
+  'gauges': 'Status Gauges',
+  'infobar': 'Info Bar',
+  'disk-signals': 'Disk & Signals',
+  'swarm-alerts': 'Swarm & Alerts',
+  'favorites': 'Favorites',
+  'core': 'Core Services',
+  'user-apps': 'User Apps',
+  'quick-links': 'Quick Links',
+}
+
+const sectionOrder = computed(() => {
+  const stored = raw.value?.advanced_section_order
+  if (Array.isArray(stored) && stored.length === DEFAULT_SECTION_ORDER.length) {
+    return stored
   }
-  return labels
+  return DEFAULT_SECTION_ORDER
 })
 
 /** Which sections are visible based on config toggles */
 const sectionVisibility = computed(() => ({
   'gauges': showSystemVitals.value,
   'infobar': showInfoBar.value,
-  'disk': showDisk.value,
-  'signals': showSignals.value,
-  'swarm': showSwarm.value,
-  'alerts': showAlerts.value,
+  'disk-signals': showDisk.value || showSignals.value,
+  'swarm-alerts': showSwarm.value || showAlerts.value,
   'favorites': showFavorites.value && favoriteApps.value.length > 0,
   'core': showCoreServices.value,
   'user-apps': showMyApps.value && userApps.value.length > 0,
@@ -86,7 +102,7 @@ const sectionVisibility = computed(() => ({
 }))
 
 const visibleSections = computed(() =>
-  advancedSectionOrder.value.filter(id => sectionVisibility.value[id])
+  sectionOrder.value.filter(id => sectionVisibility.value[id])
 )
 
 // ─── Section drag state ─────────────────────────────────────────
@@ -125,7 +141,7 @@ function onSectionDrop(e, targetSectionId) {
     return
   }
 
-  const order = [...advancedSectionOrder.value]
+  const order = [...sectionOrder.value]
   const srcIdx = order.indexOf(srcId)
   const destIdx = order.indexOf(targetSectionId)
   if (srcIdx === -1 || destIdx === -1) return
@@ -133,7 +149,7 @@ function onSectionDrop(e, targetSectionId) {
   order.splice(srcIdx, 1)
   order.splice(destIdx, 0, srcId)
 
-  updateAdvancedSectionOrder(order)
+  updateConfig('advanced_section_order', order)
   dragSectionId.value = null
   dragOverSectionId.value = null
 }
@@ -212,7 +228,7 @@ function goToAppStore() { router.push('/appstore') }
       v-if="isEditing"
       class="text-center py-2 text-xs text-theme-muted select-none"
     >
-      Drag sections to reorder. Each widget moves independently.
+      Drag sections to reorder.
     </div>
 
     <!-- Empty state when all sections hidden -->
@@ -229,7 +245,7 @@ function goToAppStore() { router.push('/appstore') }
       </p>
     </div>
 
-    <!-- Sections rendered in order — each is independently draggable -->
+    <!-- Sections rendered in order -->
     <template v-for="sectionId in visibleSections" :key="sectionId">
       <div
         class="relative"
@@ -355,33 +371,35 @@ function goToAppStore() { router.push('/appstore') }
           </div>
         </section>
 
-        <!-- ═══ Disk (independent) ═══ -->
-        <section v-if="sectionId === 'disk'" class="animate-fade-in">
-          <WidgetWrapper widget-id="disk">
+        <!-- ═══ Disk + Signals ═══ -->
+        <div
+          v-if="sectionId === 'disk-signals'"
+          class="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-fade-in"
+        >
+          <WidgetWrapper v-if="showDisk" widget-id="disk">
             <DiskWidget />
           </WidgetWrapper>
-        </section>
-
-        <!-- ═══ Signals (independent) ═══ -->
-        <section v-if="sectionId === 'signals'" class="animate-fade-in">
-          <WidgetWrapper widget-id="signals">
+          <WidgetWrapper v-if="showSignals" widget-id="signals">
             <SignalsWidget />
           </WidgetWrapper>
-        </section>
+        </div>
 
-        <!-- ═══ Swarm Overview (independent) ═══ -->
-        <section v-if="sectionId === 'swarm'" class="animate-fade-in">
-          <SwarmOverview />
-        </section>
-
-        <!-- ═══ Alerts Feed (independent) ═══ -->
-        <section v-if="sectionId === 'alerts'" class="animate-fade-in">
-          <AlertsFeed
-            :alerts="alerts"
-            :loading="monitoringStore.loading"
-            :limit="6"
-          />
-        </section>
+        <!-- ═══ Swarm + Alerts ═══ -->
+        <div
+          v-if="sectionId === 'swarm-alerts'"
+          class="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        >
+          <section v-if="showSwarm" class="lg:col-span-2 animate-fade-in">
+            <SwarmOverview />
+          </section>
+          <section v-if="showAlerts" class="animate-fade-in" :class="showSwarm ? '' : 'lg:col-span-3'">
+            <AlertsFeed
+              :alerts="alerts"
+              :loading="monitoringStore.loading"
+              :limit="6"
+            />
+          </section>
+        </div>
 
         <!-- ═══ Favorites ═══ -->
         <section v-if="sectionId === 'favorites'" class="animate-fade-in">
