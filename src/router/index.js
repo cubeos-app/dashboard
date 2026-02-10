@@ -50,7 +50,7 @@ const routes = [
   {
     path: '/apps',
     name: 'apps',
-    component: () => import('@/components/apps/AppsView.vue'),
+    component: () => import('@/components/apps/AppsPage.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -108,8 +108,7 @@ const routes = [
   {
     path: '/appstore',
     name: 'appstore',
-    component: () => import('@/components/appstore/AppStoreView.vue'),
-    meta: { requiresAuth: true }
+    redirect: '/apps?tab=store'
   },
   {
     path: '/appstore/config/:appId',

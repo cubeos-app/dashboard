@@ -262,8 +262,7 @@ export const useSetupStore = defineStore('setup', () => {
       status.value = { is_complete: true }
       return true
     } catch (e) {
-      // TODO: ⚡ If /setup/complete endpoint doesn't exist yet, fall back to preferences
-      // Remove this fallback once backend implements the endpoint
+      // Fallback to preferences if /setup/complete fails for any reason
       try {
         const { usePreferencesStore } = await import('@/stores/preferences')
         const preferencesStore = usePreferencesStore()

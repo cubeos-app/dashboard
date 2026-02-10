@@ -10,7 +10,7 @@
  * - GET /registry/status, /registry/images, /registry/disk-usage
  * 
  * NOTE: Some methods (initRegistry, cacheImage, setProfileApp, getAvailablePort)
- * are stubs awaiting backend implementation. See TODO markers.
+ * are wired to backend endpoints. See respective JSDoc for endpoint details.
  */
 
 import { defineStore } from 'pinia'
@@ -272,7 +272,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
 
   /**
    * Enable/disable an app within a profile
-   * TODO: ⚡ Backend endpoint not yet implemented — needs PUT /profiles/{name}/apps/{appId} or similar
+   * PUT /profiles/{name}/apps/{appId}
    * Called by ProfilesTab.vue:62
    *
    * @param {string} profileName - Profile name (not ID)
@@ -324,7 +324,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
 
   /**
    * Initialize (start) the local Docker registry
-   * TODO: ⚡ Backend endpoint not yet implemented — needs POST /registry/init or similar
+   * POST /registry/init
    * Called by RegistryTab.vue:81
    */
   async function initRegistry() {
@@ -341,7 +341,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
 
   /**
    * Cache (pull) a remote image into the local registry
-   * TODO: ⚡ Backend endpoint not yet implemented — needs POST /registry/cache
+   * POST /registry/cache
    * Called by RegistryTab.vue:95
    *
    * @param {string} imageRef - Full image reference (e.g. "nginx:latest")
@@ -363,14 +363,17 @@ export const useAppManagerStore = defineStore('appmanager', () => {
    * Called by RegistryTab.vue:177
    *
    * @param {string} name - Image name
-   * @param {string} [tag] - Optional tag (currently ignored — deletes entire image)
+   * @param {string} [tag] - Optional tag; if provided, deletes only that tag
    */
   async function deleteRegistryImage(name, tag) {
     error.value = null
     try {
-      // TODO: ⚡ When backend supports tag-level deletion, use /registry/images/{name}/tags/{tag}
       const encoded = encodeURIComponent(name)
-      await api.delete(`/registry/images/${encoded}`)
+      if (tag) {
+        await api.delete(`/registry/images/${encoded}/tags/${encodeURIComponent(tag)}`)
+      } else {
+        await api.delete(`/registry/images/${encoded}`)
+      }
     } catch (e) {
       error.value = e.message
       throw e
@@ -488,7 +491,7 @@ export const useAppManagerStore = defineStore('appmanager', () => {
 
   /**
    * Get next available port in the given range
-   * TODO: ⚡ Backend endpoint not yet implemented — needs GET /ports/available?type={type}
+   * GET /ports/available?type={type}
    * Falls back to local computation from known ports.
    * Called by PortsTab.vue:36
    *
