@@ -385,6 +385,31 @@ body {
   animation: slide-in var(--transition-base) ease-out;
 }
 
+/* Dashboard staggered reveal — sections fade+rise in sequence */
+@keyframes dash-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dash-stagger {
+  animation: dash-reveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.dash-stagger:nth-child(1) { animation-delay: 0ms; }
+.dash-stagger:nth-child(2) { animation-delay: 60ms; }
+.dash-stagger:nth-child(3) { animation-delay: 120ms; }
+.dash-stagger:nth-child(4) { animation-delay: 180ms; }
+.dash-stagger:nth-child(5) { animation-delay: 240ms; }
+.dash-stagger:nth-child(6) { animation-delay: 300ms; }
+.dash-stagger:nth-child(7) { animation-delay: 360ms; }
+.dash-stagger:nth-child(8) { animation-delay: 420ms; }
+
 /* Vue transitions */
 .fade-enter-active,
 .fade-leave-active {

@@ -1,14 +1,10 @@
 <script setup>
 /**
- * StatusPill.vue — S13
+ * StatusPill.vue — S13 Visual Upgrade
  *
- * Single-line health summary for Standard dashboard.
- * Replaces the 4 large gauge rings with a compact status indicator.
- *
- * Status levels:
- *   Green  — Everything normal
- *   Amber  — Warning threshold (temp >70°C, disk >85%, memory >90%)
- *   Red    — Critical (temp >80°C, disk >95%, core service down)
+ * Enhanced status bar for Standard dashboard.
+ * Shows: health status, running apps, connected devices, network mode, uptime.
+ * Subtle gradient background that shifts color based on system health.
  */
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -31,54 +27,34 @@ const THRESHOLDS = {
   memory: { warning: 90, critical: 95 }
 }
 
-// ─── Computed values ─────────────────────────────────────────────
 const temp = computed(() => systemStore.temperature ?? 0)
 const disk = computed(() => systemStore.diskUsage ?? 0)
 const memory = computed(() => systemStore.memoryUsage ?? 0)
 const runningCount = computed(() => appsStore.runningCount)
-const appCount = computed(() => appsStore.appCount)
+const wifiClients = computed(() => systemStore.wifiClients)
+const uptimeHuman = computed(() => systemStore.uptime?.uptime_human || null)
 
 const networkModeLabel = computed(() => {
   const mode = networkStore.currentMode
-  const labels = {
-    offline: 'Offline',
-    online_eth: 'Online (ETH)',
-    online_wifi: 'Online (WiFi)'
-  }
+  const labels = { offline: 'Offline', online_eth: 'Online', online_wifi: 'WiFi' }
   return labels[mode] || 'Unknown'
 })
 
-// ─── Status computation ──────────────────────────────────────────
-const issues = computed(() => {
-  const problems = []
-
-  if (temp.value > THRESHOLDS.temp.critical) {
-    problems.push({ severity: 'critical', text: `Temperature critical (${Math.round(temp.value)}°C)` })
-  } else if (temp.value > THRESHOLDS.temp.warning) {
-    problems.push({ severity: 'warning', text: `High temperature (${Math.round(temp.value)}°C)` })
-  }
-
-  if (disk.value > THRESHOLDS.disk.critical) {
-    problems.push({ severity: 'critical', text: `Disk almost full (${disk.value}%)` })
-  } else if (disk.value > THRESHOLDS.disk.warning) {
-    problems.push({ severity: 'warning', text: `Disk usage high (${disk.value}%)` })
-  }
-
-  if (memory.value > THRESHOLDS.memory.critical) {
-    problems.push({ severity: 'critical', text: `Memory critical (${memory.value}%)` })
-  } else if (memory.value > THRESHOLDS.memory.warning) {
-    problems.push({ severity: 'warning', text: `Memory usage high (${memory.value}%)` })
-  }
-
-  return problems
+const networkModeIcon = computed(() => {
+  const mode = networkStore.currentMode
+  if (mode === 'offline') return 'WifiOff'
+  if (mode === 'online_wifi') return 'Wifi'
+  return 'Globe'
 })
 
+// ─── Health computation ──────────────────────────────────────────
 const status = computed(() => {
-  const hasCritical = issues.value.some(i => i.severity === 'critical')
-  const hasWarning = issues.value.some(i => i.severity === 'warning')
-
-  if (hasCritical) return 'critical'
-  if (hasWarning) return 'warning'
+  if (temp.value > THRESHOLDS.temp.critical) return 'critical'
+  if (disk.value > THRESHOLDS.disk.critical) return 'critical'
+  if (memory.value > THRESHOLDS.memory.critical) return 'critical'
+  if (temp.value > THRESHOLDS.temp.warning) return 'warning'
+  if (disk.value > THRESHOLDS.disk.warning) return 'warning'
+  if (memory.value > THRESHOLDS.memory.warning) return 'warning'
   return 'healthy'
 })
 
@@ -88,50 +64,83 @@ const dotClass = computed(() => ({
   'bg-error': status.value === 'critical'
 }))
 
-const statusText = computed(() => {
-  if (status.value === 'critical') {
-    const issue = issues.value.find(i => i.severity === 'critical')
-    return `System attention needed \u00B7 ${issue?.text}`
-  }
-  if (status.value === 'warning') {
-    const issue = issues.value.find(i => i.severity === 'warning')
-    return issue?.text || 'Warning'
-  }
-  return 'All systems healthy'
+const pillBg = computed(() => {
+  if (wallpaperActive.value) return 'bg-white/[0.03] border border-white/[0.06]'
+  if (status.value === 'critical') return 'bg-error/[0.06] border border-error/20'
+  if (status.value === 'warning') return 'bg-warning/[0.04] border border-warning/15'
+  return 'bg-theme-card border border-theme-primary'
 })
 
-const summaryText = computed(() => {
-  const parts = [statusText.value]
-  parts.push(`${runningCount.value} app${runningCount.value !== 1 ? 's' : ''} running`)
-  parts.push(networkModeLabel.value)
-  return parts.join(' \u00B7 ')
-})
-
-// ─── Card class ──────────────────────────────────────────────────
-function cardClass() {
-  return wallpaperActive.value ? 'glass' : 'bg-theme-card border border-theme-primary'
+function cardBase() {
+  return wallpaperActive.value
+    ? 'bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm'
+    : 'bg-theme-card border border-theme-primary'
 }
 </script>
 
 <template>
-  <button
-    :class="cardClass()"
-    class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-left transition-all hover:ring-2 hover:ring-accent/20 animate-fade-in"
-    @click="router.push('/system')"
-    :title="'View system details'"
-  >
-    <!-- Status dot -->
-    <span
-      class="w-2.5 h-2.5 rounded-full shrink-0"
-      :class="dotClass"
-    />
+  <div class="dash-stagger">
+    <!-- Main status bar -->
+    <button
+      :class="pillBg"
+      class="w-full flex items-center gap-4 px-4 py-2.5 rounded-2xl text-left transition-all hover:shadow-md group"
+      @click="router.push('/system')"
+    >
+      <!-- Health dot with pulse -->
+      <span class="relative shrink-0">
+        <span class="w-2 h-2 rounded-full block" :class="dotClass" />
+        <span
+          v-if="status === 'healthy'"
+          class="absolute inset-0 w-2 h-2 rounded-full animate-ping opacity-30 bg-success"
+        />
+      </span>
 
-    <!-- Summary text -->
-    <span class="text-xs text-theme-secondary truncate">
-      {{ summaryText }}
-    </span>
+      <!-- Status chips -->
+      <div class="flex items-center gap-3 flex-1 overflow-x-auto no-scrollbar">
+        <!-- Health label -->
+        <span class="text-xs text-theme-secondary whitespace-nowrap">
+          {{ status === 'healthy' ? 'All systems go' : status === 'warning' ? 'Attention needed' : 'Critical issue' }}
+        </span>
 
-    <!-- Chevron -->
-    <Icon name="ChevronRight" :size="14" class="ml-auto text-theme-muted shrink-0" />
-  </button>
+        <span class="text-theme-muted text-[10px]">|</span>
+
+        <!-- Running apps -->
+        <span class="flex items-center gap-1 text-xs text-theme-muted whitespace-nowrap">
+          <Icon name="Box" :size="11" />
+          {{ runningCount }} running
+        </span>
+
+        <!-- Connected devices -->
+        <span v-if="wifiClients !== null" class="flex items-center gap-1 text-xs text-theme-muted whitespace-nowrap">
+          <Icon name="Smartphone" :size="11" />
+          {{ wifiClients }} device{{ wifiClients !== 1 ? 's' : '' }}
+        </span>
+
+        <!-- Network mode -->
+        <span class="flex items-center gap-1 text-xs text-theme-muted whitespace-nowrap">
+          <Icon :name="networkModeIcon" :size="11" />
+          {{ networkModeLabel }}
+        </span>
+
+        <!-- Uptime -->
+        <span v-if="uptimeHuman" class="flex items-center gap-1 text-xs text-theme-muted whitespace-nowrap">
+          <Icon name="Clock" :size="11" />
+          {{ uptimeHuman }}
+        </span>
+      </div>
+
+      <!-- Chevron -->
+      <Icon name="ChevronRight" :size="14" class="text-theme-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+    </button>
+  </div>
 </template>
+
+<style scoped>
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+</style>
