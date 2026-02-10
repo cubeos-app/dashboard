@@ -178,22 +178,21 @@ function openApp(app, e) {
 
     <!-- Search + Filter Bar -->
     <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-      <!-- Category breadcrumb or search -->
-      <div class="flex items-center gap-3 flex-1">
+      <!-- Category breadcrumb (only rendered when a category is active) -->
+      <div v-if="activeCategory" class="flex items-center gap-3 flex-1">
         <button
-          v-if="activeCategory"
           @click="clearCategory"
           class="p-1.5 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
           aria-label="Back to all apps"
         >
           <Icon name="ChevronLeft" :size="20" />
         </button>
-        <h2 v-if="activeCategory" class="text-lg font-semibold text-theme-primary">
+        <h2 class="text-lg font-semibold text-theme-primary">
           {{ categoryTitle }}
         </h2>
       </div>
 
-      <div class="relative w-full sm:w-72">
+      <div class="relative" :class="activeCategory ? 'w-full sm:w-72' : 'w-full sm:w-80'">
         <Icon name="Search" :size="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted" />
         <input
           v-model="searchQuery"

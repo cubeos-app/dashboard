@@ -1,6 +1,6 @@
 <script setup>
 /**
- * DashboardAdvanced.vue — Session C Update
+ * DashboardAdvanced.vue — Session C Fix
  *
  * Advanced mode ("kung fu mode") dashboard view.
  * All sections respect useDashboardConfig toggles for customization.
@@ -8,6 +8,12 @@
  * Session C: Added isEditing prop. When editing, sections show drag handles
  * and can be reordered via HTML5 Drag and Drop (row-level only, no 2-col pairing).
  * Section order persists via config key 'advanced_section_order'.
+ *
+ * FIX: Added transparent interaction overlay per section during edit mode.
+ * Without this overlay, interactive elements inside sections (buttons, links,
+ * card click handlers) capture mousedown events and prevent the parent's
+ * HTML5 draggable from initiating the drag. The overlay sits above section
+ * content but below the drag handle badge.
  */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -251,14 +257,14 @@ function goToAppStore() { router.push('/appstore') }
         :draggable="isEditing"
         @dragstart="isEditing ? onSectionDragStart($event, sectionId) : null"
         @dragend="isEditing ? onSectionDragEnd() : null"
-        @dragover="isEditing ? onSectionDragOver($event, sectionId) : null"
+        @dragover.prevent="isEditing ? onSectionDragOver($event, sectionId) : null"
         @dragleave="isEditing ? onSectionDragLeave($event, sectionId) : null"
         @drop="isEditing ? onSectionDrop($event, sectionId) : null"
       >
         <!-- Drag handle (edit mode) -->
         <div
           v-if="isEditing"
-          class="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2.5 py-1
+          class="absolute -top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2.5 py-1
                  rounded-full bg-theme-secondary border border-theme-primary shadow-lg cursor-grab
                  active:cursor-grabbing select-none"
         >
@@ -267,6 +273,20 @@ function goToAppStore() { router.push('/appstore') }
             {{ SECTION_LABELS[sectionId] }}
           </span>
         </div>
+
+        <!--
+          Transparent interaction overlay — edit mode only.
+          Sits above section content (z-20) but below the drag handle (z-30).
+          Prevents buttons/links/inputs inside the section from capturing
+          mousedown events that would block the parent's HTML5 drag.
+          Without this overlay, interactive elements (ServiceGrid buttons,
+          Quick Links buttons, Favorites clickables, etc.) consume the
+          mousedown and the draggable never fires dragstart.
+        -->
+        <div
+          v-if="isEditing"
+          class="absolute inset-0 z-20 cursor-grab active:cursor-grabbing rounded-xl"
+        ></div>
 
         <!-- ═══ Status Gauges ═══ -->
         <section v-if="sectionId === 'gauges'" class="animate-fade-in">

@@ -1,6 +1,6 @@
 <script setup>
 /**
- * WidgetWrapper.vue — Session C Update
+ * WidgetWrapper.vue — Session C Fix
  *
  * Thin wrapper that controls per-widget card background opacity (Session B)
  * AND provides drag-and-drop support in edit mode (Session C).
@@ -8,6 +8,14 @@
  * Session B: Sets --widget-bg-opacity CSS custom property.
  * Session C: When editing=true, shows a drag handle overlay, dashed border,
  *   and handles dragstart/dragend for HTML5 Drag and Drop.
+ *
+ * FIX: Added a transparent interaction overlay in edit mode. This overlay
+ * sits above the widget content (but below the drag handle badge) and
+ * captures mouse/touch events that would otherwise be swallowed by
+ * interactive children (buttons, links, inputs). Without this overlay,
+ * dragging from any interactive element inside the widget would fail
+ * because the element's own mousedown behavior takes priority over the
+ * parent's draggable attribute.
  *
  * Props:
  *   widget-id — widget ID for opacity lookup and drag identification
@@ -46,13 +54,8 @@ const isBeingDragged = computed(() => dragWidgetId.value === props.widgetId)
 function onDragStart(e) {
   isDragging.value = true
   startDrag(props.widgetId, props.rowIdx)
-  // Set drag data and ghost image
   e.dataTransfer.effectAllowed = 'move'
   e.dataTransfer.setData('text/plain', props.widgetId)
-  // Slight delay for the visual change to apply
-  requestAnimationFrame(() => {
-    isDragging.value = true
-  })
 }
 
 function onDragEnd() {
@@ -76,7 +79,7 @@ function onDragEnd() {
     <!-- Drag handle overlay (visible only in edit mode) -->
     <div
       v-if="editing"
-      class="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2.5 py-1
+      class="absolute -top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2.5 py-1
              rounded-full bg-theme-secondary border border-theme-primary shadow-lg cursor-grab
              active:cursor-grabbing select-none transition-opacity"
       :class="isDragging ? 'opacity-0' : 'opacity-100'"
@@ -84,6 +87,17 @@ function onDragEnd() {
       <Icon name="GripHorizontal" :size="12" class="text-theme-muted" />
       <span class="text-[10px] font-medium text-theme-secondary whitespace-nowrap">{{ widgetLabel }}</span>
     </div>
+
+    <!--
+      Transparent interaction overlay — edit mode only.
+      Sits above widget content (z-20) but below the drag handle (z-30).
+      Prevents buttons/links/inputs inside the widget from capturing
+      mousedown events that would block the parent's HTML5 drag.
+    -->
+    <div
+      v-if="editing"
+      class="absolute inset-0 z-20 cursor-grab active:cursor-grabbing rounded-2xl"
+    ></div>
 
     <slot />
   </div>

@@ -1,12 +1,19 @@
 <script setup>
 /**
- * DashboardStandard.vue — Session C: Drag-and-Drop Edit Mode
+ * DashboardStandard.vue — Session C Fix
  *
  * Standard mode ("consumer mode") dashboard.
  * Session A: Row-based grid layout from useDashboardConfig.gridLayout.
  * Session B: Widgets wrapped in WidgetWrapper for per-widget opacity.
  * Session C: When isEditing=true, widgets become draggable with drop zones
  *   between rows and beside single-widget rows.
+ *
+ * FIX: gridRows now carries `layoutIdx` — the original unfiltered index
+ * into gridLayout — so drop handlers always target the correct row even
+ * when some rows are hidden (show_disk=false, etc.).
+ *
+ * FIX: Side drop zones use absolute positioning instead of being grid
+ * children, preventing them from stacking vertically in grid-cols-1.
  *
  * HTML5 Drag and Drop API — no library dependency.
  */
@@ -61,34 +68,34 @@ const searchBarRef = ref(null)
 defineExpose({ searchBarRef })
 
 // ─── Drop zone state ──────────────────────────────────────────────
-// Tracks which drop zone is currently highlighted
-const activeDropZone = ref(null) // e.g. "before-0", "after-2", "left-1", "right-1"
+// Tracks which drop zone is currently highlighted.
+// Keys use the ORIGINAL gridLayout index (layoutIdx), not the filtered row index.
+const activeDropZone = ref(null)
 
-function dropZoneId(position, rowIdx) {
-  return `${position}-${rowIdx}`
+function dropZoneId(position, layoutIdx) {
+  return `${position}-${layoutIdx}`
 }
 
-function onDragOver(e, position, rowIdx) {
+function onDragOver(e, position, layoutIdx) {
   e.preventDefault()
   e.dataTransfer.dropEffect = 'move'
-  activeDropZone.value = dropZoneId(position, rowIdx)
+  activeDropZone.value = dropZoneId(position, layoutIdx)
 }
 
-function onDragLeave(e, position, rowIdx) {
-  // Only deactivate if we're actually leaving (not entering a child)
-  if (activeDropZone.value === dropZoneId(position, rowIdx)) {
+function onDragLeave(e, position, layoutIdx) {
+  if (activeDropZone.value === dropZoneId(position, layoutIdx)) {
     activeDropZone.value = null
   }
 }
 
-function onDrop(e, position, rowIdx) {
+function onDrop(e, position, layoutIdx) {
   e.preventDefault()
   activeDropZone.value = null
-  handleDrop(rowIdx, position)
+  handleDrop(layoutIdx, position)
 }
 
-function isDropActive(position, rowIdx) {
-  return activeDropZone.value === dropZoneId(position, rowIdx)
+function isDropActive(position, layoutIdx) {
+  return activeDropZone.value === dropZoneId(position, layoutIdx)
 }
 
 // ─── Quick actions pool (full definitions) ───────────────────
@@ -111,14 +118,19 @@ const filteredQuickActions = computed(() => {
     .filter(Boolean)
 })
 
-// ─── Grid rows (visibility-filtered) ────────────────────────
+// ─── Grid rows (visibility-filtered, with original layout index) ─
+//
+// CRITICAL: `layoutIdx` is the index in the unfiltered `gridLayout`.
+// All drop handlers must use `layoutIdx`, NOT the v-for iteration index,
+// because handleDrop() operates on the full (unfiltered) gridLayout array.
 
 const gridRows = computed(() => {
   return gridLayout.value
-    .map(entry => ({
+    .map((entry, originalIdx) => ({
       row: entry.row,
       visible: entry.row.filter(id => isWidgetVisible(id)),
       hasSearch: entry.row.includes('search') && isWidgetVisible('search'),
+      layoutIdx: originalIdx,
     }))
     .filter(entry => entry.visible.length > 0)
 })
@@ -165,141 +177,147 @@ const isAllHidden = computed(() => gridRows.value.length === 0)
     </div>
 
     <!-- Grid rows from grid_layout config -->
-    <template v-for="(entry, rowIdx) in gridRows" :key="rowIdx">
+    <template v-for="(entry, filteredIdx) in gridRows" :key="entry.layoutIdx">
       <!-- Drop zone BEFORE this row (insert as new row) -->
       <div
         v-if="isEditing && dragWidgetId"
         class="drop-zone-row"
-        :class="isDropActive('before', rowIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
-        @dragover.prevent="onDragOver($event, 'before', rowIdx)"
-        @dragleave="onDragLeave($event, 'before', rowIdx)"
-        @drop="onDrop($event, 'before', rowIdx)"
+        :class="isDropActive('before', entry.layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
+        @dragover.prevent="onDragOver($event, 'before', entry.layoutIdx)"
+        @dragleave="onDragLeave($event, 'before', entry.layoutIdx)"
+        @drop="onDrop($event, 'before', entry.layoutIdx)"
       >
         <div class="drop-zone-indicator">
           <Icon name="Plus" :size="12" />
         </div>
       </div>
 
-      <!-- Row container: 1-col on mobile, 2-col on lg+ -->
-      <div
-        class="grid grid-cols-1 gap-4 dash-stagger"
-        :class="entry.visible.length > 1 ? 'lg:grid-cols-2' : ''"
-      >
-        <!-- Side drop zone: LEFT (only for single-widget rows in edit mode) -->
+      <!-- Row wrapper with relative positioning for absolute side drop zones -->
+      <div class="relative">
+        <!-- Side drop zone: LEFT (single-widget rows only, lg+ only) -->
         <div
           v-if="isEditing && dragWidgetId && entry.visible.length === 1"
-          class="hidden lg:flex drop-zone-side"
-          :class="isDropActive('left', rowIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
-          @dragover.prevent="onDragOver($event, 'left', rowIdx)"
-          @dragleave="onDragLeave($event, 'left', rowIdx)"
-          @drop="onDrop($event, 'left', rowIdx)"
+          class="hidden lg:flex drop-zone-side drop-zone-side-left"
+          :class="isDropActive('left', entry.layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
+          @dragover.prevent="onDragOver($event, 'left', entry.layoutIdx)"
+          @dragleave="onDragLeave($event, 'left', entry.layoutIdx)"
+          @drop="onDrop($event, 'left', entry.layoutIdx)"
         >
           <div class="drop-zone-indicator">
             <Icon name="Plus" :size="14" />
           </div>
         </div>
 
-        <template v-for="widgetId in entry.visible" :key="widgetId">
+        <!-- Main grid: 1-col mobile, 2-col lg+ when paired -->
+        <div
+          class="grid grid-cols-1 gap-4 dash-stagger"
+          :class="{
+            'lg:grid-cols-2': entry.visible.length > 1,
+            'lg:mx-16': isEditing && dragWidgetId && entry.visible.length === 1,
+          }"
+        >
+          <template v-for="widgetId in entry.visible" :key="widgetId">
 
-          <!-- ═══ Clock ═══ -->
-          <WidgetWrapper v-if="widgetId === 'clock'" :widget-id="widgetId" :editing="isEditing" :row-idx="rowIdx">
-            <ClockWidget :card="true" />
-          </WidgetWrapper>
+            <!-- ═══ Clock ═══ -->
+            <WidgetWrapper v-if="widgetId === 'clock'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+              <ClockWidget :card="true" />
+            </WidgetWrapper>
 
-          <!-- ═══ Search + Chat bar ═══ -->
-          <WidgetWrapper v-if="widgetId === 'search'" :widget-id="widgetId" :editing="isEditing" :row-idx="rowIdx">
-            <SearchChatBar
-              ref="searchBarRef"
-              @open-app="(app) => emit('open-app', app)"
-              @open-chat="emit('open-chat')"
-            />
-          </WidgetWrapper>
+            <!-- ═══ Search + Chat bar ═══ -->
+            <WidgetWrapper v-if="widgetId === 'search'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+              <SearchChatBar
+                ref="searchBarRef"
+                @open-app="(app) => emit('open-app', app)"
+                @open-chat="emit('open-chat')"
+              />
+            </WidgetWrapper>
 
-          <!-- ═══ Status pill ═══ -->
-          <WidgetWrapper v-if="widgetId === 'status'" :widget-id="widgetId" :editing="isEditing" :row-idx="rowIdx">
-            <StatusPill />
-          </WidgetWrapper>
+            <!-- ═══ Status pill ═══ -->
+            <WidgetWrapper v-if="widgetId === 'status'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+              <StatusPill />
+            </WidgetWrapper>
 
-          <!-- ═══ System Vitals ═══ -->
-          <WidgetWrapper v-if="widgetId === 'vitals'" :widget-id="widgetId" :editing="isEditing" :row-idx="rowIdx">
-            <SystemVitals />
-          </WidgetWrapper>
+            <!-- ═══ System Vitals ═══ -->
+            <WidgetWrapper v-if="widgetId === 'vitals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+              <SystemVitals />
+            </WidgetWrapper>
 
-          <!-- ═══ Network ═══ -->
-          <WidgetWrapper v-if="widgetId === 'network'" :widget-id="widgetId" :editing="isEditing" :row-idx="rowIdx">
-            <NetworkWidget />
-          </WidgetWrapper>
+            <!-- ═══ Network ═══ -->
+            <WidgetWrapper v-if="widgetId === 'network'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+              <NetworkWidget />
+            </WidgetWrapper>
 
-          <!-- ═══ Disk ═══ -->
-          <WidgetWrapper v-if="widgetId === 'disk'" :widget-id="widgetId" :editing="isEditing" :row-idx="rowIdx">
-            <DiskWidget />
-          </WidgetWrapper>
+            <!-- ═══ Disk ═══ -->
+            <WidgetWrapper v-if="widgetId === 'disk'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+              <DiskWidget />
+            </WidgetWrapper>
 
-          <!-- ═══ Signals ═══ -->
-          <WidgetWrapper v-if="widgetId === 'signals'" :widget-id="widgetId" :editing="isEditing" :row-idx="rowIdx">
-            <SignalsWidget />
-          </WidgetWrapper>
+            <!-- ═══ Signals ═══ -->
+            <WidgetWrapper v-if="widgetId === 'signals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+              <SignalsWidget />
+            </WidgetWrapper>
 
-          <!-- ═══ Quick Actions ═══ -->
-          <WidgetWrapper v-if="widgetId === 'actions' && filteredQuickActions.length > 0" :widget-id="widgetId" :editing="isEditing" :row-idx="rowIdx">
-            <div>
-              <div
-                :class="cardBase()"
-                class="rounded-2xl p-4 h-full"
-              >
-                <div class="grid gap-2" :class="quickActionsGridCols">
-                  <button
-                    v-for="qa in filteredQuickActions"
-                    :key="qa.id"
-                    class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
-                           hover:bg-theme-tertiary hover:-translate-y-px group"
-                    @click="qa.action()"
-                  >
-                    <div
-                      class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
-                      :class="qa.color.split(' ')[0]"
+            <!-- ═══ Quick Actions ═══ -->
+            <WidgetWrapper v-if="widgetId === 'actions' && filteredQuickActions.length > 0" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+              <div>
+                <div
+                  :class="cardBase()"
+                  class="rounded-2xl p-4 h-full"
+                >
+                  <div class="grid gap-2" :class="quickActionsGridCols">
+                    <button
+                      v-for="qa in filteredQuickActions"
+                      :key="qa.id"
+                      class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
+                             hover:bg-theme-tertiary hover:-translate-y-px group"
+                      @click="qa.action()"
                     >
-                      <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
-                    </div>
-                    <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
-                      {{ qa.label }}
-                    </span>
-                  </button>
+                      <div
+                        class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
+                        :class="qa.color.split(' ')[0]"
+                      >
+                        <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
+                      </div>
+                      <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
+                        {{ qa.label }}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </WidgetWrapper>
+            </WidgetWrapper>
 
-          <!-- ═══ App Launcher ═══ -->
-          <WidgetWrapper
-            v-if="widgetId === 'launcher'"
-            :widget-id="widgetId"
-            :editing="isEditing"
-            :row-idx="rowIdx"
-          >
-            <div>
-              <AppLauncher
-                :show-favorites="showFavorites"
-                :show-recent="showRecent"
-                :show-my-apps="showMyApps"
-                :my-apps-rows="myAppsRows"
-                :favorite-cols="favoriteCols"
-                @open-app="(app) => emit('open-app', app)"
-                @toggle-favorite="(name) => emit('toggle-favorite', name)"
-              />
-            </div>
-          </WidgetWrapper>
+            <!-- ═══ App Launcher ═══ -->
+            <WidgetWrapper
+              v-if="widgetId === 'launcher'"
+              :widget-id="widgetId"
+              :editing="isEditing"
+              :row-idx="entry.layoutIdx"
+            >
+              <div>
+                <AppLauncher
+                  :show-favorites="showFavorites"
+                  :show-recent="showRecent"
+                  :show-my-apps="showMyApps"
+                  :my-apps-rows="myAppsRows"
+                  :favorite-cols="favoriteCols"
+                  @open-app="(app) => emit('open-app', app)"
+                  @toggle-favorite="(name) => emit('toggle-favorite', name)"
+                />
+              </div>
+            </WidgetWrapper>
 
-        </template>
+          </template>
+        </div>
 
-        <!-- Side drop zone: RIGHT (only for single-widget rows in edit mode) -->
+        <!-- Side drop zone: RIGHT (single-widget rows only, lg+ only) -->
         <div
           v-if="isEditing && dragWidgetId && entry.visible.length === 1"
-          class="hidden lg:flex drop-zone-side"
-          :class="isDropActive('right', rowIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
-          @dragover.prevent="onDragOver($event, 'right', rowIdx)"
-          @dragleave="onDragLeave($event, 'right', rowIdx)"
-          @drop="onDrop($event, 'right', rowIdx)"
+          class="hidden lg:flex drop-zone-side drop-zone-side-right"
+          :class="isDropActive('right', entry.layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
+          @dragover.prevent="onDragOver($event, 'right', entry.layoutIdx)"
+          @dragleave="onDragLeave($event, 'right', entry.layoutIdx)"
+          @drop="onDrop($event, 'right', entry.layoutIdx)"
         >
           <div class="drop-zone-indicator">
             <Icon name="Plus" :size="14" />
@@ -315,10 +333,10 @@ const isAllHidden = computed(() => gridRows.value.length === 0)
     <div
       v-if="isEditing && dragWidgetId && gridRows.length > 0"
       class="drop-zone-row"
-      :class="isDropActive('after', gridRows.length - 1) ? 'drop-zone-active' : 'drop-zone-idle'"
-      @dragover.prevent="onDragOver($event, 'after', gridRows.length - 1)"
-      @dragleave="onDragLeave($event, 'after', gridRows.length - 1)"
-      @drop="onDrop($event, 'after', gridRows.length - 1)"
+      :class="isDropActive('after', gridRows[gridRows.length - 1].layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
+      @dragover.prevent="onDragOver($event, 'after', gridRows[gridRows.length - 1].layoutIdx)"
+      @dragleave="onDragLeave($event, 'after', gridRows[gridRows.length - 1].layoutIdx)"
+      @drop="onDrop($event, 'after', gridRows[gridRows.length - 1].layoutIdx)"
     >
       <div class="drop-zone-indicator">
         <Icon name="Plus" :size="12" />
@@ -341,12 +359,28 @@ const isAllHidden = computed(() => gridRows.value.length === 0)
   margin: -0.25rem 0;
 }
 
+/*
+ * Side drop zones are ABSOLUTELY positioned so they don't participate
+ * in the CSS grid layout. Previously they were grid children inside
+ * a grid-cols-1 container, causing them to stack vertically instead
+ * of appearing beside the widget.
+ */
 .drop-zone-side {
-  min-height: 4rem;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3.5rem;
   border-radius: 1rem;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  z-index: 5;
+}
+.drop-zone-side-left {
+  left: 0;
+}
+.drop-zone-side-right {
+  right: 0;
 }
 
 .drop-zone-idle {
