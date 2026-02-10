@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="sky-l" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="50%" stop-color="#f0f9ff"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
+    </linearGradient>
+    <linearGradient id="aurora1-l" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#06b6d4" stop-opacity="0.08"/>
+      <stop offset="60%" stop-color="#10b981" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow-l"><feGaussianBlur stdDeviation="50"/></filter>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky-l)"/>
+  <path d="M0,200 C300,100 600,180 900,120 S1300,160 1600,100 L1920,150 L1920,450 C1600,400 1300,430 900,380 S600,420 300,370 L0,400 Z"
+        fill="url(#aurora1-l)" filter="url(#glow-l)"/>
+  <path d="M0,800 L300,750 L600,790 L900,720 L1200,770 L1500,710 L1920,760 L1920,1080 L0,1080 Z"
+        fill="#e2e8f0" opacity="0.5"/>
+</svg>

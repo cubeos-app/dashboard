@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <!-- Sky gradient -->
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#050510"/>
+      <stop offset="40%" stop-color="#070B14"/>
+      <stop offset="100%" stop-color="#0A1628"/>
+    </linearGradient>
+    <!-- Aurora band 1 -->
+    <linearGradient id="aurora1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0"/>
+      <stop offset="20%" stop-color="#0ea5e9" stop-opacity="0.12"/>
+      <stop offset="40%" stop-color="#06b6d4" stop-opacity="0.18"/>
+      <stop offset="60%" stop-color="#10b981" stop-opacity="0.15"/>
+      <stop offset="80%" stop-color="#22c55e" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Aurora band 2 -->
+    <linearGradient id="aurora2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#7c3aed" stop-opacity="0.08"/>
+      <stop offset="50%" stop-color="#06b6d4" stop-opacity="0.14"/>
+      <stop offset="70%" stop-color="#0ea5e9" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Glow filter -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="40" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softglow">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+  </defs>
+
+  <!-- Base sky -->
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+
+  <!-- Stars (subtle dots) -->
+  <g fill="#ffffff" opacity="0.4">
+    <circle cx="150" cy="80" r="0.8"/><circle cx="340" cy="120" r="0.5"/>
+    <circle cx="580" cy="60" r="0.7"/><circle cx="720" cy="200" r="0.4"/>
+    <circle cx="900" cy="90" r="0.9"/><circle cx="1100" cy="150" r="0.5"/>
+    <circle cx="1300" cy="70" r="0.6"/><circle cx="1500" cy="180" r="0.8"/>
+    <circle cx="1700" cy="100" r="0.5"/><circle cx="1850" cy="220" r="0.4"/>
+    <circle cx="250" cy="300" r="0.3"/><circle cx="650" cy="350" r="0.6"/>
+    <circle cx="1050" cy="280" r="0.4"/><circle cx="1400" cy="320" r="0.5"/>
+    <circle cx="1750" cy="50" r="0.7"/><circle cx="450" cy="180" r="0.5"/>
+    <circle cx="1600" cy="260" r="0.3"/><circle cx="800" cy="140" r="0.4"/>
+  </g>
+
+  <!-- Aurora curtains -->
+  <g filter="url(#glow)">
+    <!-- Main green/cyan band -->
+    <path d="M0,300 C200,180 400,250 600,200 S900,150 1100,220 S1400,180 1600,250 S1800,200 1920,280 L1920,500 C1700,450 1400,480 1100,420 S800,460 500,400 S200,440 0,480 Z"
+          fill="url(#aurora1)" opacity="0.9"/>
+
+    <!-- Secondary purple/blue band -->
+    <path d="M0,350 C300,280 500,320 700,260 S1000,300 1200,250 S1500,290 1700,240 S1850,280 1920,320 L1920,520 C1600,480 1300,510 1000,460 S700,500 400,450 S100,490 0,530 Z"
+          fill="url(#aurora2)" opacity="0.7"/>
+  </g>
+
+  <!-- Ambient glow orbs -->
+  <circle cx="500" cy="350" r="200" fill="#06b6d4" opacity="0.03" filter="url(#softglow)"/>
+  <circle cx="1400" cy="300" r="250" fill="#10b981" opacity="0.025" filter="url(#softglow)"/>
+  <circle cx="960" cy="280" r="180" fill="#0ea5e9" opacity="0.02" filter="url(#softglow)"/>
+
+  <!-- Mountain silhouette (foreground) -->
+  <path d="M0,850 L100,780 L250,820 L400,700 L550,760 L700,650 L850,720 L1000,600
+           L1150,680 L1300,580 L1450,660 L1600,570 L1750,640 L1920,550 L1920,1080 L0,1080 Z"
+        fill="#060A12" opacity="0.95"/>
+  <path d="M0,900 L200,830 L400,870 L600,780 L800,840 L1000,730
+           L1200,810 L1400,720 L1600,790 L1800,710 L1920,760 L1920,1080 L0,1080 Z"
+        fill="#040810" opacity="0.98"/>
+</svg>

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <radialGradient id="neb1" cx="30%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.12"/>
+      <stop offset="50%" stop-color="#4c1d95" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#0f0520" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="neb2" cx="70%" cy="35%" r="45%">
+      <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.1"/>
+      <stop offset="50%" stop-color="#1e3a5f" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#050510" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="neb3" cx="50%" cy="60%" r="40%">
+      <stop offset="0%" stop-color="#ec4899" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#050510" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="nebglow"><feGaussianBlur stdDeviation="30"/></filter>
+    <filter id="nebsoft"><feGaussianBlur stdDeviation="80"/></filter>
+  </defs>
+
+  <!-- Deep space base -->
+  <rect width="1920" height="1080" fill="#06060E"/>
+
+  <!-- Nebula clouds -->
+  <rect width="1920" height="1080" fill="url(#neb1)"/>
+  <rect width="1920" height="1080" fill="url(#neb2)"/>
+  <rect width="1920" height="1080" fill="url(#neb3)"/>
+
+  <!-- Cosmic dust bands -->
+  <ellipse cx="600" cy="400" rx="500" ry="200" fill="#7c3aed" opacity="0.04" filter="url(#nebsoft)" transform="rotate(-15 600 400)"/>
+  <ellipse cx="1300" cy="350" rx="450" ry="180" fill="#0ea5e9" opacity="0.035" filter="url(#nebsoft)" transform="rotate(10 1300 350)"/>
+  <ellipse cx="960" cy="600" rx="600" ry="150" fill="#6366f1" opacity="0.025" filter="url(#nebsoft)" transform="rotate(-5 960 600)"/>
+
+  <!-- Star field -->
+  <g fill="#ffffff">
+    <circle cx="100" cy="50" r="0.8" opacity="0.6"/>
+    <circle cx="280" cy="180" r="0.5" opacity="0.4"/>
+    <circle cx="420" cy="90" r="1" opacity="0.7"/>
+    <circle cx="580" cy="300" r="0.4" opacity="0.3"/>
+    <circle cx="720" cy="150" r="0.6" opacity="0.5"/>
+    <circle cx="890" cy="80" r="0.9" opacity="0.6"/>
+    <circle cx="1050" cy="250" r="0.5" opacity="0.4"/>
+    <circle cx="1200" cy="120" r="0.7" opacity="0.5"/>
+    <circle cx="1380" cy="200" r="0.4" opacity="0.3"/>
+    <circle cx="1520" cy="60" r="0.8" opacity="0.6"/>
+    <circle cx="1680" cy="180" r="0.6" opacity="0.5"/>
+    <circle cx="1820" cy="100" r="0.5" opacity="0.4"/>
+    <circle cx="200" cy="400" r="0.3" opacity="0.25"/>
+    <circle cx="500" cy="500" r="0.7" opacity="0.35"/>
+    <circle cx="800" cy="450" r="0.4" opacity="0.3"/>
+    <circle cx="1100" cy="380" r="0.5" opacity="0.35"/>
+    <circle cx="1400" cy="480" r="0.6" opacity="0.3"/>
+    <circle cx="1700" cy="350" r="0.4" opacity="0.25"/>
+    <circle cx="350" cy="650" r="0.5" opacity="0.2"/>
+    <circle cx="960" cy="700" r="0.6" opacity="0.2"/>
+    <circle cx="1550" cy="600" r="0.4" opacity="0.2"/>
+  </g>
+
+  <!-- Bright stars (larger, with glow) -->
+  <g filter="url(#nebglow)">
+    <circle cx="420" cy="90" r="2" fill="#ffffff" opacity="0.3"/>
+    <circle cx="1520" cy="60" r="2.5" fill="#e0e7ff" opacity="0.25"/>
+    <circle cx="890" cy="80" r="1.8" fill="#dbeafe" opacity="0.2"/>
+  </g>
+</svg>

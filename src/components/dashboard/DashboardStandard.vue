@@ -1,21 +1,19 @@
 <script setup>
 /**
- * DashboardStandard.vue — S13 Visual Upgrade
+ * DashboardStandard.vue — S13 Visual Upgrade v2
  *
  * Standard mode ("consumer mode") dashboard.
  * Composition:
- *   SearchChatBar → AlertBanner → StatusPill
+ *   ClockWidget → SearchChatBar → AlertBanner → StatusPill
  *   → SystemVitals + Quick Actions (side by side on desktop)
  *   → AppLauncher (favorites, recent, my apps)
- *
- * Layout: Two-column at lg+ for vitals/actions, single column on mobile.
- * All cards use staggered reveal animation via CSS .dash-stagger class.
  */
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWallpaper } from '@/composables/useWallpaper'
 import { useSystemStore } from '@/stores/system'
 import Icon from '@/components/ui/Icon.vue'
+import ClockWidget from './ClockWidget.vue'
 import SearchChatBar from './SearchChatBar.vue'
 import AlertBanner from './AlertBanner.vue'
 import StatusPill from './StatusPill.vue'
@@ -28,7 +26,6 @@ const { isActive: wallpaperActive } = useWallpaper()
 
 const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
 
-// Expose searchBar ref so DashboardView can focus it via Ctrl+K
 const searchBarRef = ref(null)
 defineExpose({ searchBarRef })
 
@@ -77,6 +74,9 @@ function cardBase() {
 
 <template>
   <div class="space-y-6 max-w-7xl mx-auto">
+    <!-- Clock -->
+    <ClockWidget />
+
     <!-- Search + Chat bar -->
     <SearchChatBar
       ref="searchBarRef"
@@ -92,12 +92,10 @@ function cardBase() {
 
     <!-- System Vitals + Quick Actions — side by side on desktop -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 dash-stagger">
-      <!-- Vitals (takes 3/5 on desktop) -->
       <div class="lg:col-span-3">
         <SystemVitals />
       </div>
 
-      <!-- Quick Actions (takes 2/5 on desktop) -->
       <div class="lg:col-span-2">
         <div
           :class="cardBase()"

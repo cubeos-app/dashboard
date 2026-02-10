@@ -1,15 +1,15 @@
 <script setup>
 /**
- * AppLauncher.vue — S13 Visual Upgrade
+ * AppLauncher.vue — S13 Visual Upgrade v2
  *
  * Combined app launcher for Standard dashboard.
  * Sections: Favorites (hero cards), Recently Used (scroll strip), My Apps (grid).
  *
- * Visual upgrades over S13 original:
+ * Visual features:
  *   - Per-app color accents via appColors utility
+ *   - Brand SVG icons via AppIcon component
  *   - Elevated cards with shadow depth
  *   - Glow hover effects matching app color
- *   - Bigger, more prominent favorites
  *   - Staggered entry animation per card
  */
 import { computed } from 'vue'
@@ -20,6 +20,7 @@ import { useWallpaper } from '@/composables/useWallpaper'
 import { safeGetItem } from '@/utils/storage'
 import { getAppColor } from '@/utils/appColors'
 import Icon from '@/components/ui/Icon.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
 
 const props = defineProps({
   favorites: { type: Array, default: null },
@@ -126,14 +127,15 @@ function cardBase() {
             :class="getAppColor(app).bg.replace('/15', '/40')"
           />
 
-          <!-- Icon -->
+          <!-- Icon — brand SVG with colored background -->
           <div
             class="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300
                    group-hover:scale-110 group-hover:shadow-md"
             :class="getAppColor(app).bg"
           >
-            <Icon
-              :name="appsStore.getAppIcon(app)"
+            <AppIcon
+              :name="app.name"
+              :fallback="appsStore.getAppIcon(app)"
               :size="26"
               :class="getAppColor(app).text"
             />
@@ -174,7 +176,12 @@ function cardBase() {
             class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
             :class="getAppColor(app).bg"
           >
-            <Icon :name="appsStore.getAppIcon(app)" :size="18" :class="getAppColor(app).text" />
+            <AppIcon
+              :name="app.name"
+              :fallback="appsStore.getAppIcon(app)"
+              :size="18"
+              :class="getAppColor(app).text"
+            />
           </div>
           <span class="text-[10px] text-theme-secondary truncate max-w-full leading-tight">
             {{ appsStore.getDisplayName(app) }}
@@ -217,7 +224,12 @@ function cardBase() {
                    transition-transform duration-200 group-hover:scale-105"
             :class="getAppColor(app).bg"
           >
-            <Icon :name="appsStore.getAppIcon(app)" :size="20" :class="getAppColor(app).text" />
+            <AppIcon
+              :name="app.name"
+              :fallback="appsStore.getAppIcon(app)"
+              :size="20"
+              :class="getAppColor(app).text"
+            />
           </div>
 
           <!-- Info -->
@@ -268,7 +280,6 @@ function cardBase() {
   border-radius: 2px;
 }
 
-/* Hover glow for favorite cards */
 .fav-card:hover {
   box-shadow: 0 8px 24px var(--app-glow, rgba(14,165,233,0.1)),
               0 2px 8px rgba(0,0,0,0.2);

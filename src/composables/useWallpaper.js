@@ -21,6 +21,11 @@ import { useThemeStore } from '@/stores/theme'
 
 /** Available preset wallpapers — each has -light.svg and -dark.svg variants */
 export const WALLPAPER_PRESETS = [
+  // Photo-style atmospheric (new)
+  { id: 'aurora', name: 'Aurora', description: 'Northern lights over mountains' },
+  { id: 'nebula', name: 'Nebula', description: 'Deep space cosmic dust' },
+  { id: 'ocean', name: 'Ocean', description: 'Midnight moonlit sea' },
+  // Abstract patterns (original)
   { id: 'topo', name: 'Topographic', description: 'Abstract contour lines' },
   { id: 'mesh', name: 'Gradient Mesh', description: 'Soft color gradients' },
   { id: 'grid', name: 'Grid', description: 'Minimal dot grid' },

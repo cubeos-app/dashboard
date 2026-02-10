@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="ol-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0f9ff"/>
+      <stop offset="50%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#ol-sky)"/>
+  <g fill="none" stroke="#0ea5e9" stroke-width="0.8" opacity="0.06">
+    <path d="M0,600 Q480,590 960,605 T1920,595"/>
+    <path d="M0,680 Q480,670 960,685 T1920,675"/>
+    <path d="M0,770 Q480,758 960,772 T1920,762"/>
+    <path d="M0,870 Q480,858 960,872 T1920,862"/>
+  </g>
+  <line x1="0" y1="540" x2="1920" y2="540" stroke="#bae6fd" stroke-width="0.5" opacity="0.3"/>
+</svg>

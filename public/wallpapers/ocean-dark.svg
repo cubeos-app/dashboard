@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="ocean-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#020617"/>
+      <stop offset="35%" stop-color="#0c1929"/>
+      <stop offset="65%" stop-color="#0c2440"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="moonshine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e2e8f0" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="oglow"><feGaussianBlur stdDeviation="40"/></filter>
+    <filter id="osoft"><feGaussianBlur stdDeviation="3"/></filter>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="1920" height="1080" fill="url(#ocean-sky)"/>
+
+  <!-- Moon -->
+  <circle cx="1500" cy="150" r="40" fill="#e2e8f0" opacity="0.08" filter="url(#oglow)"/>
+  <circle cx="1500" cy="150" r="15" fill="#f1f5f9" opacity="0.15"/>
+
+  <!-- Moon reflection on water -->
+  <ellipse cx="1500" cy="650" rx="80" ry="300" fill="url(#moonshine)" opacity="0.5"/>
+
+  <!-- Stars -->
+  <g fill="#ffffff" opacity="0.3">
+    <circle cx="200" cy="80" r="0.6"/><circle cx="400" cy="150" r="0.4"/>
+    <circle cx="650" cy="60" r="0.7"/><circle cx="850" cy="180" r="0.3"/>
+    <circle cx="1100" cy="90" r="0.5"/><circle cx="1300" cy="120" r="0.6"/>
+    <circle cx="1700" cy="80" r="0.4"/><circle cx="1850" cy="200" r="0.5"/>
+    <circle cx="300" cy="250" r="0.3"/><circle cx="750" cy="280" r="0.4"/>
+  </g>
+
+  <!-- Horizon line -->
+  <line x1="0" y1="540" x2="1920" y2="540" stroke="#1e3a5f" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Ocean waves (subtle horizontal lines) -->
+  <g fill="none" stroke="#0ea5e9" stroke-width="0.5" opacity="0.06">
+    <path d="M0,580 Q480,570 960,580 T1920,575"/>
+    <path d="M0,620 Q480,615 960,625 T1920,618"/>
+    <path d="M0,670 Q480,662 960,672 T1920,665"/>
+    <path d="M0,730 Q480,720 960,732 T1920,725"/>
+    <path d="M0,800 Q480,788 960,802 T1920,792"/>
+    <path d="M0,880 Q480,868 960,882 T1920,872"/>
+    <path d="M0,960 Q480,950 960,965 T1920,955"/>
+  </g>
+
+  <!-- Deep water gradient overlay -->
+  <rect y="540" width="1920" height="540" fill="#020617" opacity="0.3"/>
+</svg>
