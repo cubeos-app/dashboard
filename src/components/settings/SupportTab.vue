@@ -398,7 +398,7 @@ watch(() => systemStore.timezone, (val) => {
                 GitHub
               </a>
               <a
-                href="/api/v1/docs/"
+                href="/api/v1/swagger/index.html"
                 target="_blank"
                 rel="noopener"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-theme-primary text-xs text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"

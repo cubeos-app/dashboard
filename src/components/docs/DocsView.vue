@@ -121,7 +121,41 @@ function navigateTo(path) {
 function renderMarkdown(content) {
   if (!content) return ''
   
-  return content
+  // Extract tables first, replace with placeholders
+  const tablePlaceholders = []
+  content = content.replace(
+    /((?:^\|.+\|[ \t]*\n)+)/gm,
+    (tableBlock) => {
+      const rows = tableBlock.trim().split('\n').filter(r => r.trim())
+      if (rows.length < 2) return tableBlock
+      
+      const isSeparator = /^\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|?$/.test(rows[1].trim())
+      if (!isSeparator) return tableBlock
+      
+      const parseRow = (row) => row.replace(/^\||\|$/g, '').split('|').map(c => c.trim())
+      const escapeCell = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      
+      const headers = parseRow(rows[0])
+      const dataRows = rows.slice(2)
+      
+      let html = '<div class="table-wrapper"><table class="doc-table"><thead><tr>'
+      headers.forEach(h => { html += `<th>${escapeCell(h)}</th>` })
+      html += '</tr></thead><tbody>'
+      dataRows.forEach(row => {
+        const cells = parseRow(row)
+        html += '<tr>'
+        cells.forEach(c => { html += `<td>${escapeCell(c)}</td>` })
+        html += '</tr>'
+      })
+      html += '</tbody></table></div>'
+      
+      const placeholder = `%%TABLE_${tablePlaceholders.length}%%`
+      tablePlaceholders.push(html)
+      return placeholder
+    }
+  )
+  
+  let result = content
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -147,6 +181,13 @@ function renderMarkdown(content) {
     .replace(/^---$/gm, '<hr class="doc-hr">')
     .replace(/\n\n/g, '</p><p class="doc-p">')
     .replace(/\n/g, '<br>')
+  
+  // Restore table placeholders
+  tablePlaceholders.forEach((html, i) => {
+    result = result.replace(`%%TABLE_${i}%%`, html)
+  })
+  
+  return result
 }
 
 // Watch for route changes
@@ -317,7 +358,7 @@ function closeSidebar() {
             </p>
             <div class="flex items-center justify-center gap-3">
               <a
-                href="/api/v1/docs/"
+                href="/api/v1/swagger/index.html"
                 target="_blank"
                 rel="noopener"
                 class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm hover:bg-accent-secondary transition-colors"
@@ -445,5 +486,29 @@ function closeSidebar() {
 
 .doc-content :deep(em) {
   @apply italic;
+}
+
+.doc-content :deep(.table-wrapper) {
+  @apply overflow-x-auto mb-4 rounded-lg border border-theme-primary;
+}
+
+.doc-content :deep(.doc-table) {
+  @apply w-full text-sm border-collapse;
+}
+
+.doc-content :deep(.doc-table th) {
+  @apply px-3 py-2 text-left font-semibold bg-theme-tertiary border-b border-theme-primary text-theme-primary whitespace-nowrap;
+}
+
+.doc-content :deep(.doc-table td) {
+  @apply px-3 py-2 border-b border-theme-primary text-theme-secondary;
+}
+
+.doc-content :deep(.doc-table tbody tr:last-child td) {
+  @apply border-b-0;
+}
+
+.doc-content :deep(.doc-table tbody tr:hover) {
+  @apply bg-theme-tertiary;
 }
 </style>

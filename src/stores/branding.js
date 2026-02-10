@@ -16,7 +16,7 @@ export const useBrandingStore = defineStore('branding', () => {
     logoDark: '/icon.svg',
     primaryColor: '#0ea5e9',
     accentName: 'OS',
-    github: 'https://github.com/redrickh/cubeos',
+    github: 'https://github.com/cubeos-app',
     website: 'https://cubeos.app'
   }
 
