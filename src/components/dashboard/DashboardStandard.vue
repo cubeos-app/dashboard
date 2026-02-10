@@ -1,6 +1,6 @@
 <script setup>
 /**
- * DashboardStandard.vue — S13 Visual Upgrade v3
+ * DashboardStandard.vue — S13 Visual Upgrade v3 + Session 2 Settings
  *
  * Standard mode ("consumer mode") dashboard.
  * Layout:
@@ -8,6 +8,8 @@
  *   → SystemVitals + NetworkWidget (side by side on desktop)
  *   → Quick Actions (6-item strip, 3×2 on mobile, 6×1 on desktop)
  *   → AppLauncher (favorites, recent, my apps)
+ *
+ * Session 2: Added settings gear button (top-right) + DashboardSettingsModal.
  */
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -20,6 +22,7 @@ import StatusPill from './StatusPill.vue'
 import SystemVitals from './SystemVitals.vue'
 import NetworkWidget from './NetworkWidget.vue'
 import AppLauncher from './AppLauncher.vue'
+import DashboardSettingsModal from './DashboardSettingsModal.vue'
 
 const router = useRouter()
 const { isActive: wallpaperActive } = useWallpaper()
@@ -28,6 +31,9 @@ const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
 
 const searchBarRef = ref(null)
 defineExpose({ searchBarRef })
+
+// ─── Settings modal ──────────────────────────────────────────
+const showSettings = ref(false)
 
 // ─── Quick actions config ─────────────────────────────────────
 const quickActions = [
@@ -77,7 +83,17 @@ function cardBase() {
 </script>
 
 <template>
-  <div class="space-y-6 max-w-7xl mx-auto">
+  <div class="space-y-6 max-w-7xl mx-auto relative">
+    <!-- Settings gear (top-right, subtle) -->
+    <button
+      class="absolute -top-1 right-0 w-8 h-8 rounded-lg flex items-center justify-center
+             text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary/50 transition-colors z-10"
+      aria-label="Dashboard settings"
+      @click="showSettings = true"
+    >
+      <Icon name="Settings2" :size="18" :stroke-width="1.5" />
+    </button>
+
     <!-- Clock -->
     <ClockWidget />
 
@@ -132,6 +148,12 @@ function cardBase() {
     <AppLauncher
       @open-app="(app) => emit('open-app', app)"
       @toggle-favorite="(name) => emit('toggle-favorite', name)"
+    />
+
+    <!-- Settings modal -->
+    <DashboardSettingsModal
+      :show="showSettings"
+      @close="showSettings = false"
     />
   </div>
 </template>
