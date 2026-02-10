@@ -23,7 +23,6 @@ import NetworkWidget from './NetworkWidget.vue'
 import DiskWidget from './DiskWidget.vue'
 import SignalsWidget from './SignalsWidget.vue'
 import AppLauncher from './AppLauncher.vue'
-import DashboardSettingsModal from './DashboardSettingsModal.vue'
 
 const router = useRouter()
 const { isActive: wallpaperActive } = useWallpaper()
@@ -51,9 +50,6 @@ const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
 
 const searchBarRef = ref(null)
 defineExpose({ searchBarRef })
-
-// ─── Settings modal ──────────────────────────────────────────
-const showSettings = ref(false)
 
 // ─── Quick actions pool (full definitions) ───────────────────
 // Action IDs must match the ACTIONS_POOL in DashboardSettingsModal.vue
@@ -112,19 +108,36 @@ function cardBase() {
     ? 'bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm'
     : 'bg-theme-card border border-theme-primary'
 }
+
+// ─── Empty state detection ─────────────────────────────────────
+const isAllHidden = computed(() =>
+  !showClock.value &&
+  !showSearch.value &&
+  !showStatusPill.value &&
+  !showSystemVitals.value &&
+  !showNetwork.value &&
+  !showDisk.value &&
+  !showSignals.value &&
+  !showQuickActions.value &&
+  !showAlerts.value
+)
 </script>
 
 <template>
   <div class="space-y-6 max-w-7xl mx-auto relative">
-    <!-- Settings gear (top-right, subtle) -->
-    <button
-      class="absolute -top-1 right-0 w-8 h-8 rounded-lg flex items-center justify-center
-             text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary/50 transition-colors z-10"
-      aria-label="Dashboard settings"
-      @click="showSettings = true"
+    <!-- Empty state when all widgets hidden -->
+    <div
+      v-if="isAllHidden"
+      class="flex flex-col items-center justify-center py-24 text-center"
     >
-      <Icon name="Settings2" :size="18" :stroke-width="1.5" />
-    </button>
+      <div class="w-16 h-16 rounded-2xl bg-theme-tertiary flex items-center justify-center mb-4">
+        <Icon name="LayoutDashboard" :size="28" class="text-theme-muted" />
+      </div>
+      <h3 class="text-lg font-medium text-theme-secondary mb-2">Dashboard is empty</h3>
+      <p class="text-sm text-theme-muted max-w-xs">
+        All widgets are hidden. Open settings to add widgets back to your dashboard.
+      </p>
+    </div>
 
     <!-- Ordered sections from widget_order config -->
     <template v-for="section in orderedSections" :key="section.id">
@@ -218,11 +231,5 @@ function cardBase() {
       />
 
     </template>
-
-    <!-- Settings modal -->
-    <DashboardSettingsModal
-      :show="showSettings"
-      @close="showSettings = false"
-    />
   </div>
 </template>

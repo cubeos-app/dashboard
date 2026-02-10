@@ -60,6 +60,10 @@ const ADVANCED_DEFAULTS = {
   show_recent: false,
   show_my_apps: true,
   show_alerts: true,
+  // Advanced-specific section visibility
+  show_info_bar: true,
+  show_swarm: true,
+  show_core_services: true,
   clock_format: '24h',
   date_format: 'long',
   show_seconds: false,
@@ -114,6 +118,12 @@ export function useDashboardConfig() {
   const showRecent = computed(() => boolOr(raw.value?.show_recent, defaults.value.show_recent))
   const showMyApps = computed(() => boolOr(raw.value?.show_my_apps, defaults.value.show_my_apps))
   const showAlerts = computed(() => boolOr(raw.value?.show_alerts, defaults.value.show_alerts))
+
+  // ─── Advanced-specific section visibility ─────────────────────
+
+  const showInfoBar = computed(() => boolOr(raw.value?.show_info_bar, defaults.value.show_info_bar ?? true))
+  const showSwarm = computed(() => boolOr(raw.value?.show_swarm, defaults.value.show_swarm ?? true))
+  const showCoreServices = computed(() => boolOr(raw.value?.show_core_services, defaults.value.show_core_services ?? true))
 
   // ─── Clock & date settings ────────────────────────────────────
 
@@ -189,6 +199,11 @@ export function useDashboardConfig() {
     showRecent,
     showMyApps,
     showAlerts,
+
+    // Advanced-specific
+    showInfoBar,
+    showSwarm,
+    showCoreServices,
 
     // Clock & date
     clockFormat,

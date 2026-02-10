@@ -1,32 +1,29 @@
 <script setup>
 /**
- * DashboardAdvanced.vue
+ * DashboardAdvanced.vue — Session 5
  *
- * S03 — Advanced mode ("kung fu mode") dashboard view.
- * Includes everything from Standard PLUS:
- *   - Docker container grid with health details
- *   - WebSocket connection status
- *   - Swarm stack overview
- *   - Monitoring alerts feed
- *   - Network throughput info
- *   - Recent log errors
+ * Advanced mode ("kung fu mode") dashboard view.
+ * All sections respect useDashboardConfig toggles for customization.
+ * Widget positions are fixed (no reordering for Advanced).
  *
- * Wires: GET /monitoring/alerts, GET /monitoring/history, GET /monitoring/websocket
- * (all already implemented in monitoring store)
+ * Sections: gauges, info bar, swarm+alerts, favorites,
+ *           core services, user apps, quick links.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
-import { useAppsStore, DEPLOY_MODES, HEALTH_STATUS } from '@/stores/apps'
+import { useAppsStore, DEPLOY_MODES } from '@/stores/apps'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useMonitoringStore } from '@/stores/monitoring'
 import { useNetworkStore } from '@/stores/network'
-import { safeGetItem } from '@/utils/storage'
+import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
 import StatusCard from './StatusCard.vue'
 import ServiceGrid from './ServiceGrid.vue'
 import AlertsFeed from './AlertsFeed.vue'
+import DiskWidget from './DiskWidget.vue'
+import SignalsWidget from './SignalsWidget.vue'
 import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
 
 const router = useRouter()
@@ -39,7 +36,35 @@ const { signal } = useAbortOnUnmount()
 
 const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
 
-// System stats
+// ─── Dashboard config ──────────────────────────────────────────
+const {
+  showSystemVitals,
+  showInfoBar,
+  showSwarm,
+  showAlerts,
+  showFavorites,
+  showCoreServices,
+  showMyApps,
+  showQuickActions,
+  showDisk,
+  showSignals,
+} = useDashboardConfig()
+
+// ─── Empty state detection ─────────────────────────────────────
+const isAllHidden = computed(() =>
+  !showSystemVitals.value &&
+  !showInfoBar.value &&
+  !showSwarm.value &&
+  !showAlerts.value &&
+  !showFavorites.value &&
+  !showCoreServices.value &&
+  !showMyApps.value &&
+  !showQuickActions.value &&
+  !showDisk.value &&
+  !showSignals.value
+)
+
+// ─── System stats ──────────────────────────────────────────────
 const cpuUsage = computed(() => systemStore.cpuUsage)
 const memoryUsage = computed(() => systemStore.memoryUsage)
 const diskUsage = computed(() => systemStore.diskUsage)
@@ -56,9 +81,9 @@ const totalCount = computed(() => appsStore.appCount)
 const healthyCount = computed(() => appsStore.healthyCount)
 
 // All apps for the full grid
-const allApps = computed(() => appsStore.apps || [])
 const coreApps = computed(() => appsStore.coreApps)
 const userApps = computed(() => appsStore.userApps)
+const allApps = computed(() => appsStore.apps || [])
 
 // Favorites
 const favoriteApps = computed(() => {
@@ -104,8 +129,23 @@ function goToAppStore() { router.push('/appstore') }
 
 <template>
   <div class="space-y-6 max-w-7xl mx-auto">
+
+    <!-- Empty state when all sections hidden -->
+    <div
+      v-if="isAllHidden"
+      class="flex flex-col items-center justify-center py-24 text-center"
+    >
+      <div class="w-16 h-16 rounded-2xl bg-theme-tertiary flex items-center justify-center mb-4">
+        <Icon name="LayoutDashboard" :size="28" class="text-theme-muted" />
+      </div>
+      <h3 class="text-lg font-medium text-theme-secondary mb-2">Dashboard is empty</h3>
+      <p class="text-sm text-theme-muted max-w-xs">
+        All sections are hidden. Open settings to add widgets back to your dashboard.
+      </p>
+    </div>
+
     <!-- Status Gauges + Summary Row -->
-    <section class="animate-fade-in">
+    <section v-if="showSystemVitals" class="animate-fade-in">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatusCard label="CPU" :value="cpuUsage" unit="%" icon="Cpu" />
         <StatusCard
@@ -134,7 +174,7 @@ function goToAppStore() { router.push('/appstore') }
     </section>
 
     <!-- System Info Bar -->
-    <section class="animate-fade-in">
+    <section v-if="showInfoBar" class="animate-fade-in">
       <div class="rounded-xl border border-theme-primary bg-theme-card p-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
         <!-- Services -->
         <div class="flex items-center gap-2">
@@ -211,15 +251,27 @@ function goToAppStore() { router.push('/appstore') }
       </div>
     </section>
 
+    <!-- Disk + Signals row (if enabled) -->
+    <div
+      v-if="showDisk || showSignals"
+      class="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-fade-in"
+    >
+      <DiskWidget v-if="showDisk" />
+      <SignalsWidget v-if="showSignals" />
+    </div>
+
     <!-- Main Grid: Swarm + Alerts side by side -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div
+      v-if="showSwarm || showAlerts"
+      class="grid grid-cols-1 lg:grid-cols-3 gap-6"
+    >
       <!-- Swarm Overview (2 cols) -->
-      <section class="lg:col-span-2 animate-fade-in">
+      <section v-if="showSwarm" class="lg:col-span-2 animate-fade-in">
         <SwarmOverview />
       </section>
 
-      <!-- Alerts Feed (1 col) -->
-      <section class="animate-fade-in">
+      <!-- Alerts Feed (1 col, or full-width if Swarm hidden) -->
+      <section v-if="showAlerts" class="animate-fade-in" :class="showSwarm ? '' : 'lg:col-span-3'">
         <AlertsFeed
           :alerts="alerts"
           :loading="monitoringStore.loading"
@@ -229,7 +281,7 @@ function goToAppStore() { router.push('/appstore') }
     </div>
 
     <!-- Favorites (if any) -->
-    <section v-if="favoriteApps.length > 0" class="animate-fade-in">
+    <section v-if="showFavorites && favoriteApps.length > 0" class="animate-fade-in">
       <h2 class="text-xs font-semibold text-theme-tertiary uppercase tracking-wider mb-3 flex items-center gap-2">
         <Icon name="Star" :size="12" class="text-warning" />
         Favorites
@@ -251,6 +303,7 @@ function goToAppStore() { router.push('/appstore') }
 
     <!-- Core Apps Grid (detailed mode) -->
     <ServiceGrid
+      v-if="showCoreServices"
       :apps="coreApps"
       :loading="appsStore.loading"
       :detailed="true"
@@ -262,7 +315,7 @@ function goToAppStore() { router.push('/appstore') }
 
     <!-- User Apps Grid (if any) -->
     <ServiceGrid
-      v-if="userApps.length > 0"
+      v-if="showMyApps && userApps.length > 0"
       :apps="userApps"
       :detailed="true"
       title="User Applications"
@@ -272,7 +325,7 @@ function goToAppStore() { router.push('/appstore') }
     />
 
     <!-- Quick Links Row -->
-    <section class="animate-fade-in">
+    <section v-if="showQuickActions" class="animate-fade-in">
       <div class="flex flex-wrap gap-2">
         <button
           class="flex items-center gap-2 px-3 py-2 rounded-lg border border-theme-primary bg-theme-card hover:border-accent/40 text-xs text-theme-secondary transition-all"

@@ -1,11 +1,16 @@
 <script setup>
 /**
- * DashboardSettingsModal.vue — Session 2
+ * DashboardSettingsModal.vue — Session 5 (mode-aware)
  *
- * Slide-over settings panel for Standard dashboard customization.
- * Sections: Clock & Date, Widgets, Quick Actions, App Launcher, Widget Order.
+ * Slide-over settings panel for dashboard customization.
+ * Detects Standard vs Advanced mode via useDashboardConfig and shows
+ * the appropriate toggle set for each mode.
+ *
+ * Standard: Clock & Date, Widgets, Quick Actions, App Launcher, Widget Order
+ * Advanced: Section Visibility (gauges, info bar, swarm, alerts, favorites,
+ *           core services, user apps, quick links, disk, signals)
+ *
  * Auto-saves each change via useDashboardConfig composable.
- * Reset to Defaults uses the global confirm dialog.
  */
 import { ref, computed, watch, nextTick, defineComponent, h } from 'vue'
 import { useDashboardConfig } from '@/composables/useDashboardConfig'
@@ -58,6 +63,9 @@ const { trapFocus } = useFocusTrap()
 const config = useDashboardConfig()
 
 const panelRef = ref(null)
+
+/** Whether we're editing Advanced or Standard config */
+const isAdvancedMode = computed(() => config.modeKey.value === 'advanced')
 
 // Auto-focus panel on open
 watch(() => props.show, (visible) => {
@@ -140,13 +148,14 @@ function addAction(id) {
   config.updateConfig('quick_actions', [...enabledActions.value, id])
 }
 
-// ─── Widget Order ───────────────────────────────────────────
+// ─── Widget Order (Standard only) ───────────────────────────
 const WIDGET_LABELS = {
   clock: 'Clock',
   search: 'Search Bar',
   status: 'Status Pill',
   vitals: 'System Vitals',
   network: 'Network Widget',
+  'disk-signals': 'Disk & Signals',
   actions: 'Quick Actions',
   launcher: 'App Launcher',
 }
@@ -157,6 +166,7 @@ const WIDGET_ICONS = {
   status: 'Activity',
   vitals: 'Cpu',
   network: 'Wifi',
+  'disk-signals': 'HardDrive',
   actions: 'Zap',
   launcher: 'Grid3x3',
 }
@@ -178,7 +188,7 @@ function toggle(key, currentValue) {
 async function handleReset() {
   if (!await confirm({
     title: 'Reset Dashboard Settings',
-    message: 'This will reset all dashboard customizations for the current view to their defaults.',
+    message: `This will reset all ${isAdvancedMode.value ? 'Advanced' : 'Standard'} dashboard customizations to their defaults.`,
     confirmText: 'Reset',
     variant: 'warning'
   })) return
@@ -220,7 +230,10 @@ function handleClose() {
               </div>
               <div>
                 <h2 class="text-base font-semibold text-theme-primary">Dashboard Settings</h2>
-                <p class="text-xs text-theme-muted">Customize your dashboard layout</p>
+                <p class="text-xs text-theme-muted">
+                  {{ isAdvancedMode ? 'Advanced' : 'Standard' }} view
+                  <span class="ml-1 text-theme-tertiary">&middot; Ctrl+,</span>
+                </p>
               </div>
             </div>
             <button
@@ -235,206 +248,242 @@ function handleClose() {
           <!-- Scrollable content -->
           <div class="flex-1 overflow-y-auto p-5 space-y-6">
 
-            <!-- ═══ Section: Clock & Date ═══ -->
-            <section>
-              <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Clock & Date</h3>
-              <div class="space-y-3">
-                <SettingsToggle label="Show clock" :active="config.showClock.value" @toggle="toggle('show_clock', config.showClock.value)" />
-                <SettingsToggle label="Show greeting" :active="config.showGreeting.value" @toggle="toggle('show_greeting', config.showGreeting.value)" />
-                <SettingsToggle label="Show seconds" :active="config.showSeconds.value" @toggle="toggle('show_seconds', config.showSeconds.value)" />
+            <!-- ══════════════════════════════════════════════ -->
+            <!-- ═══ ADVANCED MODE SECTIONS ═══════════════════ -->
+            <!-- ══════════════════════════════════════════════ -->
+            <template v-if="isAdvancedMode">
 
-                <!-- Time format -->
-                <div class="flex items-center justify-between py-1">
-                  <span class="text-sm text-theme-secondary">Time format</span>
-                  <div class="flex rounded-lg border border-theme-primary overflow-hidden">
+              <!-- Section: Section Visibility -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Section Visibility</h3>
+                <div class="space-y-3">
+                  <SettingsToggle label="Status Gauges (CPU/Mem/Disk/Temp)" :active="config.showSystemVitals.value" @toggle="toggle('show_system_vitals', config.showSystemVitals.value)" />
+                  <SettingsToggle label="System Info Bar" :active="config.showInfoBar.value" @toggle="toggle('show_info_bar', config.showInfoBar.value)" />
+                  <SettingsToggle label="Swarm Overview" :active="config.showSwarm.value" @toggle="toggle('show_swarm', config.showSwarm.value)" />
+                  <SettingsToggle label="Alerts Feed" :active="config.showAlerts.value" @toggle="toggle('show_alerts', config.showAlerts.value)" />
+                  <SettingsToggle label="Favorites" :active="config.showFavorites.value" @toggle="toggle('show_favorites', config.showFavorites.value)" />
+                  <SettingsToggle label="Core Services" :active="config.showCoreServices.value" @toggle="toggle('show_core_services', config.showCoreServices.value)" />
+                  <SettingsToggle label="User Applications" :active="config.showMyApps.value" @toggle="toggle('show_my_apps', config.showMyApps.value)" />
+                  <SettingsToggle label="Quick Links" :active="config.showQuickActions.value" @toggle="toggle('show_quick_actions', config.showQuickActions.value)" />
+                </div>
+              </section>
+
+              <!-- Section: Additional Widgets -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Additional Widgets</h3>
+                <div class="space-y-3">
+                  <SettingsToggle label="Disk Usage" :active="config.showDisk.value" @toggle="toggle('show_disk_widget', config.showDisk.value)" />
+                  <SettingsToggle label="Signals" :active="config.showSignals.value" @toggle="toggle('show_signals_widget', config.showSignals.value)" />
+                </div>
+              </section>
+            </template>
+
+            <!-- ══════════════════════════════════════════════ -->
+            <!-- ═══ STANDARD MODE SECTIONS ═══════════════════ -->
+            <!-- ══════════════════════════════════════════════ -->
+            <template v-else>
+
+              <!-- ═══ Section: Clock & Date ═══ -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Clock & Date</h3>
+                <div class="space-y-3">
+                  <SettingsToggle label="Show clock" :active="config.showClock.value" @toggle="toggle('show_clock', config.showClock.value)" />
+                  <SettingsToggle label="Show greeting" :active="config.showGreeting.value" @toggle="toggle('show_greeting', config.showGreeting.value)" />
+                  <SettingsToggle label="Show seconds" :active="config.showSeconds.value" @toggle="toggle('show_seconds', config.showSeconds.value)" />
+
+                  <!-- Time format -->
+                  <div class="flex items-center justify-between py-1">
+                    <span class="text-sm text-theme-secondary">Time format</span>
+                    <div class="flex rounded-lg border border-theme-primary overflow-hidden">
+                      <button
+                        v-for="fmt in ['12h', '24h']"
+                        :key="fmt"
+                        class="px-3 py-1.5 text-xs font-medium transition-colors"
+                        :class="config.clockFormat.value === fmt
+                          ? 'bg-accent text-on-accent'
+                          : 'text-theme-secondary hover:bg-theme-tertiary'"
+                        @click="config.updateConfig('clock_format', fmt)"
+                      >
+                        {{ fmt }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Date format -->
+                  <div class="space-y-2">
+                    <span class="text-sm text-theme-secondary">Date format</span>
+                    <div class="space-y-1">
+                      <button
+                        v-for="fmt in DATE_FORMATS"
+                        :key="fmt.id"
+                        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors"
+                        :class="config.dateFormat.value === fmt.id
+                          ? 'bg-accent/10 text-accent border border-accent/20'
+                          : 'text-theme-secondary hover:bg-theme-tertiary border border-transparent'"
+                        @click="config.updateConfig('date_format', fmt.id)"
+                      >
+                        <span class="font-medium">{{ fmt.label }}</span>
+                        <span class="text-xs opacity-70">{{ formatDatePreview(fmt.id) }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- ═══ Section: Widgets ═══ -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Widgets</h3>
+                <div class="space-y-3">
+                  <SettingsToggle label="System Vitals" :active="config.showSystemVitals.value" @toggle="toggle('show_system_vitals', config.showSystemVitals.value)" />
+                  <SettingsToggle label="Network" :active="config.showNetwork.value" @toggle="toggle('show_network_widget', config.showNetwork.value)" />
+                  <SettingsToggle label="Disk Usage" :active="config.showDisk.value" @toggle="toggle('show_disk_widget', config.showDisk.value)" />
+                  <SettingsToggle label="Signals" :active="config.showSignals.value" @toggle="toggle('show_signals_widget', config.showSignals.value)" />
+                  <SettingsToggle label="Status Pill" :active="config.showStatusPill.value" @toggle="toggle('show_status_pill', config.showStatusPill.value)" />
+                  <SettingsToggle label="Search / Chat Bar" :active="config.showSearch.value" @toggle="toggle('show_search', config.showSearch.value)" />
+                  <SettingsToggle label="Alert Banner" :active="config.showAlerts.value" @toggle="toggle('show_alerts', config.showAlerts.value)" />
+                </div>
+              </section>
+
+              <!-- ═══ Section: Quick Actions ═══ -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+                  Quick Actions
+                  <span class="text-theme-muted font-normal normal-case tracking-normal ml-1">({{ enabledActions.length }}/8)</span>
+                </h3>
+
+                <!-- Enabled list (reorderable) -->
+                <div v-if="enabledActions.length" class="space-y-1 mb-3">
+                  <div
+                    v-for="(id, index) in enabledActions"
+                    :key="id"
+                    class="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-tertiary"
+                  >
+                    <Icon :name="getActionMeta(id).icon" :size="16" class="text-theme-secondary flex-shrink-0" />
+                    <span class="text-sm text-theme-primary flex-1">{{ getActionMeta(id).label }}</span>
                     <button
-                      v-for="fmt in ['12h', '24h']"
-                      :key="fmt"
-                      class="px-3 py-1.5 text-xs font-medium transition-colors"
-                      :class="config.clockFormat.value === fmt
-                        ? 'bg-accent text-on-accent'
-                        : 'text-theme-secondary hover:bg-theme-tertiary'"
-                      @click="config.updateConfig('clock_format', fmt)"
+                      :disabled="index === 0"
+                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Move up"
+                      @click="moveAction(index, -1)"
                     >
-                      {{ fmt }}
+                      <Icon name="ChevronUp" :size="14" />
+                    </button>
+                    <button
+                      :disabled="index === enabledActions.length - 1"
+                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Move down"
+                      @click="moveAction(index, 1)"
+                    >
+                      <Icon name="ChevronDown" :size="14" />
+                    </button>
+                    <button
+                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-error hover:bg-error-muted transition-colors"
+                      aria-label="Remove action"
+                      @click="removeAction(id)"
+                    >
+                      <Icon name="X" :size="14" />
                     </button>
                   </div>
                 </div>
+                <p v-else class="text-xs text-theme-muted italic mb-3">No quick actions enabled</p>
 
-                <!-- Date format -->
-                <div class="space-y-2">
-                  <span class="text-sm text-theme-secondary">Date format</span>
-                  <div class="space-y-1">
+                <!-- Available pool -->
+                <div v-if="availableActions.length" class="space-y-1">
+                  <p class="text-xs text-theme-muted mb-1">Available</p>
+                  <div class="flex flex-wrap gap-1.5">
                     <button
-                      v-for="fmt in DATE_FORMATS"
-                      :key="fmt.id"
-                      class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors"
-                      :class="config.dateFormat.value === fmt.id
-                        ? 'bg-accent/10 text-accent border border-accent/20'
-                        : 'text-theme-secondary hover:bg-theme-tertiary border border-transparent'"
-                      @click="config.updateConfig('date_format', fmt.id)"
+                      v-for="action in availableActions"
+                      :key="action.id"
+                      :disabled="enabledActions.length >= 8"
+                      class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-theme-primary text-xs text-theme-secondary
+                             hover:bg-theme-tertiary hover:text-theme-primary transition-colors
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                      @click="addAction(action.id)"
                     >
-                      <span class="font-medium">{{ fmt.label }}</span>
-                      <span class="text-xs opacity-70">{{ formatDatePreview(fmt.id) }}</span>
+                      <Icon :name="action.icon" :size="12" />
+                      {{ action.label }}
                     </button>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            <!-- ═══ Section: Widgets ═══ -->
-            <section>
-              <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Widgets</h3>
-              <div class="space-y-3">
-                <SettingsToggle label="System Vitals" :active="config.showSystemVitals.value" @toggle="toggle('show_system_vitals', config.showSystemVitals.value)" />
-                <SettingsToggle label="Network" :active="config.showNetwork.value" @toggle="toggle('show_network_widget', config.showNetwork.value)" />
-                <SettingsToggle label="Disk Usage" :active="config.showDisk.value" @toggle="toggle('show_disk_widget', config.showDisk.value)" />
-                <SettingsToggle label="Signals" :active="config.showSignals.value" @toggle="toggle('show_signals_widget', config.showSignals.value)" />
-                <SettingsToggle label="Status Pill" :active="config.showStatusPill.value" @toggle="toggle('show_status_pill', config.showStatusPill.value)" />
-                <SettingsToggle label="Search / Chat Bar" :active="config.showSearch.value" @toggle="toggle('show_search', config.showSearch.value)" />
-                <SettingsToggle label="Alert Banner" :active="config.showAlerts.value" @toggle="toggle('show_alerts', config.showAlerts.value)" />
-              </div>
-            </section>
+              <!-- ═══ Section: App Launcher ═══ -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">App Launcher</h3>
+                <div class="space-y-3">
+                  <SettingsToggle label="Favorites section" :active="config.showFavorites.value" @toggle="toggle('show_favorites', config.showFavorites.value)" />
+                  <SettingsToggle label="Recently Used section" :active="config.showRecent.value" @toggle="toggle('show_recent', config.showRecent.value)" />
+                  <SettingsToggle label="My Apps section" :active="config.showMyApps.value" @toggle="toggle('show_my_apps', config.showMyApps.value)" />
 
-            <!-- ═══ Section: Quick Actions ═══ -->
-            <section>
-              <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
-                Quick Actions
-                <span class="text-theme-muted font-normal normal-case tracking-normal ml-1">({{ enabledActions.length }}/8)</span>
-              </h3>
+                  <!-- My Apps rows -->
+                  <div class="flex items-center justify-between py-1">
+                    <span class="text-sm text-theme-secondary">My Apps rows</span>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="5"
+                        :value="config.myAppsRows.value"
+                        class="w-24 accent-accent"
+                        @input="config.updateConfig('my_apps_rows', parseInt($event.target.value))"
+                      />
+                      <span class="text-xs font-mono text-theme-muted w-8 text-right">
+                        {{ config.myAppsRows.value === 0 ? 'All' : config.myAppsRows.value }}
+                      </span>
+                    </div>
+                  </div>
 
-              <!-- Enabled list (reorderable) -->
-              <div v-if="enabledActions.length" class="space-y-1 mb-3">
-                <div
-                  v-for="(id, index) in enabledActions"
-                  :key="id"
-                  class="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-tertiary"
-                >
-                  <Icon :name="getActionMeta(id).icon" :size="16" class="text-theme-secondary flex-shrink-0" />
-                  <span class="text-sm text-theme-primary flex-1">{{ getActionMeta(id).label }}</span>
-                  <button
-                    :disabled="index === 0"
-                    class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    aria-label="Move up"
-                    @click="moveAction(index, -1)"
-                  >
-                    <Icon name="ChevronUp" :size="14" />
-                  </button>
-                  <button
-                    :disabled="index === enabledActions.length - 1"
-                    class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    aria-label="Move down"
-                    @click="moveAction(index, 1)"
-                  >
-                    <Icon name="ChevronDown" :size="14" />
-                  </button>
-                  <button
-                    class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-error hover:bg-error-muted transition-colors"
-                    aria-label="Remove action"
-                    @click="removeAction(id)"
-                  >
-                    <Icon name="X" :size="14" />
-                  </button>
-                </div>
-              </div>
-              <p v-else class="text-xs text-theme-muted italic mb-3">No quick actions enabled</p>
-
-              <!-- Available pool -->
-              <div v-if="availableActions.length" class="space-y-1">
-                <p class="text-xs text-theme-muted mb-1">Available</p>
-                <div class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="action in availableActions"
-                    :key="action.id"
-                    :disabled="enabledActions.length >= 8"
-                    class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-theme-primary text-xs text-theme-secondary
-                           hover:bg-theme-tertiary hover:text-theme-primary transition-colors
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-                    @click="addAction(action.id)"
-                  >
-                    <Icon :name="action.icon" :size="12" />
-                    {{ action.label }}
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            <!-- ═══ Section: App Launcher ═══ -->
-            <section>
-              <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">App Launcher</h3>
-              <div class="space-y-3">
-                <SettingsToggle label="Favorites section" :active="config.showFavorites.value" @toggle="toggle('show_favorites', config.showFavorites.value)" />
-                <SettingsToggle label="Recently Used section" :active="config.showRecent.value" @toggle="toggle('show_recent', config.showRecent.value)" />
-                <SettingsToggle label="My Apps section" :active="config.showMyApps.value" @toggle="toggle('show_my_apps', config.showMyApps.value)" />
-
-                <!-- My Apps rows -->
-                <div class="flex items-center justify-between py-1">
-                  <span class="text-sm text-theme-secondary">My Apps rows</span>
-                  <div class="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="5"
-                      :value="config.myAppsRows.value"
-                      class="w-24 accent-accent"
-                      @input="config.updateConfig('my_apps_rows', parseInt($event.target.value))"
-                    />
-                    <span class="text-xs font-mono text-theme-muted w-8 text-right">
-                      {{ config.myAppsRows.value === 0 ? 'All' : config.myAppsRows.value }}
-                    </span>
+                  <!-- Favorites columns -->
+                  <div class="flex items-center justify-between py-1">
+                    <span class="text-sm text-theme-secondary">Favorites columns</span>
+                    <div class="flex rounded-lg border border-theme-primary overflow-hidden">
+                      <button
+                        v-for="n in [2, 3, 4, 5, 6]"
+                        :key="n"
+                        class="px-2.5 py-1.5 text-xs font-medium transition-colors"
+                        :class="config.favoriteCols.value === n
+                          ? 'bg-accent text-on-accent'
+                          : 'text-theme-secondary hover:bg-theme-tertiary'"
+                        @click="config.updateConfig('favorite_cols', n)"
+                      >
+                        {{ n }}
+                      </button>
+                    </div>
                   </div>
                 </div>
+              </section>
 
-                <!-- Favorites columns -->
-                <div class="flex items-center justify-between py-1">
-                  <span class="text-sm text-theme-secondary">Favorites columns</span>
-                  <div class="flex rounded-lg border border-theme-primary overflow-hidden">
+              <!-- ═══ Section: Widget Order ═══ -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Widget Order</h3>
+                <div class="space-y-1">
+                  <div
+                    v-for="(id, index) in config.widgetOrder.value"
+                    :key="id"
+                    class="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-tertiary"
+                  >
+                    <Icon :name="WIDGET_ICONS[id] || 'Box'" :size="16" class="text-theme-secondary flex-shrink-0" />
+                    <span class="text-sm text-theme-primary flex-1">{{ WIDGET_LABELS[id] || id }}</span>
                     <button
-                      v-for="n in [2, 3, 4, 5, 6]"
-                      :key="n"
-                      class="px-2.5 py-1.5 text-xs font-medium transition-colors"
-                      :class="config.favoriteCols.value === n
-                        ? 'bg-accent text-on-accent'
-                        : 'text-theme-secondary hover:bg-theme-tertiary'"
-                      @click="config.updateConfig('favorite_cols', n)"
+                      :disabled="index === 0"
+                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Move up"
+                      @click="moveWidget(index, -1)"
                     >
-                      {{ n }}
+                      <Icon name="ChevronUp" :size="14" />
+                    </button>
+                    <button
+                      :disabled="index === config.widgetOrder.value.length - 1"
+                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Move down"
+                      @click="moveWidget(index, 1)"
+                    >
+                      <Icon name="ChevronDown" :size="14" />
                     </button>
                   </div>
                 </div>
-              </div>
-            </section>
-
-            <!-- ═══ Section: Widget Order ═══ -->
-            <section>
-              <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Widget Order</h3>
-              <div class="space-y-1">
-                <div
-                  v-for="(id, index) in config.widgetOrder.value"
-                  :key="id"
-                  class="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-tertiary"
-                >
-                  <Icon :name="WIDGET_ICONS[id] || 'Box'" :size="16" class="text-theme-secondary flex-shrink-0" />
-                  <span class="text-sm text-theme-primary flex-1">{{ WIDGET_LABELS[id] || id }}</span>
-                  <button
-                    :disabled="index === 0"
-                    class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    aria-label="Move up"
-                    @click="moveWidget(index, -1)"
-                  >
-                    <Icon name="ChevronUp" :size="14" />
-                  </button>
-                  <button
-                    :disabled="index === config.widgetOrder.value.length - 1"
-                    class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    aria-label="Move down"
-                    @click="moveWidget(index, 1)"
-                  >
-                    <Icon name="ChevronDown" :size="14" />
-                  </button>
-                </div>
-              </div>
-            </section>
+              </section>
+            </template>
 
           </div>
 
