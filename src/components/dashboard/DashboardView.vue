@@ -21,7 +21,6 @@ import { useMonitoringStore } from '@/stores/monitoring'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { useMode } from '@/composables/useMode'
 import { safeGetItem, safeSetItem } from '@/utils/storage'
-import PageHeader from '@/components/ui/PageHeader.vue'
 import DashboardStandard from './DashboardStandard.vue'
 import DashboardAdvanced from './DashboardAdvanced.vue'
 import AskCubeOS from '@/components/chat/AskCubeOS.vue'
@@ -108,13 +107,6 @@ onUnmounted(() => {
 
 <template>
   <div class="p-2 sm:p-4 lg:p-6">
-    <PageHeader
-      v-if="isAdvanced"
-      title="Dashboard"
-      subtitle="System overview and service health"
-      icon="LayoutDashboard"
-    />
-
     <!-- Mode-aware sub-view -->
     <DashboardAdvanced
       v-if="isAdvanced"

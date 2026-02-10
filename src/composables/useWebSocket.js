@@ -72,7 +72,21 @@ export function useWebSocket(options = {}) {
   function getWebSocketUrl() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = window.location.host
-    return `${protocol}//${host}/api/v1/ws/stats?interval=${interval}`
+    let url = `${protocol}//${host}/api/v1/ws/stats?interval=${interval}`
+
+    // Attach JWT token — WebSocket cannot set Authorization headers,
+    // so we pass the token as a query param. The auth middleware
+    // already supports ?token= fallback (see middleware/auth.go).
+    try {
+      const token = localStorage.getItem('cubeos_access_token')
+      if (token) {
+        url += `&token=${encodeURIComponent(token)}`
+      }
+    } catch {
+      // localStorage unavailable (e.g. Safari private browsing) — skip
+    }
+
+    return url
   }
 
   /**

@@ -7,11 +7,6 @@
  * Designed as a prominent dashboard anchor — the first thing you see.
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useSystemStore } from '@/stores/system'
-import { useWallpaper } from '@/composables/useWallpaper'
-
-const systemStore = useSystemStore()
-const { isActive: wallpaperActive } = useWallpaper()
 
 const now = ref(new Date())
 let timer = null
@@ -46,8 +41,6 @@ const greeting = computed(() => {
   if (h < 21) return 'Good evening'
   return 'Good night'
 })
-
-const hostname = computed(() => systemStore.hostname || 'CubeOS')
 </script>
 
 <template>
@@ -74,17 +67,6 @@ const hostname = computed(() => systemStore.hostname || 'CubeOS')
         <p class="text-sm text-theme-secondary mt-2">
           {{ dateStr }}
         </p>
-      </div>
-
-      <!-- Right: Hostname badge -->
-      <div
-        class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg"
-        :class="wallpaperActive
-          ? 'bg-white/[0.06] border border-white/[0.08]'
-          : 'bg-theme-tertiary'"
-      >
-        <span class="w-2 h-2 rounded-full bg-success" />
-        <span class="text-xs font-medium text-theme-secondary">{{ hostname }}</span>
       </div>
     </div>
   </div>

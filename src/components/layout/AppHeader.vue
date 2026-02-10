@@ -81,6 +81,7 @@ const batteryCharging = computed(() => {
 })
 
 const wsConnected = computed(() => systemStore.wsConnected)
+const hostname = computed(() => systemStore.hostname || 'CubeOS')
 </script>
 
 <template>
@@ -108,6 +109,12 @@ const wsConnected = computed(() => systemStore.wsConnected)
             :class="wsConnected ? 'bg-success animate-pulse' : 'bg-warning'"
           ></span>
           <span class="text-theme-muted font-medium">{{ wsConnected ? 'LIVE' : 'POLL' }}</span>
+        </div>
+
+        <!-- Hostname badge -->
+        <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs">
+          <span class="w-1.5 h-1.5 rounded-full bg-success"></span>
+          <span class="text-theme-secondary font-medium">{{ hostname }}</span>
         </div>
 
         <div class="w-px h-3 bg-theme-primary mx-1"></div>
