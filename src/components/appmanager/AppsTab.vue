@@ -211,7 +211,7 @@ watch(() => store.apps, (newApps) => {
           <option value="user">User</option>
         </select>
         <span class="text-sm text-theme-secondary">{{ filteredApps.length }} apps</span>
-        <button @click="fetchAllAppStates" :disabled="loadingStates" class="p-1.5 text-theme-secondary hover:text-accent hover:bg-accent-muted rounded transition-colors disabled:opacity-50" title="Refresh status">
+        <button @click="fetchAllAppStates" :disabled="loadingStates" class="p-1.5 text-theme-secondary hover:text-accent hover:bg-accent-muted rounded transition-colors disabled:opacity-50" title="Refresh status" aria-label="Refresh status">
           <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': loadingStates }" />
         </button>
       </div>
@@ -257,7 +257,7 @@ watch(() => store.apps, (newApps) => {
             </div>
           </div>
           <!-- Edit Config Button -->
-          <button @click="openConfigEditor(app)" class="p-1.5 text-theme-secondary hover:text-accent hover:bg-accent-muted rounded transition-colors" title="Edit Config">
+          <button @click="openConfigEditor(app)" class="p-1.5 text-theme-secondary hover:text-accent hover:bg-accent-muted rounded transition-colors" title="Edit Config" :aria-label="`Edit config for ${app.display_name || app.name}`">
             <Icon name="FileCode" :size="16" />
           </button>
         </div>
@@ -289,7 +289,8 @@ watch(() => store.apps, (newApps) => {
               :disabled="!canStart(app)" 
               :class="['p-1.5 rounded transition-colors', 
                 canStart(app) ? 'text-success hover:bg-success-muted' : 'text-theme-muted cursor-not-allowed opacity-50']" 
-              :title="isAppRunning(app) ? 'Already running' : 'Start'">
+              :title="isAppRunning(app) ? 'Already running' : 'Start'"
+              :aria-label="`Start ${app.display_name || app.name}`">
               <Icon name="Play" :size="14" />
             </button>
             <!-- Stop: enabled only when running -->
@@ -298,11 +299,12 @@ watch(() => store.apps, (newApps) => {
               :disabled="!canStop(app)" 
               :class="['p-1.5 rounded transition-colors', 
                 canStop(app) ? 'text-error hover:bg-error-muted' : 'text-theme-muted cursor-not-allowed opacity-50']" 
-              :title="!isAppRunning(app) ? 'Not running' : 'Stop'">
+              :title="!isAppRunning(app) ? 'Not running' : 'Stop'"
+              :aria-label="`Stop ${app.display_name || app.name}`">
               <Icon name="Square" :size="14" />
             </button>
             <!-- Restart: always available if not controlling -->
-            <button @click="restartAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-accent hover:bg-accent-muted rounded transition-colors disabled:opacity-50" title="Restart">
+            <button @click="restartAppContainer(app)" :disabled="controllingApp === app.name" class="p-1.5 text-accent hover:bg-accent-muted rounded transition-colors disabled:opacity-50" title="Restart" :aria-label="`Restart ${app.display_name || app.name}`">
               <Icon name="RotateCcw" :size="14" />
             </button>
             <label class="relative inline-flex items-center cursor-pointer ml-2">
@@ -310,7 +312,7 @@ watch(() => store.apps, (newApps) => {
               <div class="w-9 h-5 bg-theme-tertiary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-theme-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-theme-primary after:border-theme-primary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
             </label>
           </div>
-          <button v-if="app.type !== 'system'" @click="deleteApp(app)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Unregister">
+          <button v-if="app.type !== 'system'" @click="deleteApp(app)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Unregister" :aria-label="`Unregister ${app.display_name || app.name}`">
             <Icon name="Trash2" :size="14" />
           </button>
         </div>
@@ -324,7 +326,7 @@ watch(() => store.apps, (newApps) => {
         <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-md w-full p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-theme-primary">Register Application</h3>
-            <button @click="showRegisterModal = false" class="text-theme-muted hover:text-theme-primary"><Icon name="X" :size="20" /></button>
+            <button @click="showRegisterModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close register dialog"><Icon name="X" :size="20" /></button>
           </div>
           <form @submit.prevent="registerApp" class="space-y-4">
             <div>

@@ -129,6 +129,7 @@ function close() {
             <button
               @click="close"
               class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+              aria-label="Close health details"
             >
               <Icon name="X" :size="20" />
             </button>

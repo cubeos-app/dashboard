@@ -450,7 +450,7 @@ function formatDirection(dir) {
               <td class="px-4 py-3 text-theme-secondary font-mono">{{ rule.to || 'any' }}</td>
               <td class="px-4 py-3 text-theme-muted max-w-[200px] truncate">{{ rule.comment || '-' }}</td>
               <td class="px-4 py-3">
-                <button @click="handleDeleteRule(rule)" :disabled="firewallStore.loading" class="p-1.5 text-theme-muted hover:text-error hover:bg-error-muted rounded-lg transition-colors disabled:opacity-50" title="Delete rule">
+                <button @click="handleDeleteRule(rule)" :disabled="firewallStore.loading" class="p-1.5 text-theme-muted hover:text-error hover:bg-error-muted rounded-lg transition-colors disabled:opacity-50" title="Delete rule" :aria-label="`Delete firewall rule for port ${rule.port || 'any'}`">
                   <Icon name="Trash2" :size="16" />
                 </button>
               </td>
@@ -467,7 +467,7 @@ function formatDirection(dir) {
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase" :class="[ruleActionColor(rule.action), ruleActionBg(rule.action)]">{{ rule.action }}</span>
               <span class="text-xs text-theme-muted">{{ formatDirection(rule.direction) }}</span>
             </div>
-            <button @click="handleDeleteRule(rule)" :disabled="firewallStore.loading" class="p-1.5 text-theme-muted hover:text-error hover:bg-error-muted rounded-lg transition-colors disabled:opacity-50">
+            <button @click="handleDeleteRule(rule)" :disabled="firewallStore.loading" class="p-1.5 text-theme-muted hover:text-error hover:bg-error-muted rounded-lg transition-colors disabled:opacity-50" :aria-label="`Delete firewall rule for port ${rule.port || 'any'}`">
               <Icon name="Trash2" :size="16" />
             </button>
           </div>

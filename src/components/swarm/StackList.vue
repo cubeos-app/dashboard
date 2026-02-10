@@ -233,6 +233,7 @@ function formatDeployMode(mode) {
               @click.stop="viewService(service)"
               class="p-2 rounded-lg hover:bg-theme-tertiary text-theme-muted hover:text-theme-primary transition-colors"
               title="View Details"
+              :aria-label="`View details for ${service.name}`"
             >
               <Icon name="Info" :size="16" />
             </button>

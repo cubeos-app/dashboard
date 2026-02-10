@@ -28,7 +28,6 @@
  * - GET    /firewall/hal/status             - HAL-level firewall status (active, rules, nat, forwarding)
  * 
  * ⚡ = Endpoints verified in Swagger but not yet tested against backend.
- *      TODO: NetworkView still calls some of these directly — migrate to use store.
  */
 
 import { defineStore } from 'pinia'

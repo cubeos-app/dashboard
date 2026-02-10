@@ -487,7 +487,7 @@ async function importApp() {
                   <p v-if="app.tagline" class="text-xs text-theme-muted line-clamp-1">{{ app.tagline }}</p>
                 </div>
               </div>
-              <button @click="previewStoreApp(app)" class="px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent-muted rounded transition-colors"><Icon name="Eye" :size="14" /></button>
+              <button @click="previewStoreApp(app)" class="px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent-muted rounded transition-colors" :aria-label="`Preview ${app.title || app.name}`"><Icon name="Eye" :size="14" /></button>
             </div>
           </div>
         </div>

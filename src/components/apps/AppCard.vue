@@ -167,6 +167,7 @@ async function handleAction(action, e) {
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-success hover:bg-success-muted rounded-lg transition-colors"
               title="Start"
+              :aria-label="`Start ${app.display_name || app.name}`"
             >
               <Icon name="Play" :size="16" />
             </button>
@@ -178,6 +179,7 @@ async function handleAction(action, e) {
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-error hover:bg-error-muted rounded-lg transition-colors"
               title="Stop"
+              :aria-label="`Stop ${app.display_name || app.name}`"
             >
               <Icon name="Square" :size="16" />
             </button>
@@ -189,6 +191,7 @@ async function handleAction(action, e) {
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-warning hover:bg-warning-muted rounded-lg transition-colors"
               title="Restart"
+              :aria-label="`Restart ${app.display_name || app.name}`"
             >
               <Icon name="RotateCw" :size="16" />
             </button>

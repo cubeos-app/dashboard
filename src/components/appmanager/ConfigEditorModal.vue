@@ -85,7 +85,7 @@ function handleSave() {
               <p class="text-sm text-theme-muted">{{ appName }}</p>
             </div>
           </div>
-          <button @click="$emit('close')" class="p-2 rounded-lg hover:bg-theme-tertiary text-theme-secondary">
+          <button @click="$emit('close')" class="p-2 rounded-lg hover:bg-theme-tertiary text-theme-secondary" aria-label="Close config editor">
             <Icon name="X" :size="20" />
           </button>
         </div>
