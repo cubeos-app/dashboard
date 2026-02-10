@@ -5,7 +5,7 @@
  *
  * API Endpoints:
  *   - GET  /processes               - List all processes
- *   - GET  /processes/stats         - Process summary stats
+ *   - GET  /processes/stats/summary  - Process summary stats
  *   - GET  /processes/top/cpu       - Top CPU consumers
  *   - GET  /processes/top/memory    - Top memory consumers
  *   - GET  /processes/search/{name} - Search processes by name
@@ -76,11 +76,11 @@ export const useProcessesStore = defineStore('processes', () => {
 
   /**
    * Fetch process summary stats
-   * GET /processes/stats
+   * GET /processes/stats/summary
    */
   async function fetchStats(options = {}) {
     try {
-      const data = await api.get('/processes/stats', {}, options)
+      const data = await api.get('/processes/stats/summary', {}, options)
       if (data === null) return
       processStats.value = data
     } catch (e) {

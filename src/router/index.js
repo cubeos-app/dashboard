@@ -74,7 +74,7 @@ const routes = [
   {
     path: '/system',
     name: 'system',
-    component: () => import('@/components/system/SystemView.vue'),
+    component: () => import('@/components/system/SystemPage.vue'),
     meta: { requiresAuth: true }
   },
   {
