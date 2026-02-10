@@ -1,19 +1,15 @@
 <script setup>
 /**
- * DashboardStandard.vue — Session C Fix
+ * DashboardStandard.vue — DnD Bugfix
  *
  * Standard mode ("consumer mode") dashboard.
- * Session A: Row-based grid layout from useDashboardConfig.gridLayout.
- * Session B: Widgets wrapped in WidgetWrapper for per-widget opacity.
- * Session C: When isEditing=true, widgets become draggable with drop zones
- *   between rows and beside single-widget rows.
+ * Row-based grid layout from useDashboardConfig.gridLayout.
+ * Widgets wrapped in WidgetWrapper for per-widget opacity and DnD.
  *
- * FIX: gridRows now carries `layoutIdx` — the original unfiltered index
- * into gridLayout — so drop handlers always target the correct row even
- * when some rows are hidden (show_disk=false, etc.).
- *
- * FIX: Side drop zones use absolute positioning instead of being grid
- * children, preventing them from stacking vertically in grid-cols-1.
+ * BUGFIX: Removed side drop zones (left/right pairing) — DnD now only
+ * reorders rows (move widgets up/down). Drop zones appear between rows.
+ * Uses layoutIdx (original unfiltered index) so drop handlers target
+ * the correct row even when some rows are hidden via visibility toggles.
  *
  * HTML5 Drag and Drop API — no library dependency.
  */
@@ -159,7 +155,7 @@ const isAllHidden = computed(() => gridRows.value.length === 0)
       v-if="isEditing"
       class="text-center py-2 text-xs text-theme-muted select-none animate-fade-in"
     >
-      Drag widgets to rearrange. Drop beside a widget to pair them.
+      Drag widgets to rearrange their order.
     </div>
 
     <!-- Empty state when all widgets hidden -->
@@ -192,137 +188,103 @@ const isAllHidden = computed(() => gridRows.value.length === 0)
         </div>
       </div>
 
-      <!-- Row wrapper with relative positioning for absolute side drop zones -->
-      <div class="relative">
-        <!-- Side drop zone: LEFT (single-widget rows only, lg+ only) -->
-        <div
-          v-if="isEditing && dragWidgetId && entry.visible.length === 1"
-          class="hidden lg:flex drop-zone-side drop-zone-side-left"
-          :class="isDropActive('left', entry.layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
-          @dragover.prevent="onDragOver($event, 'left', entry.layoutIdx)"
-          @dragleave="onDragLeave($event, 'left', entry.layoutIdx)"
-          @drop="onDrop($event, 'left', entry.layoutIdx)"
-        >
-          <div class="drop-zone-indicator">
-            <Icon name="Plus" :size="14" />
-          </div>
-        </div>
+      <!-- Main grid: 1-col mobile, 2-col lg+ when paired -->
+      <div
+        class="grid grid-cols-1 gap-4 dash-stagger"
+        :class="{ 'lg:grid-cols-2': entry.visible.length > 1 }"
+      >
+        <template v-for="widgetId in entry.visible" :key="widgetId">
 
-        <!-- Main grid: 1-col mobile, 2-col lg+ when paired -->
-        <div
-          class="grid grid-cols-1 gap-4 dash-stagger"
-          :class="{
-            'lg:grid-cols-2': entry.visible.length > 1,
-            'lg:mx-16': isEditing && dragWidgetId && entry.visible.length === 1,
-          }"
-        >
-          <template v-for="widgetId in entry.visible" :key="widgetId">
+          <!-- ═══ Clock ═══ -->
+          <WidgetWrapper v-if="widgetId === 'clock'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <ClockWidget :card="true" />
+          </WidgetWrapper>
 
-            <!-- ═══ Clock ═══ -->
-            <WidgetWrapper v-if="widgetId === 'clock'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
-              <ClockWidget :card="true" />
-            </WidgetWrapper>
+          <!-- ═══ Search + Chat bar ═══ -->
+          <WidgetWrapper v-if="widgetId === 'search'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <SearchChatBar
+              ref="searchBarRef"
+              @open-app="(app) => emit('open-app', app)"
+              @open-chat="emit('open-chat')"
+            />
+          </WidgetWrapper>
 
-            <!-- ═══ Search + Chat bar ═══ -->
-            <WidgetWrapper v-if="widgetId === 'search'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
-              <SearchChatBar
-                ref="searchBarRef"
-                @open-app="(app) => emit('open-app', app)"
-                @open-chat="emit('open-chat')"
-              />
-            </WidgetWrapper>
+          <!-- ═══ Status pill ═══ -->
+          <WidgetWrapper v-if="widgetId === 'status'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <StatusPill />
+          </WidgetWrapper>
 
-            <!-- ═══ Status pill ═══ -->
-            <WidgetWrapper v-if="widgetId === 'status'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
-              <StatusPill />
-            </WidgetWrapper>
+          <!-- ═══ System Vitals ═══ -->
+          <WidgetWrapper v-if="widgetId === 'vitals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <SystemVitals />
+          </WidgetWrapper>
 
-            <!-- ═══ System Vitals ═══ -->
-            <WidgetWrapper v-if="widgetId === 'vitals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
-              <SystemVitals />
-            </WidgetWrapper>
+          <!-- ═══ Network ═══ -->
+          <WidgetWrapper v-if="widgetId === 'network'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <NetworkWidget />
+          </WidgetWrapper>
 
-            <!-- ═══ Network ═══ -->
-            <WidgetWrapper v-if="widgetId === 'network'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
-              <NetworkWidget />
-            </WidgetWrapper>
+          <!-- ═══ Disk ═══ -->
+          <WidgetWrapper v-if="widgetId === 'disk'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <DiskWidget />
+          </WidgetWrapper>
 
-            <!-- ═══ Disk ═══ -->
-            <WidgetWrapper v-if="widgetId === 'disk'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
-              <DiskWidget />
-            </WidgetWrapper>
+          <!-- ═══ Signals ═══ -->
+          <WidgetWrapper v-if="widgetId === 'signals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <SignalsWidget />
+          </WidgetWrapper>
 
-            <!-- ═══ Signals ═══ -->
-            <WidgetWrapper v-if="widgetId === 'signals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
-              <SignalsWidget />
-            </WidgetWrapper>
-
-            <!-- ═══ Quick Actions ═══ -->
-            <WidgetWrapper v-if="widgetId === 'actions' && filteredQuickActions.length > 0" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
-              <div>
-                <div
-                  :class="cardBase()"
-                  class="rounded-2xl p-4 h-full"
-                >
-                  <div class="grid gap-2" :class="quickActionsGridCols">
-                    <button
-                      v-for="qa in filteredQuickActions"
-                      :key="qa.id"
-                      class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
-                             hover:bg-theme-tertiary hover:-translate-y-px group"
-                      @click="qa.action()"
+          <!-- ═══ Quick Actions ═══ -->
+          <WidgetWrapper v-if="widgetId === 'actions' && filteredQuickActions.length > 0" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx">
+            <div>
+              <div
+                :class="cardBase()"
+                class="rounded-2xl p-4 h-full"
+              >
+                <div class="grid gap-2" :class="quickActionsGridCols">
+                  <button
+                    v-for="qa in filteredQuickActions"
+                    :key="qa.id"
+                    class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
+                           hover:bg-theme-tertiary hover:-translate-y-px group"
+                    @click="qa.action()"
+                  >
+                    <div
+                      class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
+                      :class="qa.color.split(' ')[0]"
                     >
-                      <div
-                        class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
-                        :class="qa.color.split(' ')[0]"
-                      >
-                        <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
-                      </div>
-                      <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
-                        {{ qa.label }}
-                      </span>
-                    </button>
-                  </div>
+                      <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
+                    </div>
+                    <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
+                      {{ qa.label }}
+                    </span>
+                  </button>
                 </div>
               </div>
-            </WidgetWrapper>
+            </div>
+          </WidgetWrapper>
 
-            <!-- ═══ App Launcher ═══ -->
-            <WidgetWrapper
-              v-if="widgetId === 'launcher'"
-              :widget-id="widgetId"
-              :editing="isEditing"
-              :row-idx="entry.layoutIdx"
-            >
-              <div>
-                <AppLauncher
-                  :show-favorites="showFavorites"
-                  :show-recent="showRecent"
-                  :show-my-apps="showMyApps"
-                  :my-apps-rows="myAppsRows"
-                  :favorite-cols="favoriteCols"
-                  @open-app="(app) => emit('open-app', app)"
-                  @toggle-favorite="(name) => emit('toggle-favorite', name)"
-                />
-              </div>
-            </WidgetWrapper>
+          <!-- ═══ App Launcher ═══ -->
+          <WidgetWrapper
+            v-if="widgetId === 'launcher'"
+            :widget-id="widgetId"
+            :editing="isEditing"
+            :row-idx="entry.layoutIdx"
+          >
+            <div>
+              <AppLauncher
+                :show-favorites="showFavorites"
+                :show-recent="showRecent"
+                :show-my-apps="showMyApps"
+                :my-apps-rows="myAppsRows"
+                :favorite-cols="favoriteCols"
+                @open-app="(app) => emit('open-app', app)"
+                @toggle-favorite="(name) => emit('toggle-favorite', name)"
+              />
+            </div>
+          </WidgetWrapper>
 
-          </template>
-        </div>
-
-        <!-- Side drop zone: RIGHT (single-widget rows only, lg+ only) -->
-        <div
-          v-if="isEditing && dragWidgetId && entry.visible.length === 1"
-          class="hidden lg:flex drop-zone-side drop-zone-side-right"
-          :class="isDropActive('right', entry.layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
-          @dragover.prevent="onDragOver($event, 'right', entry.layoutIdx)"
-          @dragleave="onDragLeave($event, 'right', entry.layoutIdx)"
-          @drop="onDrop($event, 'right', entry.layoutIdx)"
-        >
-          <div class="drop-zone-indicator">
-            <Icon name="Plus" :size="14" />
-          </div>
-        </div>
+        </template>
       </div>
 
       <!-- Alert banner follows the row that contains search (not in grid, always full-width) -->
@@ -357,30 +319,6 @@ const isAllHidden = computed(() => gridRows.value.length === 0)
   justify-content: center;
   transition: all 0.2s ease;
   margin: -0.25rem 0;
-}
-
-/*
- * Side drop zones are ABSOLUTELY positioned so they don't participate
- * in the CSS grid layout. Previously they were grid children inside
- * a grid-cols-1 container, causing them to stack vertically instead
- * of appearing beside the widget.
- */
-.drop-zone-side {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 3.5rem;
-  border-radius: 1rem;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  z-index: 5;
-}
-.drop-zone-side-left {
-  left: 0;
-}
-.drop-zone-side-right {
-  right: 0;
 }
 
 .drop-zone-idle {

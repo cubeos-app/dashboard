@@ -1,21 +1,19 @@
 <script setup>
 /**
- * WidgetWrapper.vue — Session C Fix
+ * WidgetWrapper.vue — DnD Bugfix
  *
  * Thin wrapper that controls per-widget card background opacity (Session B)
  * AND provides drag-and-drop support in edit mode (Session C).
  *
  * Session B: Sets --widget-bg-opacity CSS custom property.
- * Session C: When editing=true, shows a drag handle overlay, dashed border,
+ * Session C: When editing=true, shows a drag handle badge, dashed border,
  *   and handles dragstart/dragend for HTML5 Drag and Drop.
  *
- * FIX: Added a transparent interaction overlay in edit mode. This overlay
- * sits above the widget content (but below the drag handle badge) and
- * captures mouse/touch events that would otherwise be swallowed by
- * interactive children (buttons, links, inputs). Without this overlay,
- * dragging from any interactive element inside the widget would fail
- * because the element's own mousedown behavior takes priority over the
- * parent's draggable attribute.
+ * BUGFIX: Removed the z-20 transparent overlay that was blocking drag
+ * initiation in some browsers. Instead, the slot content gets
+ * pointer-events:none during edit mode, so interactive children (buttons,
+ * links, inputs) can't capture mousedown — while the parent draggable div
+ * still receives pointer events and can initiate HTML5 drag.
  *
  * Props:
  *   widget-id — widget ID for opacity lookup and drag identification
@@ -68,7 +66,7 @@ function onDragEnd() {
   <div
     class="widget-wrap h-full relative"
     :class="{
-      'ring-2 ring-dashed ring-accent/30 rounded-2xl': editing && !isDragging,
+      'ring-2 ring-dashed ring-accent/30 rounded-2xl cursor-grab active:cursor-grabbing': editing && !isDragging,
       'opacity-30 scale-95': isDragging,
     }"
     :style="wrapperStyle"
@@ -76,7 +74,7 @@ function onDragEnd() {
     @dragstart="editing ? onDragStart($event) : null"
     @dragend="editing ? onDragEnd() : null"
   >
-    <!-- Drag handle overlay (visible only in edit mode) -->
+    <!-- Drag handle badge (visible only in edit mode) -->
     <div
       v-if="editing"
       class="absolute -top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2.5 py-1
@@ -89,17 +87,13 @@ function onDragEnd() {
     </div>
 
     <!--
-      Transparent interaction overlay — edit mode only.
-      Sits above widget content (z-20) but below the drag handle (z-30).
-      Prevents buttons/links/inputs inside the widget from capturing
-      mousedown events that would block the parent's HTML5 drag.
+      Slot content: during edit mode, pointer-events:none prevents interactive
+      children from capturing mousedown, so the parent draggable div receives
+      the events and HTML5 drag initiates correctly.
     -->
-    <div
-      v-if="editing"
-      class="absolute inset-0 z-20 cursor-grab active:cursor-grabbing rounded-2xl"
-    ></div>
-
-    <slot />
+    <div :class="editing ? 'pointer-events-none' : ''">
+      <slot />
+    </div>
   </div>
 </template>
 

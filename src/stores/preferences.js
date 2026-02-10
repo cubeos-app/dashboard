@@ -80,6 +80,32 @@ export const usePreferencesStore = defineStore('preferences', () => {
   }
 
   /**
+   * Deep merge utility — merges source into target recursively.
+   * Arrays and non-object values from source replace target values.
+   * Object values are merged recursively.
+   */
+  function deepMerge(target, source) {
+    if (!target || typeof target !== 'object') return source
+    if (!source || typeof source !== 'object') return source
+    const result = { ...target }
+    for (const key of Object.keys(source)) {
+      if (
+        source[key] !== null &&
+        typeof source[key] === 'object' &&
+        !Array.isArray(source[key]) &&
+        typeof result[key] === 'object' &&
+        result[key] !== null &&
+        !Array.isArray(result[key])
+      ) {
+        result[key] = deepMerge(result[key], source[key])
+      } else {
+        result[key] = source[key]
+      }
+    }
+    return result
+  }
+
+  /**
    * Save/update preferences
    * PUT /preferences
    * @param {Object} updates - Partial preferences object to merge
@@ -90,8 +116,9 @@ export const usePreferencesStore = defineStore('preferences', () => {
 
     try {
       const data = await api.put('/preferences', updates)
-      // Update local state with the response (full preferences) or merge updates
-      preferences.value = data?.preferences ?? { ...preferences.value, ...updates }
+      // API returns { status: 'ok', preferences: {...} } with the full merged prefs.
+      // Use the API response as authoritative. If unavailable, deep merge locally.
+      preferences.value = data?.preferences ?? deepMerge(preferences.value, updates)
       return true
     } catch (e) {
       error.value = e.message

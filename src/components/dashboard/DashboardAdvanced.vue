@@ -250,7 +250,7 @@ function goToAppStore() { router.push('/appstore') }
       <div
         class="relative"
         :class="{
-          'ring-2 ring-dashed ring-accent/30 rounded-xl p-1': isEditing,
+          'ring-2 ring-dashed ring-accent/30 rounded-xl p-1 cursor-grab active:cursor-grabbing': isEditing,
           'opacity-30': dragSectionId === sectionId,
           'ring-accent/60 bg-accent/5': dragOverSectionId === sectionId && dragSectionId !== sectionId,
         }"
@@ -275,18 +275,11 @@ function goToAppStore() { router.push('/appstore') }
         </div>
 
         <!--
-          Transparent interaction overlay — edit mode only.
-          Sits above section content (z-20) but below the drag handle (z-30).
-          Prevents buttons/links/inputs inside the section from capturing
-          mousedown events that would block the parent's HTML5 drag.
-          Without this overlay, interactive elements (ServiceGrid buttons,
-          Quick Links buttons, Favorites clickables, etc.) consume the
-          mousedown and the draggable never fires dragstart.
+          Section content wrapper: during edit mode, pointer-events:none prevents
+          interactive children (buttons, links, inputs) from capturing mousedown,
+          so the parent draggable div receives events and HTML5 drag initiates.
         -->
-        <div
-          v-if="isEditing"
-          class="absolute inset-0 z-20 cursor-grab active:cursor-grabbing rounded-xl"
-        ></div>
+        <div :class="isEditing ? 'pointer-events-none' : ''">
 
         <!-- ═══ Status Gauges ═══ -->
         <section v-if="sectionId === 'gauges'" class="animate-fade-in">
@@ -491,6 +484,7 @@ function goToAppStore() { router.push('/appstore') }
             </button>
           </div>
         </section>
+        </div>
       </div>
     </template>
   </div>

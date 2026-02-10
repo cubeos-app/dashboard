@@ -1,8 +1,12 @@
 /**
- * useDashboardEdit.js — Session C: Drag-and-Drop Edit Mode
+ * useDashboardEdit.js — DnD Bugfix
  *
  * Manages dashboard edit mode state: editing toggle, drag tracking,
  * drop handling, and layout persistence. Uses HTML5 Drag and Drop API.
+ *
+ * BUGFIX: Simplified handleDrop to row-reorder only (before/after).
+ * Removed left/right position handling that grouped widgets side-by-side.
+ * DnD now only moves entire rows up/down, per user requirement.
  *
  * Usage:
  *   const { isEditing, toggleEdit, startDrag, endDrag, handleDrop } = useDashboardEdit()
@@ -37,7 +41,7 @@ export function useDashboardEdit() {
   /**
    * Called on dragstart. Records which widget is being dragged.
    * @param {string} widgetId — widget being dragged
-   * @param {number} rowIdx — source row index
+   * @param {number} rowIdx — source row index in the UNFILTERED gridLayout
    */
   function startDrag(widgetId, rowIdx) {
     dragWidgetId.value = widgetId
@@ -51,13 +55,13 @@ export function useDashboardEdit() {
   }
 
   /**
-   * Handle a drop event. Moves the dragged widget to the target location.
+   * Handle a drop event. Moves the dragged widget's row to the target location.
+   * Row-reorder only: moves entire rows up/down. No side-by-side pairing.
    *
-   * @param {number} targetRowIdx — row index to drop into
-   * @param {'left'|'right'|'before'|'after'} position
-   *   - 'left'/'right': merge into existing row at that position
-   *   - 'before': insert as new row before targetRowIdx
-   *   - 'after': insert as new row after targetRowIdx
+   * @param {number} targetRowIdx — row index (in unfiltered gridLayout) to drop relative to
+   * @param {'before'|'after'} position
+   *   - 'before': insert widget as new row before targetRowIdx
+   *   - 'after': insert widget as new row after targetRowIdx
    */
   function handleDrop(targetRowIdx, position) {
     const wid = dragWidgetId.value
@@ -66,53 +70,37 @@ export function useDashboardEdit() {
     // Deep-clone current layout
     const layout = gridLayout.value.map(entry => ({ row: [...entry.row] }))
 
-    // 1. Remove widget from its source row
+    // 1. Find and remove widget from its source row
+    let removedFromIdx = -1
     for (let i = layout.length - 1; i >= 0; i--) {
       const idx = layout[i].row.indexOf(wid)
       if (idx !== -1) {
         layout[i].row.splice(idx, 1)
-        // Remove empty rows
+        removedFromIdx = i
+        // Remove row if now empty
         if (layout[i].row.length === 0) {
           layout.splice(i, 1)
-          // Adjust target if it was after the removed row
+          // Adjust targetRowIdx if the removed row was before/at it
           if (i < targetRowIdx) targetRowIdx--
           else if (i === targetRowIdx) {
-            // Dropped on own now-empty row — recalculate
-            targetRowIdx = Math.min(targetRowIdx, layout.length - 1)
+            targetRowIdx = Math.min(targetRowIdx, layout.length)
           }
         }
         break
       }
     }
 
-    // 2. Insert widget at target
+    // 2. Insert widget as a new single-widget row at the target position
     if (position === 'before') {
       const insertIdx = Math.max(0, Math.min(targetRowIdx, layout.length))
       layout.splice(insertIdx, 0, { row: [wid] })
-    } else if (position === 'after') {
+    } else {
+      // 'after'
       const insertIdx = Math.min(targetRowIdx + 1, layout.length)
       layout.splice(insertIdx, 0, { row: [wid] })
-    } else if (position === 'left' || position === 'right') {
-      // Merge into existing row (max 2 widgets per row)
-      const safeIdx = Math.max(0, Math.min(targetRowIdx, layout.length - 1))
-      if (safeIdx < layout.length) {
-        const targetRow = layout[safeIdx].row
-        if (targetRow.length < 2) {
-          if (position === 'left') {
-            targetRow.unshift(wid)
-          } else {
-            targetRow.push(wid)
-          }
-        } else {
-          // Row is full — insert as new row after
-          layout.splice(safeIdx + 1, 0, { row: [wid] })
-        }
-      } else {
-        layout.push({ row: [wid] })
-      }
     }
 
-    // 3. Persist
+    // 3. Persist the new layout
     updateGridLayout(layout)
     endDrag()
   }
