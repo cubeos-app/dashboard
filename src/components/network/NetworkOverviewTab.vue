@@ -122,19 +122,6 @@ async function toggleNAT() {
 // WiFi connect modal
 const showWiFiConnector = ref(false)
 
-// Network settings (Advanced)
-const showNetworkSettings = ref(false)
-const settingsLoading = ref(false)
-
-async function loadNetworkSettings() {
-  settingsLoading.value = true
-  try {
-    await networkStore.fetchSettings()
-  } finally {
-    settingsLoading.value = false
-  }
-}
-
 // Helpers
 function formatBytes(bytes) {
   if (!bytes) return '0 B'
@@ -330,44 +317,6 @@ function formatBytes(bytes) {
         </div>
         <div v-if="!interfaces?.length" class="px-4 py-8 text-center text-theme-muted">
           No interfaces found
-        </div>
-      </div>
-    </div>
-
-    <!-- Advanced Network Settings (collapsible, Advanced only) -->
-    <div v-if="isAdvanced" class="rounded-xl border border-theme-primary" :class="wallpaperActive ? panelClass : 'bg-theme-card'">
-      <button
-        @click="showNetworkSettings = !showNetworkSettings; if (showNetworkSettings && !networkStore.networkSettings) loadNetworkSettings()"
-        class="w-full px-4 py-3 flex items-center justify-between text-left"
-      >
-        <div class="flex items-center gap-2">
-          <Icon name="Sliders" :size="16" class="text-theme-muted" />
-          <h3 class="font-semibold text-theme-primary text-sm">Advanced Settings</h3>
-        </div>
-        <Icon :name="showNetworkSettings ? 'ChevronUp' : 'ChevronDown'" :size="16" class="text-theme-muted" />
-      </button>
-      <div v-if="showNetworkSettings" class="px-4 pb-4 border-t border-theme-primary pt-4">
-        <div v-if="settingsLoading" class="flex items-center justify-center py-6">
-          <Icon name="Loader2" :size="24" class="animate-spin text-accent" />
-        </div>
-        <div v-else-if="networkStore.networkSettings" class="space-y-3 text-sm">
-          <div class="flex items-center justify-between">
-            <span class="text-theme-muted">MTU</span>
-            <span class="text-theme-secondary font-mono">{{ networkStore.networkSettings.mtu || 'Default' }}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-theme-muted">IP Forwarding</span>
-            <span :class="networkStore.networkSettings.ip_forward ? 'text-success' : 'text-theme-muted'">
-              {{ networkStore.networkSettings.ip_forward ? 'Enabled' : 'Disabled' }}
-            </span>
-          </div>
-          <div v-if="networkStore.networkSettings.dns_server" class="flex items-center justify-between">
-            <span class="text-theme-muted">DNS Server</span>
-            <span class="text-theme-secondary font-mono">{{ networkStore.networkSettings.dns_server }}</span>
-          </div>
-        </div>
-        <div v-else class="py-4 text-center text-theme-muted text-sm">
-          No settings available
         </div>
       </div>
     </div>
