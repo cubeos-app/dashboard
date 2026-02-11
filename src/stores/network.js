@@ -413,6 +413,26 @@ export const useNetworkStore = defineStore('network', () => {
   }
   
   /**
+   * Connect to WiFi network (for reconnecting to saved or new networks)
+   */
+  async function connectToWiFi(ssid, password = '') {
+    loading.value = true
+    error.value = null
+    
+    try {
+      await api.post('/network/wifi/connect', { ssid, password })
+      await fetchStatus(true)
+      await fetchWiFiStatus()
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
    * Fetch saved WiFi networks
    */
   async function fetchSavedNetworks() {
@@ -738,6 +758,7 @@ export const useNetworkStore = defineStore('network', () => {
     setVPNMode,
     dismissWarning,
     disconnectWiFi,
+    connectToWiFi,
     fetchSavedNetworks,
     forgetNetwork,
     fetchWiFiStatus,

@@ -31,10 +31,14 @@ const showPassword = ref(false)
 const connecting = ref(false)
 const connectError = ref(null)
 const activeView = ref('scan') // 'scan' | 'saved'
+const reconnectingSSID = ref(null)
 
 // Computed
 const networks = computed(() => networkStore.wifiNetworks)
 const scanning = computed(() => networkStore.scanning)
+
+// Set of saved SSIDs for quick lookup
+const savedSSIDs = computed(() => new Set(networkStore.savedNetworks.map(n => n.ssid)))
 
 // Sort networks by signal strength
 const sortedNetworks = computed(() => {
@@ -117,6 +121,32 @@ async function disconnect() {
     await networkStore.disconnectWiFi()
   } finally {
     connecting.value = false
+  }
+}
+
+async function connectSaved(ssid) {
+  connecting.value = true
+  reconnectingSSID.value = ssid
+  connectError.value = null
+  
+  try {
+    // Call setMode with SSID but no password — HAL will reuse saved credentials
+    const success = await networkStore.setMode(NETWORK_MODES.ONLINE_WIFI, {
+      ssid,
+      password: ''
+    })
+    
+    if (success) {
+      emit('connected', ssid)
+      close()
+    } else {
+      connectError.value = networkStore.error || 'Failed to connect — password may have changed'
+    }
+  } catch (e) {
+    connectError.value = e.message
+  } finally {
+    connecting.value = false
+    reconnectingSSID.value = null
   }
 }
 
@@ -294,7 +324,13 @@ onUnmounted(() => {
                   </div>
                   
                   <div class="flex-1 min-w-0">
-                    <p class="font-medium text-theme-primary truncate">{{ network.ssid }}</p>
+                    <div class="flex items-center gap-2">
+                      <p class="font-medium text-theme-primary truncate">{{ network.ssid }}</p>
+                      <span 
+                        v-if="savedSSIDs.has(network.ssid)"
+                        class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-accent/20 text-accent shrink-0"
+                      >Saved</span>
+                    </div>
                     <p class="text-xs text-theme-tertiary">
                       {{ networkStore.getSignalLabel(network.signal) }} · {{ network.frequency }}MHz
                     </p>
@@ -360,7 +396,7 @@ onUnmounted(() => {
                     <input
                       v-model="password"
                       :type="showPassword ? 'text' : 'password'"
-                      placeholder="Enter WiFi password"
+                      :placeholder="savedSSIDs.has(selectedNetwork.ssid) ? 'Leave empty to use saved password' : 'Enter WiFi password'"
                       class="w-full px-4 py-2.5 pr-10 rounded-xl border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       @keyup.enter="connect"
                     />
@@ -372,6 +408,9 @@ onUnmounted(() => {
                       <Icon :name="showPassword ? 'EyeOff' : 'Eye'" :size="18" />
                     </button>
                   </div>
+                  <p v-if="savedSSIDs.has(selectedNetwork.ssid)" class="text-xs text-theme-muted mt-1.5">
+                    This network is saved. Enter a new password only if it has changed.
+                  </p>
                 </div>
                 
                 <div 
@@ -399,13 +438,24 @@ onUnmounted(() => {
                       <p v-if="net.last_connected" class="text-xs text-theme-muted">{{ net.last_connected }}</p>
                     </div>
                   </div>
-                  <button
-                    @click="forgetNetwork(net.ssid)"
-                    class="px-2.5 py-1 text-xs font-medium text-error hover:bg-error-muted rounded-lg transition-colors shrink-0 ml-2"
-                    :aria-label="'Forget network ' + net.ssid"
-                  >
-                    Forget
-                  </button>
+                  <div class="flex items-center gap-2 shrink-0 ml-2">
+                    <button
+                      @click="connectSaved(net.ssid)"
+                      :disabled="connecting"
+                      class="px-2.5 py-1 text-xs font-medium text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                      :aria-label="'Connect to ' + net.ssid"
+                    >
+                      {{ connecting && reconnectingSSID === net.ssid ? 'Connecting...' : 'Connect' }}
+                    </button>
+                    <button
+                      @click="forgetNetwork(net.ssid)"
+                      :disabled="connecting"
+                      class="px-2.5 py-1 text-xs font-medium text-error hover:bg-error-muted rounded-lg transition-colors"
+                      :aria-label="'Forget network ' + net.ssid"
+                    >
+                      Forget
+                    </button>
+                  </div>
                 </div>
               </div>
               <div v-else class="text-center py-8">
@@ -427,10 +477,10 @@ onUnmounted(() => {
             <button
               v-if="selectedNetwork && activeView === 'scan'"
               @click="connect"
-              :disabled="connecting || (selectedNetwork.security && selectedNetwork.security !== 'open' && !password)"
+              :disabled="connecting || (selectedNetwork.security && selectedNetwork.security !== 'open' && !password && !savedSSIDs.has(selectedNetwork.ssid))"
               :class="[
                 'px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors',
-                connecting || (selectedNetwork.security && selectedNetwork.security !== 'open' && !password)
+                connecting || (selectedNetwork.security && selectedNetwork.security !== 'open' && !password && !savedSSIDs.has(selectedNetwork.ssid))
                   ? 'bg-accent/50 text-on-accent cursor-not-allowed'
                   : 'bg-accent text-on-accent hover:bg-accent-hover'
               ]"

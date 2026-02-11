@@ -132,6 +132,23 @@ async function saveAPConfig() {
 }
 
 // Saved networks
+const reconnecting = ref(false)
+const reconnectingSSID = ref(null)
+
+async function handleConnectSaved(ssid) {
+  reconnecting.value = true
+  reconnectingSSID.value = ssid
+  try {
+    await networkStore.connectToWiFi(ssid, '')
+    emit('refresh')
+  } catch (e) {
+    error.value = 'Failed to connect to ' + ssid + ': ' + e.message
+  } finally {
+    reconnecting.value = false
+    reconnectingSSID.value = null
+  }
+}
+
 async function handleForgetNetwork(ssid) {
   if (!await confirm({
     title: 'Forget Network',
@@ -275,13 +292,24 @@ function netmaskToPrefix(mask) {
               <p v-if="net.last_connected" class="text-xs text-theme-muted">Last connected: {{ net.last_connected }}</p>
             </div>
           </div>
-          <button
-            @click="handleForgetNetwork(net.ssid)"
-            class="px-2.5 py-1 text-xs text-error hover:bg-error-muted rounded-lg transition-colors"
-            :aria-label="'Forget network ' + net.ssid"
-          >
-            Forget
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              @click="handleConnectSaved(net.ssid)"
+              :disabled="reconnecting"
+              class="px-2.5 py-1 text-xs text-accent hover:bg-accent/10 rounded-lg transition-colors"
+              :aria-label="'Connect to ' + net.ssid"
+            >
+              {{ reconnecting && reconnectingSSID === net.ssid ? 'Connecting...' : 'Connect' }}
+            </button>
+            <button
+              @click="handleForgetNetwork(net.ssid)"
+              :disabled="reconnecting"
+              class="px-2.5 py-1 text-xs text-error hover:bg-error-muted rounded-lg transition-colors"
+              :aria-label="'Forget network ' + net.ssid"
+            >
+              Forget
+            </button>
+          </div>
         </div>
         <div v-if="!networkStore.savedNetworks.length" class="px-4 py-8 text-center text-theme-muted text-sm">
           <Icon name="WifiOff" :size="32" class="mx-auto mb-2 text-theme-muted" />
