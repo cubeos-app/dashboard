@@ -117,7 +117,7 @@ async function fetchSharedData() {
       ? networkStore.fetchAPStatus(opts)
       : Promise.resolve(null)
 
-    const [ap, ifacesResp, nat, internet, fw, mode] = await Promise.all([
+    const [ap, ifacesResp, nat, internet, , mode] = await Promise.all([
       apPromise,
       networkStore.fetchDetailedInterfaces(opts),
       firewallStore.fetchNatStatus(opts),
@@ -151,7 +151,8 @@ async function fetchSharedData() {
     })
     natStatus.value = nat
     internetStatus.value = internet
-    firewallStatus.value = fw
+    // fetchStatus stores result in firewallStore.status (doesn't return it)
+    firewallStatus.value = firewallStore.status
 
     // Also fetch connectivity and VPN mode
     networkStore.checkConnectivity()

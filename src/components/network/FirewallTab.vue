@@ -241,32 +241,32 @@ function formatDirection(dir) {
         <span
           :class="[
             'ml-auto text-xs font-medium px-2 py-0.5 rounded-full',
-            firewallStore.halFirewallStatus.active ? 'bg-success-muted text-success' : 'bg-neutral-muted text-theme-tertiary'
+            (firewallStore.halFirewallStatus.enabled || firewallStore.halFirewallStatus.active) ? 'bg-success-muted text-success' : 'bg-neutral-muted text-theme-tertiary'
           ]"
         >
-          {{ firewallStore.halFirewallStatus.active ? 'Active' : 'Inactive' }}
+          {{ (firewallStore.halFirewallStatus.enabled || firewallStore.halFirewallStatus.active) ? 'Active' : 'Inactive' }}
         </span>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full" :class="firewallStore.halFirewallStatus.active ? 'bg-success' : 'bg-error'"></span>
+          <span class="w-2 h-2 rounded-full" :class="(firewallStore.halFirewallStatus.enabled || firewallStore.halFirewallStatus.active) ? 'bg-success' : 'bg-error'"></span>
           <span class="text-xs text-theme-secondary">Status</span>
-          <span class="text-xs font-medium text-theme-primary ml-auto">{{ firewallStore.halFirewallStatus.active ? 'Active' : 'Inactive' }}</span>
+          <span class="text-xs font-medium text-theme-primary ml-auto">{{ (firewallStore.halFirewallStatus.enabled || firewallStore.halFirewallStatus.active) ? 'Active' : 'Inactive' }}</span>
         </div>
         <div class="flex items-center gap-2">
           <Icon name="List" :size="12" class="text-theme-muted" />
           <span class="text-xs text-theme-secondary">Rules</span>
-          <span class="text-xs font-medium text-theme-primary ml-auto">{{ firewallStore.halFirewallStatus.rules }}</span>
+          <span class="text-xs font-medium text-theme-primary ml-auto">{{ firewallStore.halFirewallStatus.rules_count ?? firewallStore.halFirewallStatus.rules ?? 0 }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full" :class="firewallStore.halFirewallStatus.nat ? 'bg-success' : 'bg-neutral-muted'"></span>
+          <span class="w-2 h-2 rounded-full" :class="(firewallStore.halFirewallStatus.nat_enabled || firewallStore.halFirewallStatus.nat) ? 'bg-success' : 'bg-neutral-muted'"></span>
           <span class="text-xs text-theme-secondary">NAT</span>
-          <span class="text-xs font-medium text-theme-primary ml-auto">{{ firewallStore.halFirewallStatus.nat ? 'Enabled' : 'Disabled' }}</span>
+          <span class="text-xs font-medium text-theme-primary ml-auto">{{ (firewallStore.halFirewallStatus.nat_enabled || firewallStore.halFirewallStatus.nat) ? 'Enabled' : 'Disabled' }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full" :class="firewallStore.halFirewallStatus.forwarding ? 'bg-success' : 'bg-neutral-muted'"></span>
+          <span class="w-2 h-2 rounded-full" :class="(firewallStore.halFirewallStatus.forwarding_enabled || firewallStore.halFirewallStatus.forwarding) ? 'bg-success' : 'bg-neutral-muted'"></span>
           <span class="text-xs text-theme-secondary">Forwarding</span>
-          <span class="text-xs font-medium text-theme-primary ml-auto">{{ firewallStore.halFirewallStatus.forwarding ? 'Enabled' : 'Disabled' }}</span>
+          <span class="text-xs font-medium text-theme-primary ml-auto">{{ (firewallStore.halFirewallStatus.forwarding_enabled || firewallStore.halFirewallStatus.forwarding) ? 'Enabled' : 'Disabled' }}</span>
         </div>
       </div>
     </div>
