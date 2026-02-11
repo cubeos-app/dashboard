@@ -145,6 +145,14 @@ async function handleForgetNetwork(ssid) {
 // Load WiFi data on mount-like (tab activation)
 networkStore.fetchWiFiStatus()
 networkStore.fetchSavedNetworks()
+
+// Convert dotted-decimal netmask to CIDR prefix (e.g. "255.255.255.0" -> 24)
+function netmaskToPrefix(mask) {
+  if (!mask) return ''
+  return mask.split('.').reduce((acc, octet) => {
+    return acc + (parseInt(octet) >>> 0).toString(2).replace(/0/g, '').length
+  }, 0)
+}
 </script>
 
 <template>
@@ -173,6 +181,7 @@ networkStore.fetchSavedNetworks()
             <p v-if="networkStore.wifiStatus?.ssid" class="text-sm text-theme-muted">
               {{ networkStore.wifiStatus.ssid }}
               <span v-if="networkStore.wifiStatus?.signal"> · {{ networkStore.wifiStatus.signal }}%</span>
+              <span v-if="networkStore.wifiStatus?.channel"> · Ch {{ networkStore.wifiStatus.channel }}</span>
             </p>
             <p v-else class="text-sm text-theme-muted">No upstream WiFi connection</p>
           </div>
@@ -196,6 +205,47 @@ networkStore.fetchSavedNetworks()
             <Icon name="Search" :size="14" />
             Scan & Connect
           </button>
+        </div>
+      </div>
+
+      <!-- Connection details grid (shown when connected) -->
+      <div v-if="networkStore.isWiFiConnected && networkStore.wifiStatus" class="mt-4 pt-3 border-t border-theme-primary">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-2 text-sm">
+          <div v-if="networkStore.wifiStatus.ip_address">
+            <p class="text-theme-muted">IP Address</p>
+            <p class="text-theme-primary font-mono">{{ networkStore.wifiStatus.ip_address }}{{ networkStore.wifiStatus.netmask ? '/' + netmaskToPrefix(networkStore.wifiStatus.netmask) : '' }}</p>
+          </div>
+          <div v-if="networkStore.wifiStatus.gateway">
+            <p class="text-theme-muted">Gateway</p>
+            <p class="text-theme-primary font-mono">{{ networkStore.wifiStatus.gateway }}</p>
+          </div>
+          <div v-if="networkStore.wifiStatus.dns?.length">
+            <p class="text-theme-muted">DNS</p>
+            <p class="text-theme-primary font-mono">{{ networkStore.wifiStatus.dns.join(', ') }}</p>
+          </div>
+          <div v-if="networkStore.wifiStatus.signal">
+            <p class="text-theme-muted">Signal</p>
+            <p class="text-theme-primary">
+              {{ networkStore.wifiStatus.signal }}%
+              <span v-if="networkStore.wifiStatus.signal_dbm" class="text-theme-muted">({{ networkStore.wifiStatus.signal_dbm }} dBm)</span>
+            </p>
+          </div>
+          <div v-if="networkStore.wifiStatus.channel">
+            <p class="text-theme-muted">Channel</p>
+            <p class="text-theme-primary">{{ networkStore.wifiStatus.channel }}{{ networkStore.wifiStatus.frequency ? ' (' + (networkStore.wifiStatus.frequency / 1000).toFixed(1) + ' GHz)' : '' }}</p>
+          </div>
+          <div v-if="networkStore.wifiStatus.security">
+            <p class="text-theme-muted">Security</p>
+            <p class="text-theme-primary">{{ networkStore.wifiStatus.security }}</p>
+          </div>
+          <div v-if="networkStore.wifiStatus.tx_bitrate">
+            <p class="text-theme-muted">TX Rate</p>
+            <p class="text-theme-primary">{{ networkStore.wifiStatus.tx_bitrate }}</p>
+          </div>
+          <div v-if="networkStore.wifiStatus.interface">
+            <p class="text-theme-muted">Interface</p>
+            <p class="text-theme-primary font-mono text-xs">{{ networkStore.wifiStatus.interface }}</p>
+          </div>
         </div>
       </div>
     </div>
