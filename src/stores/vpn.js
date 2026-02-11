@@ -104,7 +104,7 @@ export const useVPNStore = defineStore('vpn', () => {
   /**
    * Add a new VPN configuration
    */
-  async function addConfig(name, type, configData, skipLoading = false) {
+  async function addConfig(name, type, configData, username, password, skipLoading = false) {
     if (!skipLoading) loading.value = true
     error.value = null
     
@@ -115,11 +115,11 @@ export const useVPNStore = defineStore('vpn', () => {
         config = await fileToBase64(configData)
       }
       
-      await api.post('/vpn/configs', {
-        name,
-        type,
-        config
-      })
+      const payload = { name, type, config }
+      if (username) payload.username = username
+      if (password) payload.password = password
+      
+      await api.post('/vpn/configs', payload)
       await fetchConfigs(true)
       return true
     } catch (e) {

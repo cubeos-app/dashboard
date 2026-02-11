@@ -162,7 +162,7 @@ async function handleDelete(config) {
 
 // ─── Add Modal ───────────────────────────────────────────────
 function openAddModal() {
-  addForm.value = { name: '', type: VPN_TYPES.WIREGUARD, configFile: null }
+  addForm.value = { name: '', type: VPN_TYPES.WIREGUARD, configFile: null, username: '', password: '' }
   addError.value = null
   showAddModal.value = true
 }
@@ -191,7 +191,9 @@ async function submitAdd() {
     const success = await vpnStore.addConfig(
       addForm.value.name,
       addForm.value.type,
-      addForm.value.configFile
+      addForm.value.configFile,
+      addForm.value.username,
+      addForm.value.password
     )
     if (success) closeAddModal()
     else addError.value = vpnStore.error || 'Failed to add configuration'
@@ -679,6 +681,30 @@ function formatBytes(bytes) {
                   <Icon :name="addForm.configFile ? 'FileCheck' : 'Upload'" :size="24" :class="addForm.configFile ? 'text-success' : 'text-theme-muted'" />
                   <p class="mt-2 text-sm text-theme-secondary">{{ addForm.configFile?.name || 'Click to upload' }}</p>
                   <p class="text-xs text-theme-tertiary">.conf or .ovpn file</p>
+                </div>
+              </div>
+              <!-- OpenVPN credentials (shown only for OpenVPN type) -->
+              <div v-if="addForm.type === VPN_TYPES.OPENVPN" class="space-y-3">
+                <label class="block text-sm font-medium text-theme-secondary">Authentication Credentials <span class="text-theme-tertiary font-normal">(if required by provider)</span></label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <input
+                      v-model="addForm.username"
+                      type="text"
+                      placeholder="Username"
+                      autocomplete="off"
+                      class="w-full px-3 py-2 rounded-lg bg-theme-tertiary border border-theme-primary text-theme-primary text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      v-model="addForm.password"
+                      type="password"
+                      placeholder="Password"
+                      autocomplete="off"
+                      class="w-full px-3 py-2 rounded-lg bg-theme-tertiary border border-theme-primary text-theme-primary text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                    />
+                  </div>
                 </div>
               </div>
               <div v-if="addError" class="flex items-center gap-2 p-3 rounded-lg bg-error/10 text-error text-sm">
