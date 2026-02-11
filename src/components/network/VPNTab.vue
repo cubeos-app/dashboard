@@ -126,10 +126,12 @@ async function toggleAutoConnect(config) {
 
 // ─── Connect / Disconnect ────────────────────────────────────
 const connectingName = ref(null)
+const connectingAction = ref(null) // 'connect' | 'disconnect'
 
 async function handleConnect(config) {
   if (connectingName.value) return // prevent duplicate clicks
   connectingName.value = config.name
+  connectingAction.value = 'connect'
   error.value = null
   try {
     await vpnStore.connect(config.name)
@@ -148,16 +150,19 @@ async function handleConnect(config) {
     error.value = e.message || 'Failed to connect'
   } finally {
     connectingName.value = null
+    connectingAction.value = null
   }
 }
 
 async function handleDisconnect(config) {
   if (connectingName.value) return
   connectingName.value = config.name
+  connectingAction.value = 'disconnect'
   error.value = null
   try {
     await vpnStore.disconnect(config.name)
     await vpnStore.fetchStatus(true)
+    await vpnStore.fetchConfigs(true)
     // Brief delay for routes to settle after tunnel teardown
     await new Promise(r => setTimeout(r, 1000))
     await vpnStore.fetchPublicIP()
@@ -166,6 +171,7 @@ async function handleDisconnect(config) {
     error.value = e.message || 'Failed to disconnect'
   } finally {
     connectingName.value = null
+    connectingAction.value = null
   }
 }
 
@@ -174,7 +180,7 @@ async function pollForConnection(name, maxSeconds) {
   const start = Date.now()
   while (Date.now() - start < maxSeconds * 1000) {
     await new Promise(r => setTimeout(r, 2000))
-    await vpnStore.fetchStatus(true)
+    await Promise.all([vpnStore.fetchStatus(true), vpnStore.fetchConfigs(true)])
     if (vpnStore.isConnected) return true
   }
   return false
@@ -350,13 +356,13 @@ function formatBytes(bytes) {
             @click="handleDisconnect(config)"
             :disabled="!!connectingName"
             class="px-3 py-1.5 rounded-lg text-sm font-medium bg-error-muted text-error hover:opacity-80 transition-colors disabled:opacity-50"
-          >{{ connectingName === config.name ? 'Disconnecting...' : 'Disconnect' }}</button>
+          >{{ connectingName === config.name && connectingAction === 'disconnect' ? 'Disconnecting...' : 'Disconnect' }}</button>
           <button
             v-else
             @click="handleConnect(config)"
             :disabled="!!connectingName"
-            :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50', connectingName === config.name ? 'bg-accent/20 text-accent animate-pulse' : 'bg-accent/10 text-accent hover:bg-accent/20']"
-          >{{ connectingName === config.name ? 'Connecting...' : 'Connect' }}</button>
+            :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50', connectingName === config.name && connectingAction === 'connect' ? 'bg-accent/20 text-accent animate-pulse' : 'bg-accent/10 text-accent hover:bg-accent/20']"
+          >{{ connectingName === config.name && connectingAction === 'connect' ? 'Connecting...' : 'Connect' }}</button>
         </div>
       </div>
 
@@ -493,14 +499,14 @@ function formatBytes(bytes) {
                 :disabled="!!connectingName"
                 class="px-3 py-1.5 rounded-lg text-sm font-medium bg-error-muted text-error hover:opacity-80 transition-colors disabled:opacity-50"
                 :aria-label="'Disconnect ' + config.name"
-              >{{ connectingName === config.name ? 'Disconnecting...' : 'Disconnect' }}</button>
+              >{{ connectingName === config.name && connectingAction === 'disconnect' ? 'Disconnecting...' : 'Disconnect' }}</button>
               <button
                 v-else
                 @click="handleConnect(config)"
                 :disabled="!!connectingName"
-                :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50', connectingName === config.name ? 'bg-accent/20 text-accent animate-pulse' : 'bg-accent/10 text-accent hover:bg-accent/20']"
+                :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50', connectingName === config.name && connectingAction === 'connect' ? 'bg-accent/20 text-accent animate-pulse' : 'bg-accent/10 text-accent hover:bg-accent/20']"
                 :aria-label="'Connect ' + config.name"
-              >{{ connectingName === config.name ? 'Connecting...' : 'Connect' }}</button>
+              >{{ connectingName === config.name && connectingAction === 'connect' ? 'Connecting...' : 'Connect' }}</button>
               <button
                 @click="handleDelete(config)"
                 :disabled="config.is_active"
