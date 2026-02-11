@@ -40,8 +40,9 @@ const cleanupLoading = ref(false)
 // ─── Computed ───────────────────────────────────────────────
 
 const overviewDisks = computed(() => {
-  if (storageHalStore.usage?.filesystems?.length) {
-    return storageHalStore.usage.filesystems
+  // Use the HAL store's filtered list (only /dev/* backed filesystems)
+  if (storageHalStore.realFilesystems?.length) {
+    return storageHalStore.realFilesystems
   }
   if (storageStore.overview?.disks?.length) {
     return storageStore.overview.disks
@@ -220,26 +221,26 @@ function formatTimeAgo(dateStr) {
           <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
-                <Icon :name="deviceTypeIcon(disk.type || disk.fstype)" :size="20" class="text-accent" />
+                <Icon :name="deviceTypeIcon(disk.filesystem)" :size="20" class="text-accent" />
               </div>
               <div>
                 <h3 class="font-semibold text-theme-primary">{{ disk.mountpoint || disk.device }}</h3>
-                <p class="text-sm text-theme-muted">{{ disk.device }} · {{ disk.fstype || disk.type || 'unknown' }}</p>
+                <p class="text-sm text-theme-muted">{{ disk.filesystem || disk.device }}</p>
               </div>
             </div>
             <span
-              v-if="disk.percent_used != null"
-              :class="usageTextColor(disk.percent_used)"
+              v-if="(disk.use_percent ?? disk.percent_used) != null"
+              :class="usageTextColor(disk.use_percent ?? disk.percent_used)"
               class="text-lg font-bold"
-            >{{ Number(disk.percent_used).toFixed(0) }}%</span>
+            >{{ Number(disk.use_percent ?? disk.percent_used).toFixed(0) }}%</span>
           </div>
-          <div v-if="disk.percent_used != null" class="h-3 bg-theme-tertiary rounded-full overflow-hidden mb-3">
-            <div :class="usageColor(disk.percent_used)" class="h-full transition-all" :style="{ width: disk.percent_used + '%' }"></div>
+          <div v-if="(disk.use_percent ?? disk.percent_used) != null" class="h-3 bg-theme-tertiary rounded-full overflow-hidden mb-3">
+            <div :class="usageColor(disk.use_percent ?? disk.percent_used)" class="h-full transition-all" :style="{ width: (disk.use_percent ?? disk.percent_used) + '%' }"></div>
           </div>
           <div class="flex justify-between text-xs text-theme-muted">
-            <span>Used: {{ formatBytes(disk.used_bytes || disk.used) }}</span>
-            <span>Free: {{ formatBytes(disk.free_bytes || disk.free) }}</span>
-            <span>Total: {{ formatBytes(disk.total_bytes || disk.total) }}</span>
+            <span>Used: {{ disk.used_human || formatBytes(disk.used || disk.used_bytes) }}</span>
+            <span>Free: {{ disk.avail_human || formatBytes(disk.available || disk.free_bytes) }}</span>
+            <span>Total: {{ disk.size_human || formatBytes(disk.size || disk.total_bytes) }}</span>
           </div>
         </div>
       </div>

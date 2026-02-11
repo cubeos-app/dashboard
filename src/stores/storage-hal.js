@@ -43,9 +43,25 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
   // Computed
   // ==========================================
 
-  const totalSpace = computed(() => usage.value?.total || 0)
-  const usedSpace = computed(() => usage.value?.used || 0)
-  const freeSpace = computed(() => usage.value?.free || 0)
+  // Real (block-device-backed) filesystems — excludes overlay, tmpfs, devtmpfs etc.
+  const realFilesystems = computed(() => {
+    const fs = usage.value?.filesystems
+    if (!Array.isArray(fs)) return []
+    return fs.filter(f => {
+      const dev = f.filesystem || ''
+      // Only keep entries backed by real block devices
+      return dev.startsWith('/dev/')
+    })
+  })
+
+  // Root filesystem (/) for the System Storage summary card
+  const rootFS = computed(() => {
+    return realFilesystems.value.find(f => f.mountpoint === '/') || null
+  })
+
+  const totalSpace = computed(() => rootFS.value?.size || 0)
+  const usedSpace = computed(() => rootFS.value?.used || 0)
+  const freeSpace = computed(() => rootFS.value?.available || 0)
   const usagePercent = computed(() => {
     if (!totalSpace.value) return 0
     return Math.round((usedSpace.value / totalSpace.value) * 100)
@@ -465,6 +481,7 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
     usedSpace,
     freeSpace,
     usagePercent,
+    realFilesystems,
     deviceCount,
     usbDeviceCount,
     usbStorageCount,
