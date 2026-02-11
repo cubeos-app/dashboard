@@ -310,7 +310,9 @@ function formatBytes(bytes) {
             </div>
             <div>
               <p class="font-medium text-theme-primary">{{ iface.name }}</p>
-              <p class="text-sm text-theme-muted">{{ (iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip || 'No IP' }}</p>
+              <p class="text-sm" :class="(iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip ? 'text-theme-muted' : 'text-theme-muted/50'">
+                {{ (iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip || 'Not connected' }}
+              </p>
             </div>
           </div>
           <div class="flex items-center gap-3">
