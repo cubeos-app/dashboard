@@ -71,12 +71,18 @@ async function fetchAll() {
     const opts = { signal: signal() }
     await Promise.all([
       firewallStore.fetchStatus(false, opts),
-      firewallStore.fetchRules(false, opts),
+      firewallStore.fetchRules(false, opts, showSystemRules.value),
       firewallStore.fetchHALFirewallStatus(opts)
     ])
   } catch (e) {
     localError.value = 'Failed to load firewall data'
   }
+}
+
+// Toggle system rules: refetch with or without system rules
+async function toggleSystemRules() {
+  showSystemRules.value = !showSystemRules.value
+  await firewallStore.fetchRules(false, { signal: signal() }, showSystemRules.value)
 }
 
 onMounted(fetchAll)
@@ -319,7 +325,7 @@ function formatDirection(dir) {
           <h2 class="text-base font-semibold text-theme-primary">Firewall Rules</h2>
           <button
             v-if="systemRuleCount > 0"
-            @click="showSystemRules = !showSystemRules"
+            @click="toggleSystemRules"
             class="px-2 py-1 text-[10px] font-medium rounded-full transition-colors"
             :class="showSystemRules ? 'bg-warning-muted text-warning' : 'bg-theme-tertiary text-theme-muted hover:text-theme-secondary'"
           >

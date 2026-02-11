@@ -29,28 +29,67 @@ const trafficHistory = ref([])
 const currentStats = ref(null)
 
 const physicalInterfaces = computed(() => {
-  return props.interfaces.filter(i =>
+  // Use props interfaces if available, otherwise derive from traffic stats
+  const fromProps = props.interfaces.filter(i =>
     i.name && !i.name.startsWith('veth') && !i.name.startsWith('br-') && i.name !== 'lo'
   )
+  if (fromProps.length > 0) return fromProps
+
+  // Fallback: derive from traffic stats
+  if (currentStats.value || lastStats.value) {
+    const statsMap = lastStats.value || {}
+    return Object.keys(statsMap)
+      .filter(n => !n.startsWith('veth') && !n.startsWith('br-') && n !== 'lo')
+      .map(n => ({ name: n, is_up: true }))
+  }
+  return []
 })
+
+// Track previous stats for rate calculation
+const lastStats = ref({})
+const lastFetchTime = ref(0)
 
 // ─── Data Fetching ───────────────────────────────────────────
 async function fetchTraffic() {
   try {
     const s = signal()
     const opts = { signal: s }
-    const stats = await networkStore.fetchTraffic(opts)
-    if (stats?.stats?.length > 0) {
+    const result = await networkStore.fetchTraffic(opts)
+    const statsArray = result?.stats
+
+    if (Array.isArray(statsArray) && statsArray.length > 0) {
+      // Auto-select first physical interface if none selected
       if (!selectedInterface.value) {
-        const physical = stats.stats.find(s =>
+        const physical = statsArray.find(s =>
           !s.interface.startsWith('veth') &&
           !s.interface.startsWith('br-') &&
           s.interface !== 'lo' &&
           s.interface !== 'docker0'
         )
-        selectedInterface.value = physical?.interface || stats.stats[0].interface
+        selectedInterface.value = physical?.interface || statsArray[0].interface
       }
-      currentStats.value = stats.stats.find(s => s.interface === selectedInterface.value)
+
+      // Find current interface stats
+      const raw = statsArray.find(s => s.interface === selectedInterface.value)
+      if (raw) {
+        // Calculate rates from delta between polls
+        const now = Date.now()
+        const prev = lastStats.value[selectedInterface.value]
+        const elapsed = (now - lastFetchTime.value) / 1000 // seconds
+
+        if (prev && elapsed > 0 && elapsed < 30) {
+          raw.rx_rate_bps = Math.max(0, Math.round((raw.rx_bytes - prev.rx_bytes) / elapsed))
+          raw.tx_rate_bps = Math.max(0, Math.round((raw.tx_bytes - prev.tx_bytes) / elapsed))
+        }
+
+        currentStats.value = raw
+
+        // Store for next delta calculation
+        const snapshot = {}
+        statsArray.forEach(s => { snapshot[s.interface] = { rx_bytes: s.rx_bytes, tx_bytes: s.tx_bytes } })
+        lastStats.value = snapshot
+        lastFetchTime.value = now
+      }
     }
 
     if (selectedInterface.value) {

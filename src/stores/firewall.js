@@ -70,12 +70,12 @@ export const useFirewallStore = defineStore('firewall', () => {
 
   /**
    * Rules filtered to show only user-meaningful entries.
-   * Excludes Docker-internal chains, overlay network rules, and
-   * rules with no meaningful fields (the "any/any/any" noise).
+   * Backend now normalizes fields (action, direction, protocol, from, to).
+   * This filter catches any remaining noise not handled server-side.
    */
   const userRules = computed(() => {
     return rules.value.filter(rule => {
-      // Exclude Docker/system chains
+      // Exclude Docker/system chains (backup for non-user_only requests)
       if (rule.chain && SYSTEM_CHAINS.has(rule.chain)) return false
 
       // Exclude nat/mangle/raw tables (usually system-managed)
@@ -87,16 +87,16 @@ export const useFirewallStore = defineStore('firewall', () => {
 
       // Exclude rules with no useful specificity (the "any/any/any" noise)
       const hasPort = rule.port || rule.dport || rule.sport || rule.destination_port || rule.source_port
-      const hasAddr = rule.from || rule.to || rule.source || rule.destination
+      const hasAddr = rule.from || rule.to
       const hasComment = rule.comment
       const hasAction = rule.action && rule.action !== '-'
-      const hasProtocol = rule.protocol && rule.protocol !== 'all' && rule.protocol !== '-'
+      const hasProtocol = rule.protocol && rule.protocol !== 'all' && rule.protocol !== ''
 
       // Keep if rule has at least one meaningful field
       if (hasPort || hasAddr || hasComment || hasProtocol) return true
 
       // Keep ACCEPT/DROP/REJECT rules in INPUT/OUTPUT/FORWARD even without specifics
-      if (hasAction && ['INPUT', 'OUTPUT', 'FORWARD'].includes(rule.chain)) return true
+      if (hasAction && ['in', 'out', 'forward'].includes(rule.direction)) return true
 
       return false
     })
@@ -109,13 +109,17 @@ export const useFirewallStore = defineStore('firewall', () => {
   
   /**
    * Fetch all firewall rules
+   * @param {boolean} skipLoading - Skip loading state
+   * @param {object} options - Request options (e.g., abort signal)
+   * @param {boolean} includeSystem - Include system/Docker rules (default: false)
    */
-  async function fetchRules(skipLoading = false, options = {}) {
+  async function fetchRules(skipLoading = false, options = {}, includeSystem = false) {
     if (!skipLoading) loading.value = true
     error.value = null
     
     try {
-      const response = await api.get('/firewall/rules', {}, options)
+      const params = includeSystem ? {} : { user_only: 'true' }
+      const response = await api.get('/firewall/rules', params, options)
       if (response === null) return
       // API returns rules as map[string][]Rule (e.g. {"filter:INPUT": [...], "filter:FORWARD": [...]})
       // Flatten to a single array, adding table/chain metadata to each rule
@@ -127,7 +131,7 @@ export const useFirewallStore = defineStore('firewall', () => {
           const table = parts[0] || 'filter'
           const chain = parts[1] || 'INPUT'
           if (Array.isArray(chainRules)) {
-            chainRules.forEach(r => allRules.push({ ...r, table, chain }))
+            chainRules.forEach(r => allRules.push({ ...r, table, chain: r.chain || chain }))
           }
         }
         rules.value = allRules
