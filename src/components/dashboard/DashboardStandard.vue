@@ -52,6 +52,7 @@ import TempGaugeWidget from './TempGaugeWidget.vue'
 import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
 import ServiceGrid from './ServiceGrid.vue'
 import AlertsFeed from './AlertsFeed.vue'
+import InfoBarWidget from './InfoBarWidget.vue'
 import WidgetWrapper from './WidgetWrapper.vue'
 
 const props = defineProps({
@@ -570,6 +571,11 @@ onBeforeUnmount(() => {
             <!-- ═══ Alerts Feed (Session 7 — cross-mode) ═══ -->
             <WidgetWrapper v-if="widgetId === 'alerts'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
               <AlertsFeed :alerts="alerts" :loading="monitoringStore.loading" :limit="6" />
+            </WidgetWrapper>
+
+            <!-- ═══ Info Bar (Session 9 — cross-mode) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'infobar'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <InfoBarWidget />
             </WidgetWrapper>
 
           </template>

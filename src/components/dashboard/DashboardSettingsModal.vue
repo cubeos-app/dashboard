@@ -1,19 +1,22 @@
 <script setup>
 /**
- * DashboardSettingsModal.vue — Session 1
+ * DashboardSettingsModal.vue — Session 1, Session 9
  *
  * Slide-over settings panel for dashboard customization.
  * Detects Standard vs Advanced mode via useDashboardConfig and shows
- * the appropriate toggle set for each mode.
+ * the appropriate settings for each mode.
  *
- * Standard: Clock & Date, Widgets, Quick Actions, App Launcher, Layout (grid rows)
- * Advanced: Section Visibility, Appearance (individual opacity sliders)
+ * SESSION 9: Unified widget toggle list driven by WIDGET_REGISTRY.
+ * Both modes now use the same widgetToggles computed (v-for loop) instead
+ * of separate hardcoded SettingsToggle entries. Appearance section shows
+ * all placed widgets (not just disk+signals). Layout/Quick Actions/App
+ * Settings sections added to Advanced mode for full parity.
  *
- * SESSION 1: Updated Advanced mode settings to show individual section toggles.
- * No more grouped "Disk & Signals" — each widget has its own toggle and opacity.
+ * Standard: Clock & Date, Widgets, Quick Actions, App Launcher, Appearance, Refresh Rate, Layout
+ * Advanced: Widgets, Appearance, Refresh Rate, Quick Actions, App Settings, Layout
  */
 import { ref, computed, watch, nextTick, defineComponent, h } from 'vue'
-import { useDashboardConfig, WIDGET_REGISTRY, ALL_WIDGET_IDS, ADVANCED_SECTION_REGISTRY, REFRESH_INTERVAL_OPTIONS } from '@/composables/useDashboardConfig'
+import { useDashboardConfig, WIDGET_REGISTRY, ALL_WIDGET_IDS, REFRESH_INTERVAL_OPTIONS } from '@/composables/useDashboardConfig'
 import { useDashboardResize } from '@/composables/useDashboardResize'
 import { useWidgetWebSocket } from '@/composables/useWidgetWebSocket'
 import { useDashboardPresets, BUILT_IN_PRESETS } from '@/composables/useDashboardPresets'
@@ -169,15 +172,65 @@ function widgetIcon(id) {
   return WIDGET_REGISTRY[id]?.icon || 'Box'
 }
 
-/** Advanced section label helper */
-function sectionLabel(id) {
-  return ADVANCED_SECTION_REGISTRY[id]?.label || id
+// ─── Unified Widget Toggle Map (Session 9) ──────────────────
+// Maps each widget ID to its preferences key + reactive getter.
+// Used by the widgetToggles computed to drive a single v-for loop.
+const WIDGET_TOGGLE_MAP = {
+  clock:               { key: 'show_clock',               get: () => config.showClock.value },
+  search:              { key: 'show_search',              get: () => config.showSearch.value },
+  status:              { key: 'show_status_pill',         get: () => config.showStatusPill.value },
+  infobar:             { key: 'show_info_bar',            get: () => config.showInfoBar.value },
+  alerts:              { key: 'show_alerts',              get: () => config.showAlerts.value },
+  vitals:              { key: 'show_system_vitals',       get: () => config.showSystemVitals.value },
+  cpu_gauge:           { key: 'show_cpu_gauge',           get: () => config.showCpuGauge.value },
+  memory_gauge:        { key: 'show_memory_gauge',        get: () => config.showMemoryGauge.value },
+  disk_gauge:          { key: 'show_disk_gauge',          get: () => config.showDiskGauge.value },
+  temp_gauge:          { key: 'show_temp_gauge',          get: () => config.showTempGauge.value },
+  network:             { key: 'show_network_widget',      get: () => config.showNetwork.value },
+  disk:                { key: 'show_disk_widget',         get: () => config.showDisk.value },
+  signals:             { key: 'show_signals_widget',      get: () => config.showSignals.value },
+  uptime_load:         { key: 'show_uptime_load',         get: () => config.showUptimeLoad.value },
+  network_throughput:  { key: 'show_network_throughput',  get: () => config.showNetworkThroughput.value },
+  recent_logs:         { key: 'show_recent_logs',         get: () => config.showRecentLogs.value },
+  battery:             { key: 'show_battery',             get: () => config.showBattery.value },
+  swarm:               { key: 'show_swarm',               get: () => config.showSwarm.value },
+  core_services:       { key: 'show_core_services',       get: () => config.showCoreServices.value },
+  favorites:           { key: 'show_favorites',           get: () => config.showFavorites.value },
+  recent_apps:         { key: 'show_recent',              get: () => config.showRecent.value },
+  my_apps:             { key: 'show_my_apps',             get: () => config.showMyApps.value },
+  actions:             { key: 'show_quick_actions',       get: () => config.showQuickActions.value },
 }
 
-/** Advanced section icon helper */
-function sectionIcon(id) {
-  return ADVANCED_SECTION_REGISTRY[id]?.icon || 'Box'
-}
+/**
+ * Unified widget toggle list driven by WIDGET_REGISTRY.
+ * Both Standard and Advanced modes use this same computed.
+ * Ordered by category for clean UX.
+ */
+const WIDGET_TOGGLE_ORDER = [
+  // Display
+  'clock', 'search', 'status', 'infobar',
+  // Monitoring
+  'vitals', 'cpu_gauge', 'memory_gauge', 'disk_gauge', 'temp_gauge',
+  'network', 'disk', 'signals',
+  // Data
+  'uptime_load', 'network_throughput', 'recent_logs', 'battery',
+  // Infrastructure
+  'swarm', 'core_services', 'alerts',
+  // Apps & Actions
+  'favorites', 'recent_apps', 'my_apps', 'actions',
+]
+
+const widgetToggles = computed(() => {
+  return WIDGET_TOGGLE_ORDER
+    .filter(id => WIDGET_TOGGLE_MAP[id])
+    .map(id => ({
+      id,
+      label: WIDGET_REGISTRY[id]?.label || id,
+      icon: WIDGET_REGISTRY[id]?.icon || 'Box',
+      active: WIDGET_TOGGLE_MAP[id].get(),
+      key: WIDGET_TOGGLE_MAP[id].key,
+    }))
+})
 
 /** Current grid layout as a mutable copy */
 function getLayoutCopy() {
@@ -283,11 +336,8 @@ const showWidgetPicker = ref(null)  // rowIdx or 'new'
 // ─── Appearance section (Session B, updated Session 1) ──────
 const appearanceOpen = ref(false)
 
-/** Widget IDs that are placed in the grid (for opacity sliders) — Standard mode */
+/** Widget IDs that are placed in the grid (for opacity sliders) — both modes */
 const opacityWidgets = computed(() => config.placedWidgetIds.value)
-
-/** Advanced mode opacity widgets: disk and signals */
-const advancedOpacityWidgets = computed(() => ['disk', 'signals'])
 
 function openWidgetPicker(target) {
   showWidgetPicker.value = target
@@ -310,14 +360,10 @@ function closeWidgetPicker() {
 
 /**
  * Widgets that have configurable refresh rates.
- * Excludes static widgets (clock, search, actions, launcher).
+ * Excludes static widgets (clock, search, actions, favorites, etc.).
+ * Session 9: Unified — both modes use the same dynamic logic.
  */
 const refreshableWidgets = computed(() => {
-  if (isAdvancedMode.value) {
-    // In Advanced mode, show refresh for all data-driven sections
-    return ['vitals', 'disk', 'signals', 'uptime_load', 'network_throughput', 'recent_logs', 'battery', 'network', 'status']
-  }
-  // In Standard mode, use the placed widgets that are not static
   return config.placedWidgetIds.value.filter(
     id => !wsInfo.isStaticWidget(id)
   )
@@ -433,32 +479,21 @@ function formatRefreshLabel(seconds) {
                 </p>
               </section>
 
-              <!-- Section: Section Visibility (Session 1 — individual toggles, Session 7 — gauge widgets) -->
+              <!-- Section: Widget Visibility (Session 9 — unified WIDGET_REGISTRY-driven) -->
               <section>
-                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Section Visibility</h3>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Widgets</h3>
                 <div class="space-y-3">
-                  <SettingsToggle label="Status Gauges (CPU/Mem/Disk/Temp)" :active="config.showSystemVitals.value" @toggle="toggle('show_system_vitals', config.showSystemVitals.value)" />
-                  <SettingsToggle label="CPU Gauge" :active="config.showCpuGauge.value" @toggle="toggle('show_cpu_gauge', config.showCpuGauge.value)" />
-                  <SettingsToggle label="Memory Gauge" :active="config.showMemoryGauge.value" @toggle="toggle('show_memory_gauge', config.showMemoryGauge.value)" />
-                  <SettingsToggle label="Disk Gauge" :active="config.showDiskGauge.value" @toggle="toggle('show_disk_gauge', config.showDiskGauge.value)" />
-                  <SettingsToggle label="Temperature Gauge" :active="config.showTempGauge.value" @toggle="toggle('show_temp_gauge', config.showTempGauge.value)" />
-                  <SettingsToggle label="System Info Bar" :active="config.showInfoBar.value" @toggle="toggle('show_info_bar', config.showInfoBar.value)" />
-                  <SettingsToggle label="Disk Usage" :active="config.showDisk.value" @toggle="toggle('show_disk_widget', config.showDisk.value)" />
-                  <SettingsToggle label="Signals" :active="config.showSignals.value" @toggle="toggle('show_signals_widget', config.showSignals.value)" />
-                  <SettingsToggle label="Swarm Overview" :active="config.showSwarm.value" @toggle="toggle('show_swarm', config.showSwarm.value)" />
-                  <SettingsToggle label="Alerts Feed" :active="config.showAlerts.value" @toggle="toggle('show_alerts', config.showAlerts.value)" />
-                  <SettingsToggle label="Uptime & Load" :active="config.showUptimeLoad.value" @toggle="toggle('show_uptime_load', config.showUptimeLoad.value)" />
-                  <SettingsToggle label="Network Traffic" :active="config.showNetworkThroughput.value" @toggle="toggle('show_network_throughput', config.showNetworkThroughput.value)" />
-                  <SettingsToggle label="Recent Logs" :active="config.showRecentLogs.value" @toggle="toggle('show_recent_logs', config.showRecentLogs.value)" />
-                  <SettingsToggle label="Battery" :active="config.showBattery.value" @toggle="toggle('show_battery', config.showBattery.value)" />
-                  <SettingsToggle label="Favorites" :active="config.showFavorites.value" @toggle="toggle('show_favorites', config.showFavorites.value)" />
-                  <SettingsToggle label="Core Services" :active="config.showCoreServices.value" @toggle="toggle('show_core_services', config.showCoreServices.value)" />
-                  <SettingsToggle label="User Applications" :active="config.showMyApps.value" @toggle="toggle('show_my_apps', config.showMyApps.value)" />
-                  <SettingsToggle label="Quick Links" :active="config.showQuickActions.value" @toggle="toggle('show_quick_actions', config.showQuickActions.value)" />
+                  <SettingsToggle
+                    v-for="w in widgetToggles"
+                    :key="w.id"
+                    :label="w.label"
+                    :active="w.active"
+                    @toggle="toggle(w.key, w.active)"
+                  />
                 </div>
               </section>
 
-              <!-- Section: Appearance (Advanced — individual widgets) -->
+              <!-- Section: Appearance (Session 9 — all placed widgets, unified) -->
               <section>
                 <button
                   class="w-full flex items-center justify-between text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3"
@@ -477,12 +512,12 @@ function formatRefreshLabel(seconds) {
                   </p>
                   <div class="space-y-3">
                     <div
-                      v-for="wid in advancedOpacityWidgets"
+                      v-for="wid in opacityWidgets"
                       :key="wid"
                       class="flex items-center gap-3"
                     >
-                      <Icon :name="sectionIcon(wid)" :size="14" class="text-theme-secondary flex-shrink-0" />
-                      <span class="text-sm text-theme-secondary flex-1 min-w-0 truncate">{{ sectionLabel(wid) }}</span>
+                      <Icon :name="widgetIcon(wid)" :size="14" class="text-theme-secondary flex-shrink-0" />
+                      <span class="text-sm text-theme-secondary flex-1 min-w-0 truncate">{{ widgetLabel(wid) }}</span>
                       <input
                         type="range"
                         min="0"
@@ -506,7 +541,7 @@ function formatRefreshLabel(seconds) {
                 </template>
               </section>
 
-              <!-- Section: Refresh Rate (Session 5 — Advanced mode) -->
+              <!-- Section: Refresh Rate (Session 9 — unified) -->
               <section>
                 <button
                   class="w-full flex items-center justify-between text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3"
@@ -529,9 +564,9 @@ function formatRefreshLabel(seconds) {
                       :key="'adv-refresh-' + wid"
                       class="flex items-center gap-3"
                     >
-                      <Icon :name="(WIDGET_REGISTRY[wid] || ADVANCED_SECTION_REGISTRY[wid])?.icon || 'Box'" :size="14" class="text-theme-secondary flex-shrink-0" />
+                      <Icon :name="widgetIcon(wid)" :size="14" class="text-theme-secondary flex-shrink-0" />
                       <span class="text-sm text-theme-secondary flex-1 min-w-0 truncate">
-                        {{ (WIDGET_REGISTRY[wid] || ADVANCED_SECTION_REGISTRY[wid])?.label || wid }}
+                        {{ widgetLabel(wid) }}
                       </span>
 
                       <!-- Live badge OR dropdown -->
@@ -564,6 +599,272 @@ function formatRefreshLabel(seconds) {
                     Reset to defaults
                   </button>
                 </template>
+              </section>
+
+              <!-- Section: Quick Actions (Session 9 — added to Advanced) -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+                  Quick Actions
+                  <span class="text-theme-muted font-normal normal-case tracking-normal ml-1">({{ enabledActions.length }}/8)</span>
+                </h3>
+
+                <!-- Enabled list (reorderable) -->
+                <div v-if="enabledActions.length" class="space-y-1 mb-3">
+                  <div
+                    v-for="(id, index) in enabledActions"
+                    :key="id"
+                    class="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-tertiary"
+                  >
+                    <Icon :name="getActionMeta(id).icon" :size="16" class="text-theme-secondary flex-shrink-0" />
+                    <span class="text-sm text-theme-primary flex-1">{{ getActionMeta(id).label }}</span>
+                    <button
+                      :disabled="index === 0"
+                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Move up"
+                      @click="moveAction(index, -1)"
+                    >
+                      <Icon name="ChevronUp" :size="14" />
+                    </button>
+                    <button
+                      :disabled="index === enabledActions.length - 1"
+                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Move down"
+                      @click="moveAction(index, 1)"
+                    >
+                      <Icon name="ChevronDown" :size="14" />
+                    </button>
+                    <button
+                      class="w-6 h-6 rounded flex items-center justify-center text-theme-muted hover:text-error hover:bg-error-muted transition-colors"
+                      aria-label="Remove action"
+                      @click="removeAction(id)"
+                    >
+                      <Icon name="X" :size="14" />
+                    </button>
+                  </div>
+                </div>
+                <p v-else class="text-xs text-theme-muted italic mb-3">No quick actions enabled</p>
+
+                <!-- Available pool -->
+                <div v-if="availableActions.length" class="space-y-1">
+                  <p class="text-xs text-theme-muted mb-1">Available</p>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button
+                      v-for="action in availableActions"
+                      :key="action.id"
+                      :disabled="enabledActions.length >= 8"
+                      class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-theme-primary text-xs text-theme-secondary
+                             hover:bg-theme-tertiary hover:text-theme-primary transition-colors
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                      @click="addAction(action.id)"
+                    >
+                      <Icon :name="action.icon" :size="12" />
+                      {{ action.label }}
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Section: App Settings (Session 9 — added to Advanced) -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">App Settings</h3>
+                <div class="space-y-3">
+                  <!-- My Apps rows -->
+                  <div class="flex items-center justify-between py-1">
+                    <span class="text-sm text-theme-secondary">My Apps rows</span>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="5"
+                        :value="config.myAppsRows.value"
+                        class="w-24 accent-accent"
+                        @input="config.updateConfig('my_apps_rows', parseInt($event.target.value))"
+                      />
+                      <span class="text-xs font-mono text-theme-muted w-8 text-right">
+                        {{ config.myAppsRows.value === 0 ? 'All' : config.myAppsRows.value }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Favorites columns -->
+                  <div class="flex items-center justify-between py-1">
+                    <span class="text-sm text-theme-secondary">Favorites columns</span>
+                    <div class="flex rounded-lg border border-theme-primary overflow-hidden">
+                      <button
+                        v-for="n in [2, 3, 4, 5, 6]"
+                        :key="n"
+                        class="px-2.5 py-1.5 text-xs font-medium transition-colors"
+                        :class="config.favoriteCols.value === n
+                          ? 'bg-accent text-on-accent'
+                          : 'text-theme-secondary hover:bg-theme-tertiary'"
+                        @click="config.updateConfig('favorite_cols', n)"
+                      >
+                        {{ n }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Section: Layout (Session 9 — added to Advanced, same as Standard) -->
+              <section>
+                <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Layout</h3>
+                <p class="text-xs text-theme-muted mb-3">
+                  Arrange widgets into rows. Each row holds 1-2 widgets side-by-side.
+                </p>
+
+                <div class="space-y-2">
+                  <div
+                    v-for="(entry, rowIdx) in config.gridLayout.value"
+                    :key="rowIdx"
+                    class="rounded-lg border border-theme-primary bg-theme-tertiary overflow-hidden"
+                  >
+                    <!-- Row header -->
+                    <div class="flex items-center gap-1 px-2 py-1.5 border-b border-theme-primary/50">
+                      <span class="text-[10px] font-semibold text-theme-muted uppercase tracking-wider flex-1">
+                        Row {{ rowIdx + 1 }}
+                        <span class="font-normal normal-case tracking-normal ml-0.5">
+                          ({{ entry.row.length === 1 ? 'full width' : 'side-by-side' }})
+                        </span>
+                      </span>
+
+                      <!-- Row actions -->
+                      <button
+                        :disabled="rowIdx === 0"
+                        class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move row up"
+                        @click="moveRow(rowIdx, -1)"
+                      >
+                        <Icon name="ChevronUp" :size="12" />
+                      </button>
+                      <button
+                        :disabled="rowIdx === config.gridLayout.value.length - 1"
+                        class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move row down"
+                        @click="moveRow(rowIdx, 1)"
+                      >
+                        <Icon name="ChevronDown" :size="12" />
+                      </button>
+
+                      <!-- Split (only for 2-widget rows) -->
+                      <button
+                        v-if="entry.row.length === 2"
+                        class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary transition-colors"
+                        title="Split into two rows"
+                        @click="splitRow(rowIdx)"
+                      >
+                        <Icon name="SplitSquareVertical" :size="12" />
+                      </button>
+
+                      <!-- Merge with next (only for single-widget rows with a single-widget next) -->
+                      <button
+                        v-if="canMerge(rowIdx)"
+                        class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-accent transition-colors"
+                        title="Merge with row below"
+                        @click="mergeWithNext(rowIdx)"
+                      >
+                        <Icon name="Combine" :size="12" />
+                      </button>
+                    </div>
+
+                    <!-- Widgets in this row -->
+                    <div class="divide-y divide-theme-primary/30">
+                      <div
+                        v-for="widgetId in entry.row"
+                        :key="widgetId"
+                        class="flex items-center gap-2 px-3 py-2"
+                      >
+                        <Icon :name="widgetIcon(widgetId)" :size="14" class="text-theme-secondary flex-shrink-0" />
+                        <span class="text-sm text-theme-primary flex-1">{{ widgetLabel(widgetId) }}</span>
+
+                        <!-- Width selector (only for single-widget rows) -->
+                        <select
+                          v-if="entry.row.length === 1"
+                          class="text-[10px] px-1.5 py-0.5 rounded bg-theme-tertiary border border-theme-primary
+                                 text-theme-secondary cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent/50"
+                          :value="resize.getWidgetWidth(widgetId)"
+                          @change="resize.updateWidgetWidth(widgetId, $event.target.value)"
+                        >
+                          <option value="full">Full</option>
+                          <option value="half">Half</option>
+                        </select>
+
+                        <!-- Collapse toggle -->
+                        <button
+                          class="w-5 h-5 rounded flex items-center justify-center transition-colors"
+                          :class="resize.isCollapsed(widgetId) ? 'text-accent' : 'text-theme-muted hover:text-theme-primary'"
+                          :title="resize.isCollapsed(widgetId) ? 'Expand widget' : 'Collapse widget'"
+                          @click="resize.toggleCollapse(widgetId)"
+                        >
+                          <Icon :name="resize.isCollapsed(widgetId) ? 'Minimize2' : 'Maximize2'" :size="12" />
+                        </button>
+
+                        <button
+                          class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-error transition-colors"
+                          title="Remove from layout"
+                          @click="removeWidgetFromGrid(rowIdx, widgetId)"
+                        >
+                          <Icon name="X" :size="12" />
+                        </button>
+                      </div>
+
+                      <!-- Add widget to this row (if only 1 widget and unplaced widgets exist) -->
+                      <button
+                        v-if="canAddToRow(rowIdx) && config.unplacedWidgetIds.value.length > 0"
+                        class="w-full flex items-center gap-2 px-3 py-2 text-xs text-theme-muted hover:text-accent hover:bg-accent/5 transition-colors"
+                        @click="openWidgetPicker(rowIdx)"
+                      >
+                        <Icon name="Plus" :size="12" />
+                        <span>Add widget to this row</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Add new row -->
+                <button
+                  v-if="config.unplacedWidgetIds.value.length > 0"
+                  class="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-theme-primary
+                         text-xs text-theme-muted hover:text-accent hover:border-accent/40 transition-colors"
+                  @click="openWidgetPicker('new')"
+                >
+                  <Icon name="Plus" :size="14" />
+                  <span>Add row</span>
+                </button>
+
+                <!-- Unplaced widgets info -->
+                <p v-if="config.unplacedWidgetIds.value.length > 0" class="text-[10px] text-theme-muted mt-2">
+                  {{ config.unplacedWidgetIds.value.length }} widget{{ config.unplacedWidgetIds.value.length !== 1 ? 's' : '' }} not placed:
+                  {{ config.unplacedWidgetIds.value.map(id => widgetLabel(id)).join(', ') }}
+                </p>
+
+                <!-- Widget picker inline popup -->
+                <div
+                  v-if="showWidgetPicker !== null && config.unplacedWidgetIds.value.length > 0"
+                  class="mt-2 p-2 rounded-lg border border-accent/30 bg-theme-secondary"
+                >
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-theme-secondary">Choose widget</span>
+                    <button
+                      class="w-5 h-5 rounded flex items-center justify-center text-theme-muted hover:text-theme-primary transition-colors"
+                      @click="closeWidgetPicker"
+                    >
+                      <Icon name="X" :size="12" />
+                    </button>
+                  </div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button
+                      v-for="wid in config.unplacedWidgetIds.value"
+                      :key="wid"
+                      class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-theme-primary text-xs text-theme-secondary
+                             hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-colors"
+                      @click="pickWidget(wid)"
+                    >
+                      <Icon :name="widgetIcon(wid)" :size="12" />
+                      {{ widgetLabel(wid) }}
+                    </button>
+                  </div>
+                </div>
               </section>
             </template>
 
@@ -668,30 +969,17 @@ function formatRefreshLabel(seconds) {
                 </div>
               </section>
 
-              <!-- ═══ Section: Widgets ═══ -->
+              <!-- ═══ Section: Widgets (Session 9 — unified WIDGET_REGISTRY-driven) ═══ -->
               <section>
                 <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Widgets</h3>
                 <div class="space-y-3">
-                  <SettingsToggle label="System Vitals" :active="config.showSystemVitals.value" @toggle="toggle('show_system_vitals', config.showSystemVitals.value)" />
-                  <SettingsToggle label="Network" :active="config.showNetwork.value" @toggle="toggle('show_network_widget', config.showNetwork.value)" />
-                  <SettingsToggle label="Disk Usage" :active="config.showDisk.value" @toggle="toggle('show_disk_widget', config.showDisk.value)" />
-                  <SettingsToggle label="Signals" :active="config.showSignals.value" @toggle="toggle('show_signals_widget', config.showSignals.value)" />
-                  <SettingsToggle label="Uptime & Load" :active="config.showUptimeLoad.value" @toggle="toggle('show_uptime_load', config.showUptimeLoad.value)" />
-                  <SettingsToggle label="Network Traffic" :active="config.showNetworkThroughput.value" @toggle="toggle('show_network_throughput', config.showNetworkThroughput.value)" />
-                  <SettingsToggle label="Recent Logs" :active="config.showRecentLogs.value" @toggle="toggle('show_recent_logs', config.showRecentLogs.value)" />
-                  <SettingsToggle label="Battery" :active="config.showBattery.value" @toggle="toggle('show_battery', config.showBattery.value)" />
-                  <SettingsToggle label="Status Pill" :active="config.showStatusPill.value" @toggle="toggle('show_status_pill', config.showStatusPill.value)" />
-                  <SettingsToggle label="Search / Chat Bar" :active="config.showSearch.value" @toggle="toggle('show_search', config.showSearch.value)" />
-                  <SettingsToggle label="Alert Banner" :active="config.showAlerts.value" @toggle="toggle('show_alerts', config.showAlerts.value)" />
-                  <!-- Session 7: Individual gauge widgets -->
-                  <SettingsToggle label="CPU Gauge" :active="config.showCpuGauge.value" @toggle="toggle('show_cpu_gauge', config.showCpuGauge.value)" />
-                  <SettingsToggle label="Memory Gauge" :active="config.showMemoryGauge.value" @toggle="toggle('show_memory_gauge', config.showMemoryGauge.value)" />
-                  <SettingsToggle label="Disk Gauge" :active="config.showDiskGauge.value" @toggle="toggle('show_disk_gauge', config.showDiskGauge.value)" />
-                  <SettingsToggle label="Temperature Gauge" :active="config.showTempGauge.value" @toggle="toggle('show_temp_gauge', config.showTempGauge.value)" />
-                  <!-- Session 7: Cross-mode widgets -->
-                  <SettingsToggle label="Swarm Overview" :active="config.showSwarm.value" @toggle="toggle('show_swarm', config.showSwarm.value)" />
-                  <SettingsToggle label="Core Services" :active="config.showCoreServices.value" @toggle="toggle('show_core_services', config.showCoreServices.value)" />
-                  <SettingsToggle label="Info Bar" :active="config.showInfoBar.value" @toggle="toggle('show_info_bar', config.showInfoBar.value)" />
+                  <SettingsToggle
+                    v-for="w in widgetToggles"
+                    :key="w.id"
+                    :label="w.label"
+                    :active="w.active"
+                    @toggle="toggle(w.key, w.active)"
+                  />
                 </div>
               </section>
 

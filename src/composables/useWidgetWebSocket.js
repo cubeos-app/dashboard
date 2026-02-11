@@ -33,6 +33,8 @@ import { inject, computed, ref } from 'vue'
  *   - disk (disk %)
  *   - network (wifi clients, interface status)
  *   - status (overall system health — derived from same data)
+ *   - cpu_gauge, memory_gauge, disk_gauge, temp_gauge (individual gauge values
+ *     derived from the same WS system stats — Session 9)
  *
  * NOT covered (still need polling):
  *   - uptime_load (needs /monitoring/history for sparkline data)
@@ -40,24 +42,36 @@ import { inject, computed, ref } from 'vue'
  *   - recent_logs (needs /logs/journal)
  *   - battery (needs /hardware/battery — separate HAL endpoint)
  *   - signals (needs /signals or /hardware/gps — separate HAL endpoint)
- *   - clock, search, actions, launcher (no polling needed at all)
+ *   - clock, search, actions, favorites, etc. (no polling needed at all)
  */
 const WS_COVERED_WIDGETS = new Set([
   'vitals',
   'disk',
   'network',
   'status',
+  'cpu_gauge',
+  'memory_gauge',
+  'disk_gauge',
+  'temp_gauge',
 ])
 
 /**
- * Widgets that don't need any polling — they're either static or
- * event-driven (clock uses its own setInterval, search is user-initiated).
+ * Widgets that don't need any polling — they're either static,
+ * event-driven, or purely user-triggered.
+ * Session 9: Added favorites, recent_apps, my_apps (store-driven, no polling),
+ * infobar (store-driven), core_services, swarm (store-driven).
  */
 const NO_POLL_WIDGETS = new Set([
   'clock',
   'search',
   'actions',
   'launcher',
+  'favorites',
+  'recent_apps',
+  'my_apps',
+  'infobar',
+  'core_services',
+  'swarm',
 ])
 
 /**

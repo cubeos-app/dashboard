@@ -21,9 +21,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
-import { useAppsStore, DEPLOY_MODES } from '@/stores/apps'
+import { useAppsStore } from '@/stores/apps'
 import { useMonitoringStore } from '@/stores/monitoring'
-import { useNetworkStore } from '@/stores/network'
 import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
 import { useDashboardResize } from '@/composables/useDashboardResize'
@@ -51,6 +50,7 @@ import MemoryGaugeWidget from './MemoryGaugeWidget.vue'
 import DiskGaugeWidget from './DiskGaugeWidget.vue'
 import TempGaugeWidget from './TempGaugeWidget.vue'
 import AlertsFeed from './AlertsFeed.vue'
+import InfoBarWidget from './InfoBarWidget.vue'
 import ServiceGrid from './ServiceGrid.vue'
 import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
 import WidgetWrapper from './WidgetWrapper.vue'
@@ -63,7 +63,6 @@ const router = useRouter()
 const systemStore = useSystemStore()
 const appsStore = useAppsStore()
 const monitoringStore = useMonitoringStore()
-const networkStore = useNetworkStore()
 const { signal } = useAbortOnUnmount()
 
 const { handleDrop, dragWidgetId, canUndo, canRedo, undo, redo, undoCount, redoCount } = useDashboardEdit()
@@ -87,26 +86,8 @@ const {
 
 // ─── App data ──────────────────────────────────────────────────
 const coreApps = computed(() => appsStore.coreApps)
-const allApps = computed(() => appsStore.apps || [])
-
-// ─── System stats (used by InfoBar widget) ─────────────────────
-const runningCount = computed(() => appsStore.runningCount)
-const totalCount = computed(() => appsStore.appCount)
-const healthyCount = computed(() => appsStore.healthyCount)
-
-const networkMode = computed(() => networkStore.currentMode || 'unknown')
-const networkModeLabel = computed(() => {
-  const labels = { offline: 'Offline', online_eth: 'Ethernet', online_wifi: 'WiFi Client' }
-  return labels[networkMode.value] || 'Unknown'
-})
-
-const wsConnected = computed(() => systemStore.wsConnected)
-const wsConnections = computed(() => monitoringStore.wsConnectionCount)
 
 const alerts = computed(() => monitoringStore.alerts)
-
-const swarmStacks = computed(() => allApps.value.filter(a => a.deploy_mode === DEPLOY_MODES.STACK).length)
-const composeServices = computed(() => allApps.value.filter(a => a.deploy_mode === DEPLOY_MODES.COMPOSE).length)
 
 // ─── Quick actions pool (matches Standard mode) ──────────────
 const ACTIONS_POOL = {
@@ -434,65 +415,9 @@ onBeforeUnmount(() => {
               <TempGaugeWidget />
             </WidgetWrapper>
 
-            <!-- ═══ Info Bar (Advanced-specific inline widget) ═══ -->
+            <!-- ═══ Info Bar (Session 9 — standalone component) ═══ -->
             <WidgetWrapper v-if="widgetId === 'infobar'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
-              <div class="rounded-xl border border-theme-primary bg-theme-card p-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
-                <div class="flex items-center gap-2">
-                  <Icon name="Activity" :size="14" class="text-success" />
-                  <span class="text-theme-secondary">
-                    <strong class="text-theme-primary">{{ runningCount }}</strong>/{{ totalCount }} running
-                  </span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <Icon name="HeartPulse" :size="14" class="text-success" />
-                  <span class="text-theme-secondary">
-                    <strong class="text-theme-primary">{{ healthyCount }}</strong> healthy
-                  </span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <Icon name="Layers" :size="14" class="text-accent" />
-                  <span class="text-theme-secondary">
-                    {{ swarmStacks }} stacks, {{ composeServices }} compose
-                  </span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <Icon name="Globe" :size="14" class="text-accent" />
-                  <span class="text-theme-secondary">{{ networkModeLabel }}</span>
-                </div>
-                <div v-if="systemStore.wifiClients !== null" class="flex items-center gap-2">
-                  <Icon name="Users" :size="14" class="text-theme-tertiary" />
-                  <span class="text-theme-secondary">{{ systemStore.wifiClients }} clients</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span
-                    class="w-2 h-2 rounded-full"
-                    :class="wsConnected ? 'bg-success animate-pulse-status' : 'bg-error'"
-                  ></span>
-                  <span class="text-theme-secondary">
-                    WS {{ wsConnected ? 'connected' : 'disconnected' }}
-                    <template v-if="wsConnections > 0">({{ wsConnections }})</template>
-                  </span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <Icon name="Clock" :size="14" class="text-theme-tertiary" />
-                  <span class="text-theme-secondary">{{ systemStore.uptime.uptime_human }}</span>
-                </div>
-                <div v-if="systemStore.batteryAvailable" class="flex items-center gap-2">
-                  <Icon
-                    :name="systemStore.isCharging ? 'BatteryCharging' : 'Battery'"
-                    :size="14"
-                    :class="systemStore.batteryPercent > 20 ? 'text-success' : 'text-error'"
-                  />
-                  <span class="text-theme-secondary">{{ systemStore.batteryPercent }}%</span>
-                </div>
-                <div class="flex items-center gap-2 ml-auto">
-                  <Icon name="Server" :size="14" class="text-theme-muted" />
-                  <span class="text-theme-muted font-mono">
-                    {{ systemStore.hostname }}
-                    <template v-if="systemStore.piModel"> &middot; {{ systemStore.piModel }}</template>
-                  </span>
-                </div>
-              </div>
+              <InfoBarWidget />
             </WidgetWrapper>
 
             <!-- ═══ Disk ═══ -->
