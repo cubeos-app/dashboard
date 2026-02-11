@@ -18,28 +18,36 @@ import api from '@/api/client'
 export const NETWORK_MODES = {
   OFFLINE: 'offline',
   ONLINE_ETH: 'online_eth',
-  ONLINE_WIFI: 'online_wifi'
+  ONLINE_WIFI: 'online_wifi',
+  SERVER_ETH: 'server_eth',
+  SERVER_WIFI: 'server_wifi'
 }
 
 // Human-readable mode labels
 export const MODE_LABELS = {
   [NETWORK_MODES.OFFLINE]: 'Offline (AP Only)',
   [NETWORK_MODES.ONLINE_ETH]: 'Online (Ethernet)',
-  [NETWORK_MODES.ONLINE_WIFI]: 'Online (WiFi Client)'
+  [NETWORK_MODES.ONLINE_WIFI]: 'Online (WiFi Client)',
+  [NETWORK_MODES.SERVER_ETH]: 'Server (Ethernet)',
+  [NETWORK_MODES.SERVER_WIFI]: 'Server (WiFi)'
 }
 
 // Mode descriptions
 export const MODE_DESCRIPTIONS = {
   [NETWORK_MODES.OFFLINE]: 'Air-gapped mode. Access Point only, no internet connectivity.',
   [NETWORK_MODES.ONLINE_ETH]: 'Connect to internet via Ethernet. NAT provides internet to AP clients.',
-  [NETWORK_MODES.ONLINE_WIFI]: 'Connect to upstream WiFi via USB dongle. NAT provides internet to AP clients.'
+  [NETWORK_MODES.ONLINE_WIFI]: 'Connect to upstream WiFi via USB dongle. NAT provides internet to AP clients.',
+  [NETWORK_MODES.SERVER_ETH]: 'No Access Point. Direct Ethernet connection only.',
+  [NETWORK_MODES.SERVER_WIFI]: 'No Access Point. Direct WiFi connection only.'
 }
 
 // Mode icons (Lucide icon names)
 export const MODE_ICONS = {
   [NETWORK_MODES.OFFLINE]: 'WifiOff',
   [NETWORK_MODES.ONLINE_ETH]: 'Cable',
-  [NETWORK_MODES.ONLINE_WIFI]: 'Wifi'
+  [NETWORK_MODES.ONLINE_WIFI]: 'Wifi',
+  [NETWORK_MODES.SERVER_ETH]: 'Server',
+  [NETWORK_MODES.SERVER_WIFI]: 'Server'
 }
 
 export const useNetworkStore = defineStore('network', () => {
@@ -77,7 +85,7 @@ export const useNetworkStore = defineStore('network', () => {
   // Computed
   // ==========================================
   
-  const currentMode = computed(() => status.value?.mode || NETWORK_MODES.OFFLINE)
+  const currentMode = computed(() => status.value?.mode || networkMode.value?.mode || NETWORK_MODES.OFFLINE)
   const hasInternet = computed(() => status.value?.internet === true)
   const isAPActive = computed(() => !!status.value?.ap?.ssid)
   const apSSID = computed(() => status.value?.ap?.ssid || 'CubeOS')

@@ -103,6 +103,8 @@ const modeLabelDisplay = computed(() => {
     case 'offline': return 'Offline (AP Only)'
     case 'online_eth': return 'Online via Ethernet'
     case 'online_wifi': return 'Online via WiFi'
+    case 'server_eth': return 'Server via Ethernet'
+    case 'server_wifi': return 'Server via WiFi'
     default: return networkMode.value?.mode || 'Unknown'
   }
 })
