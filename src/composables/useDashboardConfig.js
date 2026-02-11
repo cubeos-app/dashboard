@@ -5,7 +5,13 @@
  * - AppLauncher decomposed into favorites, recent_apps, my_apps
  * - Gauges decomposed into cpu_gauge, memory_gauge, disk_gauge, temp_gauge
  * - Migration from 'launcher' → 3 widgets, 'gauges' → 4 widgets
- * - ADVANCED_SECTION_REGISTRY kept as deprecated alias for backward compat
+ *
+ * SESSION 8: Unified architecture for Advanced mode.
+ * - Advanced now uses gridLayout exclusively (same as Standard)
+ * - advancedSectionOrder migrated to gridLayout via migrateAdvancedSectionOrderToGrid()
+ * - ADVANCED_SECTION_REGISTRY kept as deprecated alias for one release cycle
+ * - advancedSectionOrder / updateAdvancedSectionOrder still exported but no longer
+ *   consumed by DashboardAdvanced.vue
  *
  * Usage:
  *   const { gridLayout, updateGridLayout, updateConfig } = useDashboardConfig()
@@ -106,18 +112,27 @@ const STANDARD_GRID_LAYOUT = [
   { row: ['my_apps'] },
 ]
 
+/**
+ * SESSION 8: Advanced default layout uses unified widget IDs.
+ * Gauges are paired 2-per-row for a compact 2×2 layout.
+ * Replaces the old advancedSectionOrder flat array.
+ */
 const ADVANCED_GRID_LAYOUT = [
-  { row: ['vitals'] },
-  { row: ['network'] },
+  { row: ['cpu_gauge', 'memory_gauge'] },
+  { row: ['disk_gauge', 'temp_gauge'] },
+  { row: ['infobar'] },
   { row: ['disk'] },
   { row: ['signals'] },
+  { row: ['swarm'] },
+  { row: ['alerts'] },
   { row: ['uptime_load'] },
   { row: ['network_throughput'] },
   { row: ['recent_logs'] },
   { row: ['battery'] },
-  { row: ['actions'] },
   { row: ['favorites'] },
+  { row: ['core_services'] },
   { row: ['my_apps'] },
+  { row: ['actions'] },
 ]
 
 const DEFAULT_ADVANCED_SECTION_ORDER = [
@@ -200,8 +215,8 @@ const ADVANCED_DEFAULTS = {
   show_status_pill: false,
   show_system_vitals: true,
   show_network_widget: true,
-  show_disk_widget: false,
-  show_signals_widget: false,
+  show_disk_widget: true,
+  show_signals_widget: true,
   show_quick_actions: true,
   show_favorites: true,
   show_recent: false,
@@ -344,6 +359,102 @@ function isValidGridLayout(layout) {
   )
 }
 
+/**
+ * SESSION 8: Convert an advancedSectionOrder flat array into a gridLayout.
+ *
+ * Maps old section IDs to unified widget IDs:
+ *   'gauges'             → ['cpu_gauge', 'memory_gauge'] + ['disk_gauge', 'temp_gauge'] (2 rows)
+ *   'quick-links'        → 'actions'
+ *   'user-apps'          → 'my_apps'
+ *   'core'               → 'core_services'
+ *   'uptime-load'        → 'uptime_load'
+ *   'network-throughput'  → 'network_throughput'
+ *   'recent-logs'        → 'recent_logs'
+ *
+ * Returns null if the input is not a valid section order.
+ */
+function migrateAdvancedSectionOrderToGrid(sectionOrder) {
+  if (!Array.isArray(sectionOrder) || sectionOrder.length === 0) return null
+
+  // First, expand any legacy composites (disk-signals, swarm-alerts)
+  const expanded = migrateAdvancedSectionOrder(sectionOrder) || sectionOrder
+
+  const SECTION_TO_WIDGET = {
+    'gauges':              null, // Special case — expands to 4 gauge widgets
+    'infobar':             'infobar',
+    'disk':                'disk',
+    'signals':             'signals',
+    'swarm':               'swarm',
+    'alerts':              'alerts',
+    'uptime-load':         'uptime_load',
+    'network-throughput':  'network_throughput',
+    'recent-logs':         'recent_logs',
+    'battery':             'battery',
+    'favorites':           'favorites',
+    'core':                'core_services',
+    'user-apps':           'my_apps',
+    'quick-links':         'actions',
+  }
+
+  const rows = []
+  for (const sectionId of expanded) {
+    if (sectionId === 'gauges') {
+      rows.push({ row: ['cpu_gauge', 'memory_gauge'] })
+      rows.push({ row: ['disk_gauge', 'temp_gauge'] })
+      continue
+    }
+
+    const widgetId = SECTION_TO_WIDGET[sectionId]
+    if (widgetId) {
+      rows.push({ row: [widgetId] })
+    }
+    // Unknown section IDs are silently dropped
+  }
+
+  // Ensure any missing default widgets are appended
+  const placed = new Set(rows.flatMap(r => r.row))
+  for (const entry of ADVANCED_GRID_LAYOUT) {
+    for (const wid of entry.row) {
+      if (!placed.has(wid)) {
+        rows.push({ row: [wid] })
+        placed.add(wid)
+      }
+    }
+  }
+
+  return rows.length > 0 ? rows : null
+}
+
+/**
+ * SESSION 8: Check if a grid layout contains any old hyphenated section IDs
+ * that need to be migrated to underscore-based widget IDs.
+ */
+function migrateHyphenatedIds(layout) {
+  if (!Array.isArray(layout)) return null
+
+  const HYPHEN_MAP = {
+    'uptime-load': 'uptime_load',
+    'network-throughput': 'network_throughput',
+    'recent-logs': 'recent_logs',
+    'quick-links': 'actions',
+    'user-apps': 'my_apps',
+    'core': 'core_services',
+  }
+
+  let needsMigration = false
+  for (const entry of layout) {
+    if (entry.row && entry.row.some(id => HYPHEN_MAP[id])) {
+      needsMigration = true
+      break
+    }
+  }
+  if (!needsMigration) return null
+
+  return layout.map(entry => ({
+    row: entry.row.map(id => HYPHEN_MAP[id] || id),
+  }))
+}
+
 // ─── Composable ──────────────────────────────────────────────
 
 export function useDashboardConfig() {
@@ -403,14 +514,33 @@ export function useDashboardConfig() {
 
   const gridLayout = computed(() => {
     const stored = raw.value?.grid_layout
+
+    // 1. Try stored grid_layout
     if (isValidGridLayout(stored)) {
+      // Migrate launcher → decomposed widgets (Session 7)
       const launcherMigrated = migrateLauncherInGrid(stored)
       if (launcherMigrated) return launcherMigrated
+
+      // Migrate hyphenated section IDs → unified widget IDs (Session 8)
+      const hyphenMigrated = migrateHyphenatedIds(stored)
+      if (hyphenMigrated) return hyphenMigrated
+
       return stored
     }
+
+    // 2. For Advanced mode: try migrating advancedSectionOrder → gridLayout (Session 8)
+    if (isAdvanced.value) {
+      const sectionOrder = raw.value?.advanced_section_order
+      const migrated = migrateAdvancedSectionOrderToGrid(sectionOrder)
+      if (migrated) return migrated
+    }
+
+    // 3. Try migrating flat widget_order → gridLayout
     const order = raw.value?.widget_order
     const migrated = migrateWidgetOrderToGrid(order)
     if (migrated) return migrated
+
+    // 4. Fall back to mode defaults
     return defaults.value.grid_layout
   })
 

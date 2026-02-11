@@ -1,47 +1,59 @@
 <script setup>
 /**
- * DashboardAdvanced.vue — Session 4
+ * DashboardAdvanced.vue — Session 8
  *
  * Advanced mode ("kung fu mode") dashboard view.
- * All sections respect useDashboardConfig toggles for customization.
+ * SESSION 8: Unified architecture — now uses the same WidgetWrapper + gridLayout
+ * system as DashboardStandard.vue. All widgets wrapped in WidgetWrapper for
+ * per-widget opacity, resize, collapse, auto-refresh, DnD (HTML5 + touch).
  *
- * SESSION 1: Broke composite sections into independent draggable widgets.
- * - 'disk-signals' → separate 'disk' and 'signals' sections
- * - 'swarm-alerts' → separate 'swarm' and 'alerts' sections
- * Each section is independently positionable via DnD.
- * Uses advancedSectionOrder from useDashboardConfig (with composite ID migration).
- *
+ * Previous sessions:
+ * SESSION 1: Broke composite sections into independent widgets.
  * SESSION 4: Touch DnD for mobile.
- * - Sections support long-press (300ms) to initiate touch drag.
- * - Ghost follows finger, source dims, drop targets highlight.
- * - Section reordering via touch works same as HTML5 DnD.
- * - Auto-scroll near viewport edges during touch drag.
- * - Haptic feedback on drag start + successful drop.
+ * SESSION 7: Decomposed gauges into 4 individual gauge widgets.
+ * SESSION 8: Replaced section-order rendering with row-based grid rendering.
+ *   - advancedSectionOrder retired → gridLayout used for both modes
+ *   - executeSectionReorder deleted → handleDrop from useDashboardEdit
+ *   - All widgets use WidgetWrapper (resize, opacity, collapse, auto-refresh)
+ *   - Drop zones (before/after + left/right) for full DnD parity with Standard
+ *   - Undo/redo works automatically (handleDrop calls pushUndo)
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useAppsStore, DEPLOY_MODES } from '@/stores/apps'
-import { useFavoritesStore } from '@/stores/favorites'
 import { useMonitoringStore } from '@/stores/monitoring'
 import { useNetworkStore } from '@/stores/network'
-import { useDashboardConfig, ADVANCED_SECTION_REGISTRY } from '@/composables/useDashboardConfig'
+import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
+import { useDashboardResize } from '@/composables/useDashboardResize'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { useTouchDrag } from '@/composables/useTouchDrag'
 import Icon from '@/components/ui/Icon.vue'
-import StatusCard from './StatusCard.vue'
-import ServiceGrid from './ServiceGrid.vue'
-import AlertsFeed from './AlertsFeed.vue'
+
+// ─── Widget components ──────────────────────────────────────
+import ClockWidget from './ClockWidget.vue'
+import SearchChatBar from './SearchChatBar.vue'
+import StatusPill from './StatusPill.vue'
+import SystemVitals from './SystemVitals.vue'
+import NetworkWidget from './NetworkWidget.vue'
 import DiskWidget from './DiskWidget.vue'
 import SignalsWidget from './SignalsWidget.vue'
 import UptimeLoadWidget from './UptimeLoadWidget.vue'
 import NetworkThroughputWidget from './NetworkThroughputWidget.vue'
 import RecentLogsWidget from './RecentLogsWidget.vue'
 import BatteryWidget from './BatteryWidget.vue'
-import WidgetWrapper from './WidgetWrapper.vue'
-import WidgetErrorBoundary from './WidgetErrorBoundary.vue'
+import FavoritesWidget from './FavoritesWidget.vue'
+import RecentAppsWidget from './RecentAppsWidget.vue'
+import MyAppsWidget from './MyAppsWidget.vue'
+import CpuGaugeWidget from './CpuGaugeWidget.vue'
+import MemoryGaugeWidget from './MemoryGaugeWidget.vue'
+import DiskGaugeWidget from './DiskGaugeWidget.vue'
+import TempGaugeWidget from './TempGaugeWidget.vue'
+import AlertsFeed from './AlertsFeed.vue'
+import ServiceGrid from './ServiceGrid.vue'
 import SwarmOverview from '@/components/swarm/SwarmOverview.vue'
+import WidgetWrapper from './WidgetWrapper.vue'
 
 const props = defineProps({
   isEditing: { type: Boolean, default: false },
@@ -50,212 +62,186 @@ const props = defineProps({
 const router = useRouter()
 const systemStore = useSystemStore()
 const appsStore = useAppsStore()
-const favoritesStore = useFavoritesStore()
 const monitoringStore = useMonitoringStore()
 const networkStore = useNetworkStore()
 const { signal } = useAbortOnUnmount()
-const { canUndo, canRedo, undo, redo, undoCount, redoCount } = useDashboardEdit()
 
-const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
-
-// ─── Touch DnD ──────────────────────────────────────────────────
+const { handleDrop, dragWidgetId, canUndo, canRedo, undo, redo, undoCount, redoCount } = useDashboardEdit()
+const { getWidgetWidth } = useDashboardResize()
 const {
   isDraggingTouch,
   touchDragWidgetId,
   registerDropZone,
   clearDropZones,
   refreshZoneRects,
-  onTouchStart: touchDragStart,
-  onTouchMove: touchDragMove,
-  onTouchEnd: touchDragEnd,
-  onTouchCancel: touchDragCancel,
 } = useTouchDrag()
+
+const emit = defineEmits(['open-app', 'toggle-favorite', 'open-chat'])
 
 // ─── Dashboard config ──────────────────────────────────────────
 const {
-  showSystemVitals,
-  showInfoBar,
-  showSwarm,
-  showAlerts,
-  showFavorites,
-  showCoreServices,
-  showMyApps,
-  showQuickActions,
-  showDisk,
-  showSignals,
-  showUptimeLoad,
-  showNetworkThroughput,
-  showRecentLogs,
-  showBattery,
-  raw,
-  updateConfig,
-  advancedSectionOrder,
-  updateAdvancedSectionOrder,
+  gridLayout,
+  isWidgetVisible,
+  quickActions: configQuickActions,
 } = useDashboardConfig()
 
-// ─── App lists (must be declared before sectionVisibility to avoid TDZ) ──
+// ─── App data ──────────────────────────────────────────────────
 const coreApps = computed(() => appsStore.coreApps)
-const userApps = computed(() => appsStore.userApps)
 const allApps = computed(() => appsStore.apps || [])
 
-const favoriteApps = computed(() => {
-  return favoritesStore.favoriteNames()
-    .map(name => appsStore.getAppByName(name))
+// ─── System stats (used by InfoBar widget) ─────────────────────
+const runningCount = computed(() => appsStore.runningCount)
+const totalCount = computed(() => appsStore.appCount)
+const healthyCount = computed(() => appsStore.healthyCount)
+
+const networkMode = computed(() => networkStore.currentMode || 'unknown')
+const networkModeLabel = computed(() => {
+  const labels = { offline: 'Offline', online_eth: 'Ethernet', online_wifi: 'WiFi Client' }
+  return labels[networkMode.value] || 'Unknown'
+})
+
+const wsConnected = computed(() => systemStore.wsConnected)
+const wsConnections = computed(() => monitoringStore.wsConnectionCount)
+
+const alerts = computed(() => monitoringStore.alerts)
+
+const swarmStacks = computed(() => allApps.value.filter(a => a.deploy_mode === DEPLOY_MODES.STACK).length)
+const composeServices = computed(() => allApps.value.filter(a => a.deploy_mode === DEPLOY_MODES.COMPOSE).length)
+
+// ─── Quick actions pool (matches Standard mode) ──────────────
+const ACTIONS_POOL = {
+  add_app:    { label: 'Add App',    icon: 'Plus',              color: 'bg-emerald-500/15 text-emerald-400', action: () => router.push('/apps?tab=store') },
+  network:    { label: 'Network',    icon: 'Wifi',              color: 'bg-indigo-500/15 text-indigo-400',   action: () => router.push('/network') },
+  storage:    { label: 'Storage',    icon: 'HardDrive',         color: 'bg-amber-500/15 text-amber-400',     action: () => router.push('/storage') },
+  ask_cubeos: { label: 'Ask CubeOS', icon: 'MessageSquare',     color: 'bg-violet-500/15 text-violet-400',   action: () => emit('open-chat') },
+  system:     { label: 'System',     icon: 'Settings2',         color: 'bg-cyan-500/15 text-cyan-400',       action: () => router.push('/system') },
+  settings:   { label: 'Settings',   icon: 'SlidersHorizontal', color: 'bg-rose-500/15 text-rose-400',       action: () => router.push('/settings') },
+  monitoring: { label: 'Monitoring', icon: 'BarChart3',         color: 'bg-teal-500/15 text-teal-400',       action: () => router.push('/system?tab=monitoring') },
+  logs:       { label: 'Logs',       icon: 'ScrollText',        color: 'bg-slate-500/15 text-slate-400',     action: () => router.push('/system?tab=logs') },
+  docs:       { label: 'Docs',       icon: 'BookOpen',          color: 'bg-sky-500/15 text-sky-400',         action: () => router.push('/docs') },
+  vpn:        { label: 'VPN',        icon: 'Shield',            color: 'bg-purple-500/15 text-purple-400',   action: () => router.push('/network?tab=vpn') },
+}
+
+const filteredQuickActions = computed(() => {
+  return configQuickActions.value
+    .map(id => ACTIONS_POOL[id] ? { id, ...ACTIONS_POOL[id] } : null)
     .filter(Boolean)
 })
 
-// ─── Section order (Advanced-specific, Session 1 — individual IDs) ──
-
-const SECTION_LABELS = computed(() => {
-  const labels = {}
-  for (const [id, meta] of Object.entries(ADVANCED_SECTION_REGISTRY)) {
-    labels[id] = meta.label
-  }
-  return labels
+const quickActionsGridCols = computed(() => {
+  const count = filteredQuickActions.value.length
+  if (count <= 3) return 'grid-cols-3'
+  if (count <= 4) return 'grid-cols-2 sm:grid-cols-4'
+  if (count <= 6) return 'grid-cols-3 sm:grid-cols-6'
+  return 'grid-cols-4 sm:grid-cols-8'
 })
 
-/** Which sections are visible based on config toggles */
-const sectionVisibility = computed(() => ({
-  'gauges': showSystemVitals.value,
-  'infobar': showInfoBar.value,
-  'disk': showDisk.value,
-  'signals': showSignals.value,
-  'swarm': showSwarm.value,
-  'alerts': showAlerts.value,
-  'uptime-load': showUptimeLoad.value,
-  'network-throughput': showNetworkThroughput.value,
-  'recent-logs': showRecentLogs.value,
-  'battery': showBattery.value && systemStore.batteryAvailable,
-  'favorites': showFavorites.value && favoriteApps.value.length > 0,
-  'core': showCoreServices.value,
-  'user-apps': showMyApps.value && userApps.value.length > 0,
-  'quick-links': showQuickActions.value,
-}))
+// ─── Grid rows (visibility-filtered, with original layout index) ─
+//
+// CRITICAL: `layoutIdx` is the index in the unfiltered `gridLayout`.
+// All drop handlers must use `layoutIdx`, NOT the v-for iteration index.
 
-const visibleSections = computed(() =>
-  advancedSectionOrder.value.filter(id => sectionVisibility.value[id])
-)
+const gridRows = computed(() => {
+  return gridLayout.value
+    .map((entry, originalIdx) => ({
+      row: entry.row,
+      visible: entry.row.filter(id => isWidgetVisible(id)),
+      layoutIdx: originalIdx,
+    }))
+    .filter(entry => entry.visible.length > 0)
+})
 
-// ─── Section drag state (HTML5 DnD) ─────────────────────────────
-const dragSectionId = ref(null)
-const dragOverSectionId = ref(null)
+const isAllHidden = computed(() => gridRows.value.length === 0)
 
-function onSectionDragStart(e, sectionId) {
-  dragSectionId.value = sectionId
-  e.dataTransfer.effectAllowed = 'move'
-  e.dataTransfer.setData('text/plain', sectionId)
-}
+// ─── Drop zone state (HTML5 DnD) ─────────────────────────────
+const activeDropZone = ref(null)
+const dropZoneRefs = ref({})
 
-function onSectionDragEnd() {
-  dragSectionId.value = null
-  dragOverSectionId.value = null
-}
-
-function onSectionDragOver(e, sectionId) {
-  e.preventDefault()
-  e.dataTransfer.dropEffect = 'move'
-  dragOverSectionId.value = sectionId
-}
-
-function onSectionDragLeave(e, sectionId) {
-  if (dragOverSectionId.value === sectionId) {
-    dragOverSectionId.value = null
-  }
-}
-
-function onSectionDrop(e, targetSectionId) {
-  e.preventDefault()
-  const srcId = dragSectionId.value
-  executeSectionReorder(srcId, targetSectionId)
-  dragSectionId.value = null
-  dragOverSectionId.value = null
-}
-
-/**
- * Execute section reorder — shared by both HTML5 DnD and touch DnD.
- */
-function executeSectionReorder(srcId, targetSectionId) {
-  if (!srcId || srcId === targetSectionId) return
-
-  const order = [...advancedSectionOrder.value]
-  const srcIdx = order.indexOf(srcId)
-  const destIdx = order.indexOf(targetSectionId)
-  if (srcIdx === -1 || destIdx === -1) return
-
-  order.splice(srcIdx, 1)
-  order.splice(destIdx, 0, srcId)
-
-  updateAdvancedSectionOrder(order)
-}
-
-// ─── Touch drag handlers for sections ───────────────────────────
-
-// Track if this is a touch device to prevent HTML5 DnD conflict
-const isTouchActive = ref(false)
-
-// Store refs to section DOM elements for touch drag + drop zone registration
-const sectionRefs = ref({})
-
-function setSectionRef(sectionId) {
+function setDropZoneRef(key) {
   return (el) => {
     if (el) {
-      sectionRefs.value[sectionId] = el
+      dropZoneRefs.value[key] = el
     } else {
-      delete sectionRefs.value[sectionId]
+      delete dropZoneRefs.value[key]
     }
   }
 }
 
-function onSectionTouchStart(e, sectionId) {
-  if (!props.isEditing) return
-  isTouchActive.value = true
-
-  const el = sectionRefs.value[sectionId]
-  if (!el) return
-
-  // Use a dummy rowIdx of 0 since Advanced mode doesn't use row-based layout
-  touchDragStart(e, sectionId, 0, el)
+function dropZoneId(position, layoutIdx) {
+  return `${position}-${layoutIdx}`
 }
 
-function onSectionTouchMove(e) {
-  if (!isDraggingTouch.value) return
-  touchDragMove(e)
+function onDragOver(e, position, layoutIdx) {
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'move'
+  activeDropZone.value = dropZoneId(position, layoutIdx)
 }
 
-function onSectionTouchEnd(e) {
-  if (!isDraggingTouch.value) return
-  // Pass null for standard drop, executeSectionReorder for section drop
-  touchDragEnd(e, null, executeSectionReorder)
+function onDragLeave(e, position, layoutIdx) {
+  if (activeDropZone.value === dropZoneId(position, layoutIdx)) {
+    activeDropZone.value = null
+  }
 }
 
-function onSectionTouchCancel() {
-  touchDragCancel()
+function onDrop(e, position, layoutIdx) {
+  e.preventDefault()
+  activeDropZone.value = null
+  handleDrop(layoutIdx, position)
+}
+
+function isDropActive(position, layoutIdx) {
+  return activeDropZone.value === dropZoneId(position, layoutIdx)
+}
+
+/**
+ * Whether a row can accept a side drop (only single-widget rows).
+ * Also checks that the dragged widget isn't already in this row.
+ */
+function canAcceptSideDrop(entry) {
+  if (entry.visible.length !== 1) return false
+  const dragging = dragWidgetId.value || touchDragWidgetId.value
+  if (entry.visible.includes(dragging)) return false
+  return true
 }
 
 /** Whether any drag is active (HTML5 or touch) */
-const isAnyDragActive = computed(() =>
-  !!dragSectionId.value || isDraggingTouch.value
-)
+const isAnyDragActive = computed(() => !!dragWidgetId.value || isDraggingTouch.value)
 
-// ─── Register sections as touch drop zones ──────────────────────
+/**
+ * Determine the CSS grid class for a row.
+ */
+function rowGridClass(entry) {
+  if (entry.visible.length > 1) return 'lg:grid-cols-2'
+  if (entry.visible.length === 1 && getWidgetWidth(entry.visible[0]) === 'half') return 'lg:grid-cols-2'
+  return ''
+}
 
-function registerSectionDropZones() {
+/** Whether a widget is in a row with another widget */
+function isInPair(entry) {
+  return entry.visible.length > 1
+}
+
+// ─── Touch drop zone registration ─────────────────────────────
+
+function registerAllDropZones() {
   clearDropZones()
 
   if (!props.isEditing) return
 
   nextTick(() => {
-    for (const sectionId of visibleSections.value) {
-      const el = sectionRefs.value[sectionId]
+    const refs = dropZoneRefs.value
+
+    for (const [key, el] of Object.entries(refs)) {
       if (!el || !el.isConnected) continue
 
-      registerDropZone(
-        `section-${sectionId}`,
-        el,
-        'section',
-        sectionId,
-        'section'
-      )
+      const parts = key.split('-')
+      const position = parts[0]
+      const layoutIdx = parseInt(parts.slice(1).join('-'), 10)
+
+      if (isNaN(layoutIdx)) continue
+
+      const type = (position === 'left' || position === 'right') ? 'side' : 'row'
+      registerDropZone(key, el, position, layoutIdx, type)
     }
 
     refreshZoneRects()
@@ -264,60 +250,19 @@ function registerSectionDropZones() {
 
 watch(() => props.isEditing, (editing) => {
   if (editing) {
-    nextTick(registerSectionDropZones)
+    nextTick(registerAllDropZones)
   } else {
     clearDropZones()
-    isTouchActive.value = false
   }
 })
 
-watch(visibleSections, () => {
+watch(gridRows, () => {
   if (props.isEditing) {
-    nextTick(registerSectionDropZones)
+    nextTick(registerAllDropZones)
   }
 }, { deep: true })
 
-// ─── Empty state detection ─────────────────────────────────────
-const isAllHidden = computed(() => visibleSections.value.length === 0)
-
-// ─── System stats ──────────────────────────────────────────────
-const cpuUsage = computed(() => systemStore.cpuUsage)
-const memoryUsage = computed(() => systemStore.memoryUsage)
-const diskUsage = computed(() => systemStore.diskUsage)
-const temperature = computed(() => systemStore.temperature)
-const tempPercent = computed(() => {
-  const t = temperature.value
-  if (t === null || t === undefined) return 0
-  return Math.min(100, Math.max(0, (t / 85) * 100))
-})
-
-// App stats
-const runningCount = computed(() => appsStore.runningCount)
-const totalCount = computed(() => appsStore.appCount)
-const healthyCount = computed(() => appsStore.healthyCount)
-
-
-
-// Network
-const networkMode = computed(() => networkStore.currentMode || 'unknown')
-const networkModeLabel = computed(() => {
-  const labels = { offline: 'Offline', online_eth: 'Ethernet', online_wifi: 'WiFi Client' }
-  return labels[networkMode.value] || 'Unknown'
-})
-
-// WebSocket info
-const wsConnected = computed(() => systemStore.wsConnected)
-const wsConnections = computed(() => monitoringStore.wsConnectionCount)
-
-// Monitoring
-const alerts = computed(() => monitoringStore.alerts)
-const alertCount = computed(() => monitoringStore.alertCount)
-
-// Deploy mode stats
-const swarmStacks = computed(() => allApps.value.filter(a => a.deploy_mode === DEPLOY_MODES.STACK).length)
-const composeServices = computed(() => allApps.value.filter(a => a.deploy_mode === DEPLOY_MODES.COMPOSE).length)
-
-// Lifecycle
+// ─── Lifecycle ──────────────────────────────────────────────
 onMounted(async () => {
   const s = signal()
   await Promise.all([
@@ -327,27 +272,22 @@ onMounted(async () => {
   ])
 
   if (props.isEditing) {
-    nextTick(registerSectionDropZones)
+    nextTick(registerAllDropZones)
   }
 })
 
 onBeforeUnmount(() => {
   clearDropZones()
 })
-
-// Navigation helpers
-function goToMonitoring() { router.push('/system?tab=monitoring') }
-function goToLogs() { router.push('/system?tab=logs') }
-function goToAppStore() { router.push('/appstore') }
 </script>
 
 <template>
-  <div class="space-y-6 max-w-7xl mx-auto">
+  <div class="space-y-6 max-w-7xl mx-auto relative">
 
     <!-- Edit mode banner -->
     <div
       v-if="isEditing"
-      class="text-center py-2 text-xs text-theme-muted select-none"
+      class="text-center py-2 text-xs text-theme-muted select-none animate-fade-in"
     >
       <div class="flex items-center justify-center gap-3 mb-1">
         <button
@@ -371,11 +311,11 @@ function goToAppStore() { router.push('/appstore') }
           Redo<template v-if="redoCount > 0"> ({{ redoCount }})</template>
         </button>
       </div>
-      <span class="hidden sm:inline">Drag sections to reorder. Each widget moves independently. Double-click edges to resize.</span>
-      <span class="sm:hidden">Long-press and drag to reorder sections.</span>
+      <span class="hidden sm:inline">Drag widgets to rearrange. Drop beside a widget to pair them side-by-side. Double-click edges to resize.</span>
+      <span class="sm:hidden">Long-press and drag to rearrange widgets.</span>
     </div>
 
-    <!-- Empty state when all sections hidden -->
+    <!-- Empty state when all widgets hidden -->
     <div
       v-if="isAllHidden"
       class="flex flex-col items-center justify-center py-24 text-center"
@@ -385,296 +325,412 @@ function goToAppStore() { router.push('/appstore') }
       </div>
       <h3 class="text-lg font-medium text-theme-secondary mb-2">Dashboard is empty</h3>
       <p class="text-sm text-theme-muted max-w-xs">
-        All sections are hidden. Open settings to add widgets back to your dashboard.
+        All widgets are hidden. Open settings to add widgets back to your dashboard.
       </p>
     </div>
 
-    <!-- Sections rendered in order — each is independently draggable -->
-    <template v-for="sectionId in visibleSections" :key="sectionId">
+    <!-- Grid rows from grid_layout config -->
+    <template v-for="(entry, filteredIdx) in gridRows" :key="entry.layoutIdx">
+      <!-- Drop zone BEFORE this row -->
       <div
-        :ref="setSectionRef(sectionId)"
-        class="relative"
-        :class="{
-          'ring-2 ring-dashed ring-accent/30 rounded-xl p-1 cursor-grab active:cursor-grabbing': isEditing,
-          'opacity-30': dragSectionId === sectionId,
-          'ring-accent/60 bg-accent/5': dragOverSectionId === sectionId && dragSectionId !== sectionId,
-        }"
-        :draggable="isEditing && !isTouchActive"
-        @dragstart="isEditing ? onSectionDragStart($event, sectionId) : null"
-        @dragend="isEditing ? onSectionDragEnd() : null"
-        @dragover.prevent="isEditing ? onSectionDragOver($event, sectionId) : null"
-        @dragleave="isEditing ? onSectionDragLeave($event, sectionId) : null"
-        @drop="isEditing ? onSectionDrop($event, sectionId) : null"
-        @touchstart.passive="isEditing ? onSectionTouchStart($event, sectionId) : null"
-        @touchmove="onSectionTouchMove($event)"
-        @touchend="onSectionTouchEnd($event)"
-        @touchcancel="onSectionTouchCancel()"
+        v-if="isEditing && isAnyDragActive"
+        :ref="setDropZoneRef(`before-${entry.layoutIdx}`)"
+        class="drop-zone-row"
+        :class="isDropActive('before', entry.layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
+        @dragover.prevent="onDragOver($event, 'before', entry.layoutIdx)"
+        @dragleave="onDragLeave($event, 'before', entry.layoutIdx)"
+        @drop="onDrop($event, 'before', entry.layoutIdx)"
       >
-        <!-- Drag handle (edit mode) -->
-        <div
-          v-if="isEditing"
-          class="absolute -top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2.5 py-1
-                 rounded-full bg-theme-secondary border border-theme-primary shadow-lg cursor-grab
-                 active:cursor-grabbing select-none"
-        >
-          <Icon name="GripHorizontal" :size="12" class="text-theme-muted" />
-          <span class="text-[10px] font-medium text-theme-secondary whitespace-nowrap">
-            {{ SECTION_LABELS[sectionId] }}
-          </span>
+        <div class="drop-zone-indicator">
+          <Icon name="Plus" :size="12" />
         </div>
+      </div>
 
-        <!--
-          Section content wrapper: during edit mode, pointer-events:none prevents
-          interactive children (buttons, links, inputs) from capturing mousedown,
-          so the parent draggable div receives events and HTML5 drag initiates.
-        -->
-        <div :class="isEditing ? 'pointer-events-none' : ''">
-
-        <!-- ═══ Status Gauges ═══ -->
-        <section v-if="sectionId === 'gauges'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="gauges" :label="SECTION_LABELS['gauges']" icon="Activity">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatusCard label="CPU" :value="cpuUsage" unit="%" icon="Cpu" />
-            <StatusCard
-              label="Memory"
-              :value="memoryUsage"
-              unit="%"
-              icon="MemoryStick"
-              :subtitle="systemStore.memoryFormatted"
-            />
-            <StatusCard
-              label="Disk"
-              :value="diskUsage"
-              unit="%"
-              icon="HardDrive"
-              :subtitle="systemStore.diskFormatted"
-            />
-            <StatusCard
-              label="Temp"
-              :value="temperature"
-              unit="°C"
-              icon="Thermometer"
-              :percent="tempPercent"
-              :thresholds="{ warning: 65, critical: 80 }"
-            />
+      <!-- Row container with optional side drop zones -->
+      <div class="relative">
+        <!-- Side drop zones: left/right pairing for single-widget rows -->
+        <template v-if="isEditing && isAnyDragActive && canAcceptSideDrop(entry)">
+          <!-- Left side drop zone -->
+          <div
+            :ref="setDropZoneRef(`left-${entry.layoutIdx}`)"
+            class="drop-zone-side drop-zone-side-left"
+            :class="isDropActive('left', entry.layoutIdx) ? 'drop-zone-side-active' : 'drop-zone-side-idle'"
+            @dragover.prevent="onDragOver($event, 'left', entry.layoutIdx)"
+            @dragleave="onDragLeave($event, 'left', entry.layoutIdx)"
+            @drop="onDrop($event, 'left', entry.layoutIdx)"
+          >
+            <div class="drop-zone-side-indicator">
+              <Icon name="PanelLeft" :size="14" />
+            </div>
           </div>
-          </WidgetErrorBoundary>
-        </section>
 
-        <!-- ═══ Info Bar ═══ -->
-        <section v-if="sectionId === 'infobar'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="infobar" :label="SECTION_LABELS['infobar']" icon="Info">
-          <div class="rounded-xl border border-theme-primary bg-theme-card p-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
-            <div class="flex items-center gap-2">
-              <Icon name="Activity" :size="14" class="text-success" />
-              <span class="text-theme-secondary">
-                <strong class="text-theme-primary">{{ runningCount }}</strong>/{{ totalCount }} running
-              </span>
+          <!-- Right side drop zone -->
+          <div
+            :ref="setDropZoneRef(`right-${entry.layoutIdx}`)"
+            class="drop-zone-side drop-zone-side-right"
+            :class="isDropActive('right', entry.layoutIdx) ? 'drop-zone-side-active' : 'drop-zone-side-idle'"
+            @dragover.prevent="onDragOver($event, 'right', entry.layoutIdx)"
+            @dragleave="onDragLeave($event, 'right', entry.layoutIdx)"
+            @drop="onDrop($event, 'right', entry.layoutIdx)"
+          >
+            <div class="drop-zone-side-indicator">
+              <Icon name="PanelRight" :size="14" />
             </div>
-            <div class="flex items-center gap-2">
-              <Icon name="HeartPulse" :size="14" class="text-success" />
-              <span class="text-theme-secondary">
-                <strong class="text-theme-primary">{{ healthyCount }}</strong> healthy
-              </span>
-            </div>
-            <div class="flex items-center gap-2">
-              <Icon name="Layers" :size="14" class="text-accent" />
-              <span class="text-theme-secondary">
-                {{ swarmStacks }} stacks, {{ composeServices }} compose
-              </span>
-            </div>
-            <div class="flex items-center gap-2">
-              <Icon name="Globe" :size="14" class="text-accent" />
-              <span class="text-theme-secondary">{{ networkModeLabel }}</span>
-            </div>
-            <div v-if="systemStore.wifiClients !== null" class="flex items-center gap-2">
-              <Icon name="Users" :size="14" class="text-theme-tertiary" />
-              <span class="text-theme-secondary">{{ systemStore.wifiClients }} clients</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="w-2 h-2 rounded-full"
-                :class="wsConnected ? 'bg-success animate-pulse-status' : 'bg-error'"
-              ></span>
-              <span class="text-theme-secondary">
-                WS {{ wsConnected ? 'connected' : 'disconnected' }}
-                <template v-if="wsConnections > 0">({{ wsConnections }})</template>
-              </span>
-            </div>
-            <div class="flex items-center gap-2">
-              <Icon name="Clock" :size="14" class="text-theme-tertiary" />
-              <span class="text-theme-secondary">{{ systemStore.uptime.uptime_human }}</span>
-            </div>
-            <div v-if="systemStore.batteryAvailable" class="flex items-center gap-2">
-              <Icon
-                :name="systemStore.isCharging ? 'BatteryCharging' : 'Battery'"
-                :size="14"
-                :class="systemStore.batteryPercent > 20 ? 'text-success' : 'text-error'"
+          </div>
+        </template>
+
+        <!-- Main grid: 1-col mobile, variable lg+ based on widget dimensions -->
+        <div
+          class="grid grid-cols-1 gap-4"
+          :class="rowGridClass(entry)"
+        >
+          <template v-for="widgetId in entry.visible" :key="widgetId">
+
+            <!-- ═══ Clock (cross-mode from Standard) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'clock'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <ClockWidget :card="true" />
+            </WidgetWrapper>
+
+            <!-- ═══ Search (cross-mode from Standard) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'search'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <SearchChatBar
+                @open-app="(app) => emit('open-app', app)"
+                @open-chat="emit('open-chat')"
               />
-              <span class="text-theme-secondary">{{ systemStore.batteryPercent }}%</span>
-            </div>
-            <div class="flex items-center gap-2 ml-auto">
-              <Icon name="Server" :size="14" class="text-theme-muted" />
-              <span class="text-theme-muted font-mono">
-                {{ systemStore.hostname }}
-                <template v-if="systemStore.piModel"> &middot; {{ systemStore.piModel }}</template>
-              </span>
-            </div>
-          </div>
-          </WidgetErrorBoundary>
-        </section>
+            </WidgetWrapper>
 
-        <!-- ═══ Disk (independent) ═══ -->
-        <section v-if="sectionId === 'disk'" class="animate-fade-in">
-          <WidgetWrapper widget-id="disk">
-            <DiskWidget />
-          </WidgetWrapper>
-        </section>
+            <!-- ═══ Status Pill (cross-mode from Standard) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'status'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <StatusPill />
+            </WidgetWrapper>
 
-        <!-- ═══ Signals (independent) ═══ -->
-        <section v-if="sectionId === 'signals'" class="animate-fade-in">
-          <WidgetWrapper widget-id="signals">
-            <SignalsWidget />
-          </WidgetWrapper>
-        </section>
+            <!-- ═══ System Vitals ═══ -->
+            <WidgetWrapper v-if="widgetId === 'vitals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <SystemVitals />
+            </WidgetWrapper>
 
-        <!-- ═══ Swarm Overview (independent) ═══ -->
-        <section v-if="sectionId === 'swarm'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="swarm" :label="SECTION_LABELS['swarm']" icon="Layers">
-          <SwarmOverview />
-          </WidgetErrorBoundary>
-        </section>
+            <!-- ═══ Network ═══ -->
+            <WidgetWrapper v-if="widgetId === 'network'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <NetworkWidget />
+            </WidgetWrapper>
 
-        <!-- ═══ Alerts Feed (independent) ═══ -->
-        <section v-if="sectionId === 'alerts'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="alerts" :label="SECTION_LABELS['alerts']" icon="Bell">
-          <AlertsFeed
-            :alerts="alerts"
-            :loading="monitoringStore.loading"
-            :limit="6"
-          />
-          </WidgetErrorBoundary>
-        </section>
+            <!-- ═══ CPU Gauge ═══ -->
+            <WidgetWrapper v-if="widgetId === 'cpu_gauge'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <CpuGaugeWidget />
+            </WidgetWrapper>
 
-        <!-- ═══ Uptime & Load (Session 3) ═══ -->
-        <section v-if="sectionId === 'uptime-load'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="uptime-load" :label="SECTION_LABELS['uptime-load']" icon="Clock">
-            <UptimeLoadWidget />
-          </WidgetErrorBoundary>
-        </section>
+            <!-- ═══ Memory Gauge ═══ -->
+            <WidgetWrapper v-if="widgetId === 'memory_gauge'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <MemoryGaugeWidget />
+            </WidgetWrapper>
 
-        <!-- ═══ Network Throughput (Session 3) ═══ -->
-        <section v-if="sectionId === 'network-throughput'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="network-throughput" :label="SECTION_LABELS['network-throughput']" icon="ArrowUpDown">
-            <NetworkThroughputWidget />
-          </WidgetErrorBoundary>
-        </section>
+            <!-- ═══ Disk Gauge ═══ -->
+            <WidgetWrapper v-if="widgetId === 'disk_gauge'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <DiskGaugeWidget />
+            </WidgetWrapper>
 
-        <!-- ═══ Recent Logs (Session 3) ═══ -->
-        <section v-if="sectionId === 'recent-logs'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="recent-logs" :label="SECTION_LABELS['recent-logs']" icon="ScrollText">
-            <RecentLogsWidget />
-          </WidgetErrorBoundary>
-        </section>
+            <!-- ═══ Temperature Gauge ═══ -->
+            <WidgetWrapper v-if="widgetId === 'temp_gauge'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <TempGaugeWidget />
+            </WidgetWrapper>
 
-        <!-- ═══ Battery (Session 3) ═══ -->
-        <section v-if="sectionId === 'battery'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="battery" :label="SECTION_LABELS['battery']" icon="Battery">
-            <BatteryWidget />
-          </WidgetErrorBoundary>
-        </section>
+            <!-- ═══ Info Bar (Advanced-specific inline widget) ═══ -->
+            <WidgetWrapper v-if="widgetId === 'infobar'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <div class="rounded-xl border border-theme-primary bg-theme-card p-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+                <div class="flex items-center gap-2">
+                  <Icon name="Activity" :size="14" class="text-success" />
+                  <span class="text-theme-secondary">
+                    <strong class="text-theme-primary">{{ runningCount }}</strong>/{{ totalCount }} running
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Icon name="HeartPulse" :size="14" class="text-success" />
+                  <span class="text-theme-secondary">
+                    <strong class="text-theme-primary">{{ healthyCount }}</strong> healthy
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Icon name="Layers" :size="14" class="text-accent" />
+                  <span class="text-theme-secondary">
+                    {{ swarmStacks }} stacks, {{ composeServices }} compose
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Icon name="Globe" :size="14" class="text-accent" />
+                  <span class="text-theme-secondary">{{ networkModeLabel }}</span>
+                </div>
+                <div v-if="systemStore.wifiClients !== null" class="flex items-center gap-2">
+                  <Icon name="Users" :size="14" class="text-theme-tertiary" />
+                  <span class="text-theme-secondary">{{ systemStore.wifiClients }} clients</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span
+                    class="w-2 h-2 rounded-full"
+                    :class="wsConnected ? 'bg-success animate-pulse-status' : 'bg-error'"
+                  ></span>
+                  <span class="text-theme-secondary">
+                    WS {{ wsConnected ? 'connected' : 'disconnected' }}
+                    <template v-if="wsConnections > 0">({{ wsConnections }})</template>
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Icon name="Clock" :size="14" class="text-theme-tertiary" />
+                  <span class="text-theme-secondary">{{ systemStore.uptime.uptime_human }}</span>
+                </div>
+                <div v-if="systemStore.batteryAvailable" class="flex items-center gap-2">
+                  <Icon
+                    :name="systemStore.isCharging ? 'BatteryCharging' : 'Battery'"
+                    :size="14"
+                    :class="systemStore.batteryPercent > 20 ? 'text-success' : 'text-error'"
+                  />
+                  <span class="text-theme-secondary">{{ systemStore.batteryPercent }}%</span>
+                </div>
+                <div class="flex items-center gap-2 ml-auto">
+                  <Icon name="Server" :size="14" class="text-theme-muted" />
+                  <span class="text-theme-muted font-mono">
+                    {{ systemStore.hostname }}
+                    <template v-if="systemStore.piModel"> &middot; {{ systemStore.piModel }}</template>
+                  </span>
+                </div>
+              </div>
+            </WidgetWrapper>
 
-        <!-- ═══ Favorites ═══ -->
-        <section v-if="sectionId === 'favorites'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="favorites" :label="SECTION_LABELS['favorites']" icon="Star">
-          <h2 class="text-xs font-semibold text-theme-tertiary uppercase tracking-wider mb-3 flex items-center gap-2">
-            <Icon name="Star" :size="12" class="text-warning" />
-            Favorites
-          </h2>
-          <div class="rounded-xl border border-theme-primary bg-theme-card p-4">
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              <button
-                v-for="app in favoriteApps"
-                :key="app.name"
-                class="flex items-center gap-2 p-2 rounded-lg hover:bg-theme-tertiary transition-colors text-left"
-                @click="emit('open-app', app)"
-              >
-                <Icon :name="appsStore.getAppIcon(app)" :size="16" class="text-accent" />
-                <span class="text-sm text-theme-primary truncate">{{ appsStore.getDisplayName(app) }}</span>
-              </button>
-            </div>
-          </div>
-          </WidgetErrorBoundary>
-        </section>
+            <!-- ═══ Disk ═══ -->
+            <WidgetWrapper v-if="widgetId === 'disk'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <DiskWidget />
+            </WidgetWrapper>
 
-        <!-- ═══ Core Services ═══ -->
-        <WidgetErrorBoundary v-if="sectionId === 'core'" widget-id="core" :label="SECTION_LABELS['core']" icon="Box">
-          <ServiceGrid
-            :apps="coreApps"
-            :loading="appsStore.loading"
-            :detailed="true"
-            title="Core Services"
-            title-icon="Box"
-            @open="(app) => emit('open-app', app)"
-            @toggle-favorite="(name) => emit('toggle-favorite', name)"
-          />
-        </WidgetErrorBoundary>
+            <!-- ═══ Signals ═══ -->
+            <WidgetWrapper v-if="widgetId === 'signals'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <SignalsWidget />
+            </WidgetWrapper>
 
-        <!-- ═══ User Apps ═══ -->
-        <WidgetErrorBoundary v-if="sectionId === 'user-apps'" widget-id="user-apps" :label="SECTION_LABELS['user-apps']" icon="Package">
-          <ServiceGrid
-            :apps="userApps"
-            :detailed="true"
-            title="User Applications"
-            title-icon="Package"
-            @open="(app) => emit('open-app', app)"
-            @toggle-favorite="(name) => emit('toggle-favorite', name)"
-          />
-        </WidgetErrorBoundary>
+            <!-- ═══ Swarm Overview ═══ -->
+            <WidgetWrapper v-if="widgetId === 'swarm'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <SwarmOverview />
+            </WidgetWrapper>
 
-        <!-- ═══ Quick Links ═══ -->
-        <section v-if="sectionId === 'quick-links'" class="animate-fade-in">
-          <WidgetErrorBoundary widget-id="quick-links" :label="SECTION_LABELS['quick-links']" icon="Zap">
-          <div class="flex flex-wrap gap-2">
-            <button
-              class="flex items-center gap-2 px-3 py-2 rounded-lg border border-theme-primary bg-theme-card hover:border-accent/40 text-xs text-theme-secondary transition-all"
-              @click="goToMonitoring"
-            >
-              <Icon name="BarChart3" :size="14" class="text-accent" />
-              Monitoring
-              <span
-                v-if="alertCount > 0"
-                class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-error-muted text-error"
-              >
-                {{ alertCount }}
-              </span>
-            </button>
-            <button
-              class="flex items-center gap-2 px-3 py-2 rounded-lg border border-theme-primary bg-theme-card hover:border-accent/40 text-xs text-theme-secondary transition-all"
-              @click="goToLogs"
-            >
-              <Icon name="ScrollText" :size="14" class="text-accent" />
-              Logs
-            </button>
-            <button
-              class="flex items-center gap-2 px-3 py-2 rounded-lg border border-theme-primary bg-theme-card hover:border-accent/40 text-xs text-theme-secondary transition-all"
-              @click="goToAppStore"
-            >
-              <Icon name="Download" :size="14" class="text-accent" />
-              App Store
-            </button>
-            <button
-              class="flex items-center gap-2 px-3 py-2 rounded-lg border border-theme-primary bg-theme-card hover:border-accent/40 text-xs text-theme-secondary transition-all"
-              @click="emit('open-chat')"
-            >
-              <Icon name="MessageSquare" :size="14" class="text-accent" />
-              Ask CubeOS
-            </button>
-          </div>
-          </WidgetErrorBoundary>
-        </section>
+            <!-- ═══ Alerts Feed ═══ -->
+            <WidgetWrapper v-if="widgetId === 'alerts'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <AlertsFeed
+                :alerts="alerts"
+                :loading="monitoringStore.loading"
+                :limit="6"
+              />
+            </WidgetWrapper>
+
+            <!-- ═══ Uptime & Load ═══ -->
+            <WidgetWrapper v-if="widgetId === 'uptime_load'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <UptimeLoadWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Network Throughput ═══ -->
+            <WidgetWrapper v-if="widgetId === 'network_throughput'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <NetworkThroughputWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Recent Logs ═══ -->
+            <WidgetWrapper v-if="widgetId === 'recent_logs'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <RecentLogsWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Battery ═══ -->
+            <WidgetWrapper v-if="widgetId === 'battery'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <BatteryWidget />
+            </WidgetWrapper>
+
+            <!-- ═══ Favorites ═══ -->
+            <WidgetWrapper v-if="widgetId === 'favorites'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <FavoritesWidget @open-app="(app) => emit('open-app', app)" />
+            </WidgetWrapper>
+
+            <!-- ═══ Recent Apps ═══ -->
+            <WidgetWrapper v-if="widgetId === 'recent_apps'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <RecentAppsWidget @open-app="(app) => emit('open-app', app)" />
+            </WidgetWrapper>
+
+            <!-- ═══ Core Services ═══ -->
+            <WidgetWrapper v-if="widgetId === 'core_services'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <ServiceGrid
+                :apps="coreApps"
+                :loading="appsStore.loading"
+                :detailed="true"
+                title="Core Services"
+                title-icon="Box"
+                @open="(app) => emit('open-app', app)"
+                @toggle-favorite="(name) => emit('toggle-favorite', name)"
+              />
+            </WidgetWrapper>
+
+            <!-- ═══ My Apps ═══ -->
+            <WidgetWrapper v-if="widgetId === 'my_apps'" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <MyAppsWidget @open-app="(app) => emit('open-app', app)" />
+            </WidgetWrapper>
+
+            <!-- ═══ Quick Actions ═══ -->
+            <WidgetWrapper v-if="widgetId === 'actions' && filteredQuickActions.length > 0" :widget-id="widgetId" :editing="isEditing" :row-idx="entry.layoutIdx" :in-pair="isInPair(entry)">
+              <div>
+                <div class="rounded-2xl border border-theme-primary bg-theme-card p-4 h-full">
+                  <div class="grid gap-2" :class="quickActionsGridCols">
+                    <button
+                      v-for="qa in filteredQuickActions"
+                      :key="qa.id"
+                      class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
+                             hover:bg-theme-tertiary hover:-translate-y-px group"
+                      @click="qa.action()"
+                    >
+                      <div
+                        class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
+                        :class="qa.color.split(' ')[0]"
+                      >
+                        <Icon :name="qa.icon" :size="18" :class="qa.color.split(' ')[1]" />
+                      </div>
+                      <span class="text-[11px] font-medium text-theme-secondary group-hover:text-theme-primary transition-colors">
+                        {{ qa.label }}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </WidgetWrapper>
+
+          </template>
         </div>
       </div>
     </template>
+
+    <!-- Drop zone AFTER last row (append as new row) -->
+    <div
+      v-if="isEditing && isAnyDragActive && gridRows.length > 0"
+      :ref="setDropZoneRef(`after-${gridRows[gridRows.length - 1].layoutIdx}`)"
+      class="drop-zone-row"
+      :class="isDropActive('after', gridRows[gridRows.length - 1].layoutIdx) ? 'drop-zone-active' : 'drop-zone-idle'"
+      @dragover.prevent="onDragOver($event, 'after', gridRows[gridRows.length - 1].layoutIdx)"
+      @dragleave="onDragLeave($event, 'after', gridRows[gridRows.length - 1].layoutIdx)"
+      @drop="onDrop($event, 'after', gridRows[gridRows.length - 1].layoutIdx)"
+    >
+      <div class="drop-zone-indicator">
+        <Icon name="Plus" :size="12" />
+        <span class="text-[10px]">Drop here</span>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+/* ─── Between-row drop zone styles ─────────────────────────────── */
+
+.drop-zone-row {
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin: -0.25rem 0;
+}
+
+.drop-zone-idle {
+  border: 2px dashed var(--border-primary, rgba(255,255,255,0.08));
+  opacity: 0.4;
+}
+
+.drop-zone-idle:hover {
+  opacity: 0.7;
+}
+
+.drop-zone-active {
+  border: 2px dashed var(--accent, #6366f1);
+  background-color: rgba(99, 102, 241, 0.08);
+  opacity: 1;
+}
+
+/* Touch drag active highlight */
+.drop-zone-row.touch-drop-active {
+  border: 2px dashed var(--accent, #6366f1);
+  background-color: rgba(99, 102, 241, 0.12);
+  opacity: 1;
+}
+
+.drop-zone-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--text-muted, rgba(255,255,255,0.4));
+  pointer-events: none;
+}
+
+.drop-zone-active .drop-zone-indicator,
+.touch-drop-active .drop-zone-indicator {
+  color: var(--accent, #6366f1);
+}
+
+/* ─── Side drop zone styles (left/right pairing) ──────────────── */
+
+.drop-zone-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3rem;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  border-radius: 0.75rem;
+}
+
+.drop-zone-side-left {
+  left: -0.5rem;
+  border-right: none;
+  border-radius: 0.75rem 0 0 0.75rem;
+}
+
+.drop-zone-side-right {
+  right: -0.5rem;
+  border-left: none;
+  border-radius: 0 0.75rem 0.75rem 0;
+}
+
+.drop-zone-side-idle {
+  border: 2px dashed var(--border-primary, rgba(255,255,255,0.08));
+  opacity: 0.3;
+}
+
+.drop-zone-side-idle:hover {
+  opacity: 0.6;
+  background-color: rgba(99, 102, 241, 0.04);
+}
+
+.drop-zone-side-active {
+  border: 2px dashed var(--accent, #6366f1);
+  background-color: rgba(99, 102, 241, 0.12);
+  opacity: 1;
+}
+
+/* Touch drag active highlight for side zones */
+.drop-zone-side.touch-drop-active {
+  border: 2px dashed var(--accent, #6366f1);
+  background-color: rgba(99, 102, 241, 0.15);
+  opacity: 1;
+}
+
+.drop-zone-side-indicator {
+  color: var(--text-muted, rgba(255,255,255,0.4));
+  pointer-events: none;
+}
+
+.drop-zone-side-active .drop-zone-side-indicator,
+.drop-zone-side.touch-drop-active .drop-zone-side-indicator {
+  color: var(--accent, #6366f1);
+}
+
+/* Fade in animation */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>

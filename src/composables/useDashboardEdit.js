@@ -1,5 +1,5 @@
 /**
- * useDashboardEdit.js — Session 6
+ * useDashboardEdit.js — Session 8
  *
  * Manages dashboard edit mode state: editing toggle, drag tracking,
  * drop handling, layout persistence, and undo/redo history.
@@ -8,6 +8,9 @@
  * SESSION 6: Added undo/redo stack. Before each layout mutation, the
  *            current state is pushed to the undo stack. Max 20 entries.
  *            Stacks are cleared on exit edit mode.
+ * SESSION 8: Snapshots now store only gridLayout (both modes use it).
+ *            advancedSectionOrder removed from snapshots — Advanced mode
+ *            now uses gridLayout exclusively.
  *
  * Usage:
  *   const { isEditing, toggleEdit, handleDrop, undo, redo, undoCount, redoCount } = useDashboardEdit()
@@ -22,20 +25,19 @@ const dragSourceRowIdx = ref(null)
 
 // ─── Undo/Redo stacks (Session 6) ────────────────────────────
 const MAX_HISTORY = 20
-const undoStack = ref([])   // Array of { gridLayout, advancedSectionOrder }
+const undoStack = ref([])   // Array of { gridLayout }
 const redoStack = ref([])
 
 export function useDashboardEdit() {
   const config = useDashboardConfig()
-  const { gridLayout, updateGridLayout, advancedSectionOrder, updateAdvancedSectionOrder } = config
+  const { gridLayout, updateGridLayout } = config
 
   // ─── Snapshot helpers ───────────────────────────────────────
 
-  /** Capture the current layout state as a snapshot */
+  /** Capture the current layout state as a snapshot (Session 8: gridLayout only) */
   function captureSnapshot() {
     return {
       gridLayout: gridLayout.value.map(entry => ({ row: [...entry.row] })),
-      advancedSectionOrder: advancedSectionOrder.value ? [...advancedSectionOrder.value] : null,
     }
   }
 
@@ -53,9 +55,6 @@ export function useDashboardEdit() {
   async function restoreSnapshot(snapshot) {
     if (snapshot.gridLayout) {
       await updateGridLayout(snapshot.gridLayout)
-    }
-    if (snapshot.advancedSectionOrder) {
-      await updateAdvancedSectionOrder(snapshot.advancedSectionOrder)
     }
   }
 
