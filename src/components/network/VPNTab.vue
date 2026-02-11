@@ -125,24 +125,53 @@ async function toggleAutoConnect(config) {
 }
 
 // ─── Connect / Disconnect ────────────────────────────────────
+const connectingName = ref(null)
+
 async function handleConnect(config) {
+  if (connectingName.value) return // prevent duplicate clicks
+  connectingName.value = config.name
+  error.value = null
   try {
     await vpnStore.connect(config.name)
+    // OpenVPN daemonizes immediately — poll for actual connection (up to 30s)
+    const connected = await pollForConnection(config.name, 30)
+    if (!connected) {
+      error.value = 'VPN connection timed out — check logs'
+    }
     await vpnStore.fetchPublicIP()
     emit('refresh')
   } catch (e) {
     error.value = e.message || 'Failed to connect'
+  } finally {
+    connectingName.value = null
   }
 }
 
 async function handleDisconnect(config) {
+  if (connectingName.value) return
+  connectingName.value = config.name
+  error.value = null
   try {
     await vpnStore.disconnect(config.name)
+    await vpnStore.fetchStatus(true)
     await vpnStore.fetchPublicIP()
     emit('refresh')
   } catch (e) {
     error.value = e.message || 'Failed to disconnect'
+  } finally {
+    connectingName.value = null
   }
+}
+
+// Poll VPN status until connected or timeout
+async function pollForConnection(name, maxSeconds) {
+  const start = Date.now()
+  while (Date.now() - start < maxSeconds * 1000) {
+    await new Promise(r => setTimeout(r, 2000))
+    await vpnStore.fetchStatus(true)
+    if (vpnStore.isConnected) return true
+  }
+  return false
 }
 
 // ─── Delete ──────────────────────────────────────────────────
@@ -313,15 +342,15 @@ function formatBytes(bytes) {
           <button
             v-if="config.is_active"
             @click="handleDisconnect(config)"
-            :disabled="vpnStore.loading"
+            :disabled="!!connectingName"
             class="px-3 py-1.5 rounded-lg text-sm font-medium bg-error-muted text-error hover:opacity-80 transition-colors disabled:opacity-50"
-          >Disconnect</button>
+          >{{ connectingName === config.name ? 'Disconnecting...' : 'Disconnect' }}</button>
           <button
             v-else
             @click="handleConnect(config)"
-            :disabled="vpnStore.loading"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
-          >Connect</button>
+            :disabled="!!connectingName"
+            :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50', connectingName === config.name ? 'bg-accent/20 text-accent animate-pulse' : 'bg-accent/10 text-accent hover:bg-accent/20']"
+          >{{ connectingName === config.name ? 'Connecting...' : 'Connect' }}</button>
         </div>
       </div>
 
@@ -455,17 +484,17 @@ function formatBytes(bytes) {
               <button
                 v-if="config.is_active"
                 @click="handleDisconnect(config)"
-                :disabled="vpnStore.loading"
+                :disabled="!!connectingName"
                 class="px-3 py-1.5 rounded-lg text-sm font-medium bg-error-muted text-error hover:opacity-80 transition-colors disabled:opacity-50"
                 :aria-label="'Disconnect ' + config.name"
-              >Disconnect</button>
+              >{{ connectingName === config.name ? 'Disconnecting...' : 'Disconnect' }}</button>
               <button
                 v-else
                 @click="handleConnect(config)"
-                :disabled="vpnStore.loading"
-                class="px-3 py-1.5 rounded-lg text-sm font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
+                :disabled="!!connectingName"
+                :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50', connectingName === config.name ? 'bg-accent/20 text-accent animate-pulse' : 'bg-accent/10 text-accent hover:bg-accent/20']"
                 :aria-label="'Connect ' + config.name"
-              >Connect</button>
+              >{{ connectingName === config.name ? 'Connecting...' : 'Connect' }}</button>
               <button
                 @click="handleDelete(config)"
                 :disabled="config.is_active"
