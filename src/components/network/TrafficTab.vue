@@ -291,7 +291,7 @@ onUnmounted(() => {
           <div
             v-for="(point, idx) in normalizedHistory"
             :key="idx"
-            class="flex-1 flex flex-col justify-end gap-0.5"
+            class="flex-1 h-full flex flex-col justify-end gap-0.5"
             :title="`RX: ${formatRate(point.rx_rate_bps)}/s, TX: ${formatRate(point.tx_rate_bps)}/s`"
           >
             <div
