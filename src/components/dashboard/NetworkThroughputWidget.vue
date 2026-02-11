@@ -43,9 +43,9 @@ const interfaces = computed(() => {
 function ensureSelection() {
   const ifaces = interfaces.value
   if (ifaces.length > 0 && (!selectedIface.value || !ifaces.includes(selectedIface.value))) {
-    // Prefer physical interfaces over virtual
-    selectedIface.value = ifaces.find(i => i === 'eth0') ||
-                          ifaces.find(i => i === 'wlan0') ||
+    // Prefer wlan0 (AP where clients connect) over eth0 (uplink)
+    selectedIface.value = ifaces.find(i => i === 'wlan0') ||
+                          ifaces.find(i => i === 'eth0') ||
                           ifaces.find(i => !i.startsWith('docker') && !i.startsWith('veth') && i !== 'lo') ||
                           ifaces[0]
   }
