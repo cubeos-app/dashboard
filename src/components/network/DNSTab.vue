@@ -41,8 +41,8 @@ async function saveDNS() {
   dnsSaveSuccess.value = false
   try {
     const success = await networkStore.saveDNS({
-      primary: dnsPrimary.value,
-      secondary: dnsSecondary.value
+      primary_dns: dnsPrimary.value,
+      secondary_dns: dnsSecondary.value
     })
     if (success) {
       dnsSaveSuccess.value = true

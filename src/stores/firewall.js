@@ -60,6 +60,48 @@ export const useFirewallStore = defineStore('firewall', () => {
   const isNatEnabled = computed(() => natStatus.value?.enabled === true)
   const isForwardingEnabled = computed(() => forwardingStatus.value?.enabled === true)
   const isIpForwardEnabled = computed(() => ipForward.value?.enabled === true)
+
+  // Docker/system chains to exclude from user-facing display
+  const SYSTEM_CHAINS = new Set([
+    'DOCKER', 'DOCKER-ISOLATION-STAGE-1', 'DOCKER-ISOLATION-STAGE-2',
+    'DOCKER-USER', 'DOCKER-INGRESS', 'DOCKER_OUTPUT', 'DOCKER_POSTROUTING',
+    'KUBE-SERVICES', 'KUBE-POSTROUTING', 'KUBE-FIREWALL'
+  ])
+
+  /**
+   * Rules filtered to show only user-meaningful entries.
+   * Excludes Docker-internal chains, overlay network rules, and
+   * rules with no meaningful fields (the "any/any/any" noise).
+   */
+  const userRules = computed(() => {
+    return rules.value.filter(rule => {
+      // Exclude Docker/system chains
+      if (rule.chain && SYSTEM_CHAINS.has(rule.chain)) return false
+
+      // Exclude nat/mangle/raw tables (usually system-managed)
+      if (rule.table && rule.table !== 'filter') return false
+
+      // Exclude rules involving Docker bridge interfaces
+      const iface = rule.in_interface || rule.out_interface || ''
+      if (iface.startsWith('br-') || iface.startsWith('docker') || iface === 'ingress_sbox') return false
+
+      // Exclude rules with no useful specificity (the "any/any/any" noise)
+      const hasPort = rule.port || rule.dport || rule.sport || rule.destination_port || rule.source_port
+      const hasAddr = rule.from || rule.to || rule.source || rule.destination
+      const hasComment = rule.comment
+      const hasAction = rule.action && rule.action !== '-'
+      const hasProtocol = rule.protocol && rule.protocol !== 'all' && rule.protocol !== '-'
+
+      // Keep if rule has at least one meaningful field
+      if (hasPort || hasAddr || hasComment || hasProtocol) return true
+
+      // Keep ACCEPT/DROP/REJECT rules in INPUT/OUTPUT/FORWARD even without specifics
+      if (hasAction && ['INPUT', 'OUTPUT', 'FORWARD'].includes(rule.chain)) return true
+
+      return false
+    })
+  })
+  const userRuleCount = computed(() => userRules.value.length)
   
   // ==========================================
   // API Methods
@@ -491,6 +533,8 @@ export const useFirewallStore = defineStore('firewall', () => {
     
     // Computed
     ruleCount,
+    userRules,
+    userRuleCount,
     isEnabled,
     activeProfile,
     defaultPolicy,

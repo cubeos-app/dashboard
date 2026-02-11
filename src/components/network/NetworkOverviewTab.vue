@@ -47,6 +47,20 @@ const apIsActive = computed(() => {
   return false
 })
 
+// NAT status — normalize field name (HAL returns nat_enabled, frontend expected enabled)
+const natEnabled = computed(() => {
+  if (!props.natStatus) return false
+  return props.natStatus.enabled === true || props.natStatus.nat_enabled === true
+})
+
+// Firewall IP forward — normalize field name (API returns forwarding_enabled, not ip_forward)
+const ipForwardEnabled = computed(() => {
+  if (!props.firewallStatus) return false
+  return props.firewallStatus.ip_forward === true ||
+         props.firewallStatus.forwarding_enabled === true ||
+         props.firewallStatus.ip_forwarding === true
+})
+
 // AP Start/Stop
 const apActionLoading = ref(false)
 
@@ -83,7 +97,7 @@ async function handleStopAP() {
 
 // NAT toggle (Advanced)
 async function toggleNAT() {
-  const enabling = !props.natStatus?.enabled
+  const enabling = !natEnabled.value
   if (!await confirm({
     title: enabling ? 'Enable NAT' : 'Disable NAT',
     message: enabling
@@ -94,7 +108,7 @@ async function toggleNAT() {
   })) return
 
   try {
-    if (props.natStatus?.enabled) {
+    if (natEnabled.value) {
       await firewallStore.disableNat()
     } else {
       await firewallStore.enableNat()
@@ -225,25 +239,25 @@ function formatBytes(bytes) {
       <div v-if="isAdvanced" class="rounded-xl p-4 border border-theme-primary" :class="wallpaperActive ? panelClass : 'bg-theme-card'">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-               :class="natStatus?.enabled ? 'bg-accent-muted' : 'bg-theme-tertiary'">
-            <Icon name="ArrowLeftRight" :size="20" :class="natStatus?.enabled ? 'text-accent' : 'text-theme-muted'" />
+               :class="natEnabled ? 'bg-accent-muted' : 'bg-theme-tertiary'">
+            <Icon name="ArrowLeftRight" :size="20" :class="natEnabled ? 'text-accent' : 'text-theme-muted'" />
           </div>
           <div>
             <p class="text-sm text-theme-tertiary">Internet Sharing</p>
-            <p class="font-semibold" :class="natStatus?.enabled ? 'text-accent' : 'text-theme-muted'">
-              {{ natStatus?.enabled ? 'Enabled' : 'Disabled' }}
+            <p class="font-semibold" :class="natEnabled ? 'text-accent' : 'text-theme-muted'">
+              {{ natEnabled ? 'Enabled' : 'Disabled' }}
             </p>
           </div>
         </div>
         <button
           @click="toggleNAT"
           class="w-full mt-2 px-3 py-2 text-sm rounded-lg transition-colors"
-          :class="natStatus?.enabled
+          :class="natEnabled
             ? 'bg-accent-muted text-accent hover:opacity-80'
             : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-card'"
-          :aria-label="natStatus?.enabled ? 'Disable NAT internet sharing' : 'Enable NAT internet sharing'"
+          :aria-label="natEnabled ? 'Disable NAT internet sharing' : 'Enable NAT internet sharing'"
         >
-          {{ natStatus?.enabled ? 'Disable NAT' : 'Enable NAT' }}
+          {{ natEnabled ? 'Disable NAT' : 'Enable NAT' }}
         </button>
       </div>
 
@@ -256,20 +270,20 @@ function formatBytes(bytes) {
           <div>
             <p class="text-sm text-theme-tertiary">Firewall</p>
             <p class="font-semibold text-theme-primary">
-              {{ firewallStatus?.ip_forward ? 'IP Fwd On' : 'IP Fwd Off' }}
+              {{ ipForwardEnabled ? 'IP Fwd On' : 'IP Fwd Off' }}
             </p>
           </div>
         </div>
         <div class="text-sm">
           <div class="flex items-center justify-between">
             <span class="text-theme-muted">IP Forward</span>
-            <span :class="firewallStatus?.ip_forward ? 'text-success' : 'text-theme-muted'">
-              {{ firewallStatus?.ip_forward ? 'On' : 'Off' }}
+            <span :class="ipForwardEnabled ? 'text-success' : 'text-theme-muted'">
+              {{ ipForwardEnabled ? 'On' : 'Off' }}
             </span>
           </div>
           <div class="flex items-center justify-between mt-1">
             <span class="text-theme-muted">Rules</span>
-            <span class="text-theme-secondary">{{ firewallStatus?.filter_rules?.length || 0 }}</span>
+            <span class="text-theme-secondary">{{ firewallStatus?.rules_count || firewallStatus?.filter_rules?.length || 0 }}</span>
           </div>
         </div>
       </div>
@@ -296,7 +310,7 @@ function formatBytes(bytes) {
             </div>
             <div>
               <p class="font-medium text-theme-primary">{{ iface.name }}</p>
-              <p class="text-sm text-theme-muted">{{ iface.ipv4 || iface.ip || 'No IP' }}</p>
+              <p class="text-sm text-theme-muted">{{ (iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip || 'No IP' }}</p>
             </div>
           </div>
           <div class="flex items-center gap-3">
@@ -305,10 +319,10 @@ function formatBytes(bytes) {
               <span class="mx-1">↑ {{ formatBytes(iface.tx_bytes) }}</span>
             </div>
             <span class="px-2 py-1 text-xs rounded-full"
-                  :class="iface.state === 'up' || iface.state === 'UP'
+                  :class="(iface.is_up === true || iface.state === 'up' || iface.state === 'UP')
                     ? 'bg-success-muted text-success'
                     : 'bg-theme-tertiary text-theme-muted'">
-              {{ iface.state || 'unknown' }}
+              {{ iface.state || (iface.is_up === true ? 'up' : iface.is_up === false ? 'down' : 'unknown') }}
             </span>
           </div>
         </div>

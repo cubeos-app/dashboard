@@ -152,7 +152,7 @@ onUnmounted(() => {
           aria-label="Select network interface"
         >
           <option v-for="iface in physicalInterfaces" :key="iface.name" :value="iface.name">
-            {{ iface.name }} ({{ iface.state }})
+            {{ iface.name }} ({{ iface.state || (iface.is_up === true ? 'up' : iface.is_up === false ? 'down' : 'unknown') }})
           </option>
         </select>
         <button

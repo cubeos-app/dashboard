@@ -19,6 +19,7 @@ const firewallStore = useFirewallStore()
 const showAddRule = ref(false)
 const showQuickPort = ref(false)
 const showQuickService = ref(false)
+const showSystemRules = ref(false)
 const actionLoading = ref(null)
 const actionSuccess = ref(null)
 let actionSuccessTimeout = null
@@ -59,7 +60,9 @@ const policyColor = computed(() => {
   if (policy === 'allow' || policy === 'accept') return 'text-success'
   return 'text-warning'
 })
-const hasRules = computed(() => firewallStore.rules.length > 0)
+const displayedRules = computed(() => showSystemRules.value ? firewallStore.rules : firewallStore.userRules)
+const hasRules = computed(() => displayedRules.value.length > 0)
+const systemRuleCount = computed(() => firewallStore.ruleCount - firewallStore.userRuleCount)
 
 // ── Data Loading ─────────────────────────────────────────────
 async function fetchAll() {
@@ -220,7 +223,7 @@ function formatDirection(dir) {
       </div>
       <div class="bg-theme-card rounded-xl p-4 border border-theme-primary">
         <p class="text-xs text-theme-muted uppercase tracking-wide mb-1">Rules</p>
-        <p class="text-lg font-semibold text-theme-primary">{{ firewallStore.ruleCount }}</p>
+        <p class="text-lg font-semibold text-theme-primary">{{ firewallStore.userRuleCount }}</p>
       </div>
     </div>
 
@@ -312,7 +315,17 @@ function formatDirection(dir) {
     <div class="bg-theme-card rounded-xl border border-theme-primary">
       <!-- Rules Header -->
       <div class="p-4 border-b border-theme-primary flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h2 class="text-base font-semibold text-theme-primary">Firewall Rules</h2>
+        <div class="flex items-center gap-3">
+          <h2 class="text-base font-semibold text-theme-primary">Firewall Rules</h2>
+          <button
+            v-if="systemRuleCount > 0"
+            @click="showSystemRules = !showSystemRules"
+            class="px-2 py-1 text-[10px] font-medium rounded-full transition-colors"
+            :class="showSystemRules ? 'bg-warning-muted text-warning' : 'bg-theme-tertiary text-theme-muted hover:text-theme-secondary'"
+          >
+            {{ showSystemRules ? `Hide ${systemRuleCount} system` : `+${systemRuleCount} system` }}
+          </button>
+        </div>
         <div class="flex items-center gap-2">
           <button
             @click="showQuickPort = !showQuickPort; showQuickService = false; showAddRule = false"
@@ -441,7 +454,7 @@ function formatDirection(dir) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(rule, idx) in firewallStore.rules" :key="idx" class="border-b border-theme-primary last:border-0 hover:bg-theme-secondary transition-colors">
+            <tr v-for="(rule, idx) in displayedRules" :key="idx" class="border-b border-theme-primary last:border-0 hover:bg-theme-secondary transition-colors">
               <td class="px-4 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase" :class="[ruleActionColor(rule.action), ruleActionBg(rule.action)]">{{ rule.action }}</span></td>
               <td class="px-4 py-3 text-theme-secondary">{{ formatDirection(rule.direction) }}</td>
               <td class="px-4 py-3 text-theme-primary font-mono">{{ rule.port || 'any' }}</td>
@@ -461,7 +474,7 @@ function formatDirection(dir) {
 
       <!-- Rules List — Mobile Cards -->
       <div v-if="hasRules" class="md:hidden divide-y divide-theme-primary">
-        <div v-for="(rule, idx) in firewallStore.rules" :key="idx" class="p-4 space-y-2">
+        <div v-for="(rule, idx) in displayedRules" :key="idx" class="p-4 space-y-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase" :class="[ruleActionColor(rule.action), ruleActionBg(rule.action)]">{{ rule.action }}</span>

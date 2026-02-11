@@ -96,6 +96,17 @@ const networkMode = ref(null)
 const apHardwareChecked = ref(false)
 const apHardwarePresent = ref(true)
 
+// Normalized mode for case-insensitive comparison (backend sends lowercase)
+const normalizedMode = computed(() => (networkMode.value?.mode || '').toLowerCase())
+const modeLabelDisplay = computed(() => {
+  switch (normalizedMode.value) {
+    case 'offline': return 'Offline (AP Only)'
+    case 'online_eth': return 'Online via Ethernet'
+    case 'online_wifi': return 'Online via WiFi'
+    default: return networkMode.value?.mode || 'Unknown'
+  }
+})
+
 async function fetchSharedData() {
   loading.value = true
   error.value = null
@@ -214,15 +225,15 @@ onUnmounted(() => {
         <div>
           <span class="text-xs font-medium text-theme-muted uppercase tracking-wide">Network Mode</span>
           <p class="text-theme-primary font-semibold mt-0.5">
-            {{ networkMode.mode === 'OFFLINE' ? 'Offline (AP Only)' : networkMode.mode === 'ONLINE_ETH' ? 'Online via Ethernet' : networkMode.mode === 'ONLINE_WIFI' ? 'Online via WiFi' : networkMode.mode || 'Unknown' }}
+            {{ modeLabelDisplay }}
           </p>
         </div>
         <span
           class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-          :class="networkStore.isOnline ? 'bg-success-muted text-success' : networkMode.mode === 'OFFLINE' ? 'bg-warning-muted text-warning' : 'bg-error-muted text-error'"
+          :class="networkStore.isOnline ? 'bg-success-muted text-success' : normalizedMode === 'offline' ? 'bg-warning-muted text-warning' : 'bg-error-muted text-error'"
         >
-          <span class="w-1.5 h-1.5 rounded-full" :class="networkStore.isOnline ? 'bg-success' : networkMode.mode === 'OFFLINE' ? 'bg-warning' : 'bg-error'"></span>
-          {{ networkStore.isOnline ? 'Online' : networkMode.mode === 'OFFLINE' ? 'Air-gapped' : 'No Internet' }}
+          <span class="w-1.5 h-1.5 rounded-full" :class="networkStore.isOnline ? 'bg-success' : normalizedMode === 'offline' ? 'bg-warning' : 'bg-error'"></span>
+          {{ networkStore.isOnline ? 'Online' : normalizedMode === 'offline' ? 'Air-gapped' : 'No Internet' }}
         </span>
       </div>
       <div class="flex items-center gap-3">

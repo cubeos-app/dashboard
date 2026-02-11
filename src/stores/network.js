@@ -88,9 +88,9 @@ export const useNetworkStore = defineStore('network', () => {
   const subnet = computed(() => status.value?.subnet || '10.42.24.0/24')
   
   // Sprint 2: New computed properties
-  const isOnline = computed(() => connectivity.value?.online === true)
-  const primaryDNS = computed(() => dns.value?.primary || '')
-  const secondaryDNS = computed(() => dns.value?.secondary || '')
+  const isOnline = computed(() => connectivity.value?.connected === true || connectivity.value?.online === true)
+  const primaryDNS = computed(() => dns.value?.primary_dns || dns.value?.primary || '')
+  const secondaryDNS = computed(() => dns.value?.secondary_dns || dns.value?.secondary || '')
   const isWiFiConnected = computed(() => wifiStatus.value?.connected === true)
   
   // ==========================================
