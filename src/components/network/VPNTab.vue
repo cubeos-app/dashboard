@@ -138,8 +138,11 @@ async function handleConnect(config) {
     const connected = await pollForConnection(config.name, 90)
     if (!connected) {
       error.value = 'VPN connection timed out — check logs'
+    } else {
+      // Give the tunnel a moment to stabilize routes before checking public IP
+      await new Promise(r => setTimeout(r, 2000))
+      await vpnStore.fetchPublicIP()
     }
-    await vpnStore.fetchPublicIP()
     emit('refresh')
   } catch (e) {
     error.value = e.message || 'Failed to connect'
@@ -155,6 +158,8 @@ async function handleDisconnect(config) {
   try {
     await vpnStore.disconnect(config.name)
     await vpnStore.fetchStatus(true)
+    // Brief delay for routes to settle after tunnel teardown
+    await new Promise(r => setTimeout(r, 1000))
     await vpnStore.fetchPublicIP()
     emit('refresh')
   } catch (e) {

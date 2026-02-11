@@ -252,7 +252,7 @@ export const useVPNStore = defineStore('vpn', () => {
       return publicIP.value
     } catch (e) {
       if (e.name === 'AbortError') return null
-      error.value = e.message
+      // Don't set store error — public IP failures are transient during VPN transitions
       publicIP.value = null
       return null
     } finally {
