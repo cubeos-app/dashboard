@@ -27,6 +27,7 @@ const { signal } = useAbortOnUnmount()
 const selectedInterface = ref('')
 const trafficHistory = ref([])
 const currentStats = ref(null)
+const useSyntheticHistory = ref(false) // true when HAL has no history endpoint
 
 const physicalInterfaces = computed(() => {
   const isVirtual = (name) => !name || name.startsWith('veth') || name.startsWith('br-') ||
@@ -95,13 +96,20 @@ async function fetchTraffic() {
     }
 
     if (selectedInterface.value) {
-      const history = await networkStore.fetchTrafficHistory(selectedInterface.value, { duration: '1h' }, opts)
-      const fetched = history?.history || networkStore.trafficHistory || []
-      if (fetched.length > 0) {
-        trafficHistory.value = fetched
+      // Only try backend history if we haven't already determined it's unavailable
+      if (!useSyntheticHistory.value) {
+        const history = await networkStore.fetchTrafficHistory(selectedInterface.value, { duration: '1h' }, opts)
+        const fetched = history?.history || networkStore.trafficHistory || []
+        if (fetched.length > 0) {
+          trafficHistory.value = fetched
+        } else {
+          // HAL doesn't store history — switch to synthetic mode permanently
+          useSyntheticHistory.value = true
+        }
       }
-      // If HAL returns no history, build synthetic history from polling snapshots
-      if (trafficHistory.value.length === 0 && currentStats.value) {
+
+      // In synthetic mode, append a data point on every poll (once rates are available)
+      if (useSyntheticHistory.value && currentStats.value) {
         appendSyntheticHistory(currentStats.value)
       }
     }
