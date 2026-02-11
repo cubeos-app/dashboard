@@ -29,17 +29,19 @@ const trafficHistory = ref([])
 const currentStats = ref(null)
 
 const physicalInterfaces = computed(() => {
+  const isVirtual = (name) => !name || name.startsWith('veth') || name.startsWith('br-') ||
+    name.startsWith('docker') || name === 'lo' || name === 'ingress_sbox' ||
+    name.startsWith('cali') || name.startsWith('flannel') || name.startsWith('cni')
+
   // Use props interfaces if available, otherwise derive from traffic stats
-  const fromProps = props.interfaces.filter(i =>
-    i.name && !i.name.startsWith('veth') && !i.name.startsWith('br-') && i.name !== 'lo'
-  )
+  const fromProps = props.interfaces.filter(i => !isVirtual(i.name))
   if (fromProps.length > 0) return fromProps
 
   // Fallback: derive from traffic stats
   if (currentStats.value || lastStats.value) {
     const statsMap = lastStats.value || {}
     return Object.keys(statsMap)
-      .filter(n => !n.startsWith('veth') && !n.startsWith('br-') && n !== 'lo')
+      .filter(n => !isVirtual(n))
       .map(n => ({ name: n, is_up: true }))
   }
   return []
@@ -93,8 +95,15 @@ async function fetchTraffic() {
     }
 
     if (selectedInterface.value) {
-      const history = await networkStore.fetchTrafficHistory(selectedInterface.value, { minutes: 60 }, opts)
-      trafficHistory.value = history?.history || networkStore.trafficHistory || []
+      const history = await networkStore.fetchTrafficHistory(selectedInterface.value, { duration: '1h' }, opts)
+      const fetched = history?.history || networkStore.trafficHistory || []
+      if (fetched.length > 0) {
+        trafficHistory.value = fetched
+      }
+      // If HAL returns no history, build synthetic history from polling snapshots
+      if (trafficHistory.value.length === 0 && currentStats.value) {
+        appendSyntheticHistory(currentStats.value)
+      }
     }
   } catch (e) {
     // Traffic fetch failed silently
@@ -102,6 +111,30 @@ async function fetchTraffic() {
 }
 
 // ─── Computed ────────────────────────────────────────────────
+
+// Build synthetic history from polling when HAL doesn't store history
+const MAX_SYNTHETIC_POINTS = 60
+function appendSyntheticHistory(stats) {
+  if (!stats || !selectedInterface.value) return
+  const iface = selectedInterface.value
+  const s = stats[iface] || stats
+  if (!s || s.rx_rate_bps === undefined) return
+
+  const point = {
+    timestamp: Math.floor(Date.now() / 1000),
+    rx_rate_bps: s.rx_rate_bps || 0,
+    tx_rate_bps: s.tx_rate_bps || 0,
+    rx_bytes: s.rx_bytes || 0,
+    tx_bytes: s.tx_bytes || 0
+  }
+  const existing = [...trafficHistory.value]
+  existing.push(point)
+  if (existing.length > MAX_SYNTHETIC_POINTS) {
+    existing.splice(0, existing.length - MAX_SYNTHETIC_POINTS)
+  }
+  trafficHistory.value = existing
+}
+
 const normalizedHistory = computed(() => {
   const history = trafficHistory.value
   if (!history.length) return []

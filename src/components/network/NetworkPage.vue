@@ -138,9 +138,15 @@ async function fetchSharedData() {
     const allIfaces = ifacesResp?.interfaces || []
     interfaces.value = allIfaces.filter(iface => {
       const name = iface.name || ''
+      if (!name) return false
       if (name.startsWith('veth')) return false
       if (name.startsWith('br-')) return false
+      if (name.startsWith('docker')) return false
       if (name === 'lo') return false
+      if (name === 'ingress_sbox') return false
+      if (name.startsWith('cali')) return false
+      if (name.startsWith('flannel')) return false
+      if (name.startsWith('cni')) return false
       return true
     })
     natStatus.value = nat

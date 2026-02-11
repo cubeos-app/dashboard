@@ -85,18 +85,16 @@ export const useFirewallStore = defineStore('firewall', () => {
       const iface = rule.in_interface || rule.out_interface || ''
       if (iface.startsWith('br-') || iface.startsWith('docker') || iface === 'ingress_sbox') return false
 
-      // Exclude rules with no useful specificity (the "any/any/any" noise)
+      // Keep any rule with specific filtering criteria
       const hasPort = rule.port || rule.dport || rule.sport || rule.destination_port || rule.source_port
       const hasAddr = rule.from || rule.to
       const hasComment = rule.comment
       const hasAction = rule.action && rule.action !== '-'
-      const hasProtocol = rule.protocol && rule.protocol !== 'all' && rule.protocol !== ''
 
-      // Keep if rule has at least one meaningful field
-      if (hasPort || hasAddr || hasComment || hasProtocol) return true
+      if (hasPort || hasAddr || hasComment) return true
 
-      // Keep ACCEPT/DROP/REJECT rules in INPUT/OUTPUT/FORWARD even without specifics
-      if (hasAction && ['in', 'out', 'forward'].includes(rule.direction)) return true
+      // Keep all rules in standard chains with a meaningful action
+      if (hasAction && ['in', 'out', 'forward', 'input', 'output'].includes(rule.direction)) return true
 
       return false
     })
