@@ -62,7 +62,9 @@ const policyColor = computed(() => {
 })
 const displayedRules = computed(() => showSystemRules.value ? firewallStore.rules : firewallStore.userRules)
 const hasRules = computed(() => displayedRules.value.length > 0)
-const systemRuleCount = computed(() => firewallStore.ruleCount - firewallStore.userRuleCount)
+// HAL reports total iptables rules; user rules come from filtered API response
+const halTotalRules = computed(() => firewallStore.halFirewallStatus?.rules_count ?? firewallStore.halFirewallStatus?.rules ?? 0)
+const systemRuleCount = computed(() => Math.max(0, halTotalRules.value - firewallStore.userRuleCount))
 
 // ── Data Loading ─────────────────────────────────────────────
 async function fetchAll() {
@@ -505,6 +507,10 @@ function formatDirection(dir) {
         <Icon name="Shield" :size="40" class="mx-auto text-theme-tertiary mb-3" />
         <p class="text-theme-secondary text-sm">No firewall rules configured</p>
         <p class="text-theme-muted text-xs mt-1">Add rules to control network traffic</p>
+        <p v-if="systemRuleCount > 0 && !showSystemRules" class="text-theme-muted text-xs mt-2">
+          {{ systemRuleCount }} system/Docker rules are hidden.
+          <button @click="toggleSystemRules" class="text-accent hover:underline">Show them</button>
+        </p>
         <button @click="showAddRule = true" class="mt-4 px-4 py-2 btn-accent text-on-accent text-sm font-medium rounded-lg inline-flex items-center gap-1.5">
           <Icon name="Plus" :size="14" />
           Add First Rule
