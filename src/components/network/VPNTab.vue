@@ -133,8 +133,9 @@ async function handleConnect(config) {
   error.value = null
   try {
     await vpnStore.connect(config.name)
-    // OpenVPN daemonizes immediately — poll for actual connection (up to 30s)
-    const connected = await pollForConnection(config.name, 30)
+    // OpenVPN daemonizes immediately — poll for actual connection (up to 90s)
+    // ProtonVPN may retry multiple server ports before connecting
+    const connected = await pollForConnection(config.name, 90)
     if (!connected) {
       error.value = 'VPN connection timed out — check logs'
     }
