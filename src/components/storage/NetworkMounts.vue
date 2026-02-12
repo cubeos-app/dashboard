@@ -236,15 +236,31 @@ async function saveMount() {
   formLoading.value = true
   actionError.value = null
   try {
+    // Construct remote_path from host + share as the API expects
+    let remotePath = ''
+    const share = mountForm.value.share || ''
+    if (mountForm.value.type === 'smb') {
+      // SMB: //host/share — handle if user already typed full path in share field
+      if (share.startsWith('//')) {
+        remotePath = share
+      } else {
+        remotePath = `//${mountForm.value.host}/${share}`
+      }
+    } else {
+      // NFS: host:/path
+      if (share.includes(':')) {
+        remotePath = share
+      } else {
+        remotePath = `${mountForm.value.host}:${share}`
+      }
+    }
+
     const config = {
       name: mountForm.value.name,
       type: mountForm.value.type,
-      host: mountForm.value.host,
-      share: mountForm.value.share,
-      mountpoint: mountForm.value.mountpoint || `/mnt/${mountForm.value.name}`,
+      remote_path: remotePath,
       username: mountForm.value.username || undefined,
       password: mountForm.value.password || undefined,
-      domain: mountForm.value.domain || undefined,
       options: mountForm.value.options || undefined,
       auto_mount: mountForm.value.auto_mount
     }
@@ -262,14 +278,20 @@ async function saveMount() {
         // Rollback: re-add original mount if we still have it
         if (originalMount) {
           try {
+            // Reconstruct remote_path for rollback
+            const origShare = originalMount.share || originalMount.export_path || originalMount.remote || ''
+            const origHost = originalMount.host || originalMount.server || ''
+            let origRemotePath = originalMount.remote_path || ''
+            if (!origRemotePath && origHost) {
+              origRemotePath = originalMount._type === 'nfs' || originalMount.type === 'nfs'
+                ? `${origHost}:${origShare}`
+                : `//${origHost}/${origShare}`
+            }
             await mountsStore.addMount({
               name: originalMount.name,
               type: originalMount._type || originalMount.type,
-              host: originalMount.host || originalMount.server,
-              share: originalMount.share || originalMount.export_path || originalMount.remote,
-              mountpoint: originalMount.mountpoint,
+              remote_path: origRemotePath,
               username: originalMount.username || originalMount.user,
-              domain: originalMount.domain,
               options: originalMount.options,
               auto_mount: originalMount.auto_mount || originalMount.automount
             })
@@ -328,11 +350,21 @@ async function testConnection() {
   try {
     // Construct remote_path from host + share as the API expects
     let remotePath = ''
+    const share = mountForm.value.share || ''
     if (mountForm.value.type === 'smb') {
-      remotePath = `//${mountForm.value.host}/${mountForm.value.share}`
+      // Handle if user typed full UNC path in share field
+      if (share.startsWith('//')) {
+        remotePath = share
+      } else {
+        remotePath = `//${mountForm.value.host}/${share}`
+      }
     } else {
       // NFS: host:/path
-      remotePath = `${mountForm.value.host}:${mountForm.value.share}`
+      if (share.includes(':')) {
+        remotePath = share
+      } else {
+        remotePath = `${mountForm.value.host}:${share}`
+      }
     }
 
     const config = {
@@ -798,8 +830,11 @@ function mountSource(mount) {
                   v-model="mountForm.share"
                   type="text"
                   class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent"
-                  :placeholder="mountForm.type === 'smb' ? 'backups' : '/exports/data'"
+                  :placeholder="mountForm.type === 'smb' ? 'Media' : '/exports/data'"
                 >
+                <p class="text-xs text-theme-muted mt-1">
+                  {{ mountForm.type === 'smb' ? 'Just the share name, e.g. Media (not the full path)' : 'Remote export path, e.g. /exports/data' }}
+                </p>
               </div>
 
               <!-- Mount point -->
