@@ -259,6 +259,7 @@ async function saveMount() {
       name: mountForm.value.name,
       type: mountForm.value.type,
       remote_path: remotePath,
+      local_path: mountForm.value.mountpoint || `/mnt/${mountForm.value.name}`,
       username: mountForm.value.username || undefined,
       password: mountForm.value.password || undefined,
       options: mountForm.value.options || undefined,
