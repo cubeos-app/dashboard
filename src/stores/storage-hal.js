@@ -54,9 +54,17 @@ export const useStorageHalStore = defineStore('storage-hal', () => {
     })
   })
 
-  // Root filesystem (/) for the System Storage summary card
+  // Root filesystem for the System Storage summary card.
+  // HAL runs inside a container where the host root may be bind-mounted
+  // at /data instead of /. Find the largest real filesystem as the "system" disk.
   const rootFS = computed(() => {
-    return realFilesystems.value.find(f => f.mountpoint === '/') || null
+    const fs = realFilesystems.value
+    if (fs.length === 0) return null
+    // Try exact '/' first (in case HAL runs on host)
+    const root = fs.find(f => f.mountpoint === '/')
+    if (root) return root
+    // Otherwise pick the largest filesystem (most likely the system partition)
+    return fs.reduce((a, b) => (b.size > a.size ? b : a), fs[0])
   })
 
   const totalSpace = computed(() => rootFS.value?.size || 0)

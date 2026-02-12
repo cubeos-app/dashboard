@@ -185,14 +185,14 @@ async function toggleShareDetail(name) {
       </div>
     </div>
 
-    <!-- Not installed warning -->
-    <div v-if="smbStore.status && !smbStore.status.installed" class="bg-warning-muted border border-warning rounded-lg p-4">
-      <div class="flex items-center gap-2 mb-2">
-        <Icon name="AlertCircle" :size="16" class="text-warning" />
-        <p class="text-sm font-medium text-warning">Samba is not installed</p>
-      </div>
-      <p class="text-sm text-theme-muted">Install Samba to create network file shares.</p>
-      <code class="block mt-2 p-2 bg-code text-code rounded text-xs font-mono">apt install samba</code>
+    <!-- Not installed info -->
+    <div v-if="smbStore.status && !smbStore.status.installed" class="bg-theme-card border border-theme-primary rounded-lg p-6 text-center">
+      <Icon name="Server" :size="36" class="mx-auto text-theme-muted mb-3" />
+      <h3 class="text-base font-medium text-theme-primary mb-2">Samba File Sharing</h3>
+      <p class="text-sm text-theme-muted max-w-md mx-auto">
+        Share folders on your CubeOS device over the local network using SMB/CIFS.
+        This feature will be available as an installable CubeOS app in a future update.
+      </p>
     </div>
 
     <!-- Loading -->
