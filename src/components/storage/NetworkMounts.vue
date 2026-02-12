@@ -326,10 +326,18 @@ async function testConnection() {
   testLoading.value = true
   testResult.value = null
   try {
+    // Construct remote_path from host + share as the API expects
+    let remotePath = ''
+    if (mountForm.value.type === 'smb') {
+      remotePath = `//${mountForm.value.host}/${mountForm.value.share}`
+    } else {
+      // NFS: host:/path
+      remotePath = `${mountForm.value.host}:${mountForm.value.share}`
+    }
+
     const config = {
       type: mountForm.value.type,
-      host: mountForm.value.host,
-      share: mountForm.value.share,
+      remote_path: remotePath,
       username: mountForm.value.username || undefined,
       password: mountForm.value.password || undefined,
       domain: mountForm.value.domain || undefined

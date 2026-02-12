@@ -190,12 +190,11 @@ export const useBackupsStore = defineStore('backups', () => {
   }
 
   /**
-   * Get download URL for a backup
-   * Returns the URL string (actual download handled by browser)
+   * Get download URL for a backup (for display purposes)
    */
   function getDownloadUrl(id) {
     const encoded = encodeURIComponent(id)
-    return api.buildUrl(`/backups/${encoded}/download`)
+    return `/api/v1/backups/${encoded}/download`
   }
 
   /**
@@ -205,9 +204,26 @@ export const useBackupsStore = defineStore('backups', () => {
   async function downloadBackup(id) {
     try {
       const encoded = encodeURIComponent(id)
-      const url = api.buildUrl(`/backups/${encoded}/download`)
-      // Open in new tab / trigger browser download
-      window.open(url, '_blank')
+      const response = await api.request(`/backups/${encoded}/download`)
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Download failed' }))
+        throw new Error(err.error || 'Download failed')
+      }
+      const blob = await response.blob()
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let filename = `${id}.tar.gz`
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename[^;=\n]*=["']?([^"';\n]*)/)
+        if (match && match[1]) filename = match[1]
+      }
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     } catch (e) {
       error.value = e.message
     }
