@@ -17,6 +17,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSetupStore } from '@/stores/setup'
+import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
@@ -158,8 +159,17 @@ async function skipWizard() {
   saving.value = true
   try {
     await api.post('/setup/skip')
+
+    // Auto-login with default credentials so the user has a valid session
+    const authStore = useAuthStore()
+    try {
+      await authStore.login('admin', 'cubeos')
+    } catch {
+      // If auto-login fails, fall through to login page below
+    }
+
     setupStore.clearStatus()
-    router.push('/login')
+    router.push('/')
   } catch {
     router.push('/login')
   } finally {
