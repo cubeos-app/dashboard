@@ -118,6 +118,12 @@ export const useSystemStore = defineStore('system', () => {
   const piSerial = computed(() => hardware.value?.serial ?? info.value?.pi_serial ?? null)
   const piRevision = computed(() => hardware.value?.revision ?? info.value?.pi_revision ?? null)
 
+  // B16/B29: CubeOS version from API /system/info
+  const cubeosVersion = computed(() => info.value?.cubeos_version ?? null)
+
+  // B23: Host IP addresses from /system/info
+  const ipAddresses = computed(() => info.value?.ip_addresses ?? null)
+
   // Formatted values
   const memoryFormatted = computed(() => {
     if (!stats.value?.memory_total) return '—'
@@ -506,6 +512,8 @@ export const useSystemStore = defineStore('system', () => {
     piModel,
     piSerial,
     piRevision,
+    cubeosVersion,
+    ipAddresses,
     
     // Actions
     fetchInfo,

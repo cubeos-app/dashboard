@@ -8,13 +8,19 @@
  * Store: network.js (fetchDNS, saveDNS, primaryDNS, secondaryDNS)
  * Emits: refresh
  */
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useNetworkStore } from '@/stores/network'
 import Icon from '@/components/ui/Icon.vue'
 
 const emit = defineEmits(['refresh'])
 
 const networkStore = useNetworkStore()
+
+// ─── Offline mode awareness (B36) ─────────────────────────
+const isOffline = computed(() => {
+  const mode = (networkStore.networkMode?.mode || networkStore.status?.mode || '').toLowerCase()
+  return mode === 'offline' || mode === ''
+})
 
 // ─── State ───────────────────────────────────────────────────
 const dnsLoading = ref(false)
@@ -106,6 +112,12 @@ onUnmounted(() => {
         <div class="flex items-center gap-2 p-3 bg-theme-secondary rounded-lg text-sm">
           <Icon name="Info" :size="16" class="text-theme-muted shrink-0" />
           <p class="text-theme-muted">DNS resolution is managed by Pi-hole. These upstream servers are used when Pi-hole forwards queries.</p>
+        </div>
+
+        <!-- Offline mode warning (B36) -->
+        <div v-if="isOffline" class="flex items-center gap-2 p-3 bg-warning-muted rounded-lg text-sm">
+          <Icon name="WifiOff" :size="16" class="text-warning shrink-0" />
+          <p class="text-warning">CubeOS is running in offline mode. Upstream DNS servers are unreachable and will only be used when internet connectivity is available.</p>
         </div>
 
         <!-- Save button -->

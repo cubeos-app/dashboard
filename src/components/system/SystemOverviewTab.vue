@@ -198,6 +198,18 @@ onUnmounted(() => {
             <dt class="text-sm text-theme-tertiary">Serial</dt>
             <dd class="font-medium text-theme-primary font-mono text-xs">{{ systemStore.piSerial }}</dd>
           </div>
+          <div v-if="systemStore.cubeosVersion">
+            <dt class="text-sm text-theme-tertiary">CubeOS Version</dt>
+            <dd class="font-medium text-theme-primary">{{ systemStore.cubeosVersion }}</dd>
+          </div>
+          <div v-if="systemStore.ipAddresses && systemStore.ipAddresses.length">
+            <dt class="text-sm text-theme-tertiary">IP Address{{ systemStore.ipAddresses.length > 1 ? 'es' : '' }}</dt>
+            <dd class="font-medium text-theme-primary font-mono text-xs">
+              <span v-for="(ip, i) in systemStore.ipAddresses" :key="ip">
+                {{ ip }}<span v-if="i < systemStore.ipAddresses.length - 1" class="text-theme-muted">, </span>
+              </span>
+            </dd>
+          </div>
         </dl>
 
         <!-- Support Bundle -->
@@ -285,7 +297,7 @@ onUnmounted(() => {
           <div class="flex justify-between mb-2">
             <span class="text-sm text-theme-secondary">CPU Temperature</span>
             <span class="text-sm font-medium" :class="systemStore.temperature > 80 ? 'text-error' : systemStore.temperature > 70 ? 'text-warning' : 'text-theme-primary'">
-              {{ systemStore.temperature }}°C
+              {{ typeof systemStore.temperature === 'number' ? systemStore.temperature.toFixed(1) : systemStore.temperature }}°C
             </span>
           </div>
           <div class="h-2 bg-theme-tertiary rounded-full overflow-hidden">
