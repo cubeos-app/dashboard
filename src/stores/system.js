@@ -126,6 +126,18 @@ export const useSystemStore = defineStore('system', () => {
     return `${usedGB} / ${totalGB} GB`
   })
 
+  // B18: Swap/ZRAM computed properties
+  const swapTotal = computed(() => stats.value?.swap_total ?? 0)
+  const swapUsed = computed(() => stats.value?.swap_used ?? 0)
+  const swapPercent = computed(() => Math.round(stats.value?.swap_percent ?? 0))
+  const hasSwap = computed(() => swapTotal.value > 0)
+  const swapFormatted = computed(() => {
+    if (!hasSwap.value) return null
+    const usedMB = (swapUsed.value / 1024 / 1024).toFixed(0)
+    const totalMB = (swapTotal.value / 1024 / 1024).toFixed(0)
+    return `Swap: ${usedMB} / ${totalMB} MB`
+  })
+
   const diskFormatted = computed(() => {
     if (!stats.value?.disk_total) return '—'
     const usedGB = (stats.value.disk_used / 1024 / 1024 / 1024).toFixed(0)
@@ -424,6 +436,12 @@ export const useSystemStore = defineStore('system', () => {
         updated.memory_percent = sys.memory.percent ?? updated.memory_percent
         updated.memory_used = sys.memory.used ?? updated.memory_used
         updated.memory_total = sys.memory.total ?? updated.memory_total
+        // B18: Swap/ZRAM fields
+        if (sys.memory.swap_total !== undefined) {
+          updated.swap_total = sys.memory.swap_total
+          updated.swap_used = sys.memory.swap_used ?? 0
+          updated.swap_percent = sys.memory.swap_percent ?? 0
+        }
       }
       if (sys.disk) {
         updated.disk_percent = sys.disk.percent ?? updated.disk_percent
@@ -475,6 +493,11 @@ export const useSystemStore = defineStore('system', () => {
     diskUsage,
     memoryFormatted,
     diskFormatted,
+    swapTotal,
+    swapUsed,
+    swapPercent,
+    hasSwap,
+    swapFormatted,
     batteryPercent,
     batteryAvailable,
     onBattery,

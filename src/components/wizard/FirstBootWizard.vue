@@ -63,6 +63,7 @@ const config = ref({
   wifi_ssid: 'CubeOS',
   wifi_password: '',
   wifi_channel: 6,
+  country_code: 'US',
   timezone: 'UTC',
   language: 'en',
   theme: 'dark',
@@ -111,11 +112,30 @@ async function loadSetupData() {
     requirements.value = requirementsRes || {}
     timezones.value = timezonesRes.timezones || []
     Object.assign(config.value, defaults.value)
+
+    // B3: If device_model is missing, the API may still be starting.
+    // Retry up to 3 times with increasing delay.
+    if (!requirements.value.device_model) {
+      retryRequirements(3, 2000)
+    }
   } catch (e) {
     error.value = e.message
   } finally {
     loading.value = false
   }
+}
+
+async function retryRequirements(attemptsLeft, delayMs) {
+  if (attemptsLeft <= 0 || requirements.value.device_model) return
+  await new Promise(resolve => setTimeout(resolve, delayMs))
+  try {
+    const retry = await api.get('/setup/requirements')
+    if (retry?.device_model) {
+      requirements.value = { ...requirements.value, ...retry }
+    } else if (attemptsLeft > 1) {
+      retryRequirements(attemptsLeft - 1, delayMs * 1.5)
+    }
+  } catch { /* ignore — best effort */ }
 }
 
 async function validateStep() {

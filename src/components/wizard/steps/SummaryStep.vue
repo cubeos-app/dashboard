@@ -42,6 +42,10 @@ defineProps({
           <span class="text-theme-primary">{{ config.wifi_ssid }}</span>
         </div>
         <div class="flex justify-between">
+          <span class="text-theme-muted">Region</span>
+          <span class="text-theme-primary">{{ config.country_code || 'US' }}</span>
+        </div>
+        <div class="flex justify-between">
           <span class="text-theme-muted">Timezone</span>
           <span class="text-theme-primary">{{ config.timezone }}</span>
         </div>

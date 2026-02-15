@@ -29,7 +29,7 @@ defineEmits(['skip'])
       <div class="space-y-2 text-sm">
         <div class="flex justify-between">
           <span class="text-theme-muted">Device</span>
-          <span class="text-theme-primary">{{ requirements.device_model || 'Unknown' }}</span>
+          <span class="text-theme-primary">{{ requirements.device_model || 'Detecting...' }}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-theme-muted">RAM</span>

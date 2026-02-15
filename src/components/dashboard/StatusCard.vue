@@ -147,7 +147,7 @@ const strokeColor = computed(() => {
     </div>
 
     <!-- Subtitle -->
-    <span v-if="subtitle" class="text-[10px] text-theme-muted text-center leading-tight">
+    <span v-if="subtitle" class="text-[10px] text-theme-muted text-center leading-tight whitespace-pre-line">
       {{ subtitle }}
     </span>
   </div>

@@ -53,6 +53,15 @@ const natEnabled = computed(() => {
   return props.natStatus.enabled === true || props.natStatus.nat_enabled === true
 })
 
+// B20: Internet sharing considers both NAT status and network mode.
+// Docker's MASQUERADE rules cause natEnabled to be true even in OFFLINE mode.
+// Only show as "sharing" when the mode actually provides upstream connectivity.
+const isInternetSharing = computed(() => {
+  if (!natEnabled.value) return false
+  const mode = (props.networkMode?.mode || '').toLowerCase()
+  return mode === 'online_eth' || mode === 'online_wifi'
+})
+
 // Firewall IP forward — normalize field name (API returns forwarding_enabled, not ip_forward)
 const ipForwardEnabled = computed(() => {
   if (!props.firewallStatus) return false
@@ -226,13 +235,13 @@ function formatBytes(bytes) {
       <div v-if="isAdvanced" class="rounded-xl p-4 border border-theme-primary" :class="wallpaperActive ? panelClass : 'bg-theme-card'">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-               :class="natEnabled ? 'bg-accent-muted' : 'bg-theme-tertiary'">
-            <Icon name="ArrowLeftRight" :size="20" :class="natEnabled ? 'text-accent' : 'text-theme-muted'" />
+               :class="isInternetSharing ? 'bg-accent-muted' : 'bg-theme-tertiary'">
+            <Icon name="ArrowLeftRight" :size="20" :class="isInternetSharing ? 'text-accent' : 'text-theme-muted'" />
           </div>
           <div>
             <p class="text-sm text-theme-tertiary">Internet Sharing</p>
-            <p class="font-semibold" :class="natEnabled ? 'text-accent' : 'text-theme-muted'">
-              {{ natEnabled ? 'Enabled' : 'Disabled' }}
+            <p class="font-semibold" :class="isInternetSharing ? 'text-accent' : 'text-theme-muted'">
+              {{ isInternetSharing ? 'Enabled' : 'Disabled' }}
             </p>
           </div>
         </div>
