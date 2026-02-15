@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useSetupStore } from '@/stores/setup'
 import { useSystemStore } from '@/stores/system'
 import api from '@/api/client'
+import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
@@ -196,6 +197,17 @@ function prevStep() {
 }
 
 async function applyConfiguration() {
+  // Fix 3.1 (B37): Warn user about WiFi reconnection before applying
+  if (wifiEnabled.value && wifiSSID.value) {
+    const proceed = await confirm({
+      title: 'WiFi Network Will Change',
+      message: `After applying, the WiFi access point will restart with the new settings.\n\nYou will be disconnected and need to reconnect to "${wifiSSID.value}"${wifiPassword.value ? ' using the new password' : ''}.\n\nIf you lose connection, connect to the new network and reopen this page.`,
+      confirmText: 'Apply Changes',
+      variant: 'warning'
+    })
+    if (!proceed) return
+  }
+
   loading.value = true
   error.value = null
   
@@ -289,6 +301,10 @@ onMounted(async () => {
   } catch (e) {
     hostname.value = 'cubeos'
   }
+
+  // Fetch system stats for device info display (B38/B39)
+  try { await systemStore.fetchStats() } catch { /* non-blocking */ }
+  try { await systemStore.fetchHardware() } catch { /* non-blocking */ }
 })
 
 onUnmounted(() => {
@@ -350,6 +366,23 @@ onUnmounted(() => {
               </div>
               <h1 class="text-3xl font-bold text-theme-primary mb-2">Welcome to CubeOS</h1>
               <p class="text-theme-tertiary">Let's set up your offline server in just a few steps.</p>
+            </div>
+
+            <!-- System Detection (B38/B39) -->
+            <div class="bg-theme-tertiary rounded-xl p-4 text-left space-y-2">
+              <h3 class="text-xs font-medium text-theme-muted uppercase tracking-wider mb-2">System Detected</h3>
+              <div v-if="systemStore.piModel" class="flex justify-between">
+                <span class="text-sm text-theme-secondary">Device</span>
+                <span class="text-sm font-medium text-theme-primary">{{ systemStore.piModel }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-sm text-theme-secondary">Memory</span>
+                <span class="text-sm font-medium text-theme-primary">{{ systemStore.memoryFormatted }}</span>
+              </div>
+              <div v-if="systemStore.hasSwap" class="flex justify-between">
+                <span class="text-sm text-theme-secondary">Swap (ZRAM)</span>
+                <span class="text-sm font-medium text-theme-primary">{{ systemStore.swapFormatted }}</span>
+              </div>
             </div>
             
             <div class="space-y-4">

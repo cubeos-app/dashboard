@@ -23,6 +23,7 @@ const isLoading = ref(false)
 const isSidebarOpen = ref(true)
 const error = ref(null)
 const docsAvailable = ref(true)
+const docsStatus = ref(null)
 
 // Detect if on mobile
 const isMobile = ref(window.innerWidth < 768)
@@ -67,9 +68,41 @@ async function fetchDocsTree() {
     const data = await api.get('/documentation/tree')
     docsTree.value = data || []
     docsAvailable.value = docsTree.value.length > 0
+    if (!docsAvailable.value) {
+      await fetchDocsStatus()
+    }
   } catch (e) {
     docsAvailable.value = false
     docsTree.value = []
+    await fetchDocsStatus()
+  }
+}
+
+// Fetch DocsIndex service status for actionable messages
+async function fetchDocsStatus() {
+  try {
+    // DocsIndex status endpoint is on port 6032, proxied via docs.cubeos.cube
+    // The API proxies this at /documentation/status or we call it directly
+    const data = await api.get('/documentation/status')
+    docsStatus.value = data
+  } catch {
+    // Try direct DocsIndex endpoint as fallback
+    try {
+      const resp = await fetch('//docs.cubeos.cube/api/v1/docs/status')
+      if (resp.ok) docsStatus.value = await resp.json()
+    } catch {
+      docsStatus.value = null
+    }
+  }
+}
+
+// Retry loading docs
+async function retryDocs() {
+  docsAvailable.value = true
+  docsStatus.value = null
+  await fetchDocsTree()
+  if (docsAvailable.value) {
+    fetchDoc(currentPath.value)
   }
 }
 
@@ -348,29 +381,60 @@ function closeSidebar() {
             <div class="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
           </div>
 
-          <!-- Docs not available (API doesn't have docs endpoint) -->
+          <!-- Docs not available — actionable status message -->
           <div v-else-if="!docsAvailable" class="text-center py-12">
             <Icon name="BookX" :size="48" class="text-theme-muted mx-auto mb-4" />
             <h2 class="text-lg font-semibold text-theme-primary mb-2">Documentation Not Available</h2>
-            <p class="text-theme-secondary text-sm mb-4 max-w-md mx-auto">
-              Built-in documentation is not configured for this CubeOS installation. 
-              You can access API documentation directly.
-            </p>
+
+            <!-- Status-aware messages -->
+            <template v-if="docsStatus">
+              <div class="text-sm text-theme-secondary mb-4 max-w-md mx-auto space-y-2">
+                <p>
+                  Mode: <span class="font-medium text-theme-primary">{{ docsStatus.mode || 'unknown' }}</span>
+                  <template v-if="docsStatus.docs_available !== undefined">
+                    — {{ docsStatus.docs_available ? 'docs found' : 'no docs on disk' }}
+                  </template>
+                </p>
+                <div class="flex justify-center gap-4 text-xs">
+                  <span :class="docsStatus.ollama_ok ? 'text-success' : 'text-error'">
+                    Ollama: {{ docsStatus.ollama_ok ? 'OK' : 'offline' }}
+                  </span>
+                  <span :class="docsStatus.chromadb_ok ? 'text-success' : 'text-error'">
+                    ChromaDB: {{ docsStatus.chromadb_ok ? 'OK' : 'offline' }}
+                  </span>
+                </div>
+                <p v-if="!docsStatus.ollama_ok || !docsStatus.chromadb_ok" class="text-xs text-theme-muted">
+                  Documentation requires Ollama and ChromaDB services to be running.
+                  Check the Services page to verify their status.
+                </p>
+                <p v-else-if="!docsStatus.docs_available" class="text-xs text-theme-muted">
+                  No documentation files found on disk. They will be indexed
+                  automatically once available in /cubeos/docs.
+                </p>
+              </div>
+            </template>
+            <template v-else>
+              <p class="text-theme-secondary text-sm mb-4 max-w-md mx-auto">
+                The documentation service is not responding. It may still be
+                starting up, or the Ollama and ChromaDB services may be offline.
+              </p>
+            </template>
+
             <div class="flex items-center justify-center gap-3">
+              <button
+                @click="retryDocs"
+                class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm hover:bg-accent-secondary transition-colors"
+              >
+                Retry
+              </button>
               <a
                 href="/api/v1/swagger/index.html"
                 target="_blank"
                 rel="noopener"
-                class="px-4 py-2 rounded-lg bg-accent text-on-accent text-sm hover:bg-accent-secondary transition-colors"
+                class="px-4 py-2 rounded-lg border border-theme-primary text-theme-secondary text-sm hover:bg-theme-tertiary transition-colors"
               >
                 View API Docs
               </a>
-              <router-link
-                to="/"
-                class="px-4 py-2 rounded-lg border border-theme-primary text-theme-secondary text-sm hover:bg-theme-tertiary transition-colors"
-              >
-                Go to Dashboard
-              </router-link>
             </div>
           </div>
 

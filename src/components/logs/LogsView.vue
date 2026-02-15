@@ -554,6 +554,21 @@ function handleFileSubmit() {
           <p v-if="isFileTab && !filePath" class="text-xs text-theme-muted mt-1">
             Enter a file path and click Load
           </p>
+          <template v-if="isSystemTab && !logsStore.error">
+            <p class="text-xs text-theme-muted mt-2 max-w-sm">
+              The system journal may not be accessible from the API container.
+              Try the Boot or Kernel tabs which use alternative log sources.
+            </p>
+            <a
+              href="//dozzle.cubeos.cube"
+              target="_blank"
+              rel="noopener"
+              class="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors"
+            >
+              <Icon name="ExternalLink" :size="12" />
+              Open Dozzle for container logs
+            </a>
+          </template>
         </div>
 
         <!-- Log entries -->

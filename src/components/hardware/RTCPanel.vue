@@ -23,6 +23,7 @@ const { signal } = useAbortOnUnmount()
 
 const loading = ref(true)
 const error = ref(null)
+const errorStatus = ref(null)
 const syncLoading = ref(false)
 const setAlarmLoading = ref(false)
 const clearAlarmLoading = ref(false)
@@ -87,10 +88,14 @@ const wakeAlarmTime = computed(() => {
 onMounted(async () => {
   loading.value = true
   error.value = null
+  errorStatus.value = null
   try {
     await hardwareStore.fetchRTC({ signal: signal() })
   } catch (e) {
-    if (e.name !== 'AbortError') error.value = e.message
+    if (e.name !== 'AbortError') {
+      error.value = e.message
+      errorStatus.value = e.status || null
+    }
   } finally {
     loading.value = false
   }
@@ -188,6 +193,22 @@ function formatDrift(seconds) {
   if (abs < 60) return `${seconds.toFixed(1)}s`
   return `${(seconds / 60).toFixed(1)}min`
 }
+
+async function retryFetch() {
+  loading.value = true
+  error.value = null
+  errorStatus.value = null
+  try {
+    await hardwareStore.fetchRTC({ signal: signal() })
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      error.value = e.message
+      errorStatus.value = e.status || null
+    }
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
@@ -206,6 +227,12 @@ function formatDrift(seconds) {
         Detected
       </span>
       <span
+        v-else-if="!loading && errorStatus === 501"
+        class="text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-muted text-theme-tertiary"
+      >
+        Not Available
+      </span>
+      <span
         v-else-if="!loading && !error"
         class="text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-muted text-theme-tertiary"
       >
@@ -218,7 +245,29 @@ function formatDrift(seconds) {
       <SkeletonLoader variant="card" />
     </div>
 
-    <!-- Error -->
+    <!-- Error: 501 Not Implemented — hardware not available -->
+    <div v-else-if="error && errorStatus === 501" class="flex flex-col items-center justify-center py-10 text-center">
+      <Icon name="Clock" :size="36" class="text-theme-muted mb-3" />
+      <p class="text-sm text-theme-tertiary">RTC not available on this hardware</p>
+      <p class="text-xs text-theme-muted mt-1">This device does not have an RTC module</p>
+    </div>
+
+    <!-- Error: 503 Service Unavailable — HAL offline -->
+    <div v-else-if="error && errorStatus === 503" class="bg-warning-muted border border-warning-subtle rounded-lg p-3 flex items-start gap-2">
+      <Icon name="WifiOff" :size="16" class="text-warning mt-0.5" />
+      <div class="flex-1">
+        <h3 class="text-sm font-medium text-warning">HAL service offline</h3>
+        <p class="mt-1 text-xs text-theme-muted">The hardware abstraction service is not responding.</p>
+        <button
+          @click="retryFetch"
+          class="mt-2 px-3 py-1 text-xs font-medium rounded-lg bg-warning-muted text-warning hover:bg-theme-tertiary transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+
+    <!-- Error: 500 or other — genuine error -->
     <div v-else-if="error" class="bg-error-muted border border-error-subtle rounded-lg p-3 flex items-start gap-2">
       <Icon name="AlertTriangle" :size="16" class="text-error mt-0.5" />
       <div>

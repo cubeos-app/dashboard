@@ -282,6 +282,17 @@ class ApiClient {
   // Generic REST helpers (used by stores)
   // ==========================================
 
+  /**
+   * Create an error that carries the HTTP status code.
+   * Components can check err.status to differentiate 501 (not supported)
+   * from 500 (server error) or 503 (service unavailable).
+   */
+  _createApiError(message, status) {
+    const err = new Error(message)
+    err.status = status
+    return err
+  }
+
   async get(endpoint, params = {}, options = {}) {
     const queryString = Object.keys(params).length 
       ? '?' + new URLSearchParams(params).toString()
@@ -290,7 +301,7 @@ class ApiClient {
     if (!response) return null // Request was aborted
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
-      throw new Error(error.error || error.message || 'Request failed')
+      throw this._createApiError(error.error || error.message || 'Request failed', response.status)
     }
     return response.json()
   }
@@ -304,7 +315,7 @@ class ApiClient {
     if (!response) return null // Request was aborted
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
-      throw new Error(error.error || error.message || 'Request failed')
+      throw this._createApiError(error.error || error.message || 'Request failed', response.status)
     }
     if (response.status === 204) return { success: true }
     return response.json()
@@ -319,7 +330,7 @@ class ApiClient {
     if (!response) return null // Request was aborted
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
-      throw new Error(error.error || error.message || 'Request failed')
+      throw this._createApiError(error.error || error.message || 'Request failed', response.status)
     }
     if (response.status === 204) return { success: true }
     return response.json()
@@ -334,7 +345,7 @@ class ApiClient {
     if (!response) return null // Request was aborted
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
-      throw new Error(error.error || error.message || 'Request failed')
+      throw this._createApiError(error.error || error.message || 'Request failed', response.status)
     }
     if (response.status === 204) return { success: true }
     return response.json()

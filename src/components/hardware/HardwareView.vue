@@ -332,7 +332,7 @@ onUnmounted(() => {
             <!-- Quick stats (desktop) -->
             <div v-if="systemStore.temperature !== null" class="hidden sm:flex items-center gap-2 text-sm text-theme-secondary">
               <Icon name="Thermometer" :size="14" />
-              <span>{{ systemStore.temperature }}°C</span>
+              <span>{{ Number(systemStore.temperature).toFixed(1) }}°C</span>
             </div>
             <div v-if="systemStore.batteryPercent !== null" class="hidden sm:flex items-center gap-2 text-sm text-theme-secondary">
               <Icon name="Battery" :size="14" />
@@ -436,7 +436,7 @@ onUnmounted(() => {
                 <div v-if="systemStore.temperature !== null" class="flex justify-between">
                   <span class="text-sm text-theme-secondary">CPU Temp</span>
                   <span class="text-sm font-medium" :class="systemStore.temperature > 80 ? 'text-error' : systemStore.temperature > 65 ? 'text-warning' : 'text-theme-primary'">
-                    {{ systemStore.temperature }}°C
+                    {{ Number(systemStore.temperature).toFixed(1) }}°C
                   </span>
                 </div>
               </div>
