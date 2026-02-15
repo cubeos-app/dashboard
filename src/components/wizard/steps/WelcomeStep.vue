@@ -27,7 +27,6 @@ const swapInfo = computed(() => {
   return `${usedMB} / ${totalMB} MB`
 })
 </script>
-</script>
 
 <template>
   <div class="text-center py-8">
