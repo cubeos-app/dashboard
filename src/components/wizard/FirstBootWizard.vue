@@ -41,6 +41,7 @@ const currentStep = ref(0)
 const defaults = ref({})
 const requirements = ref({})
 const timezones = ref([])
+const systemStats = ref(null)
 
 // Step definitions — simplified from original 11 to 6 core steps
 const STEPS = [
@@ -113,8 +114,22 @@ async function loadSetupData() {
     timezones.value = timezonesRes.timezones || []
     Object.assign(config.value, defaults.value)
 
-    // B3: If device_model is missing, the API may still be starting.
-    // Retry up to 3 times with increasing delay.
+    // B39: If device_model missing from requirements, fetch from /system/info
+    // B38: Also fetch stats for swap/ZRAM display
+    const [infoRes, statsRes] = await Promise.allSettled([
+      api.get('/system/info'),
+      api.get('/system/stats')
+    ])
+    if (infoRes.status === 'fulfilled' && infoRes.value) {
+      if (!requirements.value.device_model && infoRes.value.pi_model) {
+        requirements.value = { ...requirements.value, device_model: infoRes.value.pi_model }
+      }
+    }
+    if (statsRes.status === 'fulfilled' && statsRes.value) {
+      systemStats.value = statsRes.value
+    }
+
+    // B39: If device_model is still missing, retry with delay
     if (!requirements.value.device_model) {
       retryRequirements(3, 2000)
     }
@@ -198,6 +213,22 @@ async function skipWizard() {
 }
 
 async function finishSetup() {
+  // B37: Warn user if WiFi settings changed — applying will disconnect them
+  const ssidChanged = config.value.wifi_ssid !== defaults.value.wifi_ssid
+  const passwordChanged = config.value.wifi_password !== (defaults.value.wifi_password || '')
+  if (ssidChanged || passwordChanged) {
+    const parts = []
+    if (ssidChanged) parts.push(`SSID to "${config.value.wifi_ssid}"`)
+    if (passwordChanged) parts.push('the WiFi password')
+    const confirmed = await confirm({
+      title: 'WiFi Settings Changed',
+      message: `You changed ${parts.join(' and ')}. Applying these settings will restart the access point and disconnect your current session. After setup completes, reconnect to the new network and sign in.`,
+      confirmText: 'Apply & Disconnect',
+      variant: 'warning'
+    })
+    if (!confirmed) return
+  }
+
   saving.value = true
   error.value = null
   try {
@@ -269,6 +300,7 @@ onMounted(() => { loadSetupData() })
           <WelcomeStep
             v-if="currentStepData.id === 'welcome'"
             :requirements="requirements"
+            :system-stats="systemStats"
             @skip="skipWizard"
           />
           <AdminStep

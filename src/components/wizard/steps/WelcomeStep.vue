@@ -3,14 +3,30 @@
  * WelcomeStep.vue — Wizard Step 1
  *
  * Displays CubeOS branding, detected system info, and skip option.
+ * B38: Shows swap/ZRAM info from system stats.
+ * B39: Device model resolved via /system/info fallback in parent.
  */
+import { computed } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
 
-defineProps({
-  requirements: { type: Object, default: () => ({}) }
+const props = defineProps({
+  requirements: { type: Object, default: () => ({}) },
+  systemStats: { type: Object, default: null }
 })
 
 defineEmits(['skip'])
+
+// B38: Format swap/ZRAM info
+const swapInfo = computed(() => {
+  if (!props.systemStats) return null
+  const total = props.systemStats.swap_total || 0
+  if (total <= 0) return null
+  const used = props.systemStats.swap_used || 0
+  const totalMB = Math.round(total / 1024 / 1024)
+  const usedMB = Math.round(used / 1024 / 1024)
+  return `${usedMB} / ${totalMB} MB`
+})
+</script>
 </script>
 
 <template>
@@ -44,6 +60,14 @@ defineEmits(['skip'])
           <span :class="requirements.has_wifi ? 'text-success' : 'text-warning'">
             {{ requirements.has_wifi ? 'Available' : 'Not detected' }}
           </span>
+        </div>
+        <div v-if="swapInfo" class="flex justify-between">
+          <span class="text-theme-muted">Swap / ZRAM</span>
+          <span class="text-theme-primary">{{ swapInfo }}</span>
+        </div>
+        <div v-else class="flex justify-between">
+          <span class="text-theme-muted">Swap / ZRAM</span>
+          <span class="text-theme-muted">Not configured</span>
         </div>
       </div>
     </div>

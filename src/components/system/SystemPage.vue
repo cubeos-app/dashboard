@@ -106,8 +106,10 @@ async function fetchPowerStatus() {
   }
 }
 
-async function fetchSharedData() {
-  loading.value = true
+async function fetchSharedData(isInitial = false) {
+  // B47: Only show loading indicator on initial fetch, not during polling.
+  // Setting loading=true during refresh caused PowerCard to flicker.
+  if (isInitial) loading.value = true
   error.value = null
   try {
     const s = signal()
@@ -118,7 +120,7 @@ async function fetchSharedData() {
   } catch (e) {
     if (e.name !== 'AbortError') error.value = e.message
   } finally {
-    loading.value = false
+    if (isInitial) loading.value = false
   }
 }
 
@@ -143,7 +145,7 @@ function handleVisibilityChange() {
 }
 
 onMounted(() => {
-  fetchSharedData()
+  fetchSharedData(true)
   startPolling()
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })

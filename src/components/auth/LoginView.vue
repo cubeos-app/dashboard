@@ -15,11 +15,21 @@ const brandingStore = useBrandingStore()
 const username = ref('')
 const password = ref('')
 const showPassword = ref(false)
-const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
+const appVersion = ref(import.meta.env.VITE_APP_VERSION || 'dev')
 
-onMounted(() => {
+onMounted(async () => {
   themeStore.initTheme()
   brandingStore.initBranding()
+  // B50: Fetch version dynamically from API instead of build-time env var
+  try {
+    const resp = await fetch('/api/v1/system/info')
+    if (resp.ok) {
+      const data = await resp.json()
+      if (data.cubeos_version) appVersion.value = data.cubeos_version
+    }
+  } catch {
+    // Keep build-time fallback — non-critical
+  }
 })
 
 async function handleSubmit() {

@@ -74,11 +74,16 @@ export const useSetupStore = defineStore('setup', () => {
    * compatibility. The router guard needs the return value before the component
    * tree mounts.
    *
+   * B49: Added force parameter to bypass cache after login. The old code
+   * cached aggressively and assumed is_complete:true on any error, causing
+   * the wizard to be skipped after first login.
+   *
+   * @param {boolean} force - Skip cache and fetch fresh from API
    * @returns {Object|null} Status data, or null on error
    */
-  async function fetchStatus() {
-    // If already fetched, return cached status
-    if (status.value !== null) return status.value
+  async function fetchStatus(force = false) {
+    // If already fetched and not forced, return cached status
+    if (!force && status.value !== null) return status.value
 
     try {
       const data = await api.get('/setup/status')
@@ -90,9 +95,14 @@ export const useSetupStore = defineStore('setup', () => {
         status.value = { is_complete: true }
         return status.value
       }
-      // On any other error, assume complete to avoid blocking access
+      // B49: On other errors (e.g. 428, 500), do NOT assume complete.
+      // Return incomplete so the router guard can redirect to setup.
+      // Only treat as complete if we have a cached value saying so.
       error.value = e.message
-      status.value = { is_complete: true }
+      if (status.value?.is_complete === true) {
+        return status.value
+      }
+      status.value = { is_complete: false }
       return status.value
     }
   }

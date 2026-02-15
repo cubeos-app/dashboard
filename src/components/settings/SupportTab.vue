@@ -17,6 +17,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSetupStore } from '@/stores/setup'
 import { useBrandingStore } from '@/stores/branding'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
 const systemStore = useSystemStore()
@@ -71,8 +72,14 @@ async function downloadBundle() {
   bundleLoading.value = true
   bundleError.value = ''
   try {
+    // B48: Append ?token= so the browser download request is authenticated.
+    // The API middleware already supports query parameter auth.
+    const token = api.accessToken || ''
+    const url = token
+      ? `/api/v1/support/bundle.zip?token=${encodeURIComponent(token)}`
+      : '/api/v1/support/bundle.zip'
     const link = document.createElement('a')
-    link.href = '/api/v1/support/bundle.zip'
+    link.href = url
     link.download = 'cubeos-support-bundle.zip'
     link.click()
   } catch (e) {

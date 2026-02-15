@@ -185,8 +185,10 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   const setupStore = useSetupStore()
 
-  // Always check setup status first
-  const statusData = await setupStore.fetchStatus()
+  // B49: Force fresh status check when navigating away from login/setup
+  // to avoid stale cache from pre-login navigation.
+  const comingFromAuth = from.name === 'login' || from.name === 'setup'
+  const statusData = await setupStore.fetchStatus(comingFromAuth)
   const isSetupDone = statusData?.is_complete === true
 
   if (!isSetupDone && to.name !== 'setup') {

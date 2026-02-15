@@ -98,6 +98,16 @@ onMounted(async () => {
   }
 })
 
+// B46: When user logs in after mount (e.g. first boot wizard → login),
+// the header shows but stats are 0 because fetchAll was skipped at mount.
+// Watch auth state to start fetching immediately on login.
+watch(() => authStore.isAuthenticated, (isAuth, wasAuth) => {
+  if (isAuth && !wasAuth) {
+    systemStore.fetchAll()
+    wsReconnect()
+  }
+})
+
 onUnmounted(() => {
   stopFallbackPolling()
 })
