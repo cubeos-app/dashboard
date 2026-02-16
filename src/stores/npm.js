@@ -33,6 +33,7 @@ export const useNPMStore = defineStore('npm', () => {
   const isOnline = computed(() => {
     const s = status.value
     if (!s || s.error) return false
+    if (s.online === true) return true
     if (s.running === true) return true
     const onlineStates = ['running', 'healthy', 'online', 'up']
     const checkField = (val) => val && onlineStates.includes(String(val).toLowerCase())
