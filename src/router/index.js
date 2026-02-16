@@ -28,6 +28,12 @@ import { useSetupStore } from '@/stores/setup'
 const routes = [
   // ─── Guest routes ─────────────────────────────────────────────
   {
+    path: '/connecting',
+    name: 'connecting',
+    component: () => import('@/components/ui/ConnectingView.vue'),
+    meta: { guest: true }
+  },
+  {
     path: '/setup',
     name: 'setup',
     component: () => import('@/components/wizard/FirstBootWizard.vue'),
@@ -190,6 +196,19 @@ router.beforeEach(async (to, from, next) => {
   const comingFromAuth = from.name === 'login' || from.name === 'setup'
   const statusData = await setupStore.fetchStatus(comingFromAuth)
   const isSetupDone = statusData?.is_complete === true
+  const isUnreachable = statusData?.unreachable === true
+
+  // B07: If API is unreachable, show connecting screen (not wizard)
+  if (isUnreachable && to.name !== 'connecting') {
+    next({ name: 'connecting' })
+    return
+  }
+
+  // Allow connecting page to render without further checks
+  if (to.name === 'connecting') {
+    next()
+    return
+  }
 
   if (!isSetupDone && to.name !== 'setup') {
     next({ name: 'setup' })
