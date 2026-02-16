@@ -75,6 +75,12 @@ export const useHardwareStore = defineStore('hardware', () => {
   const loading = ref(false)
   const error = ref(null)
 
+  // B40: Helper — 501 (not supported) and 503 (HAL unavailable) are expected
+  // for absent hardware and should not show error banners.
+  function isExpectedHardwareError(e) {
+    return e?.status === 501 || e?.status === 503
+  }
+
   // ==========================================
   // Overview / Power / Boot
   // ==========================================
@@ -91,7 +97,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       overview.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       error.value = e.message
     } finally {
       if (!skipLoading) loading.value = false
@@ -108,7 +114,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       power.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       power.value = null
     }
   }
@@ -123,7 +129,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       throttle.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       throttle.value = null
     }
   }
@@ -138,7 +144,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       uptime.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       uptime.value = null
     }
   }
@@ -153,7 +159,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       bootConfig.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       bootConfig.value = null
     }
   }
@@ -168,7 +174,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       ups.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       ups.value = null
     }
   }
@@ -214,7 +220,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       powerStatus.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       powerStatus.value = null
     }
   }
@@ -252,7 +258,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       gpioPins.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       // B11: Log but don't block — GPIO may not be available on all hardware
       console.warn('GPIO fetch failed:', e.message)
       gpioPins.value = { pins: [], error: e.message }
@@ -329,7 +335,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       i2cBuses.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       error.value = e.message
       i2cBuses.value = null
     } finally {
@@ -387,7 +393,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       sensors.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       error.value = e.message
       sensors.value = null
     } finally {
@@ -405,7 +411,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       bme280.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       bme280.value = null
     }
   }
@@ -420,7 +426,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       oneWireDevices.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       oneWireDevices.value = null
     }
   }
@@ -456,7 +462,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       temperatureZones.value = data.zones || data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       // B11: Don't set global error — temperature zones is supplementary data.
       // Failing here shouldn't block the overview tab from rendering.
       console.warn('Temperature zones fetch failed:', e.message)
@@ -482,7 +488,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       rtc.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       error.value = e.message
       rtc.value = null
     } finally {
@@ -557,7 +563,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       watchdog.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       error.value = e.message
       watchdog.value = null
     } finally {
@@ -617,7 +623,7 @@ export const useHardwareStore = defineStore('hardware', () => {
       if (data === null) return
       powerMonitor.value = data
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
       powerMonitor.value = null
     }
   }
