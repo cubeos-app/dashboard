@@ -160,7 +160,7 @@ async function handleSubmit() {
           </a>
           <span class="text-theme-muted">|</span>
           <a 
-            href="/api/v1/swagger/index.html" 
+            href="//api.cubeos.cube/api/v1/swagger/index.html" 
             target="_blank"
             class="text-theme-tertiary hover:text-theme-secondary transition-colors flex items-center gap-1"
           >

@@ -395,28 +395,20 @@ function closeSidebar() {
                     — {{ docsStatus.docs_available ? 'docs found' : 'no docs on disk' }}
                   </template>
                 </p>
-                <div class="flex justify-center gap-4 text-xs">
-                  <span :class="docsStatus.ollama_ok ? 'text-success' : 'text-error'">
-                    Ollama: {{ docsStatus.ollama_ok ? 'OK' : 'offline' }}
-                  </span>
-                  <span :class="docsStatus.chromadb_ok ? 'text-success' : 'text-error'">
-                    ChromaDB: {{ docsStatus.chromadb_ok ? 'OK' : 'offline' }}
-                  </span>
-                </div>
-                <p v-if="!docsStatus.ollama_ok || !docsStatus.chromadb_ok" class="text-xs text-theme-muted">
-                  Documentation requires Ollama and ChromaDB services to be running.
-                  Check the Services page to verify their status.
-                </p>
-                <p v-else-if="!docsStatus.docs_available" class="text-xs text-theme-muted">
+                <p v-if="!docsStatus.docs_available" class="text-xs text-theme-muted">
                   No documentation files found on disk. They will be indexed
                   automatically once available in /cubeos/docs.
+                </p>
+                <p v-else class="text-xs text-theme-muted">
+                  The documentation index may still be building.
+                  Try again in a moment.
                 </p>
               </div>
             </template>
             <template v-else>
               <p class="text-theme-secondary text-sm mb-4 max-w-md mx-auto">
                 The documentation service is not responding. It may still be
-                starting up, or the Ollama and ChromaDB services may be offline.
+                starting up. Check the Services page for status.
               </p>
             </template>
 
@@ -428,7 +420,7 @@ function closeSidebar() {
                 Retry
               </button>
               <a
-                href="/api/v1/swagger/index.html"
+                href="//api.cubeos.cube/api/v1/swagger/index.html"
                 target="_blank"
                 rel="noopener"
                 class="px-4 py-2 rounded-lg border border-theme-primary text-theme-secondary text-sm hover:bg-theme-tertiary transition-colors"

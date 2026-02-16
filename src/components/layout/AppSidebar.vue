@@ -197,7 +197,7 @@ const sidebarWidth = computed(() => {
           <span class="font-mono">GitHub</span>
         </a>
         <a
-          href="/api/v1/swagger/index.html"
+          href="//api.cubeos.cube/api/v1/swagger/index.html"
           target="_blank"
           rel="noopener"
           class="flex items-center gap-1.5 text-[10px] text-theme-muted hover:text-theme-tertiary transition-colors mt-1"

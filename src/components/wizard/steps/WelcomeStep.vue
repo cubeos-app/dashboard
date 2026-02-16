@@ -16,15 +16,25 @@ const props = defineProps({
 
 defineEmits(['skip'])
 
-// B38: Format swap/ZRAM info
+// B38+B10: Format swap/ZRAM info
+// Primary: system stats (has used + total in bytes)
+// Fallback: requirements (has swap_total_mb + swap_configured from HAL)
 const swapInfo = computed(() => {
-  if (!props.systemStats) return null
-  const total = props.systemStats.swap_total || 0
-  if (total <= 0) return null
-  const used = props.systemStats.swap_used || 0
-  const totalMB = Math.round(total / 1024 / 1024)
-  const usedMB = Math.round(used / 1024 / 1024)
-  return `${usedMB} / ${totalMB} MB`
+  // Try system stats first (more detailed — has usage info)
+  if (props.systemStats) {
+    const total = props.systemStats.swap_total || 0
+    if (total > 0) {
+      const used = props.systemStats.swap_used || 0
+      const totalMB = Math.round(total / 1024 / 1024)
+      const usedMB = Math.round(used / 1024 / 1024)
+      return `${usedMB} / ${totalMB} MB`
+    }
+  }
+  // Fallback to requirements (swap_total_mb from setup endpoint)
+  if (props.requirements?.swap_configured && props.requirements.swap_total_mb > 0) {
+    return `${props.requirements.swap_total_mb} MB`
+  }
+  return null
 })
 </script>
 
