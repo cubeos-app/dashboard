@@ -66,7 +66,9 @@ const currentPlaceholder = computed(() => {
 
 onMounted(() => {
   placeholderInterval = setInterval(() => {
-    placeholderIndex.value = (placeholderIndex.value + 1) % placeholders.length
+    // B46: Use correct list variable (was referencing undefined 'placeholders')
+    const list = ollamaAvailable.value ? placeholdersWithChat : placeholdersNoChat
+    placeholderIndex.value = (placeholderIndex.value + 1) % list.length
   }, 4000)
 })
 

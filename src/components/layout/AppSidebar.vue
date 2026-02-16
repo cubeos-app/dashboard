@@ -19,6 +19,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppsStore } from '@/stores/apps'
 import { useBrandingStore } from '@/stores/branding'
+import { useSystemStore } from '@/stores/system'
 import { useMode } from '@/composables/useMode'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useHardwareDetection } from '@/composables/useHardwareDetection'
@@ -28,10 +29,12 @@ const route = useRoute()
 const router = useRouter()
 const appsStore = useAppsStore()
 const brandingStore = useBrandingStore()
+const systemStore = useSystemStore()
 const { isAdvanced } = useMode()
 const { isMobile, isWide } = useBreakpoint()
 const { hasCommHardware, hasMediaHardware } = useHardwareDetection()
-const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
+// B43: Read version from API via system store, fall back to build-time constant
+const appVersion = computed(() => systemStore.cubeosVersion || import.meta.env.VITE_APP_VERSION || 'dev')
 
 /** Whether icon rail is expanded on hover (tablet/desktop only) */
 const hovered = ref(false)

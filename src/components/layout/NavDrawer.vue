@@ -12,6 +12,7 @@
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBrandingStore } from '@/stores/branding'
+import { useSystemStore } from '@/stores/system'
 import { useMode } from '@/composables/useMode'
 import { useHardwareDetection } from '@/composables/useHardwareDetection'
 import Icon from '@/components/ui/Icon.vue'
@@ -27,9 +28,11 @@ const props = defineProps({
 const emit = defineEmits(['close', 'navigate'])
 const route = useRoute()
 const brandingStore = useBrandingStore()
+const systemStore = useSystemStore()
 const { isAdvanced } = useMode()
 const { hasCommHardware, hasMediaHardware } = useHardwareDetection()
-const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
+// B43: Read version from API via system store, fall back to build-time constant
+const appVersion = computed(() => systemStore.cubeosVersion || import.meta.env.VITE_APP_VERSION || 'dev')
 
 // ─── All Navigation Items ─────────────────────────────────────────
 // Includes items not in the bottom tab bar, filtered by hardware detection

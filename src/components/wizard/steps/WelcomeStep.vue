@@ -60,6 +60,15 @@ const swapInfo = computed(() => {
           <span class="text-theme-muted">RAM</span>
           <span class="text-theme-primary">{{ requirements.total_ram_mb || 0 }} MB</span>
         </div>
+        <!-- B36: Swap/ZRAM directly under RAM for logical memory grouping -->
+        <div v-if="swapInfo" class="flex justify-between">
+          <span class="text-theme-muted">Swap / ZRAM</span>
+          <span class="text-theme-primary">{{ swapInfo }}</span>
+        </div>
+        <div v-else class="flex justify-between">
+          <span class="text-theme-muted">Swap / ZRAM</span>
+          <span class="text-theme-muted">Not configured</span>
+        </div>
         <div class="flex justify-between">
           <span class="text-theme-muted">CPU Cores</span>
           <span class="text-theme-primary">{{ requirements.cpu_cores || 0 }}</span>
@@ -69,14 +78,6 @@ const swapInfo = computed(() => {
           <span :class="requirements.has_wifi ? 'text-success' : 'text-warning'">
             {{ requirements.has_wifi ? 'Available' : 'Not detected' }}
           </span>
-        </div>
-        <div v-if="swapInfo" class="flex justify-between">
-          <span class="text-theme-muted">Swap / ZRAM</span>
-          <span class="text-theme-primary">{{ swapInfo }}</span>
-        </div>
-        <div v-else class="flex justify-between">
-          <span class="text-theme-muted">Swap / ZRAM</span>
-          <span class="text-theme-muted">Not configured</span>
         </div>
       </div>
     </div>
