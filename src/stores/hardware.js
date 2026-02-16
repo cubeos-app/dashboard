@@ -253,8 +253,9 @@ export const useHardwareStore = defineStore('hardware', () => {
       gpioPins.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
-      error.value = e.message
-      gpioPins.value = null
+      // B11: Log but don't block — GPIO may not be available on all hardware
+      console.warn('GPIO fetch failed:', e.message)
+      gpioPins.value = { pins: [], error: e.message }
     } finally {
       if (!skipLoading) loading.value = false
     }
@@ -456,7 +457,9 @@ export const useHardwareStore = defineStore('hardware', () => {
       temperatureZones.value = data.zones || data
     } catch (e) {
       if (e.name === 'AbortError') return
-      error.value = e.message
+      // B11: Don't set global error — temperature zones is supplementary data.
+      // Failing here shouldn't block the overview tab from rendering.
+      console.warn('Temperature zones fetch failed:', e.message)
       temperatureZones.value = null
     } finally {
       if (!skipLoading) loading.value = false

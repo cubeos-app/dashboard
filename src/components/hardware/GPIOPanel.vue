@@ -43,6 +43,10 @@ onMounted(async () => {
   error.value = null
   try {
     await hardwareStore.fetchGPIO({ signal: signal() })
+    // B11: Check if store captured an error (GPIO unavailable)
+    if (hardwareStore.gpioPins?.error) {
+      error.value = hardwareStore.gpioPins.error
+    }
   } catch (e) {
     if (e.name !== 'AbortError') error.value = e.message
   } finally {
