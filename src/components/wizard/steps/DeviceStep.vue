@@ -34,6 +34,9 @@ function update(field, value) {
         <p class="text-xs text-theme-muted mt-1">
           Network hostname (e.g., <code class="text-accent">{{ modelValue.hostname || 'cubeos' }}.cube</code>)
         </p>
+        <p class="mt-1 text-xs text-theme-muted">
+          Note: Hostname changes take effect after reboot.
+        </p>
       </div>
 
       <div>

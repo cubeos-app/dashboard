@@ -20,12 +20,12 @@ const appVersion = ref(import.meta.env.VITE_APP_VERSION || 'dev')
 onMounted(async () => {
   themeStore.initTheme()
   brandingStore.initBranding()
-  // B50: Fetch version dynamically from API instead of build-time env var
+  // B50: Fetch version from public /health endpoint (no auth required)
   try {
-    const resp = await fetch('/api/v1/system/info')
+    const resp = await fetch('/health')
     if (resp.ok) {
       const data = await resp.json()
-      if (data.cubeos_version) appVersion.value = data.cubeos_version
+      if (data.version) appVersion.value = data.version
     }
   } catch {
     // Keep build-time fallback — non-critical
