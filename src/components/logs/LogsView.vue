@@ -133,8 +133,10 @@ async function fetchOptions() {
     ])
     units.value = logsStore.units || []
     const appsList = servicesResp?.apps || []
+    // B38: Show all apps (not just running ones) — stopped containers still have logs.
+    // Previous filter (s.status?.running) excluded all apps when Swarm status wasn't populated.
     containers.value = appsList
-      .filter(s => s.status?.running || s.state === 'running')
+      .filter(s => s.enabled !== false)
       .map(s => s.name)
   } catch {
     // Options fetch failed silently
