@@ -101,6 +101,34 @@ export const useCommunicationStore = defineStore('communication', () => {
   const loading = ref(false)
   const error = ref(null)
 
+  // Absent-hardware cache: stop polling endpoints returning 404/503
+  const _unavailableCache = {}
+  const UNAVAILABLE_TTL_MS = 60000
+
+  function isUnavailable(key) {
+    const cached = _unavailableCache[key]
+    if (!cached) return false
+    if (Date.now() - cached > UNAVAILABLE_TTL_MS) {
+      delete _unavailableCache[key]
+      return false
+    }
+    return true
+  }
+
+  function markUnavailable(key) {
+    _unavailableCache[key] = Date.now()
+  }
+
+  function isAbsentHardwareError(e) {
+    if (e && (e.status === 404 || e.status === 503)) return true
+    const msg = (e && e.message) || ''
+    return /\b(404|503)\b/.test(msg) || /not found/i.test(msg)
+  }
+
+  function clearUnavailableCache() {
+    Object.keys(_unavailableCache).forEach(k => delete _unavailableCache[k])
+  }
+
   // ==========================================
   // SSE Helpers
   // ==========================================
@@ -205,6 +233,7 @@ export const useCommunicationStore = defineStore('communication', () => {
    * GET /communication/bluetooth
    */
   async function fetchBluetooth(options = {}) {
+    if (isUnavailable('bluetooth')) return
     loading.value = true
     error.value = null
     try {
@@ -213,7 +242,8 @@ export const useCommunicationStore = defineStore('communication', () => {
       bluetooth.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
-      error.value = e.message
+      if (isAbsentHardwareError(e)) { markUnavailable('bluetooth') }
+      else { error.value = e.message }
       bluetooth.value = null
     } finally {
       loading.value = false
@@ -246,12 +276,14 @@ export const useCommunicationStore = defineStore('communication', () => {
    * GET /communication/bluetooth/devices
    */
   async function fetchBluetoothDevices(options = {}) {
+    if (isUnavailable('bluetooth')) return
     try {
       const data = await api.get('/communication/bluetooth/devices', {}, options)
       if (data === null) return
       bluetoothDevices.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
+      if (isAbsentHardwareError(e)) { markUnavailable('bluetooth') }
       bluetoothDevices.value = null
     }
   }
@@ -365,6 +397,7 @@ export const useCommunicationStore = defineStore('communication', () => {
    * GET /communication/cellular
    */
   async function fetchCellularModems(options = {}) {
+    if (isUnavailable('cellular')) return
     loading.value = true
     error.value = null
     try {
@@ -373,7 +406,8 @@ export const useCommunicationStore = defineStore('communication', () => {
       cellularModems.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
-      error.value = e.message
+      if (isAbsentHardwareError(e)) { markUnavailable('cellular') }
+      else { error.value = e.message }
       cellularModems.value = null
     } finally {
       loading.value = false
@@ -385,12 +419,14 @@ export const useCommunicationStore = defineStore('communication', () => {
    * GET /communication/cellular/status
    */
   async function fetchCellularStatus(options = {}) {
+    if (isUnavailable('cellular')) return
     try {
       const data = await api.get('/communication/cellular/status', {}, options)
       if (data === null) return
       cellularStatus.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
+      if (isAbsentHardwareError(e)) { markUnavailable('cellular') }
       cellularStatus.value = null
     }
   }
@@ -505,6 +541,7 @@ export const useCommunicationStore = defineStore('communication', () => {
    * GET /communication/gps
    */
   async function fetchGPSDevices(options = {}) {
+    if (isUnavailable('gps')) return
     loading.value = true
     error.value = null
     try {
@@ -513,7 +550,8 @@ export const useCommunicationStore = defineStore('communication', () => {
       gpsDevices.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
-      error.value = e.message
+      if (isAbsentHardwareError(e)) { markUnavailable('gps') }
+      else { error.value = e.message }
       gpsDevices.value = null
     } finally {
       loading.value = false
@@ -1040,6 +1078,9 @@ export const useCommunicationStore = defineStore('communication', () => {
     // State — Common
     loading,
     error,
+
+    // Cache management
+    clearUnavailableCache,
 
     // SSE Helpers
     closeSSE,

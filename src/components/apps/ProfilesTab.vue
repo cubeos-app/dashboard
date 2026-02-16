@@ -26,6 +26,12 @@ const error = ref('')
 const newProfile = ref({ name: '', description: '' })
 const activeProfile = computed(() => profilesStore.profiles.find(p => p.is_active))
 
+// Title-case profile names for display (API returns lowercase: full, minimal, offline)
+function titleCase(str) {
+  if (!str) return ''
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
 onMounted(() => {
   profilesStore.fetchProfiles()
 })
@@ -125,7 +131,7 @@ async function toggleAppInProfile(app) {
       <div class="flex items-center gap-2">
         <span class="text-sm text-theme-secondary">{{ profilesStore.profiles.length }} profiles</span>
         <span v-if="activeProfile" class="text-sm text-success flex items-center gap-1">
-          <Icon name="CheckCircle" :size="14" />Active: {{ activeProfile.name }}
+          <Icon name="CheckCircle" :size="14" />Active: {{ titleCase(activeProfile.name) }}
         </span>
       </div>
       <button @click="showCreateModal = true" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors">
@@ -146,7 +152,7 @@ async function toggleAppInProfile(app) {
         <div class="flex items-start justify-between">
           <div>
             <div class="flex items-center gap-2">
-              <h3 class="text-sm font-medium text-theme-primary">{{ profile.name }}</h3>
+              <h3 class="text-sm font-medium text-theme-primary">{{ titleCase(profile.name) }}</h3>
               <span v-if="profile.is_active" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-success-muted text-success">
                 <Icon name="CheckCircle" :size="10" class="mr-1" />Active
               </span>
@@ -203,7 +209,7 @@ async function toggleAppInProfile(app) {
         <div class="fixed inset-0 bg-theme-overlay backdrop-blur-sm" @click="showConfigureModal = false"></div>
         <div class="relative bg-theme-secondary rounded-lg shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto" role="dialog" aria-modal="true" :aria-label="'Configure profile ' + selectedProfile.name">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-medium text-theme-primary">Configure: {{ selectedProfile.name }}</h3>
+            <h3 class="text-lg font-medium text-theme-primary">Configure: {{ titleCase(selectedProfile.name) }}</h3>
             <button @click="showConfigureModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
           </div>
           <p class="text-sm text-theme-secondary mb-4">Select which apps should be enabled when this profile is active:</p>

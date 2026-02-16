@@ -185,6 +185,7 @@ const sidebarWidth = computed(() => {
 
       <!-- Version + API links (wide mode only) -->
       <div v-if="showLabels" class="pt-2 px-2.5">
+        <p class="text-[10px] text-theme-muted font-mono mb-1.5">{{ appVersion }}</p>
         <a
           :href="brandingStore.currentBrand.github"
           target="_blank"

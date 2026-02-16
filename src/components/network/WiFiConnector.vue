@@ -40,9 +40,27 @@ const scanning = computed(() => networkStore.scanning)
 // Set of saved SSIDs for quick lookup
 const savedSSIDs = computed(() => new Set(networkStore.savedNetworks.map(n => n.ssid)))
 
-// Sort networks by signal strength
+// Sort networks by signal strength, filtering phantom 0MHz entries
+const validNetworks = computed(() => {
+  return networks.value.filter(n => {
+    if ((n.frequency === 0 || n.freq === 0) && !n.ssid?.trim()) return false
+    if (n.frequency === 0 || n.freq === 0) return false
+    if (!n.ssid || !n.ssid.trim()) return false
+    return true
+  })
+})
+
 const sortedNetworks = computed(() => {
-  return [...networks.value].sort((a, b) => b.signal - a.signal)
+  return [...validNetworks.value].sort((a, b) => b.signal - a.signal)
+})
+
+// Detect missing client WiFi adapter: raw networks exist (phantom) but all filtered
+const hasClientAdapter = computed(() => {
+  // If we never scanned or are still scanning, assume adapter exists
+  if (!scanning.value && networks.value.length === 0 && !scanCooldown.value) return true
+  // If raw networks came back but ALL are phantom (0MHz/empty), no real adapter
+  if (networks.value.length > 0 && validNetworks.value.length === 0) return false
+  return true
 })
 
 // Watch for modal open
@@ -294,6 +312,16 @@ onUnmounted(() => {
               
               <!-- Network List -->
               <div v-else-if="!selectedNetwork" class="space-y-2">
+                <!-- No client adapter detected -->
+                <div v-if="!hasClientAdapter" class="text-center py-8">
+                  <Icon name="WifiOff" :size="32" class="text-theme-muted mx-auto mb-2" />
+                  <p class="font-medium text-theme-primary mb-1">No Client WiFi Adapter Detected</p>
+                  <p class="text-xs text-theme-tertiary max-w-xs mx-auto">
+                    The built-in WiFi is used for the Access Point. Connect a USB WiFi adapter for client (uplink) mode.
+                  </p>
+                </div>
+
+                <template v-else>
                 <button
                   @click="scanNetworks"
                   :disabled="scanning || scanCooldown"
@@ -355,6 +383,7 @@ onUnmounted(() => {
                     Try again
                   </button>
                 </div>
+                </template>
               </div>
               
               <!-- Password Entry -->

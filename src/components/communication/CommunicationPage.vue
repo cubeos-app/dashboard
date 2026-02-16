@@ -77,6 +77,8 @@ const error = ref(null)
 async function refresh() {
   loading.value = true
   error.value = null
+  // Clear hardware-absent cache so absent endpoints are re-checked
+  communicationStore.clearUnavailableCache()
   try {
     const s = signal()
     if (activeTab.value === 'gps') {
@@ -116,6 +118,16 @@ async function refresh() {
 onMounted(() => {
   refresh()
 })
+
+// T11: Suppress hardware-absent errors (404/503) from page-level banner
+// Individual tabs handle missing hardware with friendly messages
+const displayError = computed(() => {
+  const e = error.value || communicationStore.error
+  if (!e) return null
+  // Filter out absent-hardware errors
+  if (/\b(404|503)\b/.test(e) || /not found/i.test(e) || /service unavailable/i.test(e)) return null
+  return e
+})
 </script>
 
 <template>
@@ -138,10 +150,10 @@ onMounted(() => {
       </template>
     </PageHeader>
 
-    <!-- Error Alert -->
-    <div v-if="error || communicationStore.error" class="bg-error-muted border border-error-subtle rounded-lg p-4 flex items-center gap-3">
+    <!-- Error Alert (suppresses hardware-absent 404/503 errors) -->
+    <div v-if="displayError" class="bg-error-muted border border-error-subtle rounded-lg p-4 flex items-center gap-3">
       <Icon name="AlertCircle" :size="18" class="text-error shrink-0" />
-      <p class="text-error text-sm flex-1">{{ error || communicationStore.error }}</p>
+      <p class="text-error text-sm flex-1">{{ displayError }}</p>
       <button @click="error = null" class="p-1 text-error hover:opacity-70" aria-label="Dismiss error">
         <Icon name="X" :size="14" />
       </button>

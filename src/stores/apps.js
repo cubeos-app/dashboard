@@ -404,29 +404,49 @@ export const useAppsStore = defineStore('apps', () => {
   // API Methods
   // ==========================================
 
+  // Cache and deduplication for fetchApps
+  let _lastFetchTime = 0
+  let _fetchInFlight = null
+  const CACHE_TTL_MS = 5000 // Skip re-fetch if last success < 5s ago
+
   /**
    * Fetch all apps from the API
-   * @param {object} options - Optional { signal } for AbortController
+   * @param {object} options - Optional { signal, force } for AbortController / cache bypass
    */
   async function fetchApps(options = {}) {
-    loading.value = true
-    error.value = null
-    
-    try {
-      const params = {}
-      if (filterType.value) params.type = filterType.value
-      if (filterEnabled.value !== null) params.enabled = filterEnabled.value
-      
-      const response = await appsApi.listApps(params, options)
-      if (response === null) return // Aborted
-      apps.value = response.apps || []
-      lastUpdated.value = new Date()
-    } catch (e) {
-      if (e.name === 'AbortError') return
-      error.value = e.message
-    } finally {
-      loading.value = false
+    // Dedup: skip if recently fetched (unless forced)
+    if (!options.force && _lastFetchTime && (Date.now() - _lastFetchTime < CACHE_TTL_MS)) {
+      return
     }
+    // Coalesce: if a fetch is already in-flight, return the same promise
+    if (_fetchInFlight && !options.force) {
+      return _fetchInFlight
+    }
+
+    _fetchInFlight = (async () => {
+      loading.value = true
+      error.value = null
+      
+      try {
+        const params = {}
+        if (filterType.value) params.type = filterType.value
+        if (filterEnabled.value !== null) params.enabled = filterEnabled.value
+        
+        const response = await appsApi.listApps(params, options)
+        if (response === null) return // Aborted
+        apps.value = response.apps || []
+        lastUpdated.value = new Date()
+        _lastFetchTime = Date.now()
+      } catch (e) {
+        if (e.name === 'AbortError') return
+        error.value = e.message
+      } finally {
+        loading.value = false
+        _fetchInFlight = null
+      }
+    })()
+    
+    return _fetchInFlight
   }
 
   /**

@@ -40,15 +40,29 @@ let debounceTimer = null
 const isMac = typeof window !== 'undefined' && window.navigator?.platform?.includes('Mac')
 
 // ─── Placeholder rotation ────────────────────────────────────────
-const placeholders = [
+const placeholdersWithChat = [
   'Search apps, settings, or ask CubeOS...',
   "Try: 'open Nextcloud' or 'restart Pi-hole'",
   "Ask: 'how do I set up a VPN?'"
 ]
+const placeholdersNoChat = [
+  'Search apps, settings, docs...',
+  "Try: 'open Nextcloud' or 'restart Pi-hole'",
+  "Search: 'network' or 'storage'"
+]
 const placeholderIndex = ref(0)
 let placeholderInterval = null
 
-const currentPlaceholder = computed(() => placeholders[placeholderIndex.value])
+// Detect Ollama availability from apps store
+const ollamaAvailable = computed(() => {
+  const ollama = appsStore.getAppByName ? appsStore.getAppByName('ollama') : appsStore.apps.find(a => a.name === 'ollama')
+  return ollama && appsStore.isRunning(ollama)
+})
+
+const currentPlaceholder = computed(() => {
+  const list = ollamaAvailable.value ? placeholdersWithChat : placeholdersNoChat
+  return list[placeholderIndex.value % list.length]
+})
 
 onMounted(() => {
   placeholderInterval = setInterval(() => {
@@ -168,9 +182,9 @@ function onInput() {
     return
   }
 
-  // Debounce: if no results after 500ms, suggest chat
+  // Debounce: if no results after 500ms, suggest chat (only if Ollama available)
   clearTimeout(debounceTimer)
-  if (query.value.trim().length > 2) {
+  if (query.value.trim().length > 2 && ollamaAvailable.value) {
     debounceTimer = setTimeout(() => {
       if (results.value.length === 0 && query.value.trim()) {
         chatMode.value = true
@@ -338,7 +352,7 @@ function cardClass() {
                   </button>
                 </div>
                 <div v-else class="p-6 text-center">
-                  <p class="text-sm text-theme-muted">Start typing to search apps, pages, or ask CubeOS</p>
+                  <p class="text-sm text-theme-muted">{{ ollamaAvailable ? 'Start typing to search apps, pages, or ask CubeOS' : 'Start typing to search apps, pages, and settings' }}</p>
                 </div>
               </template>
 
@@ -361,8 +375,8 @@ function cardClass() {
                 </div>
               </template>
 
-              <!-- Chat fallback -->
-              <template v-else-if="chatMode || query.startsWith('?')">
+              <!-- Chat fallback (only when Ollama is running) -->
+              <template v-else-if="ollamaAvailable && (chatMode || query.startsWith('?'))">
                 <div class="p-4 space-y-3">
                   <div v-if="!chatResponse && !chatLoading" class="space-y-2">
                     <p class="text-xs text-theme-muted">No matching apps or pages found. Ask CubeOS AI instead?</p>
@@ -403,6 +417,7 @@ function cardClass() {
                 <div class="p-6 text-center">
                   <p class="text-sm text-theme-muted">No results for "{{ query }}"</p>
                   <button
+                    v-if="ollamaAvailable"
                     class="mt-2 text-xs text-accent hover:underline"
                     @click="chatMode = true"
                   >

@@ -30,7 +30,14 @@ export const useNPMStore = defineStore('npm', () => {
   // Computed
   // ==========================================
 
-  const isOnline = computed(() => status.value?.running === true || status.value?.status === 'running')
+  const isOnline = computed(() => {
+    const s = status.value
+    if (!s || s.error) return false
+    if (s.running === true) return true
+    const onlineStates = ['running', 'healthy', 'online', 'up']
+    const checkField = (val) => val && onlineStates.includes(String(val).toLowerCase())
+    return checkField(s.status) || checkField(s.state) || checkField(s.health?.status)
+  })
   const hostCount = computed(() => hosts.value.length)
   const activeHosts = computed(() => hosts.value.filter(h => h.enabled !== false))
 

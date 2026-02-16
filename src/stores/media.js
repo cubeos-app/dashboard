@@ -53,6 +53,30 @@ export const useMediaStore = defineStore('media', () => {
   const loading = computed(() => audioLoading.value || cameraLoading.value)
   const error = computed(() => audioError.value || cameraError.value)
 
+  // Absent-hardware cache: stop polling endpoints returning 404/503
+  const _unavailableCache = {}
+  const UNAVAILABLE_TTL_MS = 60000
+
+  function isUnavailable(key) {
+    const cached = _unavailableCache[key]
+    if (!cached) return false
+    if (Date.now() - cached > UNAVAILABLE_TTL_MS) {
+      delete _unavailableCache[key]
+      return false
+    }
+    return true
+  }
+
+  function markUnavailable(key) {
+    _unavailableCache[key] = Date.now()
+  }
+
+  function isAbsentHardwareError(e) {
+    if (e && (e.status === 404 || e.status === 503)) return true
+    const msg = (e && e.message) || ''
+    return /\b(404|503)\b/.test(msg) || /not found/i.test(msg)
+  }
+
   // ==========================================
   // Audio
   // ==========================================
@@ -62,6 +86,7 @@ export const useMediaStore = defineStore('media', () => {
    * GET /media/audio
    */
   async function fetchAudioDevices(options = {}) {
+    if (isUnavailable('audio')) return
     audioLoading.value = true
     audioError.value = null
     try {
@@ -70,7 +95,8 @@ export const useMediaStore = defineStore('media', () => {
       audioDevices.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
-      audioError.value = e.message
+      if (isAbsentHardwareError(e)) { markUnavailable('audio') }
+      else { audioError.value = e.message }
       audioDevices.value = null
     } finally {
       audioLoading.value = false
@@ -167,6 +193,7 @@ export const useMediaStore = defineStore('media', () => {
    * GET /media/cameras
    */
   async function fetchCameras(options = {}) {
+    if (isUnavailable('cameras')) return
     cameraLoading.value = true
     cameraError.value = null
     try {
@@ -175,7 +202,8 @@ export const useMediaStore = defineStore('media', () => {
       cameras.value = data
     } catch (e) {
       if (e.name === 'AbortError') return
-      cameraError.value = e.message
+      if (isAbsentHardwareError(e)) { markUnavailable('cameras') }
+      else { cameraError.value = e.message }
       cameras.value = null
     } finally {
       cameraLoading.value = false
