@@ -81,6 +81,28 @@ export const useHardwareStore = defineStore('hardware', () => {
     return e?.status === 501 || e?.status === 503
   }
 
+  // B47: Absent-device TTL cache — skip re-polling endpoints that returned
+  // 501 (hardware not available) for 60 seconds. Prevents unnecessary network
+  // round-trips on every tab switch / auto-refresh cycle.
+  const ABSENT_TTL_MS = 60_000
+  const _absentCache = new Map() // key (endpoint) → timestamp
+
+  function isAbsent(key) {
+    const ts = _absentCache.get(key)
+    if (!ts) return false
+    if (Date.now() - ts < ABSENT_TTL_MS) return true
+    _absentCache.delete(key) // expired
+    return false
+  }
+
+  function markAbsent(key) {
+    _absentCache.set(key, Date.now())
+  }
+
+  function clearAbsent(key) {
+    _absentCache.delete(key)
+  }
+
   // ==========================================
   // Overview / Power / Boot
   // ==========================================
@@ -109,12 +131,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/power
    */
   async function fetchPower(options = {}) {
+    if (isAbsent('hw:power')) return
     try {
       const data = await api.get('/hardware/power', {}, options)
       if (data === null) return
       power.value = data
+      clearAbsent('hw:power')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:power'); return }
       power.value = null
     }
   }
@@ -169,12 +194,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/ups
    */
   async function fetchUPS(options = {}) {
+    if (isAbsent('hw:ups')) return
     try {
       const data = await api.get('/hardware/ups', {}, options)
       if (data === null) return
       ups.value = data
+      clearAbsent('hw:ups')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:ups'); return }
       ups.value = null
     }
   }
@@ -215,12 +243,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /power/status
    */
   async function fetchPowerStatus(options = {}) {
+    if (isAbsent('hw:power-status')) return
     try {
       const data = await api.get('/power/status', {}, options)
       if (data === null) return
       powerStatus.value = data
+      clearAbsent('hw:power-status')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:power-status'); return }
       powerStatus.value = null
     }
   }
@@ -252,13 +283,16 @@ export const useHardwareStore = defineStore('hardware', () => {
    */
   async function fetchGPIO(options = {}) {
     const { skipLoading, ...opts } = options
+    if (isAbsent('hw:gpio')) return
     if (!skipLoading) { loading.value = true; error.value = null }
     try {
       const data = await api.get('/hardware/gpio', {}, opts)
       if (data === null) return
       gpioPins.value = data
+      clearAbsent('hw:gpio')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:gpio'); return }
       // B11: Log but don't block — GPIO may not be available on all hardware
       console.warn('GPIO fetch failed:', e.message)
       gpioPins.value = { pins: [], error: e.message }
@@ -329,13 +363,16 @@ export const useHardwareStore = defineStore('hardware', () => {
    */
   async function fetchI2CBuses(options = {}) {
     const { skipLoading, ...opts } = options
+    if (isAbsent('hw:i2c')) return
     if (!skipLoading) { loading.value = true; error.value = null }
     try {
       const data = await api.get('/hardware/i2c', {}, opts)
       if (data === null) return
       i2cBuses.value = data
+      clearAbsent('hw:i2c')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:i2c'); return }
       error.value = e.message
       i2cBuses.value = null
     } finally {
@@ -387,13 +424,16 @@ export const useHardwareStore = defineStore('hardware', () => {
    */
   async function fetchSensors(options = {}) {
     const { skipLoading, ...opts } = options
+    if (isAbsent('hw:sensors')) return
     if (!skipLoading) { loading.value = true; error.value = null }
     try {
       const data = await api.get('/hardware/sensors', {}, opts)
       if (data === null) return
       sensors.value = data
+      clearAbsent('hw:sensors')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:sensors'); return }
       error.value = e.message
       sensors.value = null
     } finally {
@@ -406,12 +446,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/sensors/bme280
    */
   async function fetchBME280(options = {}) {
+    if (isAbsent('hw:bme280')) return
     try {
       const data = await api.get('/hardware/sensors/bme280', {}, options)
       if (data === null) return
       bme280.value = data
+      clearAbsent('hw:bme280')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:bme280'); return }
       bme280.value = null
     }
   }
@@ -421,12 +464,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * GET /hardware/sensors/1wire
    */
   async function fetch1Wire(options = {}) {
+    if (isAbsent('hw:1wire')) return
     try {
       const data = await api.get('/hardware/sensors/1wire', {}, options)
       if (data === null) return
       oneWireDevices.value = data
+      clearAbsent('hw:1wire')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:1wire'); return }
       oneWireDevices.value = null
     }
   }
@@ -482,13 +528,16 @@ export const useHardwareStore = defineStore('hardware', () => {
    */
   async function fetchRTC(options = {}) {
     const { skipLoading, ...opts } = options
+    if (isAbsent('hw:rtc')) return
     if (!skipLoading) { loading.value = true; error.value = null }
     try {
       const data = await api.get('/hardware/rtc', {}, opts)
       if (data === null) return
       rtc.value = data
+      clearAbsent('hw:rtc')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:rtc'); return }
       error.value = e.message
       rtc.value = null
     } finally {
@@ -557,13 +606,16 @@ export const useHardwareStore = defineStore('hardware', () => {
    */
   async function fetchWatchdog(options = {}) {
     const { skipLoading, ...opts } = options
+    if (isAbsent('hw:watchdog')) return
     if (!skipLoading) { loading.value = true; error.value = null }
     try {
       const data = await api.get('/hardware/watchdog', {}, opts)
       if (data === null) return
       watchdog.value = data
+      clearAbsent('hw:watchdog')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:watchdog'); return }
       error.value = e.message
       watchdog.value = null
     } finally {
@@ -618,12 +670,15 @@ export const useHardwareStore = defineStore('hardware', () => {
    * Returns: { running, ups_model, battery_percent?, charging?, ac_power? }
    */
   async function fetchPowerMonitorStatus(options = {}) {
+    if (isAbsent('hw:power-monitor')) return
     try {
       const data = await api.get('/hardware/power/monitor', {}, options)
       if (data === null) return
       powerMonitor.value = data
+      clearAbsent('hw:power-monitor')
     } catch (e) {
-      if (e.name === 'AbortError' || isExpectedHardwareError(e)) return
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) { markAbsent('hw:power-monitor'); return }
       powerMonitor.value = null
     }
   }
