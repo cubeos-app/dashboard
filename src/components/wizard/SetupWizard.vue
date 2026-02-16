@@ -303,6 +303,7 @@ onMounted(async () => {
   }
 
   // Fetch system stats for device info display (B38/B39)
+  try { await systemStore.fetchInfo() } catch { /* non-blocking */ }
   try { await systemStore.fetchStats() } catch { /* non-blocking */ }
   try { await systemStore.fetchHardware() } catch { /* non-blocking */ }
 })

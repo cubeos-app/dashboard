@@ -353,8 +353,8 @@ onUnmounted(() => {
             <!-- Ollama offline -->
             <div v-else-if="!isAvailable" class="text-center py-8">
               <Icon name="WifiOff" :size="32" class="text-theme-muted mx-auto mb-3" />
-              <p class="text-sm text-theme-secondary mb-1">AI Assistant is offline</p>
-              <p class="text-xs text-theme-muted">Ollama service is not running</p>
+              <p class="text-sm text-theme-secondary mb-1">AI Assistant unavailable</p>
+              <p class="text-xs text-theme-muted">AI features require the Ollama service to be installed and running</p>
             </div>
 
             <!-- Empty state with suggestions -->

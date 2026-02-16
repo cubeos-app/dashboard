@@ -169,6 +169,15 @@ export const useSystemStore = defineStore('system', () => {
       if (result === null) return // Aborted
       stats.value = result
       lastUpdated.value = new Date()
+
+      // B38: If swap_total is 0, ZRAM may not be initialized yet — retry once after 5s
+      if (result && (result.swap_total === 0 || result.swap_total === undefined) && !options._swapRetried) {
+        setTimeout(async () => {
+          try {
+            await fetchStats({ ...options, _swapRetried: true })
+          } catch { /* silent retry */ }
+        }, 5000)
+      }
     } catch (e) {
       if (e.name === 'AbortError') return
       error.value = e.message

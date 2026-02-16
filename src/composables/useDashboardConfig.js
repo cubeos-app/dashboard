@@ -144,7 +144,7 @@ const DEFAULT_ADVANCED_SECTION_ORDER = [
 // ─── Defaults (per mode) ─────────────────────────────────────
 
 const DEFAULT_REFRESH_INTERVALS = {
-  vitals: 2,
+  vitals: 5,
   network: 5,
   disk: 10,
   signals: 10,
@@ -153,8 +153,8 @@ const DEFAULT_REFRESH_INTERVALS = {
   network_throughput: 5,
   recent_logs: 15,
   battery: 30,
-  cpu_gauge: 2,
-  memory_gauge: 2,
+  cpu_gauge: 5,
+  memory_gauge: 5,
   disk_gauge: 10,
   temp_gauge: 5,
 }
