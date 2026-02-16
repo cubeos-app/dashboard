@@ -27,6 +27,12 @@ const { trapFocus: trapAPConfigFocus } = useFocusTrap()
 // WiFi connector modal
 const showWiFiConnector = ref(false)
 
+// Single-adapter constraint: wlan0 cannot do AP + station simultaneously.
+// When AP is active and no USB WiFi adapter is plugged in, block scan/connect.
+const singleAdapterBlocked = computed(() => {
+  return apIsActive.value && !networkStore.hasClientWiFiAdapter
+})
+
 // AP computed
 const apIsActive = computed(() => {
   if (!props.apStatus) return false
@@ -216,7 +222,14 @@ function netmaskToPrefix(mask) {
           </button>
           <button
             @click="showWiFiConnector = true"
-            class="px-3 py-1.5 text-xs font-medium rounded-lg btn-accent flex items-center gap-1.5"
+            :disabled="singleAdapterBlocked"
+            :class="[
+              'px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1.5',
+              singleAdapterBlocked
+                ? 'bg-theme-tertiary text-theme-muted cursor-not-allowed'
+                : 'btn-accent'
+            ]"
+            :title="singleAdapterBlocked ? 'Cannot scan while AP is active on the only WiFi adapter (wlan0). Plug in a USB WiFi dongle or stop the AP first.' : 'Scan for WiFi networks'"
             aria-label="Scan for WiFi networks"
           >
             <Icon name="Search" :size="14" />
@@ -267,6 +280,18 @@ function netmaskToPrefix(mask) {
       </div>
     </div>
 
+    <!-- Single-adapter constraint warning -->
+    <div v-if="singleAdapterBlocked" class="bg-warning-muted border border-warning rounded-lg p-4 flex items-start gap-3">
+      <Icon name="AlertTriangle" :size="18" class="text-warning shrink-0 mt-0.5" />
+      <div class="text-sm">
+        <p class="font-medium text-warning">Single WiFi adapter</p>
+        <p class="text-theme-secondary mt-0.5">
+          The built-in WiFi (wlan0) is running the Access Point. It cannot simultaneously connect to an upstream network.
+          Plug in a USB WiFi adapter for client mode, or stop the AP first.
+        </p>
+      </div>
+    </div>
+
     <!-- Saved Networks -->
     <div class="bg-theme-card rounded-xl border border-theme-primary">
       <div class="px-4 py-3 border-b border-theme-primary flex items-center justify-between">
@@ -295,8 +320,14 @@ function netmaskToPrefix(mask) {
           <div class="flex items-center gap-2">
             <button
               @click="handleConnectSaved(net.ssid)"
-              :disabled="reconnecting"
-              class="px-2.5 py-1 text-xs text-accent hover:bg-accent/10 rounded-lg transition-colors"
+              :disabled="reconnecting || singleAdapterBlocked"
+              :class="[
+                'px-2.5 py-1 text-xs rounded-lg transition-colors',
+                singleAdapterBlocked
+                  ? 'text-theme-muted cursor-not-allowed'
+                  : 'text-accent hover:bg-accent/10'
+              ]"
+              :title="singleAdapterBlocked ? 'Stop the AP or add a USB WiFi adapter first' : 'Connect to ' + net.ssid"
               :aria-label="'Connect to ' + net.ssid"
             >
               {{ reconnecting && reconnectingSSID === net.ssid ? 'Connecting...' : 'Connect' }}
@@ -382,6 +413,7 @@ function netmaskToPrefix(mask) {
     <!-- WiFi Connector Modal -->
     <WiFiConnector
       :show="showWiFiConnector"
+      :single-adapter-blocked="singleAdapterBlocked"
       @close="showWiFiConnector = false"
       @connected="showWiFiConnector = false; emit('refresh')"
     />

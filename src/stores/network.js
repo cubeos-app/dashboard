@@ -101,6 +101,17 @@ export const useNetworkStore = defineStore('network', () => {
   const secondaryDNS = computed(() => dns.value?.secondary_dns || dns.value?.secondary || '')
   const isWiFiConnected = computed(() => wifiStatus.value?.connected === true)
   
+  // Detect whether a second (client/station) WiFi adapter is present.
+  // wlan0 is always the AP adapter. A USB dongle shows up as wlan1 or wlxXXXX
+  // and gets role "client" from the detailed interfaces endpoint.
+  // When this is false and the AP is active, scanning/connecting is blocked —
+  // a single wlan0 cannot do AP + station simultaneously.
+  const hasClientWiFiAdapter = computed(() => {
+    return detailedInterfaces.value.some(
+      iface => iface.is_wireless && iface.role === 'client'
+    )
+  })
+  
   // ==========================================
   // API Methods (Original)
   // ==========================================
@@ -737,6 +748,7 @@ export const useNetworkStore = defineStore('network', () => {
     primaryDNS,
     secondaryDNS,
     isWiFiConnected,
+    hasClientWiFiAdapter,
     
     // API Methods (Original)
     fetchStatus,

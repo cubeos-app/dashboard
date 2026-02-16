@@ -15,6 +15,10 @@ const props = defineProps({
   show: {
     type: Boolean,
     default: false
+  },
+  singleAdapterBlocked: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -302,6 +306,19 @@ onUnmounted(() => {
           
           <!-- Content -->
           <div class="p-4 max-h-96 overflow-y-auto">
+            <!-- Single-adapter constraint: block all scanning/connecting -->
+            <div v-if="singleAdapterBlocked" class="text-center py-8">
+              <Icon name="AlertTriangle" :size="32" class="text-warning mx-auto mb-3" />
+              <p class="font-medium text-theme-primary mb-1">Single WiFi Adapter</p>
+              <p class="text-sm text-theme-tertiary max-w-xs mx-auto">
+                The built-in WiFi (wlan0) is running the Access Point and cannot simultaneously connect to an upstream network.
+              </p>
+              <p class="text-xs text-theme-muted mt-3 max-w-xs mx-auto">
+                Plug in a USB WiFi adapter for client mode, or stop the AP first.
+              </p>
+            </div>
+
+            <template v-else>
             <!-- ========== Scan View ========== -->
             <template v-if="activeView === 'scan'">
               <!-- Loading/Scanning state -->
@@ -492,6 +509,7 @@ onUnmounted(() => {
                 <p class="text-theme-tertiary text-sm">No saved networks</p>
                 <p class="text-xs text-theme-muted mt-1">Networks are saved when you connect to them</p>
               </div>
+            </template>
             </template>
           </div>
           
