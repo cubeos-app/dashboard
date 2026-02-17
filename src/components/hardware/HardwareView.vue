@@ -292,6 +292,7 @@ const upsModelNames = {
 const upsModels = ['x1202', 'x728', 'pisugar3', 'none']
 const selectedUPSModel = ref('')
 const upsDetecting = ref(false)
+const upsChanging = ref(false) // true when user clicked "Change UPS" — forces State A
 
 /** True when UPS is configured and not "none" */
 const upsIsActive = computed(() => {
@@ -356,6 +357,7 @@ async function handleApplyUPSConfig() {
 
   try {
     await hardwareStore.setUPSConfig(model)
+    upsChanging.value = false
     // Refresh battery/power data after config change
     const s = signal()
     await Promise.all([
@@ -369,8 +371,9 @@ async function handleApplyUPSConfig() {
 }
 
 async function handleChangeUPS() {
-  // Reset to detection flow
+  // Switch to config form (State A) with current model pre-selected
   selectedUPSModel.value = hardwareStore.upsConfig?.configured_model || ''
+  upsChanging.value = true
   await handleDetectUPS()
 }
 
@@ -604,17 +607,20 @@ onUnmounted(() => {
               </span>
             </div>
 
-            <!-- ──────────────── STATE A: Not Configured ──────────────── -->
-            <div v-if="upsNotConfigured || (!upsIsActive && !upsIsDisabled)" class="space-y-4">
+            <!-- ──────────────── STATE A: Not Configured / Changing ──────────────── -->
+            <div v-if="upsChanging || upsNotConfigured || (!upsIsActive && !upsIsDisabled)" class="space-y-4">
               <!-- Detection prompt -->
               <div class="bg-theme-tertiary rounded-lg p-4">
                 <div class="flex items-start gap-3">
                   <Icon name="AlertTriangle" :size="18" class="text-warning mt-0.5 shrink-0" />
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-theme-primary">No UPS configured</p>
+                    <p class="text-sm font-medium text-theme-primary">
+                      {{ upsChanging ? 'Change UPS configuration' : 'No UPS configured' }}
+                    </p>
                     <p class="text-xs text-theme-secondary mt-1">
-                      CubeOS can monitor battery status if you have a supported UPS HAT.
-                      Run detection to identify your hardware, or select a model manually.
+                      {{ upsChanging
+                        ? 'Run detection or select a different model below.'
+                        : 'CubeOS can monitor battery status if you have a supported UPS HAT. Run detection to identify your hardware, or select a model manually.' }}
                     </p>
                   </div>
                 </div>
@@ -697,18 +703,27 @@ onUnmounted(() => {
                 <span class="text-xs text-warning">{{ upsPiMismatchWarning }}</span>
               </div>
 
-              <!-- Apply button -->
-              <button
-                @click="handleApplyUPSConfig"
-                :disabled="!selectedUPSModel || hardwareStore.upsConfiguring"
-                class="w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-                :class="selectedUPSModel === 'none'
-                  ? 'bg-theme-tertiary text-theme-secondary hover:bg-theme-secondary'
-                  : 'bg-accent text-on-accent hover:bg-accent-hover'"
-              >
-                <Icon v-if="hardwareStore.upsConfiguring" name="Loader2" :size="14" class="inline-block animate-spin mr-1.5 -mt-0.5" />
-                {{ hardwareStore.upsConfiguring ? 'Applying...' : (selectedUPSModel === 'none' ? 'Disable Monitoring' : 'Apply Configuration') }}
-              </button>
+              <!-- Apply + Cancel buttons -->
+              <div class="flex gap-3">
+                <button
+                  v-if="upsChanging"
+                  @click="upsChanging = false"
+                  class="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary hover:bg-theme-secondary transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  @click="handleApplyUPSConfig"
+                  :disabled="!selectedUPSModel || hardwareStore.upsConfiguring"
+                  class="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                  :class="selectedUPSModel === 'none'
+                    ? 'bg-theme-tertiary text-theme-secondary hover:bg-theme-secondary'
+                    : 'bg-accent text-on-accent hover:bg-accent-hover'"
+                >
+                  <Icon v-if="hardwareStore.upsConfiguring" name="Loader2" :size="14" class="inline-block animate-spin mr-1.5 -mt-0.5" />
+                  {{ hardwareStore.upsConfiguring ? 'Applying...' : (selectedUPSModel === 'none' ? 'Disable Monitoring' : 'Apply Configuration') }}
+                </button>
+              </div>
             </div>
 
             <!-- ──────────────── STATE B: Configured + Active ──────────────── -->
