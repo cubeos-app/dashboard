@@ -187,6 +187,20 @@ export const useRegistryStore = defineStore('registry', () => {
     selectedImageName.value = null
   }
 
+  /**
+   * Check if a specific image:tag exists in the local registry
+   * GET /registry/check?image={name}&tag={tag}
+   * Returns { exists: bool, image, tag, digest? }
+   */
+  async function checkImage(imageName, tag = 'latest') {
+    try {
+      const params = new URLSearchParams({ image: imageName, tag })
+      return await api.get(`/registry/check?${params}`)
+    } catch (e) {
+      return { exists: false, image: imageName, tag }
+    }
+  }
+
   return {
     // State
     loading,
@@ -214,6 +228,7 @@ export const useRegistryStore = defineStore('registry', () => {
 
     // Utilities
     fetchAll,
-    clearSelectedImage
+    clearSelectedImage,
+    checkImage
   }
 })

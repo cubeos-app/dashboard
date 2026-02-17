@@ -14,6 +14,7 @@
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAppStoreStore } from '@/stores/appstore'
+import { useRegistryStore } from '@/stores/registry'
 import { useMode } from '@/composables/useMode'
 import { useWallpaper } from '@/composables/useWallpaper'
 import Icon from '@/components/ui/Icon.vue'
@@ -21,6 +22,7 @@ import Icon from '@/components/ui/Icon.vue'
 const emit = defineEmits(['openDetail', 'install'])
 
 const appStore = useAppStoreStore()
+const registryStore = useRegistryStore()
 const { isAdvanced } = useMode()
 const { panelClass, isActive: wallpaperActive } = useWallpaper()
 
@@ -79,11 +81,29 @@ function getAppTagline(app) {
   return app.tagline?.en_us || app.tagline?.en_US || app.category || ''
 }
 
+/**
+ * Check if an app's image is available in the local registry.
+ * Matches app name against registry image catalog using fuzzy matching.
+ * e.g., app "kiwix-serve" matches registry image "kiwix/kiwix-serve"
+ */
+function isAvailableOffline(app) {
+  if (!registryStore.images || registryStore.images.length === 0) return false
+  const appName = (app.name || '').toLowerCase()
+  if (!appName) return false
+  return registryStore.images.some(img => {
+    const imgName = (typeof img === 'string' ? img : img.name || '').toLowerCase()
+    // Check if the image path contains the app name (e.g., "kiwix/kiwix-serve" contains "kiwix")
+    return imgName.includes(appName) || appName.includes(imgName.split('/').pop())
+  })
+}
+
 // ─── Lifecycle ───────────────────────────────────────────────
 onMounted(async () => {
   if (appStore.catalog.length === 0) {
     await appStore.init()
   }
+  // Fetch registry images for offline availability badge
+  registryStore.fetchImages(true)
 })
 
 onUnmounted(() => {
@@ -194,6 +214,15 @@ onUnmounted(() => {
           <!-- Installed badge -->
           <div v-if="app.installed" class="absolute top-2 right-2">
             <Icon name="CheckCircle" :size="14" class="text-success" />
+          </div>
+
+          <!-- Available Offline badge -->
+          <div
+            v-if="!app.installed && isAvailableOffline(app)"
+            class="absolute top-2 left-2"
+            title="Available offline"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-theme-muted"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </div>
 
           <!-- Icon -->
