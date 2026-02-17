@@ -34,7 +34,7 @@ export const useRegistryStore = defineStore('registry', () => {
   // Computed
   // ==========================================
 
-  const isOnline = computed(() => status.value?.running === true || status.value?.status === 'running')
+  const isOnline = computed(() => status.value?.online === true || status.value?.running === true || status.value?.status === 'running')
   const imageCount = computed(() => images.value.length)
   const totalDiskUsage = computed(() => diskUsage.value?.total_size || diskUsage.value?.size || 0)
 
