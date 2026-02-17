@@ -17,13 +17,14 @@
  *   Ctrl+Z (or Cmd+Z) undo layout change (edit mode only)
  *   Ctrl+Shift+Z (or Cmd+Shift+Z) redo layout change (edit mode only)
  */
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useAppsStore } from '@/stores/apps'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useNetworkStore } from '@/stores/network'
 import { useMonitoringStore } from '@/stores/monitoring'
+import { useHardwareStore } from '@/stores/hardware'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { useMode } from '@/composables/useMode'
 import { useDashboardConfig } from '@/composables/useDashboardConfig'
@@ -44,7 +45,19 @@ const appsStore = useAppsStore()
 const favoritesStore = useFavoritesStore()
 const networkStore = useNetworkStore()
 const monitoringStore = useMonitoringStore()
+const hardwareStore = useHardwareStore()
 const { signal } = useAbortOnUnmount()
+
+// UPS first-boot banner (session-scoped dismissal)
+const upsBannerDismissed = ref(false)
+const showUPSBanner = computed(() => {
+  if (upsBannerDismissed.value) return false
+  // Show when detection found something but user hasn't configured
+  const cfg = hardwareStore.upsConfig
+  if (!cfg || cfg.configured) return false
+  const det = hardwareStore.upsDetection
+  return det?.suggested_model && det.suggested_model !== ''
+})
 const { isAdvanced } = useMode()
 const { isLayoutLocked } = useDashboardConfig()
 const { isEditing, toggleEdit, exitEdit, undo, redo, canUndo, canRedo, undoCount, redoCount } = useDashboardEdit()
@@ -178,9 +191,14 @@ onMounted(async () => {
     appsStore.fetchApps({ signal: s }),
     favoritesStore.fetchAll(),
     networkStore.fetchStatus(),
-    monitoringStore.fetchAlerts({ signal: s })
+    monitoringStore.fetchAlerts({ signal: s }),
+    hardwareStore.fetchUPSConfig({ signal: s })
   ])
   appsStore.startPolling()
+  // Background UPS detection for banner (non-blocking)
+  if (!hardwareStore.upsConfig?.configured) {
+    hardwareStore.detectUPSHAT({ signal: s }).catch(() => {})
+  }
   window.addEventListener('cubeos:focus-search', handleFocusSearch)
   window.addEventListener('keydown', handleKeydown)
 })
@@ -316,6 +334,40 @@ onUnmounted(() => {
       >
         <Icon name="Lock" :size="14" />
         <span>Layout is locked. Unlock in Settings.</span>
+      </div>
+    </Transition>
+
+    <!-- UPS First-Boot Banner (D4) -->
+    <Transition name="toast-fade">
+      <div
+        v-if="showUPSBanner"
+        class="mb-4 bg-theme-card border border-accent/30 rounded-xl p-4 flex items-start gap-3 shadow-sm"
+      >
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-accent-muted shrink-0 mt-0.5">
+          <Icon name="Zap" :size="16" class="text-accent" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-theme-primary">UPS hardware detected</p>
+          <p class="text-xs text-theme-secondary mt-0.5">
+            A {{ hardwareStore.upsDetection?.suggested_name || 'UPS HAT' }} was detected on this device.
+            Configure it to enable battery monitoring and safe shutdown.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            @click="router.push('/hardware')"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent text-on-accent hover:bg-accent-hover transition-colors"
+          >
+            Configure
+          </button>
+          <button
+            @click="upsBannerDismissed = true"
+            class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+            aria-label="Dismiss UPS banner"
+          >
+            <Icon name="X" :size="14" />
+          </button>
+        </div>
       </div>
     </Transition>
 

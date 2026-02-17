@@ -185,6 +185,7 @@ async function loadOverviewData() {
     hardwareStore.fetchUPS({ signal: s }),
     hardwareStore.fetchPowerStatus({ signal: s }),
     hardwareStore.fetchPowerMonitorStatus({ signal: s }),
+    hardwareStore.fetchUPSConfig({ signal: s }),
     hardwareStore.fetchTemperatureZones({ signal: s, skipLoading: true })
   ])
 }
@@ -275,6 +276,102 @@ async function handleTogglePowerMonitor() {
   } finally {
     powerMonitorToggling.value = false
   }
+}
+
+// ==========================================
+// UPS Configuration (Batch 3)
+// ==========================================
+
+const upsModelNames = {
+  x1202: 'Geekworm X1202',
+  x728: 'Geekworm X728',
+  pisugar3: 'PiSugar 3',
+  none: 'None (disable monitoring)'
+}
+
+const upsModels = ['x1202', 'x728', 'pisugar3', 'none']
+const selectedUPSModel = ref('')
+const upsDetecting = ref(false)
+
+/** True when UPS is configured and not "none" */
+const upsIsActive = computed(() => {
+  const cfg = hardwareStore.upsConfig
+  return cfg?.configured && cfg?.configured_model && cfg.configured_model !== 'none'
+})
+
+/** True when UPS is explicitly configured as "none" */
+const upsIsDisabled = computed(() => {
+  const cfg = hardwareStore.upsConfig
+  return cfg?.configured && cfg?.configured_model === 'none'
+})
+
+/** True when UPS has never been configured */
+const upsNotConfigured = computed(() => {
+  const cfg = hardwareStore.upsConfig
+  return !cfg?.configured
+})
+
+/** Pi model mismatch warning */
+const upsPiMismatchWarning = computed(() => {
+  const det = hardwareStore.upsDetection
+  if (!det || !selectedUPSModel.value || selectedUPSModel.value === 'none') return null
+  // X1202 is designed for Pi 5, X728 for Pi 4/3
+  const model = selectedUPSModel.value
+  const pi = det.pi_model
+  if (model === 'x1202' && pi && pi < 5) return `The Geekworm X1202 is designed for Raspberry Pi 5, but this device is a Pi ${pi}.`
+  if (model === 'x728' && pi && pi >= 5) return `The Geekworm X728 is designed for Raspberry Pi 3/4, but this device is a Pi ${pi}.`
+  return null
+})
+
+async function handleDetectUPS() {
+  upsDetecting.value = true
+  try {
+    const result = await hardwareStore.detectUPSHAT()
+    if (result?.suggested_model) {
+      selectedUPSModel.value = result.suggested_model
+    }
+  } catch {
+    // Store sets error
+  } finally {
+    upsDetecting.value = false
+  }
+}
+
+async function handleApplyUPSConfig() {
+  const model = selectedUPSModel.value
+  if (!model) return
+
+  const label = upsModelNames[model] || model
+  const action = model === 'none' ? 'disable UPS monitoring' : `configure ${label} as your UPS`
+  const warning = upsPiMismatchWarning.value
+
+  if (!await confirm({
+    title: model === 'none' ? 'Disable UPS Monitoring' : 'Configure UPS',
+    message: `Are you sure you want to ${action}?`
+      + (warning ? `\n\nWarning: ${warning}` : '')
+      + (model !== 'none' ? '\n\nThe power monitoring driver will be activated immediately.' : ''),
+    confirmText: model === 'none' ? 'Disable' : 'Apply',
+    variant: model === 'none' ? 'danger' : 'warning'
+  })) return
+
+  try {
+    await hardwareStore.setUPSConfig(model)
+    // Refresh battery/power data after config change
+    const s = signal()
+    await Promise.all([
+      hardwareStore.fetchPower({ signal: s }),
+      hardwareStore.fetchUPS({ signal: s }),
+      hardwareStore.fetchPowerMonitorStatus({ signal: s })
+    ])
+  } catch {
+    // Store sets error
+  }
+}
+
+async function handleChangeUPS() {
+  // Reset to detection flow
+  selectedUPSModel.value = hardwareStore.upsConfig?.configured_model || ''
+  await handleDetectUPS()
 }
 
 // Track which tabs have been auto-loaded
@@ -488,209 +585,283 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Power / Battery Card -->
+          <!-- UPS Configuration Card (Batch 3 — States A/B/C) -->
           <div class="bg-theme-card border border-theme-primary rounded-xl p-5">
             <div class="flex items-center gap-2 mb-4">
               <Icon name="Zap" :size="18" class="text-accent" />
-              <h2 class="text-lg font-semibold text-theme-primary">Power / Battery</h2>
+              <h2 class="text-lg font-semibold text-theme-primary">UPS / Power</h2>
+              <!-- Config status badge -->
+              <span
+                v-if="hardwareStore.upsConfig"
+                :class="[
+                  'ml-auto text-xs font-medium px-2 py-0.5 rounded-full',
+                  upsIsActive ? 'bg-success-muted text-success'
+                    : upsIsDisabled ? 'bg-neutral-muted text-theme-tertiary'
+                    : 'bg-warning-muted text-warning'
+                ]"
+              >
+                {{ upsIsActive ? 'Active' : upsIsDisabled ? 'Disabled' : 'Not Configured' }}
+              </span>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <!-- Battery section -->
-              <div class="space-y-4">
-                <!-- Battery percentage bar -->
-                <div v-if="systemStore.batteryPercent !== null">
-                  <div class="flex justify-between text-sm mb-1.5">
-                    <span class="text-theme-secondary">Battery</span>
-                    <span class="font-medium text-theme-primary">{{ systemStore.batteryPercent }}%</span>
+            <!-- ──────────────── STATE A: Not Configured ──────────────── -->
+            <div v-if="upsNotConfigured || (!upsIsActive && !upsIsDisabled)" class="space-y-4">
+              <!-- Detection prompt -->
+              <div class="bg-theme-tertiary rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                  <Icon name="AlertTriangle" :size="18" class="text-warning mt-0.5 shrink-0" />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-theme-primary">No UPS configured</p>
+                    <p class="text-xs text-theme-secondary mt-1">
+                      CubeOS can monitor battery status if you have a supported UPS HAT.
+                      Run detection to identify your hardware, or select a model manually.
+                    </p>
                   </div>
-                  <div class="w-full h-2.5 bg-theme-tertiary rounded-full overflow-hidden">
-                    <div
-                      :class="['h-full rounded-full transition-all duration-500', batteryColorClass]"
-                      :style="{ width: systemStore.batteryPercent + '%' }"
-                    />
+                </div>
+              </div>
+
+              <!-- Detect button -->
+              <button
+                @click="handleDetectUPS"
+                :disabled="upsDetecting"
+                class="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50"
+              >
+                <Icon v-if="upsDetecting" name="Loader2" :size="14" class="inline-block animate-spin mr-1.5 -mt-0.5" />
+                <Icon v-else name="Search" :size="14" class="inline-block mr-1.5 -mt-0.5" />
+                {{ upsDetecting ? 'Detecting...' : 'Detect UPS Hardware' }}
+              </button>
+
+              <!-- Detection results -->
+              <div v-if="hardwareStore.upsDetection" class="space-y-3">
+                <div class="bg-theme-tertiary rounded-lg p-4 space-y-2">
+                  <div class="flex justify-between text-sm">
+                    <span class="text-theme-secondary">Detected</span>
+                    <span class="font-medium text-theme-primary">
+                      {{ hardwareStore.upsDetection.suggested_name || 'Unknown' }}
+                    </span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-theme-secondary">Confidence</span>
+                    <span
+                      :class="[
+                        'font-medium',
+                        hardwareStore.upsDetection.confidence === 'high' ? 'text-success' : 'text-warning'
+                      ]"
+                    >
+                      {{ hardwareStore.upsDetection.confidence === 'high' ? 'High' : 'Low' }}
+                    </span>
+                  </div>
+                  <div v-if="hardwareStore.upsDetection.pi_model" class="flex justify-between text-sm">
+                    <span class="text-theme-secondary">Pi Model</span>
+                    <span class="font-medium text-theme-primary">Pi {{ hardwareStore.upsDetection.pi_model }}</span>
+                  </div>
+                  <div v-if="hardwareStore.upsDetection.i2c_devices_found?.length" class="flex justify-between text-sm">
+                    <span class="text-theme-secondary">I2C Devices</span>
+                    <span class="font-mono text-xs text-theme-primary">{{ hardwareStore.upsDetection.i2c_devices_found.join(', ') }}</span>
+                  </div>
+                  <div v-if="hardwareStore.upsDetection.details" class="text-xs text-theme-muted pt-1 border-t border-theme-primary">
+                    {{ hardwareStore.upsDetection.details }}
                   </div>
                 </div>
 
-                <!-- Charging state -->
-                <div class="flex items-center justify-between">
-                  <span class="text-sm text-theme-secondary">Charging</span>
+                <!-- Low confidence warning -->
+                <div
+                  v-if="hardwareStore.upsDetection.confidence !== 'high' && hardwareStore.upsDetection.warning"
+                  class="flex items-start gap-2 p-3 rounded-lg bg-warning-muted border border-warning-subtle"
+                >
+                  <Icon name="AlertTriangle" :size="14" class="text-warning mt-0.5 shrink-0" />
+                  <span class="text-xs text-warning">{{ hardwareStore.upsDetection.warning }}</span>
+                </div>
+              </div>
+
+              <!-- Model selector -->
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-theme-secondary">UPS Model</label>
+                <select
+                  v-model="selectedUPSModel"
+                  class="w-full px-3 py-2 text-sm rounded-lg bg-theme-tertiary border border-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                >
+                  <option value="" disabled>Select a model...</option>
+                  <option v-for="m in upsModels" :key="m" :value="m">
+                    {{ upsModelNames[m] || m }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Pi mismatch warning -->
+              <div
+                v-if="upsPiMismatchWarning"
+                class="flex items-start gap-2 p-3 rounded-lg bg-warning-muted border border-warning-subtle"
+              >
+                <Icon name="AlertTriangle" :size="14" class="text-warning mt-0.5 shrink-0" />
+                <span class="text-xs text-warning">{{ upsPiMismatchWarning }}</span>
+              </div>
+
+              <!-- Apply button -->
+              <button
+                @click="handleApplyUPSConfig"
+                :disabled="!selectedUPSModel || hardwareStore.upsConfiguring"
+                class="w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                :class="selectedUPSModel === 'none'
+                  ? 'bg-theme-tertiary text-theme-secondary hover:bg-theme-secondary'
+                  : 'bg-accent text-on-accent hover:bg-accent-hover'"
+              >
+                <Icon v-if="hardwareStore.upsConfiguring" name="Loader2" :size="14" class="inline-block animate-spin mr-1.5 -mt-0.5" />
+                {{ hardwareStore.upsConfiguring ? 'Applying...' : (selectedUPSModel === 'none' ? 'Disable Monitoring' : 'Apply Configuration') }}
+              </button>
+            </div>
+
+            <!-- ──────────────── STATE B: Configured + Active ──────────────── -->
+            <div v-else-if="upsIsActive" class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Left: Battery + status -->
+                <div class="space-y-4">
+                  <!-- Battery bar -->
+                  <div v-if="systemStore.batteryPercent !== null">
+                    <div class="flex justify-between text-sm mb-1.5">
+                      <span class="text-theme-secondary">Battery</span>
+                      <span class="font-medium text-theme-primary">{{ systemStore.batteryPercent }}%</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-theme-tertiary rounded-full overflow-hidden">
+                      <div
+                        :class="['h-full rounded-full transition-all duration-500', batteryColorClass]"
+                        :style="{ width: systemStore.batteryPercent + '%' }"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Charging toggle -->
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-theme-secondary">Charging</span>
+                    <button
+                      @click="handleToggleCharging()"
+                      role="switch"
+                      :aria-checked="isCharging"
+                      aria-label="Toggle charging"
+                      :class="[
+                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                        isCharging ? 'bg-success' : 'bg-theme-tertiary'
+                      ]"
+                    >
+                      <span
+                        :class="[
+                          'inline-block h-4 w-4 rounded-full bg-theme-primary transition-transform',
+                          isCharging ? 'translate-x-6' : 'translate-x-1'
+                        ]"
+                      />
+                    </button>
+                  </div>
+
+                  <!-- Quick start button -->
                   <button
-                    @click="handleToggleCharging()"
+                    @click="handleBatteryQuickStart()"
+                    class="w-full px-3 py-2 text-sm font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors"
+                  >
+                    <Icon name="Zap" :size="14" class="inline-block mr-1.5 -mt-0.5" />
+                    Battery Quick Start
+                  </button>
+                </div>
+
+                <!-- Right: Power info + monitor status -->
+                <div class="space-y-3">
+                  <div class="flex justify-between">
+                    <span class="text-sm text-theme-secondary">UPS Model</span>
+                    <span class="text-sm font-medium text-theme-primary">
+                      {{ upsModelNames[hardwareStore.upsConfig?.configured_model] || hardwareStore.upsConfig?.configured_model }}
+                    </span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-theme-secondary">Monitor</span>
+                    <span
+                      :class="[
+                        'text-sm font-medium',
+                        hardwareStore.upsConfig?.monitor_running ? 'text-success' : 'text-warning'
+                      ]"
+                    >
+                      {{ hardwareStore.upsConfig?.monitor_running ? 'Running' : 'Stopped' }}
+                    </span>
+                  </div>
+                  <template v-if="hardwareStore.power">
+                    <div v-if="hardwareStore.power.ac_present !== undefined" class="flex justify-between">
+                      <span class="text-sm text-theme-secondary">AC Present</span>
+                      <span :class="['text-sm font-medium', hardwareStore.power.ac_present ? 'text-success' : 'text-warning']">
+                        {{ hardwareStore.power.ac_present ? 'Yes' : 'No' }}
+                      </span>
+                    </div>
+                    <div v-if="hardwareStore.power.voltage" class="flex justify-between">
+                      <span class="text-sm text-theme-secondary">Voltage</span>
+                      <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.power.voltage }}V</span>
+                    </div>
+                  </template>
+                  <template v-if="hardwareStore.powerStatus">
+                    <div v-if="hardwareStore.powerStatus.source" class="flex justify-between">
+                      <span class="text-sm text-theme-secondary">Source</span>
+                      <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.powerStatus.source }}</span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Power monitor toggle + Change UPS button -->
+              <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3 border-t border-theme-primary">
+                <div class="flex items-center justify-between flex-1">
+                  <span class="text-sm text-theme-secondary">Power Monitoring</span>
+                  <button
+                    @click="handleTogglePowerMonitor"
+                    :disabled="powerMonitorToggling"
                     role="switch"
-                    :aria-checked="isCharging"
-                    aria-label="Toggle charging"
+                    :aria-checked="hardwareStore.powerMonitor?.running"
+                    aria-label="Toggle power monitor"
                     :class="[
-                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                      isCharging ? 'bg-success' : 'bg-theme-tertiary'
+                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50',
+                      hardwareStore.powerMonitor?.running ? 'bg-success' : 'bg-theme-tertiary'
                     ]"
                   >
                     <span
                       :class="[
                         'inline-block h-4 w-4 rounded-full bg-theme-primary transition-transform',
-                        isCharging ? 'translate-x-6' : 'translate-x-1'
+                        hardwareStore.powerMonitor?.running ? 'translate-x-6' : 'translate-x-1'
                       ]"
                     />
                   </button>
                 </div>
-
-                <!-- Quick start button -->
                 <button
-                  @click="handleBatteryQuickStart()"
-                  class="w-full px-3 py-2 text-sm font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors"
+                  @click="handleChangeUPS"
+                  :disabled="upsDetecting"
+                  class="px-4 py-2 text-sm font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary hover:bg-theme-secondary transition-colors"
                 >
-                  <Icon name="Zap" :size="14" class="inline-block mr-1.5 -mt-0.5" />
-                  Battery Quick Start
-                </button>
-              </div>
-
-              <!-- Power info -->
-              <div class="space-y-3">
-                <template v-if="hardwareStore.power">
-                  <div v-if="hardwareStore.power.ac_present !== undefined" class="flex justify-between">
-                    <span class="text-sm text-theme-secondary">AC Present</span>
-                    <span :class="['text-sm font-medium', hardwareStore.power.ac_present ? 'text-success' : 'text-warning']">
-                      {{ hardwareStore.power.ac_present ? 'Yes' : 'No' }}
-                    </span>
-                  </div>
-                  <div v-if="hardwareStore.power.voltage" class="flex justify-between">
-                    <span class="text-sm text-theme-secondary">Voltage</span>
-                    <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.power.voltage }}V</span>
-                  </div>
-                </template>
-                <template v-if="hardwareStore.powerStatus">
-                  <div v-if="hardwareStore.powerStatus.source" class="flex justify-between">
-                    <span class="text-sm text-theme-secondary">Source</span>
-                    <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.powerStatus.source }}</span>
-                  </div>
-                  <div v-if="hardwareStore.powerStatus.current" class="flex justify-between">
-                    <span class="text-sm text-theme-secondary">Current</span>
-                    <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.powerStatus.current }}A</span>
-                  </div>
-                </template>
-                <div v-if="!hardwareStore.power && !hardwareStore.powerStatus" class="text-sm text-theme-muted">
-                  No power data available
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- UPS Card (conditional) -->
-          <div v-if="hardwareStore.ups?.present" class="bg-theme-card border border-theme-primary rounded-xl p-5">
-            <div class="flex items-center gap-2 mb-4">
-              <Icon name="ShieldCheck" :size="18" class="text-success" />
-              <h2 class="text-lg font-semibold text-theme-primary">UPS Module</h2>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="space-y-3">
-                <div v-if="hardwareStore.ups.battery_percent !== undefined" class="space-y-1.5">
-                  <div class="flex justify-between text-sm">
-                    <span class="text-theme-secondary">Battery</span>
-                    <span class="font-medium text-theme-primary">{{ hardwareStore.ups.battery_percent }}%</span>
-                  </div>
-                  <div class="w-full h-2 bg-theme-tertiary rounded-full overflow-hidden">
-                    <div
-                      :class="[
-                        'h-full rounded-full transition-all',
-                        hardwareStore.ups.battery_percent > 60 ? 'bg-success' : hardwareStore.ups.battery_percent >= 20 ? 'bg-warning' : 'bg-error'
-                      ]"
-                      :style="{ width: hardwareStore.ups.battery_percent + '%' }"
-                    />
-                  </div>
-                </div>
-                <div v-if="hardwareStore.ups.estimated_runtime" class="flex justify-between">
-                  <span class="text-sm text-theme-secondary">Est. Runtime</span>
-                  <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.ups.estimated_runtime }}</span>
-                </div>
-              </div>
-              <div class="space-y-3">
-                <div v-if="hardwareStore.ups.charge_cycles !== undefined" class="flex justify-between">
-                  <span class="text-sm text-theme-secondary">Charge Cycles</span>
-                  <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.ups.charge_cycles }}</span>
-                </div>
-                <div v-if="hardwareStore.ups.voltage" class="flex justify-between">
-                  <span class="text-sm text-theme-secondary">Voltage</span>
-                  <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.ups.voltage }}V</span>
-                </div>
-                <div v-if="hardwareStore.ups.input_voltage" class="flex justify-between">
-                  <span class="text-sm text-theme-secondary">Input Voltage</span>
-                  <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.ups.input_voltage }}V</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Power Monitor Card -->
-          <div class="bg-theme-card border border-theme-primary rounded-xl p-5">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <Icon name="Activity" :size="18" class="text-accent" />
-                <h2 class="text-lg font-semibold text-theme-primary">Power Monitor</h2>
-              </div>
-              <span
-                v-if="hardwareStore.powerMonitor"
-                :class="[
-                  'text-xs font-medium px-2 py-0.5 rounded-full',
-                  hardwareStore.powerMonitor.running ? 'bg-success-muted text-success' : 'bg-neutral-muted text-theme-tertiary'
-                ]"
-              >
-                {{ hardwareStore.powerMonitor.running ? 'Running' : 'Stopped' }}
-              </span>
-            </div>
-
-            <div v-if="hardwareStore.powerMonitor" class="space-y-4">
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div class="space-y-3">
-                  <div class="flex justify-between">
-                    <span class="text-sm text-theme-secondary">Status</span>
-                    <span class="text-sm font-medium" :class="hardwareStore.powerMonitor.running ? 'text-success' : 'text-theme-muted'">
-                      {{ hardwareStore.powerMonitor.running ? 'Active' : 'Inactive' }}
-                    </span>
-                  </div>
-                  <div v-if="hardwareStore.powerMonitor.ups_model" class="flex justify-between">
-                    <span class="text-sm text-theme-secondary">UPS Model</span>
-                    <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.powerMonitor.ups_model }}</span>
-                  </div>
-                </div>
-                <div class="space-y-3">
-                  <div v-if="hardwareStore.powerMonitor.battery_percent !== undefined" class="flex justify-between">
-                    <span class="text-sm text-theme-secondary">Battery</span>
-                    <span class="text-sm font-medium text-theme-primary">{{ hardwareStore.powerMonitor.battery_percent }}%</span>
-                  </div>
-                  <div v-if="hardwareStore.powerMonitor.ac_power !== undefined" class="flex justify-between">
-                    <span class="text-sm text-theme-secondary">AC Power</span>
-                    <span :class="['text-sm font-medium', hardwareStore.powerMonitor.ac_power ? 'text-success' : 'text-warning']">
-                      {{ hardwareStore.powerMonitor.ac_power ? 'Connected' : 'Disconnected' }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Start/Stop toggle -->
-              <div class="flex items-center justify-between pt-3 border-t border-theme-primary">
-                <span class="text-sm text-theme-secondary">Power Monitoring</span>
-                <button
-                  @click="handleTogglePowerMonitor"
-                  :disabled="powerMonitorToggling"
-                  role="switch"
-                  :aria-checked="hardwareStore.powerMonitor?.running"
-                  aria-label="Toggle power monitor"
-                  :class="[
-                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50',
-                    hardwareStore.powerMonitor?.running ? 'bg-success' : 'bg-theme-tertiary'
-                  ]"
-                >
-                  <span
-                    :class="[
-                      'inline-block h-4 w-4 rounded-full bg-theme-primary transition-transform',
-                      hardwareStore.powerMonitor?.running ? 'translate-x-6' : 'translate-x-1'
-                    ]"
-                  />
+                  <Icon name="Settings2" :size="14" class="inline-block mr-1.5 -mt-0.5" />
+                  Change UPS
                 </button>
               </div>
             </div>
-            <p v-else class="text-sm text-theme-muted">Power monitor data not available</p>
+
+            <!-- ──────────────── STATE C: Configured as "none" ──────────────── -->
+            <div v-else-if="upsIsDisabled" class="space-y-4">
+              <div class="bg-theme-tertiary rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                  <Icon name="ShieldCheck" :size="18" class="text-theme-muted mt-0.5 shrink-0" />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-theme-primary">UPS monitoring disabled</p>
+                    <p class="text-xs text-theme-secondary mt-1">
+                      Power monitoring is turned off. If you have installed a UPS HAT, you can re-detect and configure it below.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-3">
+                <button
+                  @click="handleChangeUPS"
+                  :disabled="upsDetecting"
+                  class="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50"
+                >
+                  <Icon v-if="upsDetecting" name="Loader2" :size="14" class="inline-block animate-spin mr-1.5 -mt-0.5" />
+                  <Icon v-else name="Search" :size="14" class="inline-block mr-1.5 -mt-0.5" />
+                  Re-detect UPS
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Throttle Status -->

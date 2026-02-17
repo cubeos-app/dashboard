@@ -16,17 +16,36 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
+import { useHardwareStore } from '@/stores/hardware'
 import { useWallpaper } from '@/composables/useWallpaper'
 import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
 const systemStore = useSystemStore()
+const hardwareStore = useHardwareStore()
 const { isActive: wallpaperActive } = useWallpaper()
 
 // Animate bar on mount
 const mounted = ref(false)
 onMounted(() => {
   requestAnimationFrame(() => { mounted.value = true })
+  // Fetch UPS config if not already loaded
+  if (!hardwareStore.upsConfig) {
+    hardwareStore.fetchUPSConfig()
+  }
+})
+
+// ─── UPS config awareness ──────────────────────────────────────
+const upsConfigured = computed(() => {
+  const cfg = hardwareStore.upsConfig
+  return cfg?.configured && cfg?.configured_model && cfg.configured_model !== 'none'
+})
+
+const upsNotConfigured = computed(() => {
+  // If we don't have config data yet, don't show the "not configured" state —
+  // fall through to existing battery-available check
+  if (!hardwareStore.upsConfig) return false
+  return !hardwareStore.upsConfig.configured
 })
 
 // ─── Battery data ─────────────────────────────────────────────
@@ -192,6 +211,23 @@ function cardClass() {
 
   <!-- Hidden state: widget wrapper will not render this if battery not available,
        but in case it does, show nothing gracefully -->
+  <button
+    v-else-if="upsNotConfigured"
+    :class="cardClass()"
+    class="w-full rounded-2xl p-5 text-left transition-all hover:shadow-lg group cursor-pointer"
+    @click="router.push('/hardware')"
+  >
+    <div class="flex items-center gap-3">
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center bg-warning/15">
+        <Icon name="Zap" :size="14" class="text-warning" />
+      </div>
+      <div class="flex-1 min-w-0">
+        <span class="text-xs font-semibold text-theme-tertiary uppercase tracking-wider">Battery</span>
+        <p class="text-sm text-theme-muted mt-0.5">No UPS configured</p>
+      </div>
+      <Icon name="ChevronRight" :size="16" class="text-theme-muted group-hover:text-theme-secondary transition-colors" />
+    </div>
+  </button>
   <div
     v-else
     class="w-full rounded-2xl p-5 flex items-center justify-center text-[11px] text-theme-muted"

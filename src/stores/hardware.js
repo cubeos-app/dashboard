@@ -72,6 +72,11 @@ export const useHardwareStore = defineStore('hardware', () => {
   const powerMonitor = ref(null)
   const halServices = ref({})
   const temperatureZones = ref(null)
+  // UPS user-confirmed selection (Batch 3)
+  const upsConfig = ref(null)       // { configured, configured_model, monitor_running }
+  const upsDetection = ref(null)    // { suggested_model, suggested_name, pi_model, ... }
+  const upsConfiguring = ref(false) // true while POST /hardware/ups/config in flight
+
   const loading = ref(false)
   const error = ref(null)
 
@@ -716,6 +721,76 @@ export const useHardwareStore = defineStore('hardware', () => {
   }
 
   // ==========================================
+  // UPS Configuration (Batch 3)
+  // ==========================================
+
+  /**
+   * Detect UPS HAT via I2C probe (read-only, no side effects)
+   * GET /hardware/ups/detect
+   * Returns: { suggested_model, suggested_name, pi_model, gpio_chip,
+   *            i2c_devices_found, confidence, warning, details }
+   */
+  async function detectUPSHAT(options = {}) {
+    error.value = null
+    try {
+      const data = await api.get('/hardware/ups/detect', {}, options)
+      if (data === null) return null
+      upsDetection.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      if (isExpectedHardwareError(e)) {
+        upsDetection.value = null
+        return null
+      }
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Fetch current UPS configuration from DB + HAL status
+   * GET /hardware/ups/config
+   * Returns: { configured, configured_model, monitor_running }
+   */
+  async function fetchUPSConfig(options = {}) {
+    try {
+      const data = await api.get('/hardware/ups/config', {}, options)
+      if (data === null) return
+      upsConfig.value = data
+    } catch (e) {
+      if (e.name === 'AbortError') return
+      if (isExpectedHardwareError(e)) return
+      // Non-fatal: UPS config endpoint may not exist on older API
+      console.warn('UPS config fetch failed:', e.message)
+      upsConfig.value = null
+    }
+  }
+
+  /**
+   * Save UPS model selection and activate driver via HAL
+   * POST /hardware/ups/config
+   * @param {string} model - 'x1202', 'x728', 'pisugar3', or 'none'
+   * Returns: { status, model, driver }
+   */
+  async function setUPSConfig(model) {
+    error.value = null
+    upsConfiguring.value = true
+    try {
+      const data = await api.post('/hardware/ups/config', { model })
+      if (data === null) return null
+      // Refresh config state after successful save
+      await fetchUPSConfig()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      upsConfiguring.value = false
+    }
+  }
+
+  // ==========================================
   // HAL Services
   // ==========================================
 
@@ -860,6 +935,14 @@ export const useHardwareStore = defineStore('hardware', () => {
     fetchPowerMonitorStatus,
     startPowerMonitor,
     stopPowerMonitor,
+
+    // UPS Configuration
+    upsConfig,
+    upsDetection,
+    upsConfiguring,
+    detectUPSHAT,
+    fetchUPSConfig,
+    setUPSConfig,
 
     // HAL Services
     fetchHALService,
