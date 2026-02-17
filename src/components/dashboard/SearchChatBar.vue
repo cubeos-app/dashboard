@@ -441,7 +441,7 @@ function cardClass() {
                 select
               </span>
               <span class="flex items-center gap-1">esc close</span>
-              <span class="ml-auto flex items-center gap-1">
+              <span v-if="ollamaAvailable" class="ml-auto flex items-center gap-1">
                 <span>?</span> for AI chat
               </span>
             </div>

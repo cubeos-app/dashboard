@@ -475,8 +475,9 @@ export const useAppManagerStore = defineStore('appmanager', () => {
   /**
    * Fetch port allocation statistics
    * GET /ports/stats
+   * Retries once after 2s if first attempt fails (fresh boot timing).
    */
-  async function fetchPortStats() {
+  async function fetchPortStats(retried = false) {
     try {
       const response = await api.get('/ports/stats')
       const used = response.total_allocated ?? 0
@@ -487,6 +488,11 @@ export const useAppManagerStore = defineStore('appmanager', () => {
         available
       }
     } catch (e) {
+      if (!retried) {
+        // Port manager may not be initialized yet on fresh boot — retry once
+        await new Promise(r => setTimeout(r, 2000))
+        return fetchPortStats(true)
+      }
       portStats.value = { total: 0, used: 0, available: 0 }
     }
   }

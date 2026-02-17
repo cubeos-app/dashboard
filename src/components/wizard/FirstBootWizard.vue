@@ -64,7 +64,7 @@ const config = ref({
   wifi_ssid: 'CubeOS',
   wifi_password: '',
   wifi_channel: 6,
-  country_code: 'US',
+  country_code: 'NL',
   timezone: 'UTC',
   language: 'en',
   theme: 'dark',

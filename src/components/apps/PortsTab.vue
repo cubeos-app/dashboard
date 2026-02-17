@@ -1,10 +1,20 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAppManagerStore } from '@/stores/appmanager'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const store = useAppManagerStore()
+
+// Fetch port data when tab mounts — appManagerStore.init() is not called
+// by AppsPage.vue, so PortsTab must fetch its own data.
+onMounted(async () => {
+  await Promise.all([
+    store.fetchPorts(),
+    store.fetchPortStats(),
+    store.fetchReservedPorts()
+  ])
+})
 
 const showAllocateModal = ref(false)
 const allocating = ref(false)

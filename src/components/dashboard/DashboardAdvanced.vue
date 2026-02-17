@@ -104,7 +104,10 @@ const ACTIONS_POOL = {
 }
 
 const filteredQuickActions = computed(() => {
+  const ollamaApp = appsStore.getAppByName('ollama')
+  const ollamaRunning = ollamaApp && appsStore.isRunning(ollamaApp)
   return configQuickActions.value
+    .filter(id => id !== 'ask_cubeos' || ollamaRunning)
     .map(id => ACTIONS_POOL[id] ? { id, ...ACTIONS_POOL[id] } : null)
     .filter(Boolean)
 })

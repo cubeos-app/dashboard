@@ -18,11 +18,11 @@ function update(field, value) {
 // ISO 3166-1 alpha-2 country codes for WiFi regulatory domains.
 // Common choices first, then alphabetical.
 const COUNTRY_CODES = [
+  { code: 'NL', label: 'Netherlands' },
   { code: 'US', label: 'United States' },
   { code: 'GB', label: 'United Kingdom' },
   { code: 'DE', label: 'Germany' },
   { code: 'FR', label: 'France' },
-  { code: 'NL', label: 'Netherlands' },
   { code: 'AU', label: 'Australia' },
   { code: 'CA', label: 'Canada' },
   { code: 'JP', label: 'Japan' },
