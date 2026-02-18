@@ -6,7 +6,7 @@
  * All endpoints proxy through CubeOS API → HAL service.
  *
  * Meshtastic and Iridium use a lifecycle pattern: discover → connect → operate → disconnect.
- * GPS retains the per-port pattern (API kept {port} routes for GPS).
+ * GPS uses query params for port selection (device paths like /dev/ttyACM0 break path params).
  *
  * API Endpoints:
  *   GET    /communication/bluetooth                       - BT adapter status
@@ -27,8 +27,8 @@
  *   POST   /communication/cellular/android/enable         - Enable tethering
  *   POST   /communication/cellular/android/disable        - Disable tethering
  *   GET    /communication/gps                             - List GPS devices
- *   GET    /communication/gps/{port}/status               - GPS device status
- *   GET    /communication/gps/{port}/position             - GPS position data
+ *   GET    /communication/gps/status?port=...             - GPS device status
+ *   GET    /communication/gps/position?port=...           - GPS position data
  *   GET    /communication/meshtastic/devices              - List available Meshtastic radios
  *   POST   /communication/meshtastic/connect              - Connect to radio (auto/serial/ble)
  *   POST   /communication/meshtastic/disconnect           - Disconnect from radio
@@ -560,12 +560,12 @@ export const useCommunicationStore = defineStore('communication', () => {
 
   /**
    * Fetch GPS device status
-   * GET /communication/gps/{port}/status
-   * @param {string} port - GPS device port
+   * GET /communication/gps/status?port={port}
+   * @param {string} port - GPS device port (e.g. /dev/ttyACM0)
    */
   async function fetchGPSStatus(port, options = {}) {
     try {
-      const data = await api.get(`/communication/gps/${encodeURIComponent(port)}/status`, {}, options)
+      const data = await api.get('/communication/gps/status', { port }, options)
       if (data === null) return null
       gpsStatuses.value = { ...gpsStatuses.value, [port]: data }
       return data
@@ -578,12 +578,12 @@ export const useCommunicationStore = defineStore('communication', () => {
 
   /**
    * Fetch GPS position data
-   * GET /communication/gps/{port}/position
-   * @param {string} port - GPS device port
+   * GET /communication/gps/position?port={port}
+   * @param {string} port - GPS device port (e.g. /dev/ttyACM0)
    */
   async function fetchGPSPosition(port, options = {}) {
     try {
-      const data = await api.get(`/communication/gps/${encodeURIComponent(port)}/position`, {}, options)
+      const data = await api.get('/communication/gps/position', { port }, options)
       if (data === null) return null
       gpsPositions.value = { ...gpsPositions.value, [port]: data }
       return data
