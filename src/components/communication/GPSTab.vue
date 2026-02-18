@@ -327,15 +327,15 @@ onUnmounted(() => {
                   <span v-if="deviceList.length === 1" class="text-sm text-theme-secondary">
                     {{ deviceList[0].name }}
                   </span>
-                  <span v-if="status?.satsUsed !== null" class="text-sm text-theme-muted">
-                    <template v-if="status.satsVisible !== null">
+                  <span v-if="status != null && status.satsUsed != null" class="text-sm text-theme-muted">
+                    <template v-if="status.satsVisible != null">
                       {{ status.satsUsed }}/{{ status.satsVisible }} satellites
                     </template>
                     <template v-else>
                       {{ status.satsUsed }} satellites
                     </template>
                   </span>
-                  <span v-if="status?.hdop !== null" class="text-sm text-theme-muted">
+                  <span v-if="status != null && status.hdop != null" class="text-sm text-theme-muted">
                     HDOP: {{ Number(status.hdop).toFixed(1) }}
                   </span>
                 </div>

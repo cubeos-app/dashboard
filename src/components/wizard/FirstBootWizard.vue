@@ -113,6 +113,8 @@ async function loadSetupData() {
     requirements.value = requirementsRes || {}
     timezones.value = timezonesRes.timezones || []
     Object.assign(config.value, defaults.value)
+    // FR01: Ensure country_code is never empty (API may omit it)
+    if (!config.value.country_code) config.value.country_code = 'NL'
 
     // B39: If device_model missing from requirements, fetch from /system/info
     // B38: Also fetch stats for swap/ZRAM display
