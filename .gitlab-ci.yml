@@ -2,23 +2,12 @@
 # CubeOS Dashboard Pipeline - Build, Package, Deploy
 # =============================================================================
 #
-# DEPLOY STRATEGY:
+# DEPLOY STRATEGY (via SSH to Pi):
 #   1. Stop watchdog timer (prevents interference during deploy)
 #   2. stack rm -> wait for drain
 #   3. stack deploy with local-only image (no registry prefix)
 #   4. Wait for convergence + HTTP health check
-#   5. Restart watchdog timer
-#
-#   Why local image tags?
-#     - Swarm's node worker independently verifies images against registries
-#     - --resolve-image never only skips digest pinning at deploy time
-#     - GHCR resolution is slow on Pi -> tasks hang in "Preparing"
-#     - Local-only names (no registry prefix) skip registry verification
-#
-#   Why stop watchdog?
-#     - Watchdog runs every minute, redeploys struggling stacks
-#     - Uses on-disk compose with ghcr.io image -> re-introduces the problem
-#     - Must be stopped before stack rm, restarted after health check passes
+#   5. Restart watchdog timer (always, even on failure — via after_script)
 #
 # =============================================================================
 
@@ -30,7 +19,6 @@ stages:
 variables:
   GHCR_IMAGE: "ghcr.io/cubeos-app/dashboard"
   BUILDER_IMAGE: "ghcr.io/cubeos-app/dashboard-builder"
-  # Local image name - NO registry prefix so Swarm won't try to resolve remotely
   LOCAL_IMAGE: "cubeos-dashboard"
   SERVICE_NAME: "cubeos-dashboard_cubeos-dashboard"
   STACK_NAME: "cubeos-dashboard"
@@ -85,227 +73,44 @@ package:
     - if: $CI_COMMIT_BRANCH == "main"
 
 # -----------------------------------------------------------------------------
-# DEPLOY
+# DEPLOY — via SSH to Pi
 # -----------------------------------------------------------------------------
 deploy:
   stage: deploy
-  tags: [arm64, cubeos, deploy]
+  tags: [multiarch]
+  image: alpine:latest
+  needs:
+    - package
   before_script:
-    - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+    - apk add --no-cache openssh-client curl
+    - eval $(ssh-agent -s)
+    - echo "$CI_DEPLOY_SSH_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - ssh-keyscan -H ${PI_DEPLOY_ADDR} >> ~/.ssh/known_hosts 2>/dev/null
   script:
-    # === PRE-FLIGHT ===
+    - scp scripts/ci-deploy.sh ${PI_DEPLOY_HOST}:/tmp/ci-deploy-dashboard.sh
     - |
-      echo "=== Pre-flight ==="
-      if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "active"; then
-        echo "FATAL: Docker Swarm not active"
-        exit 1
-      fi
-      echo "  Swarm: active"
-      if [ ! -f "${COMPOSE_DIR}/docker-compose.yml" ]; then
-        echo "FATAL: ${COMPOSE_DIR}/docker-compose.yml not found"
-        exit 1
-      fi
-      echo "  Compose: found"
-
-    # === STOP WATCHDOG ===
-    # Prevent watchdog from redeploying during our stack rm/deploy cycle
-    - |
-      echo "=== Stopping watchdog ==="
-      sudo systemctl stop cubeos-watchdog.timer 2>/dev/null || true
-      echo "  Watchdog timer stopped"
-
-    # === PULL AND RE-TAG AS LOCAL ===
-    - |
-      echo "=== Pulling image ==="
-      docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
-
-      # Re-tag to local-only name (no registry prefix).
-      docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}
-      echo "  Tagged: ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}"
-
-      # Verify local image exists
-      docker image inspect ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA} > /dev/null 2>&1
-      echo "  Verified: local image present"
-
-    # === PREPARE COMPOSE ===
-    - |
-      echo "=== Preparing compose ==="
-      cp ${COMPOSE_DIR}/docker-compose.yml /tmp/deploy-compose.yml
-
-      # Replace image line with local-only name
-      sed -i "s|image:.*dashboard.*|image: ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}|" /tmp/deploy-compose.yml
-
-      echo "  Image tag in compose:"
-      grep "image:" /tmp/deploy-compose.yml | head -1
-
-      # Sanity check
-      if grep "image:" /tmp/deploy-compose.yml | head -1 | grep -q "ghcr.io\|docker.io"; then
-        echo "  FATAL: Compose still references remote registry!"
-        exit 1
-      fi
-      echo "  Confirmed: local-only image reference"
-
-    # === REMOVE OLD STACK ===
-    - |
-      echo "=== Removing old stack ==="
-      docker stack rm ${STACK_NAME} 2>/dev/null || true
-
-      # Wait for all containers to drain
-      set +e
-      WAIT=0
-      while [ $WAIT -lt 45 ]; do
-        REMAINING=$(docker ps -q \
-          --filter "label=com.docker.stack.namespace=${STACK_NAME}" \
-          2>/dev/null | wc -l)
-        if [ "$REMAINING" -eq 0 ]; then
-          echo "  Drained in ${WAIT}s"
-          break
-        fi
-        echo "  ${REMAINING} container(s) draining... (${WAIT}s)"
-        sleep 2
-        WAIT=$((WAIT + 2))
-      done
-
-      # Force-kill stragglers
-      STRAGGLERS=$(docker ps -q \
-        --filter "label=com.docker.stack.namespace=${STACK_NAME}" \
-        2>/dev/null)
-      if [ -n "$STRAGGLERS" ]; then
-        echo "  Force-killing stragglers..."
-        echo "$STRAGGLERS" | xargs docker rm -f 2>/dev/null || true
-        sleep 3
-      fi
-      set -e
-
-      # Verify port is free
-      if ss -tlnp 2>/dev/null | grep -q ":6011 "; then
-        echo "  Port 6011 still bound, waiting..."
-        sleep 5
-      fi
-      echo "  Clean slate"
-
-    # === DEPLOY FRESH STACK ===
-    - |
-      echo "=== Deploying stack ==="
-      docker stack deploy \
-        --compose-file /tmp/deploy-compose.yml \
-        --resolve-image never \
-        ${STACK_NAME}
-      echo "  Stack deployed"
-
-    # === WAIT FOR CONVERGENCE ===
-    - |
-      echo "=== Waiting for convergence (max ${CONVERGE_TIMEOUT}s) ==="
-      set +e
-      ELAPSED=0
-      CONVERGED=0
-      FAIL_COUNT=0
-      while [ $ELAPSED -lt ${CONVERGE_TIMEOUT} ]; do
-        STATE=$(docker service ps ${SERVICE_NAME} \
-          --filter "desired-state=running" \
-          --format "{{.CurrentState}}" 2>/dev/null | head -1)
-
-        case "$STATE" in
-          Running*)
-            echo "  Converged: ${STATE} (${ELAPSED}s)"
-            CONVERGED=1
-            break
-            ;;
-          Starting*)
-            echo "  ${STATE} (${ELAPSED}s) - container starting..."
-            ;;
-          "")
-            # Empty state after previously having one = task failed
-            if [ $ELAPSED -gt 0 ]; then
-              FAIL_COUNT=$((FAIL_COUNT + 1))
-              echo "  Task rescheduling (attempt ${FAIL_COUNT}) (${ELAPSED}s)"
-              docker service ps ${SERVICE_NAME} --no-trunc \
-                --format "    {{.CurrentState}} | {{.Error}}" 2>/dev/null | head -3
-            else
-              echo "  Scheduling... (${ELAPSED}s)"
-            fi
-            ;;
-          *)
-            echo "  ${STATE} (${ELAPSED}s)"
-            ;;
-        esac
-
-        # Bail on repeated failures
-        if [ "$FAIL_COUNT" -ge 3 ]; then
-          echo "  ERROR: ${FAIL_COUNT} task failures, aborting"
-          docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null
-          docker service logs ${SERVICE_NAME} --tail 20 2>/dev/null || true
-          exit 1
-        fi
-
-        sleep 3
-        ELAPSED=$((ELAPSED + 3))
-      done
-      set -e
-
-      if [ "$CONVERGED" -ne 1 ]; then
-        echo "ERROR: Did not converge within ${CONVERGE_TIMEOUT}s"
-        docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
-        docker service logs ${SERVICE_NAME} --tail 30 2>/dev/null || true
-        exit 1
-      fi
-
-    # === HTTP HEALTH CHECK ===
-    - |
-      echo "=== HTTP health check (max ${HEALTH_TIMEOUT}s) ==="
-      set +e
-      ELAPSED=0
-      HEALTHY=0
-      while [ $ELAPSED -lt ${HEALTH_TIMEOUT} ]; do
-        HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" ${HEALTH_URL} 2>/dev/null || echo "000")
-        if [ "$HTTP_CODE" = "200" ]; then
-          echo "  HTTP 200 OK (${ELAPSED}s)"
-          HEALTHY=1
-          break
-        fi
-        echo "  HTTP ${HTTP_CODE} (${ELAPSED}s)"
-        sleep 3
-        ELAPSED=$((ELAPSED + 3))
-      done
-      set -e
-
-      if [ "$HEALTHY" -ne 1 ]; then
-        echo "ERROR: Health check failed after ${HEALTH_TIMEOUT}s"
-        docker service ps ${SERVICE_NAME} --no-trunc 2>/dev/null || true
-        docker service logs ${SERVICE_NAME} --tail 50 2>/dev/null || true
-        exit 1
-      fi
-
-    # === VERIFY IMAGE ===
-    - |
-      echo "=== Verifying ==="
-      RUNNING_IMAGE=$(docker service inspect ${SERVICE_NAME} \
-        --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' 2>/dev/null || echo "unknown")
-      EXPECTED="${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}"
-      echo "  Running:  ${RUNNING_IMAGE}"
-      echo "  Expected: ${EXPECTED}"
-      if [ "${RUNNING_IMAGE}" != "${EXPECTED}" ]; then
-        echo "  FATAL: Image mismatch - possible watchdog interference"
-        exit 1
-      fi
-      echo "  Image verified"
-
-    # === DONE ===
-    - |
-      echo "=== Deploy complete ==="
-      docker service ls --filter "name=${SERVICE_NAME}"
-      echo "  Dashboard: http://cubeos.cube"
-      docker rmi ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} 2>/dev/null || true
-      docker image prune -f 2>/dev/null || true
-      df -h / | awk 'NR==2{printf "  Disk free: %s\n", $4}'
-
-  # ALWAYS restart watchdog, even on failure
+      ssh -o ServerAliveInterval=15 ${PI_DEPLOY_HOST} \
+        "GHCR_TOKEN='${GHCR_TOKEN}' \
+         GHCR_USER='${GHCR_USER}' \
+         GHCR_IMAGE='${GHCR_IMAGE}' \
+         CI_COMMIT_SHORT_SHA='${CI_COMMIT_SHORT_SHA}' \
+         bash /tmp/ci-deploy-dashboard.sh"
+    - ssh ${PI_DEPLOY_HOST} "rm -f /tmp/ci-deploy-dashboard.sh"
+  # ALWAYS restart watchdog, even on failure — separate SSH call
   after_script:
     - |
+      # Re-setup SSH agent for after_script (GitLab runs this in a new shell)
+      apk add --no-cache openssh-client 2>/dev/null || true
+      eval $(ssh-agent -s)
+      echo "$CI_DEPLOY_SSH_KEY" | tr -d '\r' | ssh-add -
+      mkdir -p ~/.ssh && chmod 700 ~/.ssh
+      ssh-keyscan -H ${PI_DEPLOY_ADDR} >> ~/.ssh/known_hosts 2>/dev/null
       echo "=== Restarting watchdog ==="
-      sudo systemctl start cubeos-watchdog.timer 2>/dev/null || true
-      echo "  Watchdog timer restarted"
-
+      ssh -o ConnectTimeout=10 ${PI_DEPLOY_HOST} \
+        "sudo systemctl start cubeos-watchdog.timer 2>/dev/null || true; echo '  Watchdog timer restarted'" \
+        || echo "  WARNING: Could not restart watchdog via SSH"
+      kill $SSH_AGENT_PID 2>/dev/null || true
   environment:
     name: production
     url: http://cubeos.cube
