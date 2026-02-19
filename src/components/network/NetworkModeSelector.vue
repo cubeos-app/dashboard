@@ -1,17 +1,23 @@
 <script setup>
 /**
- * NetworkModeSelector.vue
- * 
+ * NetworkModeSelector.vue — Batch 4 / T19
+ *
  * Network mode selector with connection-aware safety warnings.
- * Shows all 5 modes in a 3+2 grid. Before switching, warns the user
- * about potential disconnection based on how they're currently connected.
+ * Shows all 5 modes in a 3+2 grid.
+ *
+ * Batch 4 change: All 4 client modes (ONLINE_ETH, ONLINE_WIFI, SERVER_ETH,
+ * SERVER_WIFI) now open NetworkConfigDialog instead of switching directly.
+ * Only OFFLINE mode switches immediately (no upstream interface to configure).
+ *
+ * The old `showWifiConnect` emit is replaced by the integrated dialog.
  */
 import { computed, ref, onMounted } from 'vue'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
+import NetworkConfigDialog from '@/components/network/NetworkConfigDialog.vue'
 
-const emit = defineEmits(['modeChanged', 'showWifiConnect'])
+const emit = defineEmits(['modeChanged'])
 
 const networkStore = useNetworkStore()
 
@@ -33,6 +39,10 @@ const fallbackModeList = [
 const modesLoaded = ref(false)
 const selectedMode = ref(null)
 const changingMode = ref(false)
+
+// Config dialog state (Batch 4)
+const showConfigDialog = ref(false)
+const configDialogTarget = ref('')
 
 const currentMode = computed(() => networkStore.currentMode)
 
@@ -86,40 +96,26 @@ function getUserConnectionInfo() {
   return { via: 'the network', isAP: false }
 }
 
-// Build a context-aware warning for the mode switch
+// Build a context-aware warning for OFFLINE mode switch only
 function buildWarningMessage(toMode) {
   const conn = getUserConnectionInfo()
   const fromMeta = modeMetadata[currentMode.value]
   const toMeta = modeMetadata[toMode]
   const lines = []
   
-  // AP being disabled → most dangerous transition
   if (fromMeta?.hasAP && !toMeta?.hasAP) {
     lines.push('This will disable the Access Point. All WiFi clients will be disconnected.')
     if (conn.isAP) {
       lines.push(`You are currently connected via ${conn.via} — you WILL lose access to this dashboard.`)
-      if (toMeta.uplink === 'eth0') {
-        lines.push('To reconnect: plug in an Ethernet cable and access the dashboard via the device\'s Ethernet IP address.')
-      } else {
-        lines.push('To reconnect: connect to the same WiFi network as the device and access it via its WiFi IP address.')
-      }
     }
-  }
-  // AP being enabled from server mode
-  else if (!fromMeta?.hasAP && toMeta?.hasAP) {
+  } else if (!fromMeta?.hasAP && toMeta?.hasAP) {
     lines.push('This will start the Access Point and reconfigure networking.')
     if (!conn.isAP) {
       lines.push(`Your current connection via ${conn.via} may be interrupted during reconfiguration.`)
       lines.push('Once complete, connect to the CubeOS WiFi network to access the dashboard.')
     }
-  }
-  // Uplink change within AP modes
-  else if (fromMeta?.hasAP && toMeta?.hasAP) {
-    lines.push('This will reconfigure the internet uplink. WiFi clients may experience a brief interruption.')
-  }
-  // Server-to-server switch
-  else {
-    lines.push('This will reconfigure the network interface. You may lose access temporarily.')
+  } else {
+    lines.push('This will reconfigure networking. You may experience a brief interruption.')
   }
   
   return lines.join('\n\n')
@@ -128,18 +124,20 @@ function buildWarningMessage(toMode) {
 async function selectMode(mode) {
   if (mode.id === currentMode.value) return
   
-  // WiFi modes need credentials → open WiFi connector
-  if (mode.id === NETWORK_MODES.ONLINE_WIFI || mode.id === NETWORK_MODES.SERVER_WIFI) {
-    emit('showWifiConnect')
+  // ── Batch 4: All 4 client modes open the config dialog ──
+  if (mode.id !== NETWORK_MODES.OFFLINE) {
+    configDialogTarget.value = mode.id
+    showConfigDialog.value = true
     return
   }
-  
+
+  // ── OFFLINE: direct switch with warning (no upstream interface) ──
   const message = buildWarningMessage(mode.id)
   
   if (!await confirm({
-    title: 'Switch Network Mode',
+    title: 'Switch to Offline Mode',
     message,
-    confirmText: 'Switch Mode',
+    confirmText: 'Switch to Offline',
     variant: 'warning'
   })) return
   
@@ -154,6 +152,17 @@ async function selectMode(mode) {
     changingMode.value = false
     selectedMode.value = null
   }
+}
+
+function handleDialogApplied(modeId) {
+  showConfigDialog.value = false
+  configDialogTarget.value = ''
+  emit('modeChanged', modeId)
+}
+
+function handleDialogClose() {
+  showConfigDialog.value = false
+  configDialogTarget.value = ''
 }
 
 function isCurrentMode(modeId) {
@@ -266,5 +275,14 @@ function isCurrentMode(modeId) {
       <Icon name="AlertCircle" :size="16" />
       {{ networkStore.error }}
     </div>
+
+    <!-- Network Config Dialog (Batch 4) -->
+    <NetworkConfigDialog
+      :show="showConfigDialog"
+      :target-mode="configDialogTarget"
+      :current-mode="currentMode"
+      @applied="handleDialogApplied"
+      @close="handleDialogClose"
+    />
   </div>
 </template>

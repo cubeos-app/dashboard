@@ -1,10 +1,13 @@
 <script setup>
 /**
- * NetworkOverviewTab.vue — S06 Component
+ * NetworkOverviewTab.vue — S06 Component (Batch 4 updated)
  *
  * Network overview tab. Standard: connectivity status, AP card, internet status,
  * network mode selector, simplified interfaces. Advanced: + NAT toggle, firewall
  * summary card, detailed interface stats, advanced settings panel.
+ *
+ * Batch 4: Removed WiFiConnector — now integrated inside NetworkModeSelector
+ * via NetworkConfigDialog. The @showWifiConnect emit is no longer needed.
  */
 import { ref, computed } from 'vue'
 import { useNetworkStore } from '@/stores/network'
@@ -15,7 +18,6 @@ import { useMode } from '@/composables/useMode'
 import { useWallpaper } from '@/composables/useWallpaper'
 import Icon from '@/components/ui/Icon.vue'
 import NetworkModeSelector from '@/components/network/NetworkModeSelector.vue'
-import WiFiConnector from '@/components/network/WiFiConnector.vue'
 
 const props = defineProps({
   loading: Boolean,
@@ -127,9 +129,6 @@ async function toggleNAT() {
     // handled by store
   }
 }
-
-// WiFi connect modal
-const showWiFiConnector = ref(false)
 
 // Helpers
 function formatBytes(bytes) {
@@ -285,11 +284,10 @@ function formatBytes(bytes) {
       </div>
     </div>
 
-    <!-- Network Mode Selector -->
+    <!-- Network Mode Selector (Batch 4: now includes NetworkConfigDialog internally) -->
     <div class="rounded-xl border border-theme-primary p-4" :class="wallpaperActive ? panelClass : 'bg-theme-card'">
       <NetworkModeSelector
         @modeChanged="emit('refresh')"
-        @showWifiConnect="showWiFiConnector = true"
       />
     </div>
 
@@ -329,14 +327,5 @@ function formatBytes(bytes) {
         </div>
       </div>
     </div>
-
-    <!-- WiFi Connector Modal (triggered from NetworkModeSelector) -->
-    <WiFiConnector
-      v-if="showWiFiConnector"
-      :show="showWiFiConnector"
-      @close="showWiFiConnector = false"
-      @connected="showWiFiConnector = false; emit('refresh')"
-    />
   </div>
 </template>
-

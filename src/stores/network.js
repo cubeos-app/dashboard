@@ -4,6 +4,10 @@
  * Sprint 2: Extended with 16 new API methods for DNS, interfaces, settings,
  * modes, connectivity, VPN mode, warning dismiss, WiFi management, and AP controls.
  * 
+ * Batch 4 (Network Modes): Extended setMode() to accept static IP parameters.
+ * The options object now supports: ssid, password, use_static_ip, static_ip,
+ * static_netmask, static_gateway, static_dns_primary, static_dns_secondary.
+ * 
  * Original Sprint 4 methods: fetchStatus, setMode, scanWiFi, connectWiFi, fetchAPConfig, updateAPConfig
  * New Sprint 2 methods: fetchDNS, saveDNS, fetchInterfaces, fetchSettings, updateSettings,
  *   fetchModes, checkConnectivity, getVPNMode, setVPNMode, dismissWarning,
@@ -134,9 +138,18 @@ export const useNetworkStore = defineStore('network', () => {
   }
   
   /**
-   * Set network mode
+   * Set network mode (Batch 4: extended with static IP support)
+   *
    * @param {string} mode - One of NETWORK_MODES
-   * @param {object} options - Additional options (ssid, password for ONLINE_WIFI)
+   * @param {object} options - Additional options:
+   *   - ssid {string}               WiFi SSID (for ONLINE_WIFI / SERVER_WIFI)
+   *   - password {string}           WiFi password
+   *   - use_static_ip {boolean}     Enable static IP on upstream interface
+   *   - static_ip {string}          Static IPv4 address
+   *   - static_netmask {string}     Subnet mask (default 255.255.255.0)
+   *   - static_gateway {string}     Default gateway
+   *   - static_dns_primary {string} Primary DNS server
+   *   - static_dns_secondary {string} Secondary DNS server
    */
   async function setMode(mode, options = {}, skipLoading = false) {
     if (!skipLoading) loading.value = true
@@ -144,12 +157,25 @@ export const useNetworkStore = defineStore('network', () => {
     
     try {
       const body = { mode }
-      if (mode === NETWORK_MODES.ONLINE_WIFI) {
-        if (!options.ssid) {
-          throw new Error('SSID required for WiFi client mode')
-        }
+
+      // WiFi credentials
+      if (options.ssid) {
         body.ssid = options.ssid
         body.password = options.password || ''
+      }
+
+      // Static IP parameters (Batch 4 / T20)
+      if (options.use_static_ip) {
+        body.use_static_ip = true
+        body.static_ip = options.static_ip || ''
+        body.static_netmask = options.static_netmask || '255.255.255.0'
+        body.static_gateway = options.static_gateway || ''
+        if (options.static_dns_primary) {
+          body.static_dns_primary = options.static_dns_primary
+        }
+        if (options.static_dns_secondary) {
+          body.static_dns_secondary = options.static_dns_secondary
+        }
       }
       
       await api.post('/network/mode', body)
