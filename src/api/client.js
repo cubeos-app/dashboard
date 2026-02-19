@@ -93,7 +93,7 @@ class ApiClient {
           return response
         }
         // Server error or rate-limited — retry
-        lastError = new Error(`HTTP ${response?.status}`)
+        lastError = new Error(`HTTP ${response?.status || 'error'}`)
       } catch (err) {
         if (err.name === 'AbortError') return null
         lastError = err

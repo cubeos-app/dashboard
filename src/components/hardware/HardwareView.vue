@@ -745,9 +745,9 @@ onUnmounted(() => {
                     </div>
                   </div>
 
-                  <!-- Charging toggle -->
+                  <!-- Charging toggle (B64: dynamic label based on state) -->
                   <div class="flex items-center justify-between">
-                    <span class="text-sm text-theme-secondary">Charging</span>
+                    <span class="text-sm text-theme-secondary">{{ isCharging ? 'Charging' : 'Charge Control' }}</span>
                     <button
                       @click="handleToggleCharging()"
                       role="switch"

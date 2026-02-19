@@ -127,17 +127,40 @@ const isHALHardwareTab = computed(() => activeTab.value === 'hal-hardware')
 async function fetchOptions() {
   try {
     const s = signal()
+    // B71 fix: Use /services endpoint (lists all Docker containers including system ones)
+    // instead of /apps (which only has user apps from the database).
     const [, servicesResp] = await Promise.all([
       logsStore.fetchUnits({ signal: s }),
-      api.get('/apps', {}, { signal: s }).catch(() => ({ apps: [] }))
+      api.get('/services', {}, { signal: s }).catch(() => null)
     ])
     units.value = logsStore.units || []
-    const appsList = servicesResp?.apps || []
-    // B38: Show all apps (not just running ones) — stopped containers still have logs.
-    // Previous filter (s.status?.running) excluded all apps when Swarm status wasn't populated.
-    containers.value = appsList
-      .filter(s => s.enabled !== false)
-      .map(s => s.name)
+
+    if (servicesResp?.services) {
+      // /services returns { services: [...], total, running }
+      // Each service has .name field
+      containers.value = servicesResp.services
+        .map(s => s.name)
+        .filter(Boolean)
+        .sort()
+    } else {
+      // Fallback: hardcoded system containers + apps table
+      const SYSTEM_CONTAINERS = [
+        'cubeos-api', 'cubeos-hal', 'cubeos-dashboard',
+        'cubeos-pihole', 'cubeos-npm', 'cubeos-dozzle',
+        'cubeos-registry', 'cubeos-ollama', 'cubeos-chromadb'
+      ]
+      try {
+        const appsResp = await api.get('/apps', {}, { signal: s })
+        const appNames = (appsResp?.apps || [])
+          .filter(a => a.enabled !== false)
+          .map(a => a.name)
+        // Merge system + app names, deduplicate
+        const all = new Set([...SYSTEM_CONTAINERS, ...appNames])
+        containers.value = [...all].sort()
+      } catch {
+        containers.value = [...SYSTEM_CONTAINERS]
+      }
+    }
   } catch {
     // Options fetch failed silently
   }

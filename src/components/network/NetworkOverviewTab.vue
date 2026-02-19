@@ -64,6 +64,12 @@ const isInternetSharing = computed(() => {
   return mode === 'online_eth' || mode === 'online_wifi'
 })
 
+// B75 fix: Detect OFFLINE mode — NAT toggle has no meaning without upstream
+const isOfflineMode = computed(() => {
+  const mode = (props.networkMode?.mode || '').toLowerCase()
+  return mode === 'offline' || mode === ''
+})
+
 // Firewall IP forward — normalize field name (API returns forwarding_enabled, not ip_forward)
 const ipForwardEnabled = computed(() => {
   if (!props.firewallStatus) return false
@@ -230,8 +236,8 @@ function formatBytes(bytes) {
         </div>
       </div>
 
-      <!-- NAT Status (Advanced) -->
-      <div v-if="isAdvanced" class="rounded-xl p-4 border border-theme-primary" :class="wallpaperActive ? panelClass : 'bg-theme-card'">
+      <!-- NAT Status (Advanced, hidden in OFFLINE mode — B75 fix) -->
+      <div v-if="isAdvanced && !isOfflineMode" class="rounded-xl p-4 border border-theme-primary" :class="wallpaperActive ? panelClass : 'bg-theme-card'">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center"
                :class="isInternetSharing ? 'bg-accent-muted' : 'bg-theme-tertiary'">

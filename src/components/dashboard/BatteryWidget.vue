@@ -12,6 +12,9 @@
  *
  * Conditionally visible: only shows when batteryAvailable is true.
  * The parent widget registry controls this via show_battery + hardware check.
+ *
+ * B63 fix: "Configure" button now routes to /system?tab=hardware (works in
+ * both Standard and Advanced mode) instead of /hardware (Advanced-only dead-end).
  */
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -124,6 +127,11 @@ const statusIcon = computed(() => {
   return 'Plug'
 })
 
+// B63 fix: Navigate to System page Hardware tab (works in both modes)
+function navigateToUPSConfig() {
+  router.push('/system?tab=hardware')
+}
+
 function cardClass() {
   return wallpaperActive.value
     ? 'glass'
@@ -209,13 +217,12 @@ function cardClass() {
     </div>
   </button>
 
-  <!-- Hidden state: widget wrapper will not render this if battery not available,
-       but in case it does, show nothing gracefully -->
+  <!-- B63 fix: "Configure" button navigates to /system?tab=hardware instead of /hardware -->
   <button
     v-else-if="upsNotConfigured"
     :class="cardClass()"
     class="w-full rounded-2xl p-5 text-left transition-all hover:shadow-lg group cursor-pointer"
-    @click="router.push('/hardware')"
+    @click="navigateToUPSConfig"
   >
     <div class="flex items-center gap-3">
       <div class="w-7 h-7 rounded-lg flex items-center justify-center bg-warning/15">

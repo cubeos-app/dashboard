@@ -54,21 +54,16 @@ export const useMediaStore = defineStore('media', () => {
   const error = computed(() => audioError.value || cameraError.value)
 
   // Absent-hardware cache: stop polling endpoints returning 404/503
+  // B72 fix: Use Infinity — hardware won't appear mid-session.
+  // Users can reload the page to retry.
   const _unavailableCache = {}
-  const UNAVAILABLE_TTL_MS = 60000
 
   function isUnavailable(key) {
-    const cached = _unavailableCache[key]
-    if (!cached) return false
-    if (Date.now() - cached > UNAVAILABLE_TTL_MS) {
-      delete _unavailableCache[key]
-      return false
-    }
-    return true
+    return !!_unavailableCache[key]
   }
 
   function markUnavailable(key) {
-    _unavailableCache[key] = Date.now()
+    _unavailableCache[key] = true
   }
 
   function isAbsentHardwareError(e) {

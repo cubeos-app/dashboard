@@ -194,7 +194,10 @@ export const useMonitoringStore = defineStore('monitoring', () => {
   }
 
   /**
-   * Fetch all monitoring data in parallel
+   * Fetch all monitoring data in parallel.
+   * B73 fix: Removed fetchWebSocketInfo from default fetch — it's a debug-only
+   * endpoint that returns 400 when no WebSocket connections exist, producing
+   * console noise. Call fetchWebSocketInfo() explicitly when needed.
    */
   async function fetchAll(options = {}) {
     loading.value = true
@@ -202,8 +205,7 @@ export const useMonitoringStore = defineStore('monitoring', () => {
       await Promise.all([
         fetchStats(options),
         fetchAlerts(options),
-        fetchThresholds(options),
-        fetchWebSocketInfo(options)
+        fetchThresholds(options)
       ])
     } finally {
       loading.value = false

@@ -102,21 +102,16 @@ export const useCommunicationStore = defineStore('communication', () => {
   const error = ref(null)
 
   // Absent-hardware cache: stop polling endpoints returning 404/503
+  // B72 fix: Use permanent cache for session — hardware won't appear mid-session.
+  // Users can reload the page or call clearUnavailableCache() to retry.
   const _unavailableCache = {}
-  const UNAVAILABLE_TTL_MS = 60000
 
   function isUnavailable(key) {
-    const cached = _unavailableCache[key]
-    if (!cached) return false
-    if (Date.now() - cached > UNAVAILABLE_TTL_MS) {
-      delete _unavailableCache[key]
-      return false
-    }
-    return true
+    return !!_unavailableCache[key]
   }
 
   function markUnavailable(key) {
-    _unavailableCache[key] = Date.now()
+    _unavailableCache[key] = true
   }
 
   function isAbsentHardwareError(e) {
@@ -601,8 +596,10 @@ export const useCommunicationStore = defineStore('communication', () => {
   /**
    * Fetch available Meshtastic radio devices
    * GET /communication/meshtastic/devices
+   * B69 fix: Added isUnavailable/isAbsentHardwareError guards
    */
   async function fetchMeshtasticDevices(options = {}) {
+    if (isUnavailable('meshtastic')) return
     loading.value = true
     error.value = null
     try {
@@ -612,7 +609,8 @@ export const useCommunicationStore = defineStore('communication', () => {
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
-      error.value = e.message
+      if (isAbsentHardwareError(e)) { markUnavailable('meshtastic') }
+      else { error.value = e.message }
       meshtasticDevices.value = null
       return null
     } finally {
@@ -668,8 +666,10 @@ export const useCommunicationStore = defineStore('communication', () => {
   /**
    * Fetch Meshtastic radio status
    * GET /communication/meshtastic/status
+   * B69 fix: Added absent-hardware guards
    */
   async function fetchMeshtasticStatus(options = {}) {
+    if (isUnavailable('meshtastic')) return null
     loading.value = true
     error.value = null
     try {
@@ -679,7 +679,8 @@ export const useCommunicationStore = defineStore('communication', () => {
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
-      error.value = e.message
+      if (isAbsentHardwareError(e)) { markUnavailable('meshtastic') }
+      else { error.value = e.message }
       return null
     } finally {
       loading.value = false
@@ -831,8 +832,10 @@ export const useCommunicationStore = defineStore('communication', () => {
   /**
    * Fetch available Iridium satellite modem devices
    * GET /communication/iridium/devices
+   * B69 fix: Added isUnavailable/isAbsentHardwareError guards
    */
   async function fetchIridiumDevices(options = {}) {
+    if (isUnavailable('iridium')) return
     loading.value = true
     error.value = null
     try {
@@ -842,7 +845,8 @@ export const useCommunicationStore = defineStore('communication', () => {
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
-      error.value = e.message
+      if (isAbsentHardwareError(e)) { markUnavailable('iridium') }
+      else { error.value = e.message }
       iridiumDevices.value = null
       return null
     } finally {
@@ -895,8 +899,10 @@ export const useCommunicationStore = defineStore('communication', () => {
   /**
    * Fetch Iridium modem status
    * GET /communication/iridium/status
+   * B69 fix: Added absent-hardware guards
    */
   async function fetchIridiumStatus(options = {}) {
+    if (isUnavailable('iridium')) return null
     loading.value = true
     error.value = null
     try {
@@ -906,7 +912,8 @@ export const useCommunicationStore = defineStore('communication', () => {
       return data
     } catch (e) {
       if (e.name === 'AbortError') return null
-      error.value = e.message
+      if (isAbsentHardwareError(e)) { markUnavailable('iridium') }
+      else { error.value = e.message }
       return null
     } finally {
       loading.value = false
