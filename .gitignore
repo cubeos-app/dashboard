@@ -26,3 +26,6 @@ npm-debug.log*
 
 # Editor directories
 *.sublime-workspace
+
+# Session handover files (belong in project knowledge, not source control)
+*HANDOVER*.md
