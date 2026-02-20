@@ -85,7 +85,7 @@ export const useSystemStore = defineStore('system', () => {
     if (!battery.value?.available) return null
     const pct = battery.value?.percentage
     if (pct === null || pct === undefined || pct < 0) return null
-    return Math.round(pct)
+    return Math.min(100, Math.max(0, Math.round(pct)))
   })
   
   const batteryAvailable = computed(() => battery.value?.available ?? false)

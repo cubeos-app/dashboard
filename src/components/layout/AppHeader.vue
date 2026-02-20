@@ -73,7 +73,7 @@ const batteryPercent = computed(() => {
   if (!systemStore.power?.available) return null
   const pct = systemStore.power?.battery_percent
   if (pct === null || pct === undefined || pct < 0) return null
-  return Math.round(pct)
+  return Math.min(100, Math.max(0, Math.round(pct)))
 })
 
 const batteryCharging = computed(() => {
