@@ -36,7 +36,13 @@ export const useRegistryStore = defineStore('registry', () => {
 
   const isOnline = computed(() => status.value?.online === true || status.value?.running === true || status.value?.status === 'running')
   const imageCount = computed(() => images.value.length)
-  const totalDiskUsage = computed(() => diskUsage.value?.total_size || diskUsage.value?.size || 0)
+  // B101: API /registry/disk-usage returns {bytes, readable, path}
+  // API /registry/status returns {disk_usage_bytes, image_count}
+  // Check all possible field names for robustness
+  const totalDiskUsage = computed(() =>
+    diskUsage.value?.bytes || diskUsage.value?.disk_usage_bytes ||
+    diskUsage.value?.total_size || diskUsage.value?.size || 0
+  )
 
   // ==========================================
   // Existing Methods (migrated from appmanager.js)
@@ -83,11 +89,24 @@ export const useRegistryStore = defineStore('registry', () => {
   /**
    * Fetch registry disk usage statistics
    * GET /registry/disk-usage
+   * B101: Normalizes API response {bytes, readable, path} to include
+   * used_space for dashboard compatibility
    */
   async function fetchDiskUsage(skipLoading = false) {
     if (!skipLoading) loading.value = true
     try {
-      diskUsage.value = await api.get('/registry/disk-usage')
+      const raw = await api.get('/registry/disk-usage')
+      // B101: Normalize — API returns {bytes, readable, path},
+      // dashboard expects used_space / blob_size
+      diskUsage.value = {
+        ...raw,
+        used_space: raw?.bytes || raw?.used_space || 0,
+        blob_size: raw?.bytes || raw?.blob_size || 0,
+        // image_count comes from status, merged in fetchAll
+        image_count: diskUsage.value?.image_count ?? raw?.image_count ?? null,
+        layer_count: raw?.layer_count ?? null,
+        tag_count: raw?.tag_count ?? null
+      }
       return diskUsage.value
     } catch (e) {
       // Disk usage fetch failure is non-fatal
@@ -165,6 +184,7 @@ export const useRegistryStore = defineStore('registry', () => {
 
   /**
    * Fetch all registry data in parallel
+   * B101: Merges image_count from status into diskUsage for dashboard stats grid
    */
   async function fetchAll() {
     loading.value = true
@@ -174,6 +194,13 @@ export const useRegistryStore = defineStore('registry', () => {
         fetchImages(true),
         fetchDiskUsage(true)
       ])
+      // B101: Merge image_count from status into diskUsage
+      if (diskUsage.value && status.value) {
+        diskUsage.value = {
+          ...diskUsage.value,
+          image_count: status.value.image_count ?? diskUsage.value.image_count ?? images.value.length
+        }
+      }
     } finally {
       loading.value = false
     }
@@ -198,6 +225,29 @@ export const useRegistryStore = defineStore('registry', () => {
       return await api.get(`/registry/check?${params}`)
     } catch (e) {
       return { exists: false, image: imageName, tag }
+    }
+  }
+
+  /**
+   * B102: Deploy a cached registry image as a Swarm service
+   * POST /registry/deploy
+   * @param {string} imageName - Image name in registry (e.g., "kiwix-serve")
+   * @param {string} tag - Image tag (e.g., "latest")
+   * @param {string} appName - Optional app name override
+   * @returns {object} Deploy result with app details
+   */
+  async function deployImage(imageName, tag = 'latest', appName = '') {
+    error.value = null
+    try {
+      const result = await api.post('/registry/deploy', {
+        image: imageName,
+        tag: tag,
+        app_name: appName || imageName.split('/').pop().replace(/[^a-z0-9-]/g, '-')
+      })
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
     }
   }
 
@@ -229,6 +279,7 @@ export const useRegistryStore = defineStore('registry', () => {
     // Utilities
     fetchAll,
     clearSelectedImage,
-    checkImage
+    checkImage,
+    deployImage
   }
 })

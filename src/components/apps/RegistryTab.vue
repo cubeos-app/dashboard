@@ -40,6 +40,14 @@ const tagsLoading = ref(false)
 const deleteLoading = ref({})
 const actionError = ref(null)
 
+// B102: Deploy from registry
+const deployModalVisible = ref(false)
+const deployImageName = ref('')
+const deployImageTag = ref('latest')
+const deployAppName = ref('')
+const deployLoading = ref(false)
+const deployResult = ref(null)
+
 // ==========================================
 // Computed
 // ==========================================
@@ -192,6 +200,38 @@ async function deleteImageTag(imageName, tag) {
     await registryStore.fetchDiskUsage()
   } catch (e) {
     actionError.value = 'Failed to delete tag: ' + e.message
+  }
+}
+
+// B102: Deploy image from local registry
+function openDeployModal(imageName) {
+  const tags = getImageTags({ name: imageName, tags: [] })
+  deployImageName.value = imageName
+  deployImageTag.value = tags.length > 0 ? tags[0] : 'latest'
+  // Derive app name: last path segment, lowercase, hyphens only
+  deployAppName.value = imageName.split('/').pop().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '')
+  deployResult.value = null
+  actionError.value = null
+  deployModalVisible.value = true
+}
+
+async function deployImage() {
+  if (!deployAppName.value.trim()) return
+  deployLoading.value = true
+  actionError.value = null
+  deployResult.value = null
+  try {
+    const result = await registryStore.deployImage(
+      deployImageName.value,
+      deployImageTag.value,
+      deployAppName.value.trim()
+    )
+    deployResult.value = result
+    deployModalVisible.value = false
+  } catch (e) {
+    actionError.value = 'Deploy failed: ' + e.message
+  } finally {
+    deployLoading.value = false
   }
 }
 
@@ -467,6 +507,15 @@ function getImageTags(image) {
                   +{{ image.tags.length - 3 }}
                 </span>
               </div>
+              <!-- B102: Deploy button -->
+              <button
+                @click.stop="openDeployModal(image.name)"
+                class="p-2 text-theme-muted hover:text-success rounded-lg hover:bg-success-muted"
+                title="Deploy as Swarm service"
+                :aria-label="'Deploy image ' + image.name"
+              >
+                <Icon name="Rocket" :size="14" />
+              </button>
               <button
                 @click.stop="deleteImage(image.name)"
                 :disabled="deleteLoading[image.name]"
@@ -551,6 +600,98 @@ function getImageTags(image) {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B102: Deploy Success -->
+    <div v-if="deployResult" class="bg-success-muted border border-success rounded-lg p-4 flex items-start gap-2">
+      <Icon name="CheckCircle" :size="16" class="text-success flex-shrink-0 mt-0.5" />
+      <div class="flex-1">
+        <p class="text-sm text-success">
+          Deployed successfully.
+          <span v-if="deployResult.app_name"> App: <strong>{{ deployResult.app_name }}</strong>.</span>
+          <span v-if="deployResult.port"> Port: <strong>{{ deployResult.port }}</strong>.</span>
+          <span v-if="deployResult.fqdn"> URL: <strong>{{ deployResult.fqdn }}</strong>.</span>
+        </p>
+        <button @click="deployResult = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss deploy result">Dismiss</button>
+      </div>
+    </div>
+
+    <!-- B102: Deploy Modal -->
+    <div
+      v-if="deployModalVisible"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click.self="deployModalVisible = false"
+      @keydown.escape="deployModalVisible = false"
+    >
+      <div class="bg-theme-card border border-theme-primary rounded-xl shadow-xl w-full max-w-md mx-4" role="dialog" aria-modal="true" aria-label="Deploy registry image">
+        <div class="px-6 py-4 border-b border-theme-primary">
+          <h3 class="text-lg font-semibold text-theme-primary">Deploy Image</h3>
+          <p class="text-sm text-theme-secondary mt-1">Create a Swarm service from a cached registry image</p>
+        </div>
+
+        <div class="px-6 py-4 space-y-4">
+          <!-- Image reference (read-only) -->
+          <div>
+            <label class="block text-xs font-medium text-theme-secondary mb-1">Image</label>
+            <div class="px-3 py-2 rounded-lg bg-theme-tertiary text-sm text-theme-primary font-mono">
+              {{ deployImageName }}:{{ deployImageTag }}
+            </div>
+          </div>
+
+          <!-- Tag selector -->
+          <div>
+            <label for="deploy-tag" class="block text-xs font-medium text-theme-secondary mb-1">Tag</label>
+            <select
+              id="deploy-tag"
+              v-model="deployImageTag"
+              class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm"
+            >
+              <option v-for="tag in getImageTags({ name: deployImageName, tags: [] })" :key="tag" :value="tag">{{ tag }}</option>
+              <option v-if="getImageTags({ name: deployImageName, tags: [] }).length === 0" value="latest">latest</option>
+            </select>
+          </div>
+
+          <!-- App name -->
+          <div>
+            <label for="deploy-name" class="block text-xs font-medium text-theme-secondary mb-1">App Name</label>
+            <input
+              id="deploy-name"
+              v-model="deployAppName"
+              type="text"
+              placeholder="my-app"
+              class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm font-mono"
+              :disabled="deployLoading"
+              @keyup.enter="deployImage"
+            />
+            <p class="mt-1 text-xs text-theme-muted">Lowercase letters, numbers, and hyphens only</p>
+          </div>
+
+          <!-- Deploy error (inline) -->
+          <div v-if="actionError && deployModalVisible" class="bg-error-muted rounded-lg p-3 flex items-start gap-2">
+            <Icon name="AlertTriangle" :size="14" class="text-error mt-0.5 flex-shrink-0" />
+            <span class="text-xs text-error">{{ actionError }}</span>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-theme-primary flex justify-end gap-3">
+          <button
+            @click="deployModalVisible = false"
+            :disabled="deployLoading"
+            class="px-4 py-2 text-sm rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="deployImage"
+            :disabled="deployLoading || !deployAppName.trim()"
+            class="px-4 py-2 text-sm rounded-lg btn-accent disabled:opacity-50 flex items-center gap-2"
+          >
+            <Icon v-if="deployLoading" name="Loader2" :size="14" class="animate-spin" />
+            <Icon v-else name="Rocket" :size="14" />
+            {{ deployLoading ? 'Deploying...' : 'Deploy' }}
+          </button>
         </div>
       </div>
     </div>

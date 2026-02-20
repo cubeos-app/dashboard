@@ -121,7 +121,16 @@ const bootConfigText = computed(() => {
 // HAL Services
 // ==========================================
 
-const halServiceNames = ['cubeos-hal', 'hostapd', 'pihole', 'wireguard', 'openvpn']
+// B97: Use actual systemd unit names from HAL allowlist (not Docker container names)
+const halServiceNames = ['hostapd', 'pihole-FTL', 'wg-quick@wg0', 'openvpn@client']
+
+// B97: Friendly display labels for systemd service names
+const halServiceDisplayNames = {
+  'hostapd': 'Access Point (hostapd)',
+  'pihole-FTL': 'Pi-hole DNS',
+  'wg-quick@wg0': 'WireGuard VPN',
+  'openvpn@client': 'OpenVPN Client'
+}
 const serviceActionLoading = ref({})
 
 function serviceStatus(name) {
@@ -1005,7 +1014,10 @@ onUnmounted(() => {
                 <!-- Service name + status -->
                 <div class="flex items-center gap-3">
                   <Icon name="Box" :size="16" class="text-theme-secondary" />
-                  <span class="text-sm font-medium font-mono text-theme-primary">{{ name }}</span>
+                  <div class="min-w-0">
+                    <span class="text-sm font-medium text-theme-primary block">{{ halServiceDisplayNames[name] || name }}</span>
+                    <span class="text-xs text-theme-muted font-mono">{{ name }}</span>
+                  </div>
                   <span
                     :class="[
                       'text-xs font-medium px-2 py-0.5 rounded-full',

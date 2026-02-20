@@ -307,8 +307,11 @@ watch([activeTab, selectedUnit, selectedContainer, logLevel, lineCount, halCateg
 // Lifecycle
 // ==========================================
 
-onMounted(() => {
-  fetchOptions()
+onMounted(async () => {
+  // B98: Must await fetchOptions() first — fetchLogs() calls abort() at entry,
+  // which kills any in-flight signal(). Without await, fetchOptions' request
+  // is aborted immediately, leaving the container dropdown empty.
+  await fetchOptions()
   fetchLogs()
 })
 
