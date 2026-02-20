@@ -20,11 +20,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRegistryStore } from '@/stores/registry'
 import { useAppManagerStore } from '@/stores/appmanager'
+import { useAppsStore } from '@/stores/apps'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const registryStore = useRegistryStore()
 const appManagerStore = useAppManagerStore()
+const appsStore = useAppsStore()
+
+const emit = defineEmits(['switch-tab'])
 
 // ==========================================
 // State
@@ -228,6 +232,8 @@ async function deployImage() {
     )
     deployResult.value = result
     deployModalVisible.value = false
+    // B108b: Refresh My Apps list so the new app appears immediately
+    await appsStore.fetchApps({ force: true })
   } catch (e) {
     actionError.value = 'Deploy failed: ' + e.message
   } finally {
@@ -604,17 +610,33 @@ function getImageTags(image) {
       </div>
     </div>
 
-    <!-- B102: Deploy Success -->
+    <!-- B102/B108b: Deploy Success -->
     <div v-if="deployResult" class="bg-success-muted border border-success rounded-lg p-4 flex items-start gap-2">
       <Icon name="CheckCircle" :size="16" class="text-success flex-shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-sm text-success">
           Deployed successfully.
           <span v-if="deployResult.app_name"> App: <strong>{{ deployResult.app_name }}</strong>.</span>
-          <span v-if="deployResult.port"> Port: <strong>{{ deployResult.port }}</strong>.</span>
-          <span v-if="deployResult.fqdn"> URL: <strong>{{ deployResult.fqdn }}</strong>.</span>
         </p>
-        <button @click="deployResult = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss deploy result">Dismiss</button>
+        <div v-if="deployResult.web_ui || deployResult.fqdn" class="mt-2 flex flex-wrap gap-2">
+          <a
+            :href="deployResult.web_ui || ('http://' + deployResult.fqdn)"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
+          >
+            <Icon name="ExternalLink" :size="12" />
+            Open {{ deployResult.fqdn || deployResult.app_name }}
+          </a>
+          <button
+            @click="deployResult = null; emit('switch-tab', 'my-apps')"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors"
+          >
+            <Icon name="LayoutGrid" :size="12" />
+            View in My Apps
+          </button>
+        </div>
+        <button @click="deployResult = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-2" aria-label="Dismiss deploy result">Dismiss</button>
       </div>
     </div>
 
