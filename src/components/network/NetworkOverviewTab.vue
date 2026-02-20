@@ -311,7 +311,7 @@ function formatBytes(bytes) {
             <div>
               <p class="font-medium text-theme-primary">{{ iface.name }}</p>
               <p class="text-sm" :class="(iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip ? 'text-theme-muted' : 'text-theme-muted/50'">
-                {{ (iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip || 'Not connected' }}
+                {{ (iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip || ((iface.is_up === true || iface.state === 'up' || iface.state === 'UP') ? 'Up (no IP)' : 'Not connected') }}
               </p>
             </div>
           </div>
