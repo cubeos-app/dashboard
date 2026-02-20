@@ -40,8 +40,7 @@ const tabs = [
   { id: 'gpio', name: 'GPIO', icon: 'ToggleRight' },
   { id: 'i2c', name: 'I2C', icon: 'Cable' },
   { id: 'sensors', name: 'Sensors', icon: 'Thermometer' },
-  { id: 'rtc-watchdog', name: 'RTC / Watchdog', icon: 'Clock' },
-  { id: 'services', name: 'HAL Services', icon: 'Server' }
+  { id: 'rtc-watchdog', name: 'RTC / Watchdog', icon: 'Clock' }
 ]
 
 const activeTab = ref('overview')
@@ -118,67 +117,6 @@ const bootConfigText = computed(() => {
 })
 
 // ==========================================
-// HAL Services
-// ==========================================
-
-// B97: Use actual systemd unit names from HAL allowlist (not Docker container names)
-const halServiceNames = ['hostapd', 'pihole-FTL', 'wg-quick@wg0', 'openvpn@client']
-
-// B97: Friendly display labels for systemd service names
-const halServiceDisplayNames = {
-  'hostapd': 'Access Point (hostapd)',
-  'pihole-FTL': 'Pi-hole DNS',
-  'wg-quick@wg0': 'WireGuard VPN',
-  'openvpn@client': 'OpenVPN Client'
-}
-const serviceActionLoading = ref({})
-
-function serviceStatus(name) {
-  const svc = hardwareStore.halServices[name]
-  if (!svc) return 'unknown'
-  const state = (svc.status || svc.state || svc.active_state || '').toLowerCase()
-  if (state === 'running' || state === 'active') return 'running'
-  if (state === 'stopped' || state === 'inactive' || state === 'dead') return 'stopped'
-  if (state === 'failed' || state === 'error') return 'error'
-  return state || 'unknown'
-}
-
-function serviceStatusBadge(name) {
-  const status = serviceStatus(name)
-  const map = {
-    running: { text: 'Running', bg: 'bg-success-muted', fg: 'text-success' },
-    stopped: { text: 'Stopped', bg: 'bg-neutral-muted', fg: 'text-theme-tertiary' },
-    error: { text: 'Error', bg: 'bg-error-muted', fg: 'text-error' },
-    unknown: { text: 'Unknown', bg: 'bg-neutral-muted', fg: 'text-theme-muted' }
-  }
-  return map[status] || map.unknown
-}
-
-async function handleServiceAction(name, action) {
-  const actionLabel = action.charAt(0).toUpperCase() + action.slice(1)
-
-  if (action === 'stop' || action === 'restart') {
-    const ok = await confirm({
-      title: `${actionLabel} ${name}`,
-      message: `Are you sure you want to ${action} the ${name} service?`,
-      confirmText: actionLabel,
-      variant: action === 'stop' ? 'danger' : 'warning'
-    })
-    if (!ok) return
-  }
-
-  serviceActionLoading.value = { ...serviceActionLoading.value, [`${name}-${action}`]: true }
-  try {
-    if (action === 'start') await hardwareStore.startHALService(name)
-    else if (action === 'stop') await hardwareStore.stopHALService(name)
-    else if (action === 'restart') await hardwareStore.restartHALService(name)
-  } catch {
-    // Store sets error
-  } finally {
-    serviceActionLoading.value = { ...serviceActionLoading.value, [`${name}-${action}`]: false }
-  }
-}
-
 // ==========================================
 // Data loading
 // ==========================================
@@ -199,18 +137,10 @@ async function loadOverviewData() {
   ])
 }
 
-async function loadServicesData() {
-  const opts = { signal: signal() }
-  await Promise.all(halServiceNames.map(name => hardwareStore.fetchHALService(name, opts)))
-}
-
 async function refresh() {
   refreshing.value = true
   try {
     await loadOverviewData()
-    if (activeTab.value === 'services') {
-      await loadServicesData()
-    }
   } finally {
     refreshing.value = false
   }
@@ -394,7 +324,6 @@ function onTabChange(tabId) {
   // Load tab data on first visit (lazy loading)
   if (!tabsLoaded.value[tabId]) {
     tabsLoaded.value[tabId] = true
-    if (tabId === 'services') loadServicesData()
     // GPIO, I2C, Sensors, RTC/Watchdog panels fetch their own data
     // on mount, so just marking as loaded is sufficient
   }
@@ -991,86 +920,6 @@ onUnmounted(() => {
           <WatchdogPanel />
         </div>
 
-        <!-- ======================================== -->
-        <!-- HAL SERVICES TAB -->
-        <!-- ======================================== -->
-        <div v-else-if="activeTab === 'services'" class="space-y-4">
-          <div class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
-            <div class="px-5 py-4 border-b border-theme-primary">
-              <div class="flex items-center gap-2">
-                <Icon name="Server" :size="18" class="text-accent" />
-                <h2 class="text-lg font-semibold text-theme-primary">HAL Services</h2>
-              </div>
-              <p class="mt-1 text-sm text-theme-secondary">Manage hardware abstraction layer services</p>
-            </div>
-
-            <!-- Service rows -->
-            <div class="divide-y divide-theme-primary">
-              <div
-                v-for="name in halServiceNames"
-                :key="name"
-                class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4"
-              >
-                <!-- Service name + status -->
-                <div class="flex items-center gap-3">
-                  <Icon name="Box" :size="16" class="text-theme-secondary" />
-                  <div class="min-w-0">
-                    <span class="text-sm font-medium text-theme-primary block">{{ halServiceDisplayNames[name] || name }}</span>
-                    <span class="text-xs text-theme-muted font-mono">{{ name }}</span>
-                  </div>
-                  <span
-                    :class="[
-                      'text-xs font-medium px-2 py-0.5 rounded-full',
-                      serviceStatusBadge(name).bg,
-                      serviceStatusBadge(name).fg
-                    ]"
-                  >
-                    {{ serviceStatusBadge(name).text }}
-                  </span>
-                </div>
-
-                <!-- Actions -->
-                <div class="flex items-center gap-2 ml-7 sm:ml-0">
-                  <button
-                    v-if="serviceStatus(name) !== 'running'"
-                    @click="handleServiceAction(name, 'start')"
-                    :disabled="serviceActionLoading[`${name}-start`]"
-                    :aria-label="'Start ' + name"
-                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-success-muted text-success hover:bg-theme-tertiary transition-colors disabled:opacity-50"
-                  >
-                    <Icon v-if="serviceActionLoading[`${name}-start`]" name="Loader2" :size="12" class="inline-block animate-spin mr-1" />
-                    Start
-                  </button>
-                  <button
-                    v-if="serviceStatus(name) === 'running'"
-                    @click="handleServiceAction(name, 'stop')"
-                    :disabled="serviceActionLoading[`${name}-stop`]"
-                    :aria-label="'Stop ' + name"
-                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-error-muted text-error hover:bg-theme-tertiary transition-colors disabled:opacity-50"
-                  >
-                    <Icon v-if="serviceActionLoading[`${name}-stop`]" name="Loader2" :size="12" class="inline-block animate-spin mr-1" />
-                    Stop
-                  </button>
-                  <button
-                    @click="handleServiceAction(name, 'restart')"
-                    :disabled="serviceActionLoading[`${name}-restart`]"
-                    :aria-label="'Restart ' + name"
-                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50"
-                  >
-                    <Icon v-if="serviceActionLoading[`${name}-restart`]" name="Loader2" :size="12" class="inline-block animate-spin mr-1" />
-                    Restart
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Store error display -->
-          <div v-if="hardwareStore.error" class="bg-error-muted border border-error-subtle rounded-lg p-3 flex items-start gap-2">
-            <Icon name="AlertTriangle" :size="16" class="text-error mt-0.5" />
-            <span class="text-sm text-error">{{ hardwareStore.error }}</span>
-          </div>
-        </div>
       </template>
     </div>
   </div>
