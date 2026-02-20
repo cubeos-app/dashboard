@@ -38,7 +38,7 @@ async function probeHardware() {
     const commChecks = await Promise.allSettled([
       api.get('/communication/bluetooth', {}, { timeout: 3000 }),
       api.get('/communication/cellular/status', {}, { timeout: 3000 }),
-      api.get('/communication/gps/devices', {}, { timeout: 3000 })
+      api.get('/communication/gps', {}, { timeout: 3000 })
     ])
 
     const commDetected = commChecks.some(r => {
@@ -57,8 +57,8 @@ async function probeHardware() {
 
     // Probe media: check audio devices and cameras
     const mediaChecks = await Promise.allSettled([
-      api.get('/media/audio/devices', {}, { timeout: 3000 }),
-      api.get('/media/camera/devices', {}, { timeout: 3000 })
+      api.get('/media/audio', {}, { timeout: 3000 }),
+      api.get('/media/cameras', {}, { timeout: 3000 })
     ])
 
     const mediaDetected = mediaChecks.some(r => {

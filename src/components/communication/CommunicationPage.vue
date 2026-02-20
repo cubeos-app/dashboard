@@ -119,13 +119,16 @@ onMounted(() => {
   refresh()
 })
 
-// T11: Suppress hardware-absent errors (404/503) from page-level banner
+// T11: Suppress hardware-absent and transient connection errors from page-level banner
 // Individual tabs handle missing hardware with friendly messages
 const displayError = computed(() => {
   const e = error.value || communicationStore.error
   if (!e) return null
-  // Filter out absent-hardware errors
+  // Filter out absent-hardware errors (404/503)
   if (/\b(404|503)\b/.test(e) || /not found/i.test(e) || /service unavailable/i.test(e)) return null
+  // B105: Filter out SSE stream / transient connection errors
+  if (/input stream/i.test(e) || /SSE/i.test(e) || /NS_BINDING/i.test(e)) return null
+  if (/^HTTP error$/i.test(e) || /failed to fetch/i.test(e) || /network/i.test(e)) return null
   return e
 })
 </script>
