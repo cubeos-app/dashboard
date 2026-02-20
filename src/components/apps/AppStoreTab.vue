@@ -30,13 +30,26 @@ const { panelClass, isActive: wallpaperActive } = useWallpaper()
 const activeSubTab = ref('browse') // browse, installed
 const coreApps = ref([])
 const coreAppsError = ref('')
+const selectedStoreFilter = ref('') // '' = all stores
 
 // ─── Computed ────────────────────────────────────────────────
 const hasApps = computed(() => appStore.catalog.length > 0)
 
+// Store options for filter dropdown (All + each registered store)
+const storeOptions = computed(() => {
+  return appStore.stores.map(s => ({
+    id: s.id,
+    name: s.name || s.url || s.id
+  }))
+})
+
 // ─── Watch ───────────────────────────────────────────────────
 watch(() => appStore.selectedCategory, () => {
-  appStore.fetchCatalog(appStore.selectedCategory, appStore.searchQuery)
+  appStore.fetchCatalog(appStore.selectedCategory, appStore.searchQuery, selectedStoreFilter.value)
+})
+
+watch(selectedStoreFilter, () => {
+  appStore.fetchCatalog(appStore.selectedCategory, appStore.searchQuery, selectedStoreFilter.value)
 })
 
 // Auto-refresh installed apps while viewing Installed sub-tab
@@ -50,12 +63,13 @@ watch(activeSubTab, (newTab, oldTab) => {
 
 // ─── Methods ─────────────────────────────────────────────────
 function handleSearch() {
-  appStore.fetchCatalog(appStore.selectedCategory, appStore.searchQuery)
+  appStore.fetchCatalog(appStore.selectedCategory, appStore.searchQuery, selectedStoreFilter.value)
 }
 
 function clearFilters() {
   appStore.selectedCategory = ''
   appStore.searchQuery = ''
+  selectedStoreFilter.value = ''
   appStore.fetchCatalog()
 }
 
@@ -168,8 +182,20 @@ onUnmounted(() => {
           </option>
         </select>
 
+        <select
+          v-if="storeOptions.length > 1"
+          v-model="selectedStoreFilter"
+          aria-label="Filter by store"
+          class="px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm focus:outline-none focus:border-accent"
+        >
+          <option value="">All Stores</option>
+          <option v-for="store in storeOptions" :key="store.id" :value="store.id">
+            {{ store.name }}
+          </option>
+        </select>
+
         <button
-          v-if="appStore.selectedCategory || appStore.searchQuery"
+          v-if="appStore.selectedCategory || appStore.searchQuery || selectedStoreFilter"
           @click="clearFilters"
           class="px-3 py-2 rounded-lg text-sm text-theme-secondary hover:text-error transition-colors"
           aria-label="Clear filters"

@@ -236,13 +236,14 @@ export const useAppStoreStore = defineStore('appstore', () => {
   // ==========================================
   
   /** GET /appstore/apps */
-  async function fetchCatalog(category = '', search = '') {
+  async function fetchCatalog(category = '', search = '', storeId = '') {
     loading.value = true
     error.value = null
     try {
       const params = {}
       if (category) params.category = category
       if (search) params.search = search
+      if (storeId) params.store_id = storeId
       
       const data = await api.get('/appstore/apps', params)
       catalog.value = data.apps || []

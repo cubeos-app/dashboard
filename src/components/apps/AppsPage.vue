@@ -20,6 +20,8 @@ import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import Icon from '@/components/ui/Icon.vue'
 
+import { confirm } from '@/utils/confirmDialog'
+
 import MyAppsTab from './MyAppsTab.vue'
 import AppStoreTab from './AppStoreTab.vue'
 import AppDetailSheet from './AppDetailSheet.vue'
@@ -97,7 +99,61 @@ function closeDetail() {
 const installTarget = ref(null) // { storeId, appName, app, options }
 const showInstall = ref(false)
 
-function startInstall(storeId, appName, app, options = {}) {
+/**
+ * Strip common store prefixes from app names for fuzzy matching.
+ * "big-bear-syncthing" → "syncthing", "linuxserver-nginx" → "nginx"
+ */
+function normalizeAppName(name) {
+  if (!name) return ''
+  return name
+    .replace(/^(big-bear|bigbear|linuxserver|cubeos)-/i, '')
+    .toLowerCase()
+    .trim()
+}
+
+/**
+ * Find an existing installed app that matches the one being installed.
+ * Returns the matching app object or null.
+ */
+function findDuplicateApp(appName, storeApp) {
+  const targetName = normalizeAppName(appName)
+  const targetTitle = (storeApp?.title?.en_us || storeApp?.title?.en_US || '').toLowerCase()
+
+  return appsStore.apps.find(installed => {
+    const instName = normalizeAppName(installed.name)
+    const instTitle = (installed.display_name || '').toLowerCase()
+
+    // Exact normalized name match (e.g. "big-bear-syncthing" vs "syncthing")
+    if (instName && targetName && instName === targetName) return true
+
+    // Title match (e.g. both display as "Syncthing")
+    if (instTitle && targetTitle && instTitle === targetTitle) return true
+
+    // Name contains (e.g. "syncthing" matches "big-bear-syncthing")
+    if (instName && targetName && (instName.includes(targetName) || targetName.includes(instName))) return true
+
+    return false
+  })
+}
+
+async function startInstall(storeId, appName, app, options = {}) {
+  // Check for duplicate installed app from a different source
+  const duplicate = findDuplicateApp(appName, app)
+  if (duplicate) {
+    const dupSource = duplicate.source === 'registry' ? 'Docker Registry' : (duplicate.source || 'another source')
+    const dupName = duplicate.display_name || duplicate.name
+    const newTitle = app?.title?.en_us || app?.title?.en_US || appName
+
+    const proceed = await confirm({
+      title: 'App Already Installed',
+      message: `"${dupName}" is already installed from ${dupSource}. Installing "${newTitle}" from this store will create a second instance using a different port and FQDN. Continue?`,
+      confirmText: 'Install Anyway',
+      cancelText: 'Cancel',
+      variant: 'warning'
+    })
+    if (!proceed) return
+  }
+
   installTarget.value = { storeId, appName, app, options }
   showInstall.value = true
 }
