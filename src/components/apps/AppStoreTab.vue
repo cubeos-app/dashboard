@@ -14,14 +14,17 @@
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAppStoreStore } from '@/stores/appstore'
+import { useAppsStore } from '@/stores/apps'
 import { useRegistryStore } from '@/stores/registry'
 import { useMode } from '@/composables/useMode'
 import { useWallpaper } from '@/composables/useWallpaper'
+import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const emit = defineEmits(['openDetail', 'install'])
 
 const appStore = useAppStoreStore()
+const appsStore = useAppsStore()
 const registryStore = useRegistryStore()
 const { isAdvanced } = useMode()
 const { panelClass, isActive: wallpaperActive } = useWallpaper()
@@ -31,16 +34,90 @@ const activeSubTab = ref('browse') // browse, installed
 const coreApps = ref([])
 const coreAppsError = ref('')
 const selectedStoreFilter = ref('') // '' = all stores
+const registryDeploying = ref(null) // image name while deploying
+const actionError = ref(null)
 
 // ─── Computed ────────────────────────────────────────────────
-const hasApps = computed(() => appStore.catalog.length > 0)
 
-// Store options for filter dropdown (All + each registered store)
+// Convert registry images to catalog-compatible app objects
+const registryApps = computed(() => {
+  if (!registryStore.images || registryStore.images.length === 0) return []
+  return registryStore.images.map(img => {
+    const imgName = typeof img === 'string' ? img : img.name || ''
+    const shortName = imgName.split('/').pop() || imgName
+    // Title-case: "kiwix-serve" → "Kiwix Serve"
+    const title = shortName
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase())
+    // Check if already installed
+    const normalizedName = shortName.toLowerCase().replace(/[^a-z0-9]/g, '-')
+    const installed = appsStore.apps.some(a =>
+      a.name === normalizedName || a.name === shortName
+    )
+    return {
+      id: `_registry/${imgName}`,
+      store_id: '_registry',
+      name: shortName,
+      title: { en_us: title },
+      tagline: { en_us: imgName },
+      description: { en_us: `Docker image cached for offline deployment: ${imgName}` },
+      category: 'Offline Apps',
+      icon: '',
+      installed,
+      _source: 'registry',
+      _imageName: imgName
+    }
+  })
+})
+
+// Merge store catalog + registry apps based on active filter
+const browsableApps = computed(() => {
+  const storeFilter = selectedStoreFilter.value
+  const query = (appStore.searchQuery || '').toLowerCase()
+  const category = appStore.selectedCategory
+
+  let apps = []
+
+  // Add store catalog apps (unless filtering to registry only)
+  if (storeFilter !== '_registry') {
+    apps = [...appStore.filteredApps]
+  }
+
+  // Add registry apps (when showing all, or filtering to registry)
+  if (storeFilter === '' || storeFilter === '_registry') {
+    let regApps = registryApps.value
+    // Apply search filter
+    if (query) {
+      regApps = regApps.filter(a => {
+        const t = (a.title?.en_us || '').toLowerCase()
+        const n = (a.name || '').toLowerCase()
+        const img = (a._imageName || '').toLowerCase()
+        return t.includes(query) || n.includes(query) || img.includes(query)
+      })
+    }
+    // Apply category filter (registry apps are all "Offline Apps")
+    if (category && category !== 'Offline Apps') {
+      regApps = []
+    }
+    apps = [...apps, ...regApps]
+  }
+
+  return apps
+})
+
+const hasApps = computed(() => browsableApps.value.length > 0)
+
+// Store options for filter dropdown (All + each registered store + registry)
 const storeOptions = computed(() => {
-  return appStore.stores.map(s => ({
+  const opts = appStore.stores.map(s => ({
     id: s.id,
     name: s.name || s.url || s.id
   }))
+  // Add registry as a virtual store if images exist
+  if (registryStore.images?.length > 0) {
+    opts.push({ id: '_registry', name: 'Offline Apps' })
+  }
+  return opts
 })
 
 // ─── Watch ───────────────────────────────────────────────────
@@ -48,8 +125,11 @@ watch(() => appStore.selectedCategory, () => {
   appStore.fetchCatalog(appStore.selectedCategory, appStore.searchQuery, selectedStoreFilter.value)
 })
 
-watch(selectedStoreFilter, () => {
-  appStore.fetchCatalog(appStore.selectedCategory, appStore.searchQuery, selectedStoreFilter.value)
+watch(selectedStoreFilter, (val) => {
+  // Only re-fetch from API if filtering to a real store (not registry)
+  if (val !== '_registry') {
+    appStore.fetchCatalog(appStore.selectedCategory, appStore.searchQuery, val)
+  }
 })
 
 // Auto-refresh installed apps while viewing Installed sub-tab
@@ -74,6 +154,11 @@ function clearFilters() {
 }
 
 function openDetail(app) {
+  // Registry apps have no manifest/detail — show a deploy confirm instead
+  if (app._source === 'registry') {
+    handleRegistryInstall(app)
+    return
+  }
   emit('openDetail', app)
 }
 
@@ -82,9 +167,55 @@ function handleQuickInstall(app, e) {
     e.preventDefault()
     e.stopPropagation()
   }
+  // Registry apps go through registry deploy path
+  if (app._source === 'registry') {
+    handleRegistryInstall(app)
+    return
+  }
   const storeId = app.store_id || app.id?.split('/')[0] || ''
   const appName = app.name || app.id?.split('/')[1] || ''
   emit('install', storeId, appName, app, {})
+}
+
+/**
+ * Deploy a registry image directly. Fetches tags, picks first available,
+ * calls the registry deploy endpoint.
+ */
+async function handleRegistryInstall(app) {
+  const imageName = app._imageName
+  if (!imageName) return
+
+  // Derive app name
+  const appName = imageName.split('/').pop().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '')
+
+  // Fetch tags to pick the right one
+  let tags = []
+  try {
+    tags = await registryStore.fetchImageTags(imageName)
+  } catch (e) {
+    // fallback
+  }
+  const tag = tags?.length > 0 ? tags[0] : 'latest'
+
+  const title = app.title?.en_us || appName
+  const proceed = await confirm({
+    title: `Install ${title}?`,
+    message: `Deploy "${imageName}:${tag}" from the local registry as "${appName}".\n\nThis will create a Swarm service with FQDN ${appName}.cubeos.cube.`,
+    confirmText: 'Install',
+    cancelText: 'Cancel',
+    variant: 'info'
+  })
+  if (!proceed) return
+
+  registryDeploying.value = imageName
+  try {
+    await registryStore.deployImage(imageName, tag, appName)
+    await appsStore.fetchApps({ force: true })
+  } catch (e) {
+    actionError.value = `Deploy failed: ${e.message}`
+  } finally {
+    registryDeploying.value = null
+  }
 }
 
 function getAppTitle(app) {
@@ -188,7 +319,7 @@ onUnmounted(() => {
           aria-label="Filter by store"
           class="px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm focus:outline-none focus:border-accent"
         >
-          <option value="">All Stores</option>
+          <option value="">All Sources</option>
           <option v-for="store in storeOptions" :key="store.id" :value="store.id">
             {{ store.name }}
           </option>
@@ -204,6 +335,15 @@ onUnmounted(() => {
         </button>
       </div>
 
+      <!-- Error banner -->
+      <div v-if="actionError" class="flex items-center gap-2 px-4 py-3 rounded-lg bg-error-muted border border-error/30">
+        <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0" />
+        <span class="text-sm text-error flex-1">{{ actionError }}</span>
+        <button @click="actionError = null" class="text-error hover:text-error/70">
+          <Icon name="X" :size="14" />
+        </button>
+      </div>
+
       <!-- Loading -->
       <div v-if="appStore.loading" class="flex items-center justify-center py-12">
         <Icon name="Loader2" :size="32" class="animate-spin text-accent" />
@@ -215,14 +355,25 @@ onUnmounted(() => {
           <Icon name="Package" :size="28" class="text-theme-muted" />
         </div>
         <h3 class="text-base font-semibold text-theme-primary mb-1">No Apps Found</h3>
-        <p class="text-theme-tertiary text-sm mb-4">Try syncing the app stores or adjusting your filters.</p>
-        <button
-          @click="appStore.syncStores()"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium"
-        >
-          <Icon name="RefreshCw" :size="16" />
-          Sync Stores
-        </button>
+        <p class="text-theme-tertiary text-sm mb-4">
+          {{ registryApps.length > 0 ? 'No store apps match your filters. Try clearing filters to see offline apps.' : 'Sync the app stores when online, or cache Docker images in the Registry tab for offline use.' }}
+        </p>
+        <div class="flex items-center justify-center gap-3">
+          <button
+            @click="appStore.syncStores()"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium"
+          >
+            <Icon name="RefreshCw" :size="16" />
+            Sync Stores
+          </button>
+          <button
+            v-if="appStore.selectedCategory || appStore.searchQuery || selectedStoreFilter"
+            @click="clearFilters"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-theme-primary text-sm font-medium text-theme-secondary hover:text-theme-primary"
+          >
+            Clear Filters
+          </button>
+        </div>
       </div>
 
       <!-- App Grid -->
@@ -231,7 +382,7 @@ onUnmounted(() => {
         class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
       >
         <button
-          v-for="app in appStore.filteredApps"
+          v-for="app in browsableApps"
           :key="app.id"
           @click="openDetail(app)"
           class="group relative flex flex-col items-center p-3 rounded-xl border border-theme-primary transition-all duration-150 hover:border-accent/40 hover:shadow-theme-md hover:-translate-y-0.5 text-left"
@@ -242,13 +393,13 @@ onUnmounted(() => {
             <Icon name="CheckCircle" :size="14" class="text-success" />
           </div>
 
-          <!-- Available Offline badge -->
+          <!-- Offline / Available Offline badge -->
           <div
-            v-if="!app.installed && isAvailableOffline(app)"
+            v-if="!app.installed && (app._source === 'registry' || isAvailableOffline(app))"
             class="absolute top-2 left-2"
-            title="Available offline"
+            :title="app._source === 'registry' ? 'Offline — cached in local registry' : 'Available offline'"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-theme-muted"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="app._source === 'registry' ? 'text-success' : 'text-theme-muted'"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </div>
 
           <!-- Icon -->
@@ -261,6 +412,7 @@ onUnmounted(() => {
               loading="lazy"
               @error="(e) => e.target.style.display = 'none'"
             />
+            <Icon v-else-if="app._source === 'registry'" name="HardDrive" :size="24" class="text-success group-hover:text-accent transition-colors" />
             <Icon v-else name="Package" :size="24" class="text-theme-muted group-hover:text-accent transition-colors" />
           </div>
 
@@ -274,22 +426,28 @@ onUnmounted(() => {
             {{ getAppTagline(app) }}
           </p>
 
-          <!-- Standard: Quick install button (not installed only) -->
+          <!-- Quick install button -->
           <button
             v-if="!app.installed"
             @click="handleQuickInstall(app, $event)"
-            class="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium text-accent bg-accent-muted hover:bg-accent hover:text-on-accent transition-colors"
+            :disabled="registryDeploying === app._imageName"
+            class="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium text-accent bg-accent-muted hover:bg-accent hover:text-on-accent transition-colors disabled:opacity-50"
             :aria-label="'Install ' + getAppTitle(app)"
           >
-            <Icon name="Download" :size="12" />
-            Install
+            <Icon :name="registryDeploying === app._imageName ? 'Loader2' : 'Download'" :size="12" :class="registryDeploying === app._imageName ? 'animate-spin' : ''" />
+            {{ registryDeploying === app._imageName ? 'Installing...' : 'Install' }}
           </button>
         </button>
       </div>
 
       <!-- Results count -->
       <div v-if="hasApps" class="text-center text-xs text-theme-muted">
-        Showing {{ appStore.filteredApps.length }} of {{ appStore.catalog.length }} apps
+        Showing {{ browsableApps.length }} apps
+        <template v-if="selectedStoreFilter === '_registry'">from local registry</template>
+        <template v-else-if="selectedStoreFilter">from {{ storeOptions.find(s => s.id === selectedStoreFilter)?.name }}</template>
+        <template v-else>
+          ({{ appStore.catalog.length }} store + {{ registryApps.length }} offline)
+        </template>
       </div>
     </template>
 
