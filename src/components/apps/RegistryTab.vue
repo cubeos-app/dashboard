@@ -65,6 +65,14 @@ const images = computed(() => {
 
 const diskUsage = computed(() => registryStore.diskUsage)
 
+// B108b: Tags available for the deploy modal (reads from store after fetch)
+const deployAvailableTags = computed(() => {
+  if (registryStore.selectedImageName === deployImageName.value) {
+    return registryStore.selectedImageTags || []
+  }
+  return []
+})
+
 const usagePercent = computed(() => {
   if (!diskUsage.value?.total_space || !diskUsage.value?.used_space) return null
   return Math.min(100, Math.round((diskUsage.value.used_space / diskUsage.value.total_space) * 100))
@@ -208,15 +216,29 @@ async function deleteImageTag(imageName, tag) {
 }
 
 // B102: Deploy image from local registry
-function openDeployModal(imageName) {
-  const tags = getImageTags({ name: imageName, tags: [] })
+async function openDeployModal(imageName) {
   deployImageName.value = imageName
-  deployImageTag.value = tags.length > 0 ? tags[0] : 'latest'
-  // Derive app name: last path segment, lowercase, hyphens only
+  deployImageTag.value = '' // will be set after tags load
   deployAppName.value = imageName.split('/').pop().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '')
   deployResult.value = null
   actionError.value = null
   deployModalVisible.value = true
+
+  // Fetch tags from registry if not already loaded for this image
+  if (registryStore.selectedImageName !== imageName || !registryStore.selectedImageTags?.length) {
+    tagsLoading.value = true
+    try {
+      await registryStore.fetchImageTags(imageName)
+    } catch (e) {
+      // Tag fetch failed — user can still type manually
+    } finally {
+      tagsLoading.value = false
+    }
+  }
+
+  // Set default tag to first available (not hardcoded "latest")
+  const tags = registryStore.selectedImageTags || []
+  deployImageTag.value = tags.length > 0 ? tags[0] : 'latest'
 }
 
 async function deployImage() {
@@ -669,9 +691,11 @@ function getImageTags(image) {
               id="deploy-tag"
               v-model="deployImageTag"
               class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm"
+              :disabled="tagsLoading"
             >
-              <option v-for="tag in getImageTags({ name: deployImageName, tags: [] })" :key="tag" :value="tag">{{ tag }}</option>
-              <option v-if="getImageTags({ name: deployImageName, tags: [] }).length === 0" value="latest">latest</option>
+              <option v-if="tagsLoading" value="" disabled>Loading tags...</option>
+              <option v-for="tag in deployAvailableTags" :key="tag" :value="tag">{{ tag }}</option>
+              <option v-if="!tagsLoading && deployAvailableTags.length === 0" value="latest">latest</option>
             </select>
           </div>
 
