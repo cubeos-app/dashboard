@@ -23,17 +23,18 @@ const networkStore = useNetworkStore()
 
 // Mode metadata: icons, colors, and connection characteristics
 const modeMetadata = {
-  [NETWORK_MODES.OFFLINE]:     { icon: 'WifiOff', color: 'text-warning', bgColor: 'bg-warning-muted', label: 'Offline (AP Only)',   desc: 'Air-gapped access point mode',     hasAP: true,  uplink: null },
-  [NETWORK_MODES.ONLINE_ETH]:  { icon: 'Cable',   color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'Online via Ethernet', desc: 'AP + NAT via Ethernet uplink',     hasAP: true,  uplink: 'eth0' },
-  [NETWORK_MODES.ONLINE_WIFI]: { icon: 'Wifi',    color: 'text-success', bgColor: 'bg-success-muted', label: 'Online via WiFi',     desc: 'AP + NAT via USB WiFi dongle',     hasAP: true,  uplink: 'wifi' },
-  [NETWORK_MODES.SERVER_ETH]:  { icon: 'Server',  color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'Server via Ethernet', desc: 'No AP, direct Ethernet connection', hasAP: false, uplink: 'eth0' },
-  [NETWORK_MODES.SERVER_WIFI]: { icon: 'Server',  color: 'text-success', bgColor: 'bg-success-muted', label: 'Server via WiFi',     desc: 'No AP, direct WiFi connection',     hasAP: false, uplink: 'wifi' },
+  [NETWORK_MODES.OFFLINE]:       { icon: 'WifiOff',     color: 'text-warning', bgColor: 'bg-warning-muted', label: 'Offline (AP Only)',       desc: 'Air-gapped access point mode',       hasAP: true,  uplink: null },
+  [NETWORK_MODES.ONLINE_ETH]:    { icon: 'Cable',       color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'Online via Ethernet',     desc: 'AP + NAT via Ethernet uplink',       hasAP: true,  uplink: 'eth0' },
+  [NETWORK_MODES.ONLINE_WIFI]:   { icon: 'Wifi',        color: 'text-success', bgColor: 'bg-success-muted', label: 'Online via WiFi',         desc: 'AP + NAT via USB WiFi dongle',       hasAP: true,  uplink: 'wifi' },
+  [NETWORK_MODES.ONLINE_TETHER]: { icon: 'Smartphone',  color: 'text-success', bgColor: 'bg-success-muted', label: 'Online via Tethering',    desc: 'AP + NAT via Android USB tethering', hasAP: true,  uplink: 'usb' },
+  [NETWORK_MODES.SERVER_ETH]:    { icon: 'Server',      color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'Server via Ethernet',     desc: 'No AP, direct Ethernet connection',  hasAP: false, uplink: 'eth0' },
+  [NETWORK_MODES.SERVER_WIFI]:   { icon: 'Server',      color: 'text-success', bgColor: 'bg-success-muted', label: 'Server via WiFi',         desc: 'No AP, direct WiFi connection',      hasAP: false, uplink: 'wifi' },
 }
 
 // Fallback mode IDs if API unavailable
 const fallbackModeList = [
   NETWORK_MODES.OFFLINE, NETWORK_MODES.ONLINE_ETH, NETWORK_MODES.ONLINE_WIFI,
-  NETWORK_MODES.SERVER_ETH, NETWORK_MODES.SERVER_WIFI
+  NETWORK_MODES.ONLINE_TETHER, NETWORK_MODES.SERVER_ETH, NETWORK_MODES.SERVER_WIFI
 ]
 
 const modesLoaded = ref(false)
@@ -177,8 +178,8 @@ function isCurrentMode(modeId) {
       Network Mode
     </h3>
     
-    <!-- AP Modes (top row: 3 columns) -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Network mode">
+    <!-- AP Modes (top row: 4 columns) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" role="radiogroup" aria-label="Network mode">
       <button
         v-for="mode in apModes"
         :key="mode.id"

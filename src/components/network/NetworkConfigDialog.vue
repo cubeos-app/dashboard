@@ -43,17 +43,19 @@ const ipConfigRef = ref(null)
 
 // ── Mode metadata ────────────────────────────────────────────
 const modeLabels = {
-  [NETWORK_MODES.ONLINE_ETH]:  'Online via Ethernet',
-  [NETWORK_MODES.ONLINE_WIFI]: 'Online via WiFi',
-  [NETWORK_MODES.SERVER_ETH]:  'Server via Ethernet',
-  [NETWORK_MODES.SERVER_WIFI]: 'Server via WiFi',
+  [NETWORK_MODES.ONLINE_ETH]:    'Online via Ethernet',
+  [NETWORK_MODES.ONLINE_WIFI]:   'Online via WiFi',
+  [NETWORK_MODES.ONLINE_TETHER]: 'Online via Tethering',
+  [NETWORK_MODES.SERVER_ETH]:    'Server via Ethernet',
+  [NETWORK_MODES.SERVER_WIFI]:   'Server via WiFi',
 }
 
 const modeIcons = {
-  [NETWORK_MODES.ONLINE_ETH]:  'Cable',
-  [NETWORK_MODES.ONLINE_WIFI]: 'Wifi',
-  [NETWORK_MODES.SERVER_ETH]:  'Server',
-  [NETWORK_MODES.SERVER_WIFI]: 'Server',
+  [NETWORK_MODES.ONLINE_ETH]:    'Cable',
+  [NETWORK_MODES.ONLINE_WIFI]:   'Wifi',
+  [NETWORK_MODES.ONLINE_TETHER]: 'Smartphone',
+  [NETWORK_MODES.SERVER_ETH]:    'Server',
+  [NETWORK_MODES.SERVER_WIFI]:   'Server',
 }
 
 const isWiFiMode = computed(() =>
@@ -63,13 +65,22 @@ const isWiFiMode = computed(() =>
 
 const isAPMode = computed(() =>
   props.targetMode === NETWORK_MODES.ONLINE_ETH ||
-  props.targetMode === NETWORK_MODES.ONLINE_WIFI
+  props.targetMode === NETWORK_MODES.ONLINE_WIFI ||
+  props.targetMode === NETWORK_MODES.ONLINE_TETHER
+)
+
+const isTetherMode = computed(() =>
+  props.targetMode === NETWORK_MODES.ONLINE_TETHER
 )
 
 // ── Step management ──────────────────────────────────────────
 // WiFi modes: wifi → ipconfig → confirm
+// Tether mode: confirm (no IP config — DHCP from phone)
 // Ethernet modes: ipconfig → confirm
 const STEPS = computed(() => {
+  if (isTetherMode.value) {
+    return ['confirm']
+  }
   if (isWiFiMode.value) {
     return ['wifi', 'ipconfig', 'confirm']
   }
