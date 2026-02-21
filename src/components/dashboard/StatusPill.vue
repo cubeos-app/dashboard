@@ -39,7 +39,7 @@ const uptimeHuman = computed(() => systemStore.uptime?.uptime_human || null)
 
 const networkModeLabel = computed(() => {
   const mode = networkStore.currentMode
-  const labels = { offline: 'Offline', online_eth: 'Online', online_wifi: 'WiFi' }
+  const labels = { offline: 'Offline', online_eth: 'Ethernet', online_wifi: 'WiFi' }
   return labels[mode] || 'Unknown'
 })
 

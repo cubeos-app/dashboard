@@ -311,6 +311,7 @@ export const useAppStoreStore = defineStore('appstore', () => {
         }))
 
       installedApps.value = [...storeApps, ...registryApps]
+        .filter(a => a.name && a.name.trim() !== '')
     } catch (e) {
       error.value = e.message
       installedApps.value = []
