@@ -89,6 +89,13 @@ const SERVICE_ICONS = {
   // AI
   'ollama': 'Brain',
   'chromadb': 'Database',
+  'cubeos-docsindex': 'FileText',
+  'docsindex': 'FileText',
+  // Library / Storage / Terminal
+  'kiwix': 'BookOpen',
+  'filebrowser': 'FolderOpen',
+  'cubeos-terminal': 'Terminal',
+  'terminal': 'Terminal',
   // Default
   'default': 'Box'
 }
@@ -108,7 +115,13 @@ const SERVICE_NAMES = {
   'openvpn': 'OpenVPN',
   'tor': 'Tor Privacy Network',
   'ollama': 'Ollama LLM',
-  'chromadb': 'ChromaDB Vector Store'
+  'chromadb': 'ChromaDB Vector Store',
+  'cubeos-docsindex': 'CubeOS Docs',
+  'docsindex': 'CubeOS Docs',
+  'kiwix': 'Kiwix Offline Library',
+  'cubeos-terminal': 'Web Terminal',
+  'terminal': 'Web Terminal',
+  'filebrowser': 'File Browser'
 }
 
 // Services with web UI - FQDN-only, no ports
@@ -120,6 +133,11 @@ const WEB_UI_SERVICES = {
   'ollama': { fqdn: makeFqdn('ollama'), path: '/api/tags', hasUI: false },
   'registry': { fqdn: makeFqdn('registry'), path: '/v2/', hasUI: false },
   'chromadb': { fqdn: makeFqdn('chromadb'), hasUI: false },
+  'cubeos-docsindex': { fqdn: makeFqdn('docs') },
+  'docsindex': { fqdn: makeFqdn('docs') },
+  'kiwix': { fqdn: makeFqdn('kiwix') },
+  'filebrowser': { fqdn: makeFqdn('filebrowser') },
+  'terminal': { fqdn: makeFqdn('terminal') },
 }
 
 export const useAppsStore = defineStore('apps', () => {
@@ -434,7 +452,7 @@ export const useAppsStore = defineStore('apps', () => {
         
         const response = await appsApi.listApps(params, options)
         if (response === null) return // Aborted
-        apps.value = response.apps || []
+        apps.value = (response.apps || []).filter(a => a.name && a.name.trim() !== '')
         lastUpdated.value = new Date()
         _lastFetchTime = Date.now()
       } catch (e) {

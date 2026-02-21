@@ -191,7 +191,7 @@ const healthBgColor = computed(() => {
     <div class="mt-4 pt-4 border-t border-theme-primary">
       <div class="flex items-center justify-between mb-2">
         <span class="text-xs text-theme-muted">Cluster Health</span>
-        <span class="text-xs text-theme-secondary">{{ runningApps }} of {{ totalApps }} services operational</span>
+        <span class="text-xs text-theme-secondary">{{ runningApps }} of {{ totalApps }} apps operational</span>
       </div>
       <div class="h-2 bg-theme-tertiary rounded-full overflow-hidden flex">
         <div 

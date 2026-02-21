@@ -550,7 +550,7 @@ function handleClose() {
             </div>
 
             <!-- Danger zone (non-core only) -->
-            <div v-if="!isCore && isAdvanced" class="p-4 rounded-xl bg-error-muted border border-error-subtle">
+            <div v-if="!isCore && isInstalledApp" class="p-4 rounded-xl bg-error-muted border border-error-subtle">
               <h3 class="text-sm font-medium text-error mb-2">Danger Zone</h3>
               <p class="text-xs text-theme-muted mb-3">Uninstalling will remove this app and its containers.</p>
               <button
