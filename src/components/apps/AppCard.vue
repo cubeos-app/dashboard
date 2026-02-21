@@ -160,9 +160,9 @@ async function handleAction(action, e) {
         <!-- Actions -->
         <div class="flex-shrink-0 flex items-center gap-1">
           <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-            <!-- Start -->
+            <!-- Start: available for ALL stopped apps -->
             <button
-              v-if="!running && !isCore"
+              v-if="!running"
               @click="handleAction('start', $event)"
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-success hover:bg-success-muted rounded-lg transition-colors"
@@ -172,7 +172,7 @@ async function handleAction(action, e) {
               <Icon name="Play" :size="16" />
             </button>
             
-            <!-- Stop -->
+            <!-- Stop: blocked for core apps -->
             <button
               v-if="running && !isCore"
               @click="handleAction('stop', $event)"
@@ -184,9 +184,9 @@ async function handleAction(action, e) {
               <Icon name="Square" :size="16" />
             </button>
             
-            <!-- Restart -->
+            <!-- Restart: available for ALL running apps -->
             <button
-              v-if="running && !isCore"
+              v-if="running"
               @click="handleAction('restart', $event)"
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-warning hover:bg-warning-muted rounded-lg transition-colors"

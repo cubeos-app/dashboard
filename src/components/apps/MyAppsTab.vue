@@ -366,8 +366,9 @@ function openApp(app, e) {
 
               <!-- Start/Stop/Restart (visible on hover / always on mobile) -->
               <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <!-- Start: available for ALL stopped apps (core apps can crash too) -->
                 <button
-                  v-if="!appsStore.isRunning(app) && !appsStore.isCore(app)"
+                  v-if="!appsStore.isRunning(app)"
                   @click="handleAction(app, 'start', $event)"
                   :disabled="actionLoading === app.name"
                   class="p-1.5 text-theme-tertiary hover:text-success hover:bg-success-muted rounded-lg transition-colors"
@@ -377,6 +378,7 @@ function openApp(app, e) {
                   <Icon name="Play" :size="16" />
                 </button>
 
+                <!-- Stop: blocked for core apps to prevent accidental shutdown -->
                 <button
                   v-if="appsStore.isRunning(app) && !appsStore.isCore(app)"
                   @click="handleAction(app, 'stop', $event)"
@@ -388,8 +390,9 @@ function openApp(app, e) {
                   <Icon name="Square" :size="16" />
                 </button>
 
+                <!-- Restart: available for ALL running apps -->
                 <button
-                  v-if="appsStore.isRunning(app) && !appsStore.isCore(app)"
+                  v-if="appsStore.isRunning(app)"
                   @click="handleAction(app, 'restart', $event)"
                   :disabled="actionLoading === app.name"
                   class="p-1.5 text-theme-tertiary hover:text-warning hover:bg-warning-muted rounded-lg transition-colors"
