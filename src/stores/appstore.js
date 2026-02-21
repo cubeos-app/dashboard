@@ -318,6 +318,38 @@ export const useAppStoreStore = defineStore('appstore', () => {
     }
   }
 
+  /**
+   * Batch 2: Install from local registry via unified POST /apps endpoint.
+   * Returns { job_id, status: "installing" } for async SSE progress tracking.
+   *
+   * @param {string} name       - App name (e.g., "kiwix-serve")
+   * @param {string} image      - Registry image name (e.g., "kiwix/kiwix-serve")
+   * @param {string} tag        - Image tag (e.g., "3.8.1")
+   * @param {string} displayName - Human-readable display name
+   * @returns {Promise<Object>}  - { job_id, status }
+   */
+  async function installRegistryApp(name, image, tag = 'latest', displayName = '') {
+    installing.value = `_registry/${name}`
+    error.value = null
+    try {
+      const result = await api.post('/apps', {
+        name,
+        source: 'registry',
+        image,
+        tag,
+        display_name: displayName || name,
+        category: 'utility'
+      })
+      // result = { job_id: "...", status: "installing" }
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      installing.value = null
+    }
+  }
+
   /** DELETE /appstore/installed/{appID} (async: returns job_id) */
   async function removeApp(appId, deleteData = false) {
     error.value = null
@@ -574,6 +606,7 @@ export const useAppStoreStore = defineStore('appstore', () => {
     // Installed Apps
     fetchInstalledApps,
     installApp,
+    installRegistryApp,
     removeApp,
     startApp,
     stopApp,

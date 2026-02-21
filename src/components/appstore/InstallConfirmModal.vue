@@ -2,13 +2,15 @@
 /**
  * InstallConfirmModal.vue
  *
- * Pre-install confirmation modal shown when an app has external volume mounts.
- * Displays a table of volumes that will be remapped, allowing the user to
- * override default paths via DirectoryBrowser before confirming installation.
+ * Pre-install confirmation modal.
+ *
+ * For store apps: Shows volume remapping table with DirectoryBrowser.
+ * For registry apps (Batch 2): Shows image name, tag, and FQDN preview
+ * since registry apps have no manifest to preview volumes.
  *
  * Props:
- *   app     – store app object (icon, title, name, store_id)
- *   volumes – VolumeMapping[] from the preview endpoint
+ *   app     – store/registry app object (icon, title, name, store_id, _source, _imageName, _tag)
+ *   volumes – VolumeMapping[] from the preview endpoint (empty for registry)
  *
  * Emits:
  *   confirm(volumeOverrides)  – user confirmed; payload is map[containerPath]hostPath
@@ -45,8 +47,20 @@ const browsePath = ref('/')
 // Computed
 // ==========================================
 
+const isRegistry = computed(() => props.app?._source === 'registry')
+
 const title = computed(() => {
   return props.app?.title?.en_us || props.app?.title?.en_US || props.app?.name || 'App'
+})
+
+const registryImageName = computed(() => props.app?._imageName || '')
+const registryTag = computed(() => props.app?._tag || 'latest')
+const registryFqdn = computed(() => {
+  const name = (props.app?.name || registryImageName.value.split('/').pop() || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return name ? `${name}.cubeos.cube` : ''
 })
 
 // Split volumes into external (user-facing) and config (collapsed)
@@ -110,6 +124,12 @@ function resetOverride(vol) {
 // ==========================================
 
 function handleConfirm() {
+  // Registry apps: no volume overrides, just confirm
+  if (isRegistry.value) {
+    emit('confirm', {})
+    return
+  }
+
   // Build volume_overrides map: only include actual overrides
   const volumeOverrides = {}
   for (const [containerPath, hostPath] of Object.entries(overrides.value)) {
@@ -153,12 +173,17 @@ function handleCancel() {
             :alt="title"
             class="w-9 h-9 rounded-lg object-contain"
           />
+          <Icon v-else-if="isRegistry" name="HardDrive" :size="24" class="text-success" />
           <Icon v-else name="Package" :size="24" class="text-theme-muted" />
         </div>
 
         <div class="flex-1 min-w-0">
-          <h2 class="text-lg font-semibold text-theme-primary truncate">Configure Volumes</h2>
-          <p class="text-sm text-theme-secondary mt-0.5">{{ title }} has external volume mounts</p>
+          <h2 class="text-lg font-semibold text-theme-primary truncate">
+            {{ isRegistry ? `Install ${title}` : 'Configure Volumes' }}
+          </h2>
+          <p class="text-sm text-theme-secondary mt-0.5">
+            {{ isRegistry ? 'Deploy from local registry' : `${title} has external volume mounts` }}
+          </p>
         </div>
 
         <button
@@ -172,121 +197,172 @@ function handleCancel() {
 
       <!-- Scrollable content -->
       <div class="overflow-y-auto flex-1">
-        <!-- Info banner -->
-        <div class="px-5 pt-4">
-          <div class="p-3 rounded-lg bg-accent-muted/50 border border-accent/20">
-            <div class="flex items-start gap-2">
-              <Icon name="Info" :size="14" class="text-accent mt-0.5 flex-shrink-0" />
-              <p class="text-xs text-theme-secondary">
-                External volumes will be remapped to safe CubeOS paths. You can customize mount points below or use the defaults.
-              </p>
-            </div>
-          </div>
-        </div>
 
-        <!-- External volumes -->
-        <div v-if="externalVolumes.length > 0" class="px-5 pt-4">
-          <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
-            Data Volumes
-          </h3>
-
-          <div class="space-y-3">
-            <div
-              v-for="vol in externalVolumes"
-              :key="vol.container_path"
-              class="p-3 rounded-xl border border-theme-primary bg-theme-secondary"
-            >
-              <!-- Volume header: description + container path -->
-              <div class="flex items-center gap-2 mb-2">
-                <Icon name="HardDrive" :size="14" class="text-theme-muted flex-shrink-0" />
-                <span class="text-sm font-medium text-theme-primary truncate">
-                  {{ vol.description || vol.container_path }}
-                </span>
-                <span
-                  v-if="vol.read_only"
-                  class="px-1.5 py-0.5 text-[10px] font-medium rounded bg-theme-tertiary text-theme-muted flex-shrink-0"
-                >
-                  Read-only
-                </span>
-              </div>
-
-              <!-- Original path (strikethrough) -->
-              <div class="flex items-center gap-2 text-xs text-theme-muted mb-1.5">
-                <span class="flex-shrink-0">Original:</span>
-                <span class="font-mono line-through truncate">{{ vol.original_host_path }}</span>
-              </div>
-
-              <!-- Current/override path with browse button -->
-              <div class="flex items-center gap-2">
-                <Icon name="ArrowRight" :size="12" class="text-accent flex-shrink-0" />
-                <span
-                  class="flex-1 text-sm font-mono truncate"
-                  :class="isOverridden(vol) ? 'text-accent' : 'text-theme-primary'"
-                >
-                  {{ displayHostPath(vol) }}
-                </span>
-
-                <button
-                  v-if="isOverridden(vol)"
-                  @click="resetOverride(vol)"
-                  class="p-1 rounded text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors flex-shrink-0"
-                  title="Reset to default"
-                  aria-label="Reset to default path"
-                >
-                  <Icon name="RotateCcw" :size="12" />
-                </button>
-
-                <button
-                  @click="openBrowser(vol)"
-                  class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-theme-primary text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors flex-shrink-0"
-                  :aria-label="`Browse for ${vol.description || vol.container_path}`"
-                >
-                  <Icon name="FolderOpen" :size="12" />
-                  Browse
-                </button>
+        <!-- ═══ Registry app info (Batch 2) ═══ -->
+        <template v-if="isRegistry">
+          <!-- Info banner -->
+          <div class="px-5 pt-4">
+            <div class="p-3 rounded-lg bg-success/10 border border-success/20">
+              <div class="flex items-start gap-2">
+                <Icon name="CheckCircle" :size="14" class="text-success mt-0.5 flex-shrink-0" />
+                <p class="text-xs text-theme-secondary">
+                  This image is cached locally and will be deployed offline. No internet connection required.
+                </p>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Config volumes (collapsed) -->
-        <div v-if="configVolumes.length > 0" class="px-5 pt-4 pb-2">
-          <button
-            @click="showConfigSection = !showConfigSection"
-            class="flex items-center gap-2 w-full text-left group"
-          >
-            <Icon
-              name="ChevronDown"
-              :size="14"
-              class="text-theme-muted transition-transform duration-200"
-              :class="{ 'rotate-180': showConfigSection }"
-            />
-            <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider">
-              Config Volumes
+          <!-- Image details -->
+          <div class="px-5 pt-4 space-y-3">
+            <div class="p-3 rounded-xl border border-theme-primary bg-theme-secondary">
+              <div class="space-y-2.5">
+                <!-- Image name -->
+                <div class="flex items-center gap-3">
+                  <span class="text-xs text-theme-muted flex-shrink-0 w-14">Image</span>
+                  <span class="text-sm font-mono text-theme-primary truncate">{{ registryImageName }}</span>
+                </div>
+
+                <!-- Tag -->
+                <div class="flex items-center gap-3">
+                  <span class="text-xs text-theme-muted flex-shrink-0 w-14">Tag</span>
+                  <span class="px-2 py-0.5 text-xs font-mono rounded bg-accent-muted text-accent">{{ registryTag }}</span>
+                </div>
+
+                <!-- FQDN -->
+                <div v-if="registryFqdn" class="flex items-center gap-3">
+                  <span class="text-xs text-theme-muted flex-shrink-0 w-14">URL</span>
+                  <span class="text-sm font-mono text-accent truncate">http://{{ registryFqdn }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Note about data directory -->
+          <div class="px-5 pt-3 pb-4">
+            <p class="text-xs text-theme-muted">
+              App data will be stored in <span class="font-mono">/cubeos/apps/{{ app?.name || 'app' }}/data</span>
+            </p>
+          </div>
+        </template>
+
+        <!-- ═══ Store app volume config (existing) ═══ -->
+        <template v-else>
+          <!-- Info banner -->
+          <div class="px-5 pt-4">
+            <div class="p-3 rounded-lg bg-accent-muted/50 border border-accent/20">
+              <div class="flex items-start gap-2">
+                <Icon name="Info" :size="14" class="text-accent mt-0.5 flex-shrink-0" />
+                <p class="text-xs text-theme-secondary">
+                  External volumes will be remapped to safe CubeOS paths. You can customize mount points below or use the defaults.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- External volumes -->
+          <div v-if="externalVolumes.length > 0" class="px-5 pt-4">
+            <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+              Data Volumes
             </h3>
-            <span class="text-[10px] text-theme-muted">
-              ({{ configVolumes.length }})
-            </span>
-          </button>
 
-          <div v-if="showConfigSection" class="mt-3 space-y-2">
-            <div
-              v-for="vol in configVolumes"
-              :key="vol.container_path"
-              class="flex items-center gap-3 px-3 py-2 rounded-lg bg-theme-tertiary/50"
-            >
-              <Icon name="Lock" :size="12" class="text-theme-muted flex-shrink-0" />
-              <div class="flex-1 min-w-0">
-                <p class="text-xs text-theme-secondary truncate">
-                  {{ vol.description || vol.container_path }}
-                </p>
-                <p class="text-[10px] font-mono text-theme-muted truncate">
-                  {{ vol.current_host_path }}
-                </p>
+            <div class="space-y-3">
+              <div
+                v-for="vol in externalVolumes"
+                :key="vol.container_path"
+                class="p-3 rounded-xl border border-theme-primary bg-theme-secondary"
+              >
+                <!-- Volume header: description + container path -->
+                <div class="flex items-center gap-2 mb-2">
+                  <Icon name="HardDrive" :size="14" class="text-theme-muted flex-shrink-0" />
+                  <span class="text-sm font-medium text-theme-primary truncate">
+                    {{ vol.description || vol.container_path }}
+                  </span>
+                  <span
+                    v-if="vol.read_only"
+                    class="px-1.5 py-0.5 text-[10px] font-medium rounded bg-theme-tertiary text-theme-muted flex-shrink-0"
+                  >
+                    Read-only
+                  </span>
+                </div>
+
+                <!-- Original path (strikethrough) -->
+                <div class="flex items-center gap-2 text-xs text-theme-muted mb-1.5">
+                  <span class="flex-shrink-0">Original:</span>
+                  <span class="font-mono line-through truncate">{{ vol.original_host_path }}</span>
+                </div>
+
+                <!-- Current/override path with browse button -->
+                <div class="flex items-center gap-2">
+                  <Icon name="ArrowRight" :size="12" class="text-accent flex-shrink-0" />
+                  <span
+                    class="flex-1 text-sm font-mono truncate"
+                    :class="isOverridden(vol) ? 'text-accent' : 'text-theme-primary'"
+                  >
+                    {{ displayHostPath(vol) }}
+                  </span>
+
+                  <button
+                    v-if="isOverridden(vol)"
+                    @click="resetOverride(vol)"
+                    class="p-1 rounded text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors flex-shrink-0"
+                    title="Reset to default"
+                    aria-label="Reset to default path"
+                  >
+                    <Icon name="RotateCcw" :size="12" />
+                  </button>
+
+                  <button
+                    @click="openBrowser(vol)"
+                    class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-theme-primary text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors flex-shrink-0"
+                    :aria-label="`Browse for ${vol.description || vol.container_path}`"
+                  >
+                    <Icon name="FolderOpen" :size="12" />
+                    Browse
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+
+          <!-- Config volumes (collapsed) -->
+          <div v-if="configVolumes.length > 0" class="px-5 pt-4 pb-2">
+            <button
+              @click="showConfigSection = !showConfigSection"
+              class="flex items-center gap-2 w-full text-left group"
+            >
+              <Icon
+                name="ChevronDown"
+                :size="14"
+                class="text-theme-muted transition-transform duration-200"
+                :class="{ 'rotate-180': showConfigSection }"
+              />
+              <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider">
+                Config Volumes
+              </h3>
+              <span class="text-[10px] text-theme-muted">
+                ({{ configVolumes.length }})
+              </span>
+            </button>
+
+            <div v-if="showConfigSection" class="mt-3 space-y-2">
+              <div
+                v-for="vol in configVolumes"
+                :key="vol.container_path"
+                class="flex items-center gap-3 px-3 py-2 rounded-lg bg-theme-tertiary/50"
+              >
+                <Icon name="Lock" :size="12" class="text-theme-muted flex-shrink-0" />
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs text-theme-secondary truncate">
+                    {{ vol.description || vol.container_path }}
+                  </p>
+                  <p class="text-[10px] font-mono text-theme-muted truncate">
+                    {{ vol.current_host_path }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- Footer -->
@@ -303,13 +379,14 @@ function handleCancel() {
           class="flex items-center gap-2 px-5 py-2 rounded-lg btn-accent text-sm font-medium"
         >
           <Icon name="Download" :size="16" />
-          Install with {{ Object.keys(overrides).length > 0 ? 'Custom Paths' : 'Defaults' }}
+          {{ isRegistry ? 'Install' : `Install with ${Object.keys(overrides).length > 0 ? 'Custom Paths' : 'Defaults'}` }}
         </button>
       </div>
     </div>
 
-    <!-- DirectoryBrowser (nested modal) -->
+    <!-- DirectoryBrowser (nested modal) — only for store apps -->
     <DirectoryBrowser
+      v-if="!isRegistry"
       v-model="browsePath"
       :show="showBrowser"
       :initial-path="browsePath"

@@ -1,4 +1,11 @@
 <script setup>
+/**
+ * InstallProgressModal.vue
+ *
+ * Batch 2: Added sseBasePath prop so registry installs can use
+ * /api/v1/apps/jobs/ instead of /api/v1/appstore/jobs/.
+ * Added REGISTRY_INSTALL_STEPS for registry-specific progress labels.
+ */
 import { ref, computed, onUnmounted } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
 import { safeGetRaw } from '@/utils/storage'
@@ -12,6 +19,12 @@ const props = defineProps({
   jobType: { type: String, default: 'install' },
   /** Job ID from the API */
   jobId: { type: String, required: true },
+  /**
+   * Batch 2: SSE base path for job progress streaming.
+   * Store installs use /api/v1/appstore/jobs/ (default).
+   * Registry installs use /api/v1/apps/jobs/.
+   */
+  sseBasePath: { type: String, default: '/api/v1/appstore/jobs/' },
 })
 
 const emit = defineEmits(['done', 'error', 'close'])
@@ -36,6 +49,22 @@ const INSTALL_STEPS = [
   { key: 'complete', label: 'Ready!' },
 ]
 
+/**
+ * Batch 2: Registry installs emit different step keys from the
+ * Orchestrator.InstallFromRegistryWithProgress() pipeline.
+ */
+const REGISTRY_INSTALL_STEPS = [
+  { key: 'setup', label: 'Creating app directories' },
+  { key: 'port', label: 'Allocating port' },
+  { key: 'manifest', label: 'Detecting container port' },
+  { key: 'compose', label: 'Generating configuration' },
+  { key: 'database', label: 'Saving to database' },
+  { key: 'deploy', label: 'Deploying containers' },
+  { key: 'dns', label: 'Configuring DNS' },
+  { key: 'proxy', label: 'Setting up access' },
+  { key: 'complete', label: 'Ready!' },
+]
+
 const UNINSTALL_STEPS = [
   { key: 'validate', label: 'Validating app' },
   { key: 'stop', label: 'Stopping services' },
@@ -47,9 +76,19 @@ const UNINSTALL_STEPS = [
   { key: 'complete', label: 'Uninstalled' },
 ]
 
-const steps = computed(() =>
-  props.jobType === 'uninstall' ? UNINSTALL_STEPS : INSTALL_STEPS
+/**
+ * Determine which step set to use based on job type and SSE path.
+ * Registry installs are identified by the /apps/jobs/ SSE path.
+ */
+const isRegistryInstall = computed(() =>
+  props.sseBasePath.includes('/apps/jobs/')
 )
+
+const steps = computed(() => {
+  if (props.jobType === 'uninstall') return UNINSTALL_STEPS
+  if (isRegistryInstall.value) return REGISTRY_INSTALL_STEPS
+  return INSTALL_STEPS
+})
 
 // ==========================================
 // State
@@ -70,11 +109,12 @@ let eventSource = null
 // ==========================================
 
 function connect() {
-  // Build SSE URL. The API client adds /api/v1 prefix, but EventSource
-  // needs a raw URL. Auth token is sent via query param since EventSource
+  // Build SSE URL using the configurable base path.
+  // Auth token is sent via query param since EventSource
   // doesn't support custom headers.
   const token = safeGetRaw('cubeos_access_token') || ''
-  const url = `/api/v1/appstore/jobs/${encodeURIComponent(props.jobId)}${token ? '?token=' + encodeURIComponent(token) : ''}`
+  const basePath = props.sseBasePath.endsWith('/') ? props.sseBasePath : props.sseBasePath + '/'
+  const url = `${basePath}${encodeURIComponent(props.jobId)}${token ? '?token=' + encodeURIComponent(token) : ''}`
 
   eventSource = new EventSource(url)
 

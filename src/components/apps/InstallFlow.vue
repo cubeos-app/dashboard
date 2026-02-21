@@ -9,8 +9,12 @@
  * Standard mode: confirm → install
  * Advanced mode: confirm (with port/fqdn options visible) → install
  *
+ * Batch 2: Now handles registry installs (source='registry') through
+ * the same flow. Registry installs skip volume preview and call the
+ * unified POST /apps endpoint with SSE progress at /apps/jobs/{jobID}.
+ *
  * Props:
- *   storeId  – catalog store identifier
+ *   storeId  – catalog store identifier (or '_registry' for registry apps)
  *   appName  – app name within the store
  *   app      – full catalog app object (icon, title, etc.)
  *   options  – { port, fqdn } overrides from detail sheet (Advanced)
@@ -24,6 +28,7 @@ import InstallConfirmModal from '@/components/appstore/InstallConfirmModal.vue'
 import InstallProgressModal from '@/components/appstore/InstallProgressModal.vue'
 import { useAppStoreStore } from '@/stores/appstore'
 import { useMode } from '@/composables/useMode'
+import api from '@/api/client'
 
 const props = defineProps({
   storeId: { type: String, required: true },
@@ -45,6 +50,8 @@ const jobId = ref('')
 const installError = ref('')
 
 // ─── Computed ────────────────────────────────────────────────
+const isRegistry = computed(() => props.app?._source === 'registry')
+
 const appTitle = computed(() => {
   const t = props.app?.title
   return t?.en_us || t?.en_US || props.app?.name || props.appName
@@ -52,6 +59,15 @@ const appTitle = computed(() => {
 
 const appIcon = computed(() => {
   return props.app?.icon || ''
+})
+
+/**
+ * SSE base path differs by source:
+ *   Registry installs → /api/v1/apps/jobs/
+ *   Store installs    → /api/v1/appstore/jobs/
+ */
+const sseBasePath = computed(() => {
+  return isRegistry.value ? '/api/v1/apps/jobs/' : '/api/v1/appstore/jobs/'
 })
 
 // ─── Lifecycle ───────────────────────────────────────────────
@@ -62,6 +78,20 @@ onMounted(async () => {
 async function loadVolumes() {
   step.value = 'loading'
   loadError.value = ''
+
+  // Registry apps: no manifest to preview volumes — skip to confirm
+  if (isRegistry.value) {
+    volumes.value = []
+    // Standard mode with no volumes → skip straight to install
+    if (!isAdvanced.value) {
+      await doInstall({})
+    } else {
+      step.value = 'confirm'
+    }
+    return
+  }
+
+  // Store apps: fetch volume preview from manifest
   try {
     const result = await appStoreStore.previewVolumes(props.storeId, props.appName)
     const vols = result?.volumes ?? result
@@ -93,13 +123,28 @@ async function doInstall(volumeOverrides) {
   step.value = 'progress'
   installError.value = ''
 
-  const payload = {
-    ...props.options,
-    ...(Object.keys(volumeOverrides).length > 0 ? { volume_overrides: volumeOverrides } : {})
-  }
-
   try {
-    const result = await appStoreStore.installApp(props.storeId, props.appName, payload)
+    let result
+
+    if (isRegistry.value) {
+      // Registry install → unified POST /apps endpoint
+      result = await api.post('/apps', {
+        name: props.appName,
+        source: 'registry',
+        image: props.app._imageName,
+        tag: props.app._tag || 'latest',
+        display_name: appTitle.value,
+        category: 'utility'
+      })
+    } else {
+      // Store install → existing POST /appstore/installed endpoint
+      const payload = {
+        ...props.options,
+        ...(Object.keys(volumeOverrides).length > 0 ? { volume_overrides: volumeOverrides } : {})
+      }
+      result = await appStoreStore.installApp(props.storeId, props.appName, payload)
+    }
+
     if (result?.job_id) {
       jobId.value = result.job_id
     } else {
@@ -157,6 +202,7 @@ function handleCancel() {
       :app-icon="appIcon"
       job-type="install"
       :job-id="jobId"
+      :sse-base-path="sseBasePath"
       @done="handleProgressDone"
       @error="handleProgressError"
       @close="handleCancel"

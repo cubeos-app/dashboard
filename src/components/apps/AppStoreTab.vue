@@ -11,6 +11,9 @@
  * Detail view is handled by parent via @open-detail emit.
  *
  * Stores/Sources/Installed management tabs are S05 (Advanced-only).
+ *
+ * Batch 2: Registry installs now emit @install (same as store apps)
+ * instead of calling registryStore.deployImage() directly.
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAppStoreStore } from '@/stores/appstore'
@@ -18,7 +21,6 @@ import { useAppsStore } from '@/stores/apps'
 import { useRegistryStore } from '@/stores/registry'
 import { useMode } from '@/composables/useMode'
 import { useWallpaper } from '@/composables/useWallpaper'
-import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const emit = defineEmits(['openDetail', 'install'])
@@ -34,7 +36,6 @@ const activeSubTab = ref('browse') // browse, installed
 const coreApps = ref([])
 const coreAppsError = ref('')
 const selectedStoreFilter = ref('') // '' = all stores
-const registryDeploying = ref(null) // image name while deploying
 const actionError = ref(null)
 
 // ─── Computed ────────────────────────────────────────────────
@@ -154,7 +155,7 @@ function clearFilters() {
 }
 
 function openDetail(app) {
-  // Registry apps have no manifest/detail — show a deploy confirm instead
+  // Registry apps have no manifest/detail — go straight to install flow
   if (app._source === 'registry') {
     handleRegistryInstall(app)
     return
@@ -167,7 +168,7 @@ function handleQuickInstall(app, e) {
     e.preventDefault()
     e.stopPropagation()
   }
-  // Registry apps go through registry deploy path
+  // Registry apps go through unified install flow
   if (app._source === 'registry') {
     handleRegistryInstall(app)
     return
@@ -178,8 +179,9 @@ function handleQuickInstall(app, e) {
 }
 
 /**
- * Deploy a registry image directly. Fetches tags, picks first available,
- * calls the registry deploy endpoint.
+ * Batch 2: Registry install now emits @install (same as store apps).
+ * Fetches tags, picks first available, then emits to AppsPage which
+ * opens InstallFlow.vue — unified experience with progress tracking.
  */
 async function handleRegistryInstall(app) {
   const imageName = app._imageName
@@ -193,29 +195,18 @@ async function handleRegistryInstall(app) {
   try {
     tags = await registryStore.fetchImageTags(imageName)
   } catch (e) {
-    // fallback
+    // fallback to latest
   }
   const tag = tags?.length > 0 ? tags[0] : 'latest'
 
-  const title = app.title?.en_us || appName
-  const proceed = await confirm({
-    title: `Install ${title}?`,
-    message: `Deploy "${imageName}:${tag}" from the local registry as "${appName}".\n\nThis will create a Swarm service with FQDN ${appName}.cubeos.cube.`,
-    confirmText: 'Install',
-    cancelText: 'Cancel',
-    variant: 'info'
-  })
-  if (!proceed) return
-
-  registryDeploying.value = imageName
-  try {
-    await registryStore.deployImage(imageName, tag, appName)
-    await appsStore.fetchApps({ force: true })
-  } catch (e) {
-    actionError.value = `Deploy failed: ${e.message}`
-  } finally {
-    registryDeploying.value = null
-  }
+  // Emit same event as store apps — AppsPage.startInstall() handles the rest
+  emit('install', '_registry', appName, {
+    ...app,
+    _source: 'registry',
+    _imageName: imageName,
+    _tag: tag,
+    title: app.title || { en_us: appName }
+  }, {})
 }
 
 function getAppTitle(app) {
@@ -258,28 +249,24 @@ onUnmounted(() => {
 
 <template>
   <div class="space-y-6">
-    <!-- Sub-tabs: Browse / Installed -->
-    <div class="flex items-center gap-4 border-b border-theme-primary">
+    <!-- Sub-tab bar -->
+    <div class="flex items-center gap-4">
       <button
         @click="activeSubTab = 'browse'"
-        class="pb-2.5 px-1 text-sm font-medium transition-colors border-b-2 -mb-px"
-        :class="activeSubTab === 'browse'
-          ? 'border-accent text-accent'
-          : 'border-transparent text-theme-secondary hover:text-theme-primary'"
+        class="text-sm font-medium pb-1 transition-colors"
+        :class="activeSubTab === 'browse' ? 'text-theme-primary border-b-2 border-accent' : 'text-theme-secondary hover:text-theme-primary'"
       >
         Browse
       </button>
       <button
         @click="activeSubTab = 'installed'"
-        class="pb-2.5 px-1 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-2"
-        :class="activeSubTab === 'installed'
-          ? 'border-accent text-accent'
-          : 'border-transparent text-theme-secondary hover:text-theme-primary'"
+        class="text-sm font-medium pb-1 transition-colors"
+        :class="activeSubTab === 'installed' ? 'text-theme-primary border-b-2 border-accent' : 'text-theme-secondary hover:text-theme-primary'"
       >
         Installed
         <span
           v-if="appStore.installedCount > 0"
-          class="px-1.5 py-0.5 text-[10px] rounded bg-success-muted text-success"
+          class="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-accent-muted text-accent"
         >
           {{ appStore.installedCount }}
         </span>
@@ -288,65 +275,55 @@ onUnmounted(() => {
 
     <!-- ═══ Browse Sub-tab ═══ -->
     <template v-if="activeSubTab === 'browse'">
-      <!-- Search & Filter -->
+      <!-- Search + Filters -->
       <div class="flex flex-col sm:flex-row gap-3">
+        <!-- Search -->
         <div class="relative flex-1">
           <Icon name="Search" :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted" />
           <input
             v-model="appStore.searchQuery"
-            @keyup.enter="handleSearch"
+            @input="handleSearch"
             type="text"
             placeholder="Search apps..."
-            aria-label="Search apps"
-            class="w-full pl-10 pr-4 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+            class="w-full pl-9 pr-4 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
         </div>
 
+        <!-- Category -->
         <select
           v-model="appStore.selectedCategory"
-          aria-label="Filter by category"
-          class="px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm focus:outline-none focus:border-accent"
+          class="px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           <option value="">All Categories</option>
-          <option v-for="cat in appStore.categories" :key="cat.name" :value="cat.name">
-            {{ cat.name }} ({{ cat.count }})
-          </option>
+          <option v-for="cat in appStore.categories" :key="cat" :value="cat">{{ cat }}</option>
+          <option v-if="registryApps.length > 0" value="Offline Apps">Offline Apps</option>
         </select>
 
+        <!-- Store filter -->
         <select
           v-if="storeOptions.length > 1"
           v-model="selectedStoreFilter"
-          aria-label="Filter by store"
-          class="px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm focus:outline-none focus:border-accent"
+          class="px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           <option value="">All Sources</option>
-          <option v-for="store in storeOptions" :key="store.id" :value="store.id">
-            {{ store.name }}
-          </option>
+          <option v-for="store in storeOptions" :key="store.id" :value="store.id">{{ store.name }}</option>
         </select>
-
-        <button
-          v-if="appStore.selectedCategory || appStore.searchQuery || selectedStoreFilter"
-          @click="clearFilters"
-          class="px-3 py-2 rounded-lg text-sm text-theme-secondary hover:text-error transition-colors"
-          aria-label="Clear filters"
-        >
-          Clear
-        </button>
       </div>
 
-      <!-- Error banner -->
-      <div v-if="actionError" class="flex items-center gap-2 px-4 py-3 rounded-lg bg-error-muted border border-error/30">
-        <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0" />
-        <span class="text-sm text-error flex-1">{{ actionError }}</span>
-        <button @click="actionError = null" class="text-error hover:text-error/70">
+      <!-- Error -->
+      <div
+        v-if="actionError"
+        class="p-3 rounded-lg bg-error-muted text-error text-sm flex items-center justify-between"
+      >
+        <span>{{ actionError }}</span>
+        <button @click="actionError = null" class="text-error hover:text-error/80">
           <Icon name="X" :size="14" />
         </button>
       </div>
 
       <!-- Loading -->
       <div v-if="appStore.loading" class="flex items-center justify-center py-12">
-        <Icon name="Loader2" :size="32" class="animate-spin text-accent" />
+        <div class="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
       </div>
 
       <!-- Empty -->
@@ -430,12 +407,11 @@ onUnmounted(() => {
           <button
             v-if="!app.installed"
             @click="handleQuickInstall(app, $event)"
-            :disabled="registryDeploying === app._imageName"
-            class="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium text-accent bg-accent-muted hover:bg-accent hover:text-on-accent transition-colors disabled:opacity-50"
+            class="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium text-accent bg-accent-muted hover:bg-accent hover:text-on-accent transition-colors"
             :aria-label="'Install ' + getAppTitle(app)"
           >
-            <Icon :name="registryDeploying === app._imageName ? 'Loader2' : 'Download'" :size="12" :class="registryDeploying === app._imageName ? 'animate-spin' : ''" />
-            {{ registryDeploying === app._imageName ? 'Installing...' : 'Install' }}
+            <Icon name="Download" :size="12" />
+            Install
           </button>
         </button>
       </div>
