@@ -12,7 +12,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAppsApi } from '@/composables/useAppsApi'
-import { makeFqdn } from '@/utils/domain'
+import { makeFqdn, getCubeDomain } from '@/utils/domain'
 
 const appsApi = useAppsApi()
 
@@ -133,8 +133,8 @@ const WEB_UI_SERVICES = {
   'ollama': { fqdn: makeFqdn('ollama'), path: '/api/tags', hasUI: false },
   'registry': { fqdn: makeFqdn('registry'), path: '/v2/', hasUI: false },
   'chromadb': { fqdn: makeFqdn('chromadb'), hasUI: false },
-  'cubeos-docsindex': { fqdn: makeFqdn('docs') },
-  'docsindex': { fqdn: makeFqdn('docs') },
+  'cubeos-docsindex': { fqdn: getCubeDomain(), path: '/docs' },
+  'docsindex': { fqdn: getCubeDomain(), path: '/docs' },
   'kiwix': { fqdn: makeFqdn('kiwix') },
   'filebrowser': { fqdn: makeFqdn('filebrowser') },
   'terminal': { fqdn: makeFqdn('terminal') },
