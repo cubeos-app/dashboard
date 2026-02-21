@@ -526,6 +526,16 @@ onUnmounted(() => {
             >
               <Icon name="RotateCw" :size="16" />
             </button>
+
+            <!-- Info — always visible, pinned rightmost -->
+            <button
+              @click.stop="emit('openDetail', app)"
+              class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+              title="App Info"
+              :aria-label="'Info for ' + (app.title || app.name)"
+            >
+              <Icon name="Info" :size="16" />
+            </button>
           </div>
         </div>
       </div>

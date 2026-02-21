@@ -151,6 +151,25 @@ const WEB_UI_SERVICES = {
   'reset': { hasUI: false },
 }
 
+// Defensive: core service names that are ALWAYS treated as core,
+// even if the API returns the wrong type (e.g. "user" instead of "platform").
+// Matches coreAppMeta in orchestrator.go — single source of truth for the dashboard.
+const CORE_SERVICE_NAMES = new Set([
+  'cubeos-api', 'api',
+  'cubeos-dashboard', 'dashboard',
+  'cubeos-hal', 'hal',
+  'cubeos-docsindex', 'docsindex',
+  'cubeos-terminal', 'terminal',
+  'pihole', 'cubeos-pihole',
+  'npm', 'cubeos-npm',
+  'registry', 'cubeos-registry',
+  'dozzle', 'cubeos-dozzle',
+  'ollama', 'chromadb',
+  'kiwix', 'cubeos-kiwix',
+  'filebrowser', 'cubeos-filebrowser',
+  'watchdog', 'backup', 'diagnostics', 'reset',
+])
+
 export const useAppsStore = defineStore('apps', () => {
   // ==========================================
   // State
@@ -215,6 +234,7 @@ export const useAppsStore = defineStore('apps', () => {
     // Hide system and platform apps unless showSystemApps is true
     return filteredApps.value.filter(a => 
       a.type !== APP_TYPES.SYSTEM && a.type !== APP_TYPES.PLATFORM
+      && !CORE_SERVICE_NAMES.has(a.name)
     )
   })
 
@@ -268,6 +288,7 @@ export const useAppsStore = defineStore('apps', () => {
   const coreApps = computed(() => 
     apps.value.filter(a => 
       a.type === APP_TYPES.SYSTEM || a.type === APP_TYPES.PLATFORM
+      || CORE_SERVICE_NAMES.has(a.name)
     )
   )
 
@@ -283,10 +304,13 @@ export const useAppsStore = defineStore('apps', () => {
   }
 
   /**
-   * Check if an app is a core (system/platform) app
+   * Check if an app is a core (system/platform) app.
+   * Uses both API type AND a hardcoded name set as defensive fallback
+   * (API may return wrong type if DB record was created before classification fix).
    */
   function isCore(app) {
     return app.type === APP_TYPES.SYSTEM || app.type === APP_TYPES.PLATFORM
+      || CORE_SERVICE_NAMES.has(app.name)
   }
 
   /**

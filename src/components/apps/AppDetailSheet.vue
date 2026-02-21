@@ -477,7 +477,7 @@ function handleClose() {
               <div class="p-3 rounded-xl bg-theme-tertiary">
                 <p class="text-xs text-theme-muted mb-1">Type</p>
                 <p class="font-medium text-theme-primary capitalize">
-                  {{ app.type || 'Unknown' }}
+                  {{ isCore ? (app.type === 'system' ? 'System' : 'Platform') : (app.type || 'Unknown') }}
                 </p>
               </div>
             </div>
