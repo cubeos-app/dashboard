@@ -380,19 +380,20 @@ watch(() => reconnect.reconnected.value, (val) => {
 })
 
 // Handle fast reconnect (AP came back quickly / user already on CubeOS network)
+// NOTE: Only for WiFi mode. Reboot mode MUST use the reconnected watcher above,
+// which requires seeing disconnection first. Otherwise the still-alive server
+// triggers an immediate false "reconnected" before it actually reboots.
 watch(() => reconnect.connected.value, (connected) => {
   if (!connected || phase.value !== 'reconnecting') return
-  const mode = transitionState.mode
-  if (mode !== 'reboot' && mode !== 'wifi') return
+  if (transitionState.mode !== 'wifi') return
 
-  const target = mode === 'reboot' ? 'dashboard' : 'login'
   setTimeout(() => {
     if (reconnect.connected.value) {
       phase.value = 'complete'
       reconnect.stop()
       setTimeout(() => {
         hideTransition()
-        router.replace({ name: target })
+        router.replace({ name: 'login' })
       }, 1500)
     }
   }, 2000)
