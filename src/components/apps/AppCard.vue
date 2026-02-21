@@ -66,9 +66,7 @@ const extraPortCount = computed(() => {
 })
 
 function handleClick() {
-  if (!running.value) return
-  
-  if (hasUI.value && appUrl.value) {
+  if (hasUI.value && running.value && appUrl.value) {
     window.open(appUrl.value, '_blank', 'noopener,noreferrer')
   } else {
     emit('showHealth', props.app)
@@ -108,7 +106,7 @@ async function handleAction(action, e) {
     class="group relative bg-theme-card rounded-xl border border-theme-primary overflow-hidden transition-all duration-200 hover:border-theme-secondary hover:shadow-theme-md hover:-translate-y-0.5"
     :class="[
       { 'opacity-60': !running },
-      running ? 'cursor-pointer' : 'cursor-default'
+      'cursor-pointer'
     ]"
   >
     <div class="p-4" :class="{ 'p-3': compact }">
@@ -157,7 +155,7 @@ async function handleAction(action, e) {
           </p>
         </div>
 
-        <!-- Actions -->
+        <!-- Actions — hover group first, then always-visible icons anchored right -->
         <div class="flex-shrink-0 flex items-center gap-1">
           <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <!-- Start: available for ALL stopped apps -->
@@ -197,14 +195,24 @@ async function handleAction(action, e) {
             </button>
           </div>
           
-          <!-- Open link / Info icon -->
-          <div
-            v-if="running"
-            class="p-1.5 text-theme-tertiary hover:text-accent hover:bg-accent-muted rounded-lg transition-colors"
-            :title="hasUI ? 'Open' : 'View Status'"
+          <!-- Open link (running + has UI) — always visible -->
+          <button
+            v-if="running && hasUI"
+            @click.stop="appUrl && window.open(appUrl, '_blank', 'noopener,noreferrer')"
+            class="p-1.5 text-accent hover:bg-accent-muted rounded-lg transition-colors"
+            title="Open"
           >
-            <Icon :name="hasUI ? 'ExternalLink' : 'Info'" :size="16" />
-          </div>
+            <Icon name="ExternalLink" :size="16" />
+          </button>
+
+          <!-- Info icon — always visible on ALL tiles, pinned rightmost -->
+          <button
+            @click.stop="$emit('showHealth', app)"
+            class="p-1.5 text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary rounded-lg transition-colors"
+            title="App Info"
+          >
+            <Icon name="Info" :size="16" />
+          </button>
         </div>
       </div>
     </div>

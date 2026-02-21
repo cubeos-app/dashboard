@@ -342,38 +342,9 @@ function openDetail(app, e) {
               </p>
             </div>
 
-            <!-- Actions -->
+            <!-- Actions — hover group first, then always-visible icons anchored right -->
             <div class="flex-shrink-0 flex items-center gap-1">
-              <!-- Favorite toggle -->
-              <button
-                @click="handleFavorite(app, $event)"
-                class="p-1.5 rounded-lg transition-colors"
-                :class="favoritesStore.isFavorite(app.name)
-                  ? 'text-warning'
-                  : 'text-theme-muted opacity-0 group-hover:opacity-100'"
-                :title="favoritesStore.isFavorite(app.name) ? 'Remove from favorites' : 'Add to favorites'"
-                :aria-label="favoritesStore.isFavorite(app.name) ? 'Remove from favorites' : 'Add to favorites'"
-              >
-                <Icon
-                  name="Star"
-                  :size="16"
-                  :class="favoritesStore.isFavorite(app.name) ? 'fill-current' : ''"
-                />
-              </button>
-
-              <!-- Open Web UI or App Info — always visible for running apps -->
-              <button
-                v-if="appsStore.isRunning(app)"
-                @click="appsStore.hasWebUI(app) ? openApp(app, $event) : openDetail(app, $event)"
-                class="p-1.5 rounded-lg transition-colors"
-                :class="appsStore.hasWebUI(app) ? 'text-accent hover:bg-accent-muted' : 'text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary'"
-                :title="appsStore.hasWebUI(app) ? 'Open' : 'App Info'"
-                :aria-label="appsStore.hasWebUI(app) ? 'Open web UI' : 'App info'"
-              >
-                <Icon :name="appsStore.hasWebUI(app) ? 'ExternalLink' : 'Info'" :size="16" />
-              </button>
-
-              <!-- Start/Stop/Restart (visible on hover / always on mobile) -->
+              <!-- Start/Stop/Restart (visible on hover / always on mobile) — renders LEFT of pinned icons -->
               <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <!-- Start: available for ALL stopped apps (core apps can crash too) -->
                 <button
@@ -411,6 +382,42 @@ function openDetail(app, e) {
                   <Icon name="RotateCw" :size="16" />
                 </button>
               </div>
+
+              <!-- Favorite toggle -->
+              <button
+                @click="handleFavorite(app, $event)"
+                class="p-1.5 rounded-lg transition-colors"
+                :class="favoritesStore.isFavorite(app.name)
+                  ? 'text-warning'
+                  : 'text-theme-muted opacity-0 group-hover:opacity-100'"
+                :title="favoritesStore.isFavorite(app.name) ? 'Remove from favorites' : 'Add to favorites'"
+                :aria-label="favoritesStore.isFavorite(app.name) ? 'Remove from favorites' : 'Add to favorites'"
+              >
+                <Icon
+                  name="Star"
+                  :size="16"
+                  :class="favoritesStore.isFavorite(app.name) ? 'fill-current' : ''"
+                />
+              </button>
+
+              <!-- Open Web UI (running + has UI) OR Info (always) — pinned rightmost -->
+              <button
+                v-if="appsStore.isRunning(app) && appsStore.hasWebUI(app)"
+                @click="openApp(app, $event)"
+                class="p-1.5 rounded-lg transition-colors text-accent hover:bg-accent-muted"
+                title="Open"
+                aria-label="Open web UI"
+              >
+                <Icon name="ExternalLink" :size="16" />
+              </button>
+              <button
+                @click="openDetail(app, $event)"
+                class="p-1.5 rounded-lg transition-colors text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary"
+                title="App Info"
+                aria-label="App info"
+              >
+                <Icon name="Info" :size="16" />
+              </button>
             </div>
           </div>
         </div>
