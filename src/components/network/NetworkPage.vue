@@ -105,6 +105,7 @@ const modeLabelDisplay = computed(() => {
     case 'online_wifi': return 'Online via WiFi'
     case 'server_eth': return 'Server via Ethernet'
     case 'server_wifi': return 'Server via WiFi'
+    case 'online_tether': return 'Online via Tethering'
     default: return networkMode.value?.mode || 'Unknown'
   }
 })

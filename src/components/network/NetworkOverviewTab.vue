@@ -61,7 +61,7 @@ const natEnabled = computed(() => {
 const isInternetSharing = computed(() => {
   if (!natEnabled.value) return false
   const mode = (props.networkMode?.mode || '').toLowerCase()
-  return mode === 'online_eth' || mode === 'online_wifi'
+  return mode === 'online_eth' || mode === 'online_wifi' || mode === 'online_tether'
 })
 
 // B75 fix: Detect OFFLINE mode — NAT toggle has no meaning without upstream
