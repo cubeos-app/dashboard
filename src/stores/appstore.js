@@ -290,8 +290,27 @@ export const useAppStoreStore = defineStore('appstore', () => {
   /** GET /appstore/installed */
   async function fetchInstalledApps() {
     try {
-      const data = await api.get('/appstore/installed')
-      installedApps.value = data.apps || []
+      // Fetch from both sources for unified Installed view
+      const [storeResult, appsResult] = await Promise.allSettled([
+        api.get('/appstore/installed'),
+        api.get('/apps?type=user')
+      ])
+
+      const storeApps = storeResult.status === 'fulfilled' ? (storeResult.value.apps || []) : []
+      const allUserApps = appsResult.status === 'fulfilled' ? (appsResult.value.apps || []) : []
+
+      // Registry apps from unified endpoint, mapped to same display format
+      const storeNames = new Set(storeApps.map(a => a.name))
+      const registryApps = allUserApps
+        .filter(a => a.source === 'registry' && !storeNames.has(a.name))
+        .map(a => ({
+          ...a,
+          title: a.display_name || a.name,
+          status: a.state || (a.status?.running ? 'running' : 'stopped'),
+          icon: a.icon_url || ''
+        }))
+
+      installedApps.value = [...storeApps, ...registryApps]
     } catch (e) {
       error.value = e.message
       installedApps.value = []

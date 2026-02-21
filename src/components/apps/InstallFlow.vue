@@ -79,15 +79,21 @@ async function loadVolumes() {
   step.value = 'loading'
   loadError.value = ''
 
-  // Registry apps: no manifest to preview volumes — skip to confirm
+  // Registry apps: generate synthetic volume mapping (same UI as store apps)
   if (isRegistry.value) {
-    volumes.value = []
-    // Standard mode with no volumes → skip straight to install
-    if (!isAdvanced.value) {
-      await doInstall({})
-    } else {
-      step.value = 'confirm'
-    }
+    const appNameClean = (props.appName || '').toLowerCase().replace(/[^a-z0-9-]/g, '-')
+    volumes.value = [{
+      service_name: appNameClean,
+      container_path: '/data',
+      original_host_path: '/data',
+      current_host_path: `/cubeos/apps/${appNameClean}/appdata`,
+      description: 'App data',
+      is_remapped: true,
+      is_external: true,
+      is_config: false,
+      read_only: false
+    }]
+    step.value = 'confirm'
     return
   }
 
@@ -127,15 +133,20 @@ async function doInstall(volumeOverrides) {
     let result
 
     if (isRegistry.value) {
-      // Registry install → unified POST /apps endpoint
-      result = await api.post('/apps', {
+      // Registry install → unified POST /apps endpoint with same overrides as store
+      const payload = {
         name: props.appName,
         source: 'registry',
         image: props.app._imageName,
         tag: props.app._tag || 'latest',
         display_name: appTitle.value,
         category: 'utility'
-      })
+      }
+      // Pass volume overrides if user customized paths
+      if (Object.keys(volumeOverrides).length > 0) {
+        payload.volume_overrides = volumeOverrides
+      }
+      result = await api.post('/apps', payload)
     } else {
       // Store install → existing POST /appstore/installed endpoint
       const payload = {
