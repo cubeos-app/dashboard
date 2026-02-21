@@ -24,6 +24,7 @@ import api from '@/api/client'
 
 import { confirm } from '@/utils/confirmDialog'
 import { showRebootTransition, showShutdownTransition } from '@/utils/transitionScreen'
+import { useNetworkStore } from '@/stores/network'
 
 export const useSystemStore = defineStore('system', () => {
   // State
@@ -263,13 +264,16 @@ export const useSystemStore = defineStore('system', () => {
   async function reboot() {
     if (!await confirm({
       title: 'Reboot System',
-      message: 'The system will restart. All connected clients will be temporarily disconnected.',
+      message: 'The system will restart. Your WiFi connection will drop and you will need to reconnect to the CubeOS access point.',
       confirmText: 'Reboot',
       variant: 'warning'
     })) return false
     try {
+      // Capture SSID before reboot so transition screen can show it
+      const networkStore = useNetworkStore()
+      const ssid = networkStore.apSSID || 'CubeOS'
       await api.reboot()
-      showRebootTransition()
+      showRebootTransition(ssid)
       return true
     } catch (e) {
       error.value = e.message

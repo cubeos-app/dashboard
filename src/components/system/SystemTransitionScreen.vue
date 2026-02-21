@@ -56,12 +56,33 @@
             </div>
           </template>
 
-          <!-- Phase 2: Redirecting to connecting page -->
-          <template v-else-if="phase === 'waiting'">
-            <div class="spinner spinner-green"></div>
-            <h2 class="phase-title">System Restarting</h2>
-            <p class="phase-subtitle">Redirecting to boot sequence...</p>
+          <!-- Phase 2: Waiting for reboot — reconnect guidance -->
+          <template v-else-if="phase === 'reconnecting'">
+            <div class="phase-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400 animate-pulse-slow">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                <line x1="12" y1="20" x2="12.01" y2="20"/>
+              </svg>
+            </div>
+            <h2 class="phase-title">Reconnect to WiFi</h2>
+            <div class="ssid-display ssid-display-green">
+              <span class="ssid-label ssid-label-green">Network Name</span>
+              <span class="ssid-value">{{ transitionState.ssid }}</span>
+            </div>
+            <p class="phase-subtitle">
+              Your WiFi connection was dropped during reboot.<br>
+              Open your device's WiFi settings and reconnect to the network above.
+            </p>
 
+            <div class="spinner spinner-green"></div>
+            <p class="attempt-counter">
+              Waiting for system... <span class="attempt-num">Attempt {{ reconnect.attempts.value }}</span>
+            </p>
+
+            <!-- Phase progress -->
             <div class="phase-progress">
               <div class="phase-dot done-green" />
               <div class="phase-line done-line-green" />
@@ -73,6 +94,33 @@
               <span class="phase-label done-text-green">Shut Down</span>
               <span class="phase-label active-text-green">Restarting</span>
               <span class="phase-label">Reconnecting</span>
+            </div>
+          </template>
+
+          <!-- Phase 3: Connected — redirecting -->
+          <template v-else-if="phase === 'complete'">
+            <div class="phase-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <h2 class="phase-title">Connected</h2>
+            <p class="phase-subtitle">Redirecting to dashboard...</p>
+
+            <!-- Phase progress -->
+            <div class="phase-progress">
+              <div class="phase-dot done-green" />
+              <div class="phase-line done-line-green" />
+              <div class="phase-dot done-green" />
+              <div class="phase-line done-line-green" />
+              <div class="phase-dot done-green" />
+            </div>
+            <div class="phase-labels">
+              <span class="phase-label done-text-green">Shut Down</span>
+              <span class="phase-label done-text-green">Restarted</span>
+              <span class="phase-label done-text-green">Connected</span>
             </div>
           </template>
         </template>
@@ -226,7 +274,7 @@
  * Mounted in App.vue, controlled via transitionState from utils/transitionScreen.js.
  *
  * Modes:
- *   reboot   — green, countdown → redirect to /connecting
+ *   reboot   — green, countdown → SSID reconnect guidance + poll → redirect to /dashboard
  *   shutdown — red, countdown → "safe to disconnect" final screen
  *   wifi     — blue, countdown → show SSID + poll → redirect to /login
  */
@@ -289,12 +337,9 @@ function onCountdownComplete() {
   const mode = transitionState.mode
 
   if (mode === 'reboot') {
-    // Transition to waiting phase, then redirect to /connecting
-    phase.value = 'waiting'
-    setTimeout(() => {
-      hideTransition()
-      router.replace({ name: 'connecting' })
-    }, 1500)
+    // Show reconnect guidance with SSID and start health polling
+    phase.value = 'reconnecting'
+    reconnect.start()
   }
 
   if (mode === 'shutdown') {
@@ -310,9 +355,21 @@ function onCountdownComplete() {
   }
 }
 
-// ─── WiFi reconnect detection ────────────────────────────────
+// ─── Reconnect detection (shared by reboot + wifi modes) ────
 watch(() => reconnect.reconnected.value, (val) => {
-  if (val && transitionState.mode === 'wifi') {
+  if (!val) return
+  const mode = transitionState.mode
+
+  if (mode === 'reboot') {
+    phase.value = 'complete'
+    reconnect.stop()
+    setTimeout(() => {
+      hideTransition()
+      router.replace({ name: 'dashboard' })
+    }, 1500)
+  }
+
+  if (mode === 'wifi') {
     phase.value = 'complete'
     reconnect.stop()
     setTimeout(() => {
@@ -322,21 +379,23 @@ watch(() => reconnect.reconnected.value, (val) => {
   }
 })
 
-// Also handle case where API was already reachable (AP restart was fast)
+// Handle fast reconnect (AP came back quickly / user already on CubeOS network)
 watch(() => reconnect.connected.value, (connected) => {
-  if (connected && transitionState.mode === 'wifi' && phase.value === 'reconnecting') {
-    // Give it a moment to ensure it's stable
-    setTimeout(() => {
-      if (reconnect.connected.value) {
-        phase.value = 'complete'
-        reconnect.stop()
-        setTimeout(() => {
-          hideTransition()
-          router.replace({ name: 'login' })
-        }, 1500)
-      }
-    }, 2000)
-  }
+  if (!connected || phase.value !== 'reconnecting') return
+  const mode = transitionState.mode
+  if (mode !== 'reboot' && mode !== 'wifi') return
+
+  const target = mode === 'reboot' ? 'dashboard' : 'login'
+  setTimeout(() => {
+    if (reconnect.connected.value) {
+      phase.value = 'complete'
+      reconnect.stop()
+      setTimeout(() => {
+        hideTransition()
+        router.replace({ name: target })
+      }, 1500)
+    }
+  }, 2000)
 })
 
 // ─── Cleanup ─────────────────────────────────────────────────
@@ -545,7 +604,7 @@ onUnmounted(cleanup)
   to { transform: rotate(360deg); }
 }
 
-/* ─── WiFi SSID display ─────────────────── */
+/* ─── WiFi SSID display (blue — WiFi mode) ─── */
 
 .ssid-display {
   background: rgba(30, 58, 138, 0.3);
@@ -564,6 +623,17 @@ onUnmounted(cleanup)
   color: #60a5fa;
   margin-bottom: 0.25rem;
   font-weight: 600;
+}
+
+/* ─── SSID display (green — reboot mode) ─── */
+
+.ssid-display-green {
+  background: rgba(6, 78, 59, 0.3);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.ssid-label-green {
+  color: #4ade80;
 }
 
 .ssid-value {

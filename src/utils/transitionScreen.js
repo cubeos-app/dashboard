@@ -9,7 +9,7 @@
  *   import { showRebootTransition, showShutdownTransition, showWiFiTransition } from '@/utils/transitionScreen'
  *
  *   // After API call succeeds:
- *   showRebootTransition()
+ *   showRebootTransition('CubeOS-Rocket')
  *   showShutdownTransition()
  *   showWiFiTransition('MyNewSSID')
  */
@@ -20,7 +20,7 @@ export const transitionState = reactive({
   active: false,
   /** Transition mode: 'reboot' | 'shutdown' | 'wifi' */
   mode: 'reboot',
-  /** New SSID to display (wifi mode only) */
+  /** SSID to display for reconnection (wifi and reboot modes) */
   ssid: '',
   /** Countdown duration in seconds before system goes down */
   countdown: 15
@@ -28,11 +28,12 @@ export const transitionState = reactive({
 
 /**
  * Show reboot transition screen.
- * Green colour scheme, countdown, then redirect to /connecting.
+ * Green colour scheme, countdown, then reconnect guidance with SSID + health polling.
+ * @param {string} ssid - Current AP SSID so user knows which network to reconnect to
  */
-export function showRebootTransition() {
+export function showRebootTransition(ssid) {
   transitionState.mode = 'reboot'
-  transitionState.ssid = ''
+  transitionState.ssid = ssid || 'CubeOS'
   transitionState.countdown = 15
   transitionState.active = true
 }
