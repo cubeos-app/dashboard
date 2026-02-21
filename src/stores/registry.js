@@ -228,29 +228,6 @@ export const useRegistryStore = defineStore('registry', () => {
     }
   }
 
-  /**
-   * B102: Deploy a cached registry image as a Swarm service
-   * POST /registry/deploy
-   * @param {string} imageName - Image name in registry (e.g., "kiwix-serve")
-   * @param {string} tag - Image tag (e.g., "latest")
-   * @param {string} appName - Optional app name override
-   * @returns {object} Deploy result with app details
-   */
-  async function deployImage(imageName, tag = 'latest', appName = '') {
-    error.value = null
-    try {
-      const result = await api.post('/registry/deploy', {
-        image: imageName,
-        tag: tag,
-        app_name: appName || imageName.split('/').pop().replace(/[^a-z0-9-]/g, '-')
-      })
-      return result
-    } catch (e) {
-      error.value = e.message
-      throw e
-    }
-  }
-
   return {
     // State
     loading,
@@ -279,7 +256,6 @@ export const useRegistryStore = defineStore('registry', () => {
     // Utilities
     fetchAll,
     clearSelectedImage,
-    checkImage,
-    deployImage
+    checkImage
   }
 })

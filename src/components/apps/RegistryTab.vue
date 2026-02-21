@@ -1,9 +1,10 @@
 <script setup>
 /**
- * RegistryTab.vue — S05 Refactor (from appmanager/RegistryTab.vue)
+ * RegistryTab.vue — S05 Refactor (Batch 4: Management only)
  *
  * Advanced-only tab for local Docker registry management.
- * Refactored from appmanager/ to apps/ — no functional changes.
+ * Batch 4: Removed all deploy/install functionality — installs now
+ * go exclusively through AppStoreTab → InstallFlow.vue.
  *
  * Features:
  *   - Registry status card with disk usage stats + progress bar
@@ -20,15 +21,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRegistryStore } from '@/stores/registry'
 import { useAppManagerStore } from '@/stores/appmanager'
-import { useAppsStore } from '@/stores/apps'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const registryStore = useRegistryStore()
 const appManagerStore = useAppManagerStore()
-const appsStore = useAppsStore()
-
-const emit = defineEmits(['switch-tab'])
 
 // ==========================================
 // State
@@ -44,14 +41,6 @@ const tagsLoading = ref(false)
 const deleteLoading = ref({})
 const actionError = ref(null)
 
-// B102: Deploy from registry
-const deployModalVisible = ref(false)
-const deployImageName = ref('')
-const deployImageTag = ref('latest')
-const deployAppName = ref('')
-const deployLoading = ref(false)
-const deployResult = ref(null)
-
 // ==========================================
 // Computed
 // ==========================================
@@ -64,14 +53,6 @@ const images = computed(() => {
 })
 
 const diskUsage = computed(() => registryStore.diskUsage)
-
-// B108b: Tags available for the deploy modal (reads from store after fetch)
-const deployAvailableTags = computed(() => {
-  if (registryStore.selectedImageName === deployImageName.value) {
-    return registryStore.selectedImageTags || []
-  }
-  return []
-})
 
 const usagePercent = computed(() => {
   if (!diskUsage.value?.total_space || !diskUsage.value?.used_space) return null
@@ -215,54 +196,6 @@ async function deleteImageTag(imageName, tag) {
   }
 }
 
-// B102: Deploy image from local registry
-async function openDeployModal(imageName) {
-  deployImageName.value = imageName
-  deployImageTag.value = '' // will be set after tags load
-  deployAppName.value = imageName.split('/').pop().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '')
-  deployResult.value = null
-  actionError.value = null
-  deployModalVisible.value = true
-
-  // Fetch tags from registry if not already loaded for this image
-  if (registryStore.selectedImageName !== imageName || !registryStore.selectedImageTags?.length) {
-    tagsLoading.value = true
-    try {
-      await registryStore.fetchImageTags(imageName)
-    } catch (e) {
-      // Tag fetch failed — user can still type manually
-    } finally {
-      tagsLoading.value = false
-    }
-  }
-
-  // Set default tag to first available (not hardcoded "latest")
-  const tags = registryStore.selectedImageTags || []
-  deployImageTag.value = tags.length > 0 ? tags[0] : 'latest'
-}
-
-async function deployImage() {
-  if (!deployAppName.value.trim()) return
-  deployLoading.value = true
-  actionError.value = null
-  deployResult.value = null
-  try {
-    const result = await registryStore.deployImage(
-      deployImageName.value,
-      deployImageTag.value,
-      deployAppName.value.trim()
-    )
-    deployResult.value = result
-    deployModalVisible.value = false
-    // B108b: Refresh My Apps list so the new app appears immediately
-    await appsStore.fetchApps({ force: true })
-  } catch (e) {
-    actionError.value = 'Deploy failed: ' + e.message
-  } finally {
-    deployLoading.value = false
-  }
-}
-
 function copyTagRef(imageName, tag) {
   const ref = `${registryHost.value}/${imageName}:${tag}`
   navigator.clipboard?.writeText(ref)
@@ -312,7 +245,9 @@ function getImageTags(image) {
           <p class="text-theme-primary font-medium">Offline Docker Registry</p>
           <p class="mt-1 text-theme-secondary">
             Cache Docker images locally for offline deployment. Images are stored at
-            <code class="bg-theme-tertiary px-1.5 py-0.5 rounded text-xs font-mono">{{ registryHost }}</code>
+            <code class="bg-theme-tertiary px-1.5 py-0.5 rounded text-xs font-mono">{{ registryHost }}</code>.
+            To install cached images, use the
+            <strong class="text-theme-primary">App Store</strong> tab and filter by "Offline Apps".
           </p>
         </div>
       </div>
@@ -535,15 +470,6 @@ function getImageTags(image) {
                   +{{ image.tags.length - 3 }}
                 </span>
               </div>
-              <!-- B102: Deploy button -->
-              <button
-                @click.stop="openDeployModal(image.name)"
-                class="p-2 text-theme-muted hover:text-success rounded-lg hover:bg-success-muted"
-                title="Deploy as Swarm service"
-                :aria-label="'Deploy image ' + image.name"
-              >
-                <Icon name="Rocket" :size="14" />
-              </button>
               <button
                 @click.stop="deleteImage(image.name)"
                 :disabled="deleteLoading[image.name]"
@@ -628,116 +554,6 @@ function getImageTags(image) {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- B102/B108b: Deploy Success -->
-    <div v-if="deployResult" class="bg-success-muted border border-success rounded-lg p-4 flex items-start gap-2">
-      <Icon name="CheckCircle" :size="16" class="text-success flex-shrink-0 mt-0.5" />
-      <div class="flex-1">
-        <p class="text-sm text-success">
-          Deployed successfully.
-          <span v-if="deployResult.app_name"> App: <strong>{{ deployResult.app_name }}</strong>.</span>
-        </p>
-        <div v-if="deployResult.web_ui || deployResult.fqdn" class="mt-2 flex flex-wrap gap-2">
-          <a
-            :href="deployResult.web_ui || ('http://' + deployResult.fqdn)"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
-          >
-            <Icon name="ExternalLink" :size="12" />
-            Open {{ deployResult.fqdn || deployResult.app_name }}
-          </a>
-          <button
-            @click="deployResult = null; emit('switch-tab', 'my-apps')"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors"
-          >
-            <Icon name="LayoutGrid" :size="12" />
-            View in My Apps
-          </button>
-        </div>
-        <button @click="deployResult = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-2" aria-label="Dismiss deploy result">Dismiss</button>
-      </div>
-    </div>
-
-    <!-- B102: Deploy Modal -->
-    <div
-      v-if="deployModalVisible"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click.self="deployModalVisible = false"
-      @keydown.escape="deployModalVisible = false"
-    >
-      <div class="bg-theme-card border border-theme-primary rounded-xl shadow-xl w-full max-w-md mx-4" role="dialog" aria-modal="true" aria-label="Deploy registry image">
-        <div class="px-6 py-4 border-b border-theme-primary">
-          <h3 class="text-lg font-semibold text-theme-primary">Deploy Image</h3>
-          <p class="text-sm text-theme-secondary mt-1">Create a Swarm service from a cached registry image</p>
-        </div>
-
-        <div class="px-6 py-4 space-y-4">
-          <!-- Image reference (read-only) -->
-          <div>
-            <label class="block text-xs font-medium text-theme-secondary mb-1">Image</label>
-            <div class="px-3 py-2 rounded-lg bg-theme-tertiary text-sm text-theme-primary font-mono">
-              {{ deployImageName }}:{{ deployImageTag }}
-            </div>
-          </div>
-
-          <!-- Tag selector -->
-          <div>
-            <label for="deploy-tag" class="block text-xs font-medium text-theme-secondary mb-1">Tag</label>
-            <select
-              id="deploy-tag"
-              v-model="deployImageTag"
-              class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm"
-              :disabled="tagsLoading"
-            >
-              <option v-if="tagsLoading" value="" disabled>Loading tags...</option>
-              <option v-for="tag in deployAvailableTags" :key="tag" :value="tag">{{ tag }}</option>
-              <option v-if="!tagsLoading && deployAvailableTags.length === 0" value="latest">latest</option>
-            </select>
-          </div>
-
-          <!-- App name -->
-          <div>
-            <label for="deploy-name" class="block text-xs font-medium text-theme-secondary mb-1">App Name</label>
-            <input
-              id="deploy-name"
-              v-model="deployAppName"
-              type="text"
-              placeholder="my-app"
-              class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm font-mono"
-              :disabled="deployLoading"
-              @keyup.enter="deployImage"
-            />
-            <p class="mt-1 text-xs text-theme-muted">Lowercase letters, numbers, and hyphens only</p>
-          </div>
-
-          <!-- Deploy error (inline) -->
-          <div v-if="actionError && deployModalVisible" class="bg-error-muted rounded-lg p-3 flex items-start gap-2">
-            <Icon name="AlertTriangle" :size="14" class="text-error mt-0.5 flex-shrink-0" />
-            <span class="text-xs text-error">{{ actionError }}</span>
-          </div>
-        </div>
-
-        <div class="px-6 py-4 border-t border-theme-primary flex justify-end gap-3">
-          <button
-            @click="deployModalVisible = false"
-            :disabled="deployLoading"
-            class="px-4 py-2 text-sm rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            @click="deployImage"
-            :disabled="deployLoading || !deployAppName.trim()"
-            class="px-4 py-2 text-sm rounded-lg btn-accent disabled:opacity-50 flex items-center gap-2"
-          >
-            <Icon v-if="deployLoading" name="Loader2" :size="14" class="animate-spin" />
-            <Icon v-else name="Rocket" :size="14" />
-            {{ deployLoading ? 'Deploying...' : 'Deploy' }}
-          </button>
         </div>
       </div>
     </div>

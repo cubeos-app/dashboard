@@ -256,7 +256,7 @@ const headerSubtitle = computed(() => {
 
     <AppManagerTab v-if="activeTab === 'manager'" />
     <DockerTab v-if="activeTab === 'docker'" />
-    <RegistryTab v-if="activeTab === 'registry'" @switch-tab="setTab" />
+    <RegistryTab v-if="activeTab === 'registry'" />
     <PortsTab v-if="activeTab === 'ports'" />
     <ProfilesTab v-if="activeTab === 'profiles'" />
 

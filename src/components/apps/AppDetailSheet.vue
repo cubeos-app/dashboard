@@ -36,6 +36,9 @@ const sheetRef = ref(null)
 // ─── Detect app type ─────────────────────────────────────────
 // Store catalog apps have store_id or title.en_us
 // Installed/running apps have status.running or deploy_mode
+// Registry apps have _source === 'registry'
+const isRegistryApp = computed(() => props.app?._source === 'registry')
+
 const isCatalogApp = computed(() => {
   if (!props.app) return false
   return !!(props.app.store_id || props.app.title?.en_us || props.app.title?.en_US)
@@ -61,6 +64,15 @@ const catalogStoreId = computed(() =>
 const catalogAppName = computed(() =>
   props.app.name || props.app.id?.split('/')[1] || ''
 )
+
+// ─── Registry app computed ────────────────────────────────────
+const registryImageName = computed(() => props.app?._imageName || '')
+const registryTag = computed(() => props.app?._tag || 'latest')
+const registryFqdn = computed(() => {
+  const name = catalogAppName.value || registryImageName.value.split('/').pop() || ''
+  const clean = name.replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '')
+  return clean ? `${clean}.cubeos.cube` : ''
+})
 
 // Screenshots
 const screenshots = computed(() => {
@@ -110,9 +122,10 @@ function handleQuickInstall() {
 const displayName = computed(() =>
   isInstalledApp.value ? appsStore.getAppDisplayName(props.app) : catalogTitle.value
 )
-const iconName = computed(() =>
-  isInstalledApp.value ? appsStore.getAppIcon(props.app) : 'Package'
-)
+const iconName = computed(() => {
+  if (isRegistryApp.value) return 'HardDrive'
+  return isInstalledApp.value ? appsStore.getAppIcon(props.app) : 'Package'
+})
 const isRunning = computed(() => appsStore.isRunning(props.app))
 const isHealthy = computed(() => appsStore.isHealthy(props.app))
 const isCore = computed(() => appsStore.isCore(props.app))
@@ -273,15 +286,22 @@ function handleClose() {
           </p>
           <!-- Meta row -->
           <div v-if="isCatalogApp" class="flex items-center gap-3 mt-2 text-xs text-theme-muted">
-            <span v-if="app.category" class="flex items-center gap-1">
+            <span v-if="isRegistryApp" class="flex items-center gap-1 text-success">
+              <Icon name="HardDrive" :size="12" />
+              Local Registry
+            </span>
+            <span v-if="isRegistryApp && registryImageName" class="flex items-center gap-1 font-mono">
+              {{ registryImageName }}:{{ registryTag }}
+            </span>
+            <span v-if="!isRegistryApp && app.category" class="flex items-center gap-1">
               <Icon name="Folder" :size="12" />
               {{ app.category }}
             </span>
-            <span v-if="app.version" class="flex items-center gap-1">
+            <span v-if="!isRegistryApp && app.version" class="flex items-center gap-1">
               <Icon name="Tag" :size="12" />
               v{{ app.version }}
             </span>
-            <span v-if="app.author" class="flex items-center gap-1">
+            <span v-if="!isRegistryApp && app.author" class="flex items-center gap-1">
               <Icon name="User" :size="12" />
               {{ app.author }}
             </span>
@@ -300,7 +320,51 @@ function handleClose() {
 
       <!-- ═══ Catalog App Content ═══ -->
       <div v-if="isCatalogApp" class="overflow-y-auto flex-1">
-        <!-- Screenshots -->
+
+        <!-- Registry App Info (no screenshots/manifest for registry apps) -->
+        <template v-if="isRegistryApp">
+          <div class="p-5 space-y-4">
+            <!-- Offline badge -->
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success-muted text-success text-sm font-medium">
+              <Icon name="HardDrive" :size="14" />
+              Cached locally — available offline
+            </div>
+
+            <!-- Image info card -->
+            <div class="p-4 rounded-xl bg-theme-tertiary space-y-3">
+              <div>
+                <p class="text-xs text-theme-muted mb-1">Docker Image</p>
+                <p class="font-mono text-sm text-theme-primary">{{ registryImageName }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-theme-muted mb-1">Tag</p>
+                <p class="font-mono text-sm text-theme-primary">{{ registryTag }}</p>
+              </div>
+              <div v-if="registryFqdn">
+                <p class="text-xs text-theme-muted mb-1">FQDN (after install)</p>
+                <p class="font-mono text-sm text-accent">{{ registryFqdn }}</p>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+              <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">About</h3>
+              <p class="text-sm text-theme-secondary leading-relaxed">
+                This Docker image is cached in the local registry and can be deployed as a Swarm service without an internet connection.
+                A port will be allocated automatically and DNS/proxy will be configured.
+              </p>
+            </div>
+
+            <!-- Data directory note -->
+            <div class="p-3 rounded-lg bg-theme-secondary/50 text-xs text-theme-muted">
+              <Icon name="Info" :size="12" class="inline mr-1" />
+              App data will be stored in <code class="bg-theme-tertiary px-1 py-0.5 rounded">/cubeos/data/apps/{name}/data</code>
+            </div>
+          </div>
+        </template>
+
+        <!-- Store App Info (screenshots, description, architectures) -->
+        <template v-else> Screenshots -->
         <div v-if="visibleScreenshots.length > 0" class="px-5 pt-4">
           <div class="flex gap-3 overflow-x-auto scroll-smooth pb-3" style="-webkit-overflow-scrolling: touch;">
             <img
@@ -369,6 +433,7 @@ function handleClose() {
             <p class="mt-2 text-[10px] text-theme-muted">Leave blank to use defaults.</p>
           </div>
         </div>
+        </template>
       </div>
 
       <!-- ═══ Installed App Content ═══ -->
