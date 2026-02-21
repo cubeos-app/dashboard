@@ -103,6 +103,7 @@ const isDone = ref(false)
 const hasError = ref(false)
 const errorMessage = ref('')
 const completedSteps = ref(new Set())
+const serverAppUrl = ref('')   // URL from server SSE completion event
 
 let eventSource = null
 
@@ -162,6 +163,7 @@ function handleEvent(event) {
 
   if (event.status === 'done') {
     completedSteps.value.add('complete')
+    if (event.url) serverAppUrl.value = event.url
     isDone.value = true
     closeConnection()
     emit('done')
@@ -197,11 +199,17 @@ const title = computed(() => {
 })
 
 /**
- * Build the app URL from subdomain for the "Open App" button.
- * Only shown on successful install (not uninstall).
+ * Build the app URL for the "Open App" button.
+ * Prefer the URL from the server's SSE completion event (accurate, uses
+ * the prettified subdomain). Fall back to locally-computed URL if the
+ * server didn't provide one.
  */
 const appUrl = computed(() => {
-  if (!props.appSubdomain || props.jobType === 'uninstall') return ''
+  if (props.jobType === 'uninstall') return ''
+  // Server-provided URL is authoritative (matches actual DNS/NPM registration)
+  if (serverAppUrl.value) return serverAppUrl.value
+  // Fallback: build from subdomain prop (may not match prettified subdomain)
+  if (!props.appSubdomain) return ''
   const sub = props.appSubdomain.toLowerCase().replace(/[^a-z0-9-]/g, '-')
   return `http://${sub}.cubeos.cube`
 })
