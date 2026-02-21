@@ -155,8 +155,12 @@ function clearFilters() {
 }
 
 function openDetail(app) {
-  // Registry apps have no manifest/detail — go straight to install flow
+  // Registry apps: if already installed, navigate to My Apps; if not, install
   if (app._source === 'registry') {
+    if (app.installed) {
+      // Already installed — navigate to My Apps (user can manage from there)
+      return
+    }
     handleRegistryInstall(app)
     return
   }
@@ -170,6 +174,7 @@ function handleQuickInstall(app, e) {
   }
   // Registry apps go through unified install flow
   if (app._source === 'registry') {
+    if (app.installed) return // Already installed — do nothing
     handleRegistryInstall(app)
     return
   }

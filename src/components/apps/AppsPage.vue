@@ -137,16 +137,34 @@ function findDuplicateApp(appName, storeApp) {
 }
 
 async function startInstall(storeId, appName, app, options = {}) {
-  // Check for duplicate installed app from a different source
+  // Check for duplicate installed app
   const duplicate = findDuplicateApp(appName, app)
   if (duplicate) {
-    const dupSource = duplicate.source === 'registry' ? 'Docker Registry' : (duplicate.source || 'another source')
+    // Determine source of existing vs new install
+    const existingIsRegistry = duplicate.source === 'registry'
+    const newIsRegistry = storeId === '_registry' || app?._source === 'registry'
+
+    // Same source = block (no use case for duplicate from same store)
+    if (existingIsRegistry === newIsRegistry) {
+      await confirm({
+        title: 'Already Installed',
+        message: `"${duplicate.display_name || duplicate.name}" is already installed. You can manage it from My Apps.`,
+        confirmText: 'Got it',
+        cancelText: 'Cancel',
+        variant: 'info'
+      })
+      return
+    }
+
+    // Different source = warn (e.g. registry ttyd vs store ttyd — different versions)
+    const dupSource = existingIsRegistry ? 'Offline Registry' : 'App Store'
     const dupName = duplicate.display_name || duplicate.name
     const newTitle = app?.title?.en_us || app?.title?.en_US || appName
+    const newSource = newIsRegistry ? 'Offline Registry' : 'App Store'
 
     const proceed = await confirm({
-      title: 'App Already Installed',
-      message: `"${dupName}" is already installed from ${dupSource}. Installing "${newTitle}" from this store will create a second instance using a different port and FQDN. Continue?`,
+      title: 'Similar App Installed',
+      message: `"${dupName}" is already installed from ${dupSource}. Installing "${newTitle}" from ${newSource} will create a separate instance with its own port and address. Continue?`,
       confirmText: 'Install Anyway',
       cancelText: 'Cancel',
       variant: 'warning'

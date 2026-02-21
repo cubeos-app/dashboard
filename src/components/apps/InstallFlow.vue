@@ -119,13 +119,17 @@ async function loadVolumes() {
 
 /**
  * Called when user confirms in InstallConfirmModal.
- * @param {Object} volumeOverrides - map of containerPath → hostPath overrides
+ * @param {Object} confirmData - { volumeOverrides, port, subdomain } or plain volumeOverrides
  */
-async function handleConfirm(volumeOverrides) {
-  await doInstall(volumeOverrides)
+async function handleConfirm(confirmData) {
+  // Support both new structured format and legacy plain volumeOverrides
+  const volumeOverrides = confirmData?.volumeOverrides || (confirmData && !confirmData.port ? confirmData : {})
+  const port = confirmData?.port || 0
+  const subdomain = confirmData?.subdomain || ''
+  await doInstall(volumeOverrides, port, subdomain)
 }
 
-async function doInstall(volumeOverrides) {
+async function doInstall(volumeOverrides, port = 0, subdomain = '') {
   step.value = 'progress'
   installError.value = ''
 
@@ -143,9 +147,13 @@ async function doInstall(volumeOverrides) {
         category: 'utility'
       }
       // Pass volume overrides if user customized paths
-      if (Object.keys(volumeOverrides).length > 0) {
+      if (volumeOverrides && Object.keys(volumeOverrides).length > 0) {
         payload.volume_overrides = volumeOverrides
       }
+      // Pass port override if specified (Advanced mode)
+      if (port > 0) payload.port = port
+      // Pass subdomain override if specified (Advanced mode)
+      if (subdomain) payload.subdomain = subdomain
       result = await api.post('/apps', payload)
     } else {
       // Store install → existing POST /appstore/installed endpoint
@@ -170,8 +178,14 @@ async function doInstall(volumeOverrides) {
 }
 
 // ─── Callbacks ───────────────────────────────────────────────
+
+/**
+ * Called when SSE reports install done.
+ * Do NOT close — let InstallProgressModal show success state
+ * with "Open App" and "Done" buttons. User decides when to dismiss.
+ */
 function handleProgressDone() {
-  emit('done')
+  // Don't emit('done') here — user will click "Done" in the success modal
 }
 
 function handleProgressError() {
@@ -180,7 +194,7 @@ function handleProgressError() {
 }
 
 function handleCancel() {
-  emit('close')
+  emit('done')
 }
 </script>
 
@@ -211,6 +225,7 @@ function handleCancel() {
       v-if="step === 'progress' && jobId"
       :app-name="appTitle"
       :app-icon="appIcon"
+      :app-subdomain="appName"
       job-type="install"
       :job-id="jobId"
       :sse-base-path="sseBasePath"

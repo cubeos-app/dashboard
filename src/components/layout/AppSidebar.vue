@@ -79,7 +79,7 @@ function isActive(path) {
 
 function navigate(path) {
   if (path === '/terminal') {
-    window.open('/terminal', '_blank')
+    window.open('http://terminal.cubeos.cube', '_blank')
     return
   }
   router.push(path)

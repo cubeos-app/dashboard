@@ -15,6 +15,8 @@ const props = defineProps({
   appName: { type: String, required: true },
   /** App icon URL */
   appIcon: { type: String, default: '' },
+  /** App subdomain for building Open App URL after success */
+  appSubdomain: { type: String, default: '' },
   /** "install" or "uninstall" */
   jobType: { type: String, default: 'install' },
   /** Job ID from the API */
@@ -184,7 +186,7 @@ function closeConnection() {
 
 const title = computed(() => {
   if (isDone.value) {
-    return props.jobType === 'uninstall' ? 'Uninstalled' : 'Installed'
+    return props.jobType === 'uninstall' ? 'Uninstalled' : `${props.appName} Installed`
   }
   if (hasError.value) {
     return props.jobType === 'uninstall' ? 'Uninstall Failed' : 'Installation Failed'
@@ -193,6 +195,22 @@ const title = computed(() => {
     ? `Uninstalling ${props.appName}`
     : `Installing ${props.appName}`
 })
+
+/**
+ * Build the app URL from subdomain for the "Open App" button.
+ * Only shown on successful install (not uninstall).
+ */
+const appUrl = computed(() => {
+  if (!props.appSubdomain || props.jobType === 'uninstall') return ''
+  const sub = props.appSubdomain.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+  return `http://${sub}.cubeos.cube`
+})
+
+function openApp() {
+  if (appUrl.value) {
+    window.open(appUrl.value, '_blank', 'noopener,noreferrer')
+  }
+}
 
 function stepStatus(stepKey) {
   if (completedSteps.value.has(stepKey)) return 'done'
@@ -323,16 +341,35 @@ function handleClose() {
 
       <!-- Footer -->
       <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-theme-primary bg-theme-secondary">
-        <button
-          v-if="isDone || hasError"
-          @click="handleClose"
-          class="px-5 py-2 rounded-lg text-sm font-medium transition-colors"
-          :class="isDone
-            ? 'btn-accent'
-            : 'border border-theme-primary text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'"
-        >
-          {{ isDone ? 'Done' : 'Close' }}
-        </button>
+        <!-- Success: Open App + Done -->
+        <template v-if="isDone && jobType === 'install' && appUrl">
+          <button
+            @click="openApp"
+            class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium border border-theme-primary text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+          >
+            <Icon name="ExternalLink" :size="14" />
+            Open App
+          </button>
+          <button
+            @click="handleClose"
+            class="px-5 py-2 rounded-lg text-sm font-medium btn-accent"
+          >
+            Done
+          </button>
+        </template>
+        <!-- Success (uninstall) or Error: single button -->
+        <template v-else-if="isDone || hasError">
+          <button
+            @click="handleClose"
+            class="px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+            :class="isDone
+              ? 'btn-accent'
+              : 'border border-theme-primary text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'"
+          >
+            {{ isDone ? 'Done' : 'Close' }}
+          </button>
+        </template>
+        <!-- In progress -->
         <span v-else class="text-xs text-theme-muted">
           {{ progress }}% complete
         </span>
