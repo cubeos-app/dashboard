@@ -23,6 +23,7 @@ import { ref, computed } from 'vue'
 import api from '@/api/client'
 
 import { confirm } from '@/utils/confirmDialog'
+import { showRebootTransition, showShutdownTransition } from '@/utils/transitionScreen'
 
 export const useSystemStore = defineStore('system', () => {
   // State
@@ -262,12 +263,13 @@ export const useSystemStore = defineStore('system', () => {
   async function reboot() {
     if (!await confirm({
       title: 'Reboot System',
-      message: 'Are you sure you want to reboot the system?',
+      message: 'The system will restart. All connected clients will be temporarily disconnected.',
       confirmText: 'Reboot',
       variant: 'warning'
     })) return false
     try {
       await api.reboot()
+      showRebootTransition()
       return true
     } catch (e) {
       error.value = e.message
@@ -278,12 +280,13 @@ export const useSystemStore = defineStore('system', () => {
   async function shutdown() {
     if (!await confirm({
       title: 'Shutdown System',
-      message: 'Are you sure you want to shutdown the system?',
+      message: 'The system will power off. You will need to physically restart the device to reconnect.',
       confirmText: 'Shutdown',
       variant: 'danger'
     })) return false
     try {
       await api.shutdown()
+      showShutdownTransition()
       return true
     } catch (e) {
       error.value = e.message

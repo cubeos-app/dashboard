@@ -9,6 +9,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useNetworkStore } from '@/stores/network'
 import { useClientsStore } from '@/stores/clients'
 import { confirm } from '@/utils/confirmDialog'
+import { showWiFiTransition } from '@/utils/transitionScreen'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import Icon from '@/components/ui/Icon.vue'
 import WiFiConnector from '@/components/network/WiFiConnector.vue'
@@ -123,13 +124,11 @@ async function saveAPConfig() {
 
   apConfigLoading.value = true
   try {
+    const newSSID = apConfig.value.ssid || 'CubeOS'
     await networkStore.updateAPConfig(apConfig.value, true)
     await networkStore.restartAP()
     showAPConfigModal.value = false
-    for (let attempt = 0; attempt < 3; attempt++) {
-      await new Promise(r => setTimeout(r, 2000))
-      try { emit('refresh'); break } catch { /* retry */ }
-    }
+    showWiFiTransition(newSSID)
   } catch (e) {
     error.value = 'Failed to save AP config: ' + e.message
   } finally {

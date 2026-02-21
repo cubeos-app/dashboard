@@ -27,6 +27,7 @@ import MobileNav from '@/components/layout/MobileNav.vue'
 import Icon from '@/components/ui/Icon.vue'
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import SystemTransitionScreen from '@/components/system/SystemTransitionScreen.vue'
 import { confirmState, handleConfirm, handleCancel } from '@/utils/confirmDialog'
 
 const authStore = useAuthStore()
@@ -188,5 +189,8 @@ onUnmounted(() => {
       @cancel="handleCancel"
       @checkbox-change="(v) => confirmState.checkboxChecked = v"
     />
+
+    <!-- Global transition screen (reboot/shutdown/wifi) -->
+    <SystemTransitionScreen />
   </div>
 </template>
