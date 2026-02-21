@@ -110,6 +110,15 @@ function handleFavorite(app, e) {
 }
 
 function handleCardClick(app) {
+  // Running apps with web UI: open directly (what users expect)
+  if (appsStore.isRunning(app) && appsStore.hasWebUI(app)) {
+    const url = appsStore.getAppUrl(app)
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+      return
+    }
+  }
+  // Stopped apps or apps without web UI: open detail sheet
   emit('openDetail', app)
 }
 
@@ -141,7 +150,7 @@ function openApp(app, e) {
           class="group relative flex items-center gap-3 p-3 rounded-xl border border-theme-primary transition-all duration-200 hover:border-theme-secondary hover:shadow-theme-md hover:-translate-y-0.5 text-left"
           :class="[
             wallpaperActive ? panelClass : 'bg-theme-card',
-            appsStore.isRunning(app) ? 'cursor-pointer' : 'opacity-60 cursor-default'
+            appsStore.isRunning(app) ? 'cursor-pointer' : 'border-l-2 border-l-theme-muted cursor-default'
           ]"
         >
           <div class="w-9 h-9 rounded-lg bg-theme-tertiary flex items-center justify-center flex-shrink-0 group-hover:bg-accent-muted transition-colors">
@@ -206,6 +215,28 @@ function openApp(app, e) {
 
     <!-- Category Chips (when no category selected) -->
     <div v-if="!activeCategory" class="flex flex-wrap gap-2">
+      <!-- "All Apps" chip — always first -->
+      <button
+        @click="showSystemApps = true; activeCategory = null"
+        :class="[
+          'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200',
+          showSystemApps && !activeCategory
+            ? 'bg-accent-muted text-accent ring-1 ring-accent/30'
+            : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-card hover:text-theme-primary'
+        ]"
+      >
+        <Icon name="LayoutGrid" :size="18" class="opacity-70" />
+        <span>All Apps</span>
+        <span :class="[
+          'px-1.5 py-0.5 rounded-md text-xs',
+          showSystemApps && !activeCategory
+            ? 'bg-accent/20 text-accent'
+            : 'bg-theme-secondary text-theme-tertiary'
+        ]">
+          {{ appsStore.apps.length }}
+        </span>
+      </button>
+
       <button
         v-for="(category, key) in appsStore.categorizedApps"
         :key="key"
@@ -261,7 +292,7 @@ function openApp(app, e) {
         class="group relative rounded-xl border border-theme-primary overflow-hidden transition-all duration-200 hover:border-theme-secondary hover:shadow-theme-md hover:-translate-y-0.5 cursor-pointer"
         :class="[
           wallpaperActive ? panelClass : 'bg-theme-card',
-          { 'opacity-60': !appsStore.isRunning(app) }
+          !appsStore.isRunning(app) ? 'border-l-2 border-l-theme-muted' : ''
         ]"
       >
         <div class="p-4">
@@ -315,10 +346,25 @@ function openApp(app, e) {
                 :title="favoritesStore.isFavorite(app.name) ? 'Remove from favorites' : 'Add to favorites'"
                 :aria-label="favoritesStore.isFavorite(app.name) ? 'Remove from favorites' : 'Add to favorites'"
               >
-                <Icon :name="favoritesStore.isFavorite(app.name) ? 'Star' : 'Star'" :size="16" />
+                <Icon
+                  name="Star"
+                  :size="16"
+                  :class="favoritesStore.isFavorite(app.name) ? 'fill-current' : ''"
+                />
               </button>
 
-              <!-- Actions (visible on hover / always on mobile) -->
+              <!-- Open Web UI — always visible for running apps -->
+              <button
+                v-if="appsStore.isRunning(app) && appsStore.hasWebUI(app)"
+                @click="openApp(app, $event)"
+                class="p-1.5 text-accent hover:bg-accent-muted rounded-lg transition-colors"
+                title="Open"
+                aria-label="Open web UI"
+              >
+                <Icon name="ExternalLink" :size="16" />
+              </button>
+
+              <!-- Start/Stop/Restart (visible on hover / always on mobile) -->
               <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <button
                   v-if="!appsStore.isRunning(app) && !appsStore.isCore(app)"
@@ -352,17 +398,6 @@ function openApp(app, e) {
                 >
                   <Icon name="RotateCw" :size="16" />
                 </button>
-
-                <!-- Open Web UI -->
-                <button
-                  v-if="appsStore.isRunning(app) && appsStore.hasWebUI(app)"
-                  @click="openApp(app, $event)"
-                  class="p-1.5 text-theme-tertiary hover:text-accent hover:bg-accent-muted rounded-lg transition-colors"
-                  title="Open"
-                  aria-label="Open web UI"
-                >
-                  <Icon name="ExternalLink" :size="16" />
-                </button>
               </div>
             </div>
           </div>
@@ -370,7 +405,7 @@ function openApp(app, e) {
 
         <!-- Advanced: Port footer -->
         <div
-          v-if="isAdvanced && app.ports?.length > 0"
+          v-if="app.ports?.length > 0"
           class="px-4 py-2 bg-theme-secondary border-t border-theme-primary"
         >
           <div class="flex items-center gap-2 text-xs">
@@ -415,7 +450,7 @@ function openApp(app, e) {
         {{ searchQuery ? 'Try adjusting your search.' : 'Browse the App Store to get started.' }}
       </p>
       <button
-        v-if="!searchQuery"
+        v-if="!searchQuery || activeCategory"
         @click="$emit('openStore')"
         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium"
       >
