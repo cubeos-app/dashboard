@@ -93,46 +93,45 @@ export const ALL_ADVANCED_SECTION_IDS = Object.keys(ADVANCED_SECTION_REGISTRY)
 const DEFAULT_OPACITY = 100
 const CLOCK_DEFAULT_OPACITY = 0
 
-/** SESSION 7: Default Standard layout uses decomposed widget IDs. */
+/** SESSION 7: Default Standard layout uses decomposed widget IDs.
+ *  Reordered: apps-first (what users interact with), stats-second (glanceable). */
 const STANDARD_GRID_LAYOUT = [
   { row: ['clock'] },
-  { row: ['search'] },
   { row: ['status'] },
+  { row: ['actions'] },
+  { row: ['favorites'] },
+  { row: ['my_apps'] },
   { row: ['vitals'] },
-  { row: ['network'] },
+  { row: ['network', 'battery'] },
+  { row: ['recent_apps'] },
+  { row: ['search'] },
   { row: ['disk'] },
   { row: ['signals'] },
   { row: ['uptime_load'] },
   { row: ['network_throughput'] },
   { row: ['recent_logs'] },
-  { row: ['battery'] },
-  { row: ['actions'] },
-  { row: ['favorites'] },
-  { row: ['recent_apps'] },
-  { row: ['my_apps'] },
 ]
 
 /**
  * SESSION 8: Advanced default layout uses unified widget IDs.
  * Gauges are paired 2-per-row for a compact 2×2 layout.
- * Replaces the old advancedSectionOrder flat array.
+ * Reordered: alerts + swarm early (operational awareness), actions + core before
+ * deep-dive monitoring, signals at bottom (only useful with GPIO hardware).
  */
 const ADVANCED_GRID_LAYOUT = [
   { row: ['cpu_gauge', 'memory_gauge'] },
   { row: ['disk_gauge', 'temp_gauge'] },
   { row: ['infobar'] },
-  { row: ['disk'] },
-  { row: ['signals'] },
-  { row: ['swarm'] },
   { row: ['alerts'] },
-  { row: ['uptime_load'] },
-  { row: ['network_throughput'] },
-  { row: ['recent_logs'] },
-  { row: ['battery'] },
-  { row: ['favorites'] },
+  { row: ['swarm'] },
+  { row: ['actions'] },
   { row: ['core_services'] },
   { row: ['my_apps'] },
-  { row: ['actions'] },
+  { row: ['favorites'] },
+  { row: ['battery', 'uptime_load'] },
+  { row: ['network_throughput', 'recent_logs'] },
+  { row: ['disk'] },
+  { row: ['signals'] },
 ]
 
 const DEFAULT_ADVANCED_SECTION_ORDER = [
@@ -172,7 +171,7 @@ export const REFRESH_INTERVAL_OPTIONS = [
 
 const STANDARD_DEFAULTS = {
   show_clock: true,
-  show_search: true,
+  show_search: false,
   show_status_pill: true,
   show_system_vitals: true,
   show_network_widget: true,
@@ -201,7 +200,7 @@ const STANDARD_DEFAULTS = {
   my_apps_rows: 2,
   favorite_cols: 4,
   quick_actions: ['add_app', 'network', 'storage', 'ask_cubeos'],
-  widget_order: ['clock', 'search', 'status', 'vitals', 'network', 'disk', 'signals', 'actions', 'favorites', 'recent_apps', 'my_apps'],
+  widget_order: ['clock', 'status', 'actions', 'favorites', 'my_apps', 'vitals', 'network', 'battery', 'recent_apps', 'search'],
   grid_layout: STANDARD_GRID_LAYOUT,
   widget_opacity: { clock: CLOCK_DEFAULT_OPACITY },
   widget_dimensions: {},
@@ -240,7 +239,7 @@ const ADVANCED_DEFAULTS = {
   my_apps_rows: 3,
   favorite_cols: 6,
   quick_actions: ['add_app', 'monitoring', 'logs', 'docs'],
-  widget_order: ['alerts', 'vitals', 'network', 'disk', 'signals', 'actions', 'favorites', 'my_apps'],
+  widget_order: ['alerts', 'swarm', 'actions', 'core_services', 'my_apps', 'favorites', 'vitals', 'network', 'battery', 'disk'],
   grid_layout: ADVANCED_GRID_LAYOUT,
   widget_opacity: {},
   widget_dimensions: {},
