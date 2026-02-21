@@ -132,6 +132,14 @@ function openApp(app, e) {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 }
+
+function openDetail(app, e) {
+  if (e) {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+  emit('openDetail', app)
+}
 </script>
 
 <template>
@@ -353,15 +361,16 @@ function openApp(app, e) {
                 />
               </button>
 
-              <!-- Open Web UI — always visible for running apps -->
+              <!-- Open Web UI or App Info — always visible for running apps -->
               <button
-                v-if="appsStore.isRunning(app) && appsStore.hasWebUI(app)"
-                @click="openApp(app, $event)"
-                class="p-1.5 text-accent hover:bg-accent-muted rounded-lg transition-colors"
-                title="Open"
-                aria-label="Open web UI"
+                v-if="appsStore.isRunning(app)"
+                @click="appsStore.hasWebUI(app) ? openApp(app, $event) : openDetail(app, $event)"
+                class="p-1.5 rounded-lg transition-colors"
+                :class="appsStore.hasWebUI(app) ? 'text-accent hover:bg-accent-muted' : 'text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary'"
+                :title="appsStore.hasWebUI(app) ? 'Open' : 'App Info'"
+                :aria-label="appsStore.hasWebUI(app) ? 'Open web UI' : 'App info'"
               >
-                <Icon name="ExternalLink" :size="16" />
+                <Icon :name="appsStore.hasWebUI(app) ? 'ExternalLink' : 'Info'" :size="16" />
               </button>
 
               <!-- Start/Stop/Restart (visible on hover / always on mobile) -->

@@ -138,6 +138,17 @@ const WEB_UI_SERVICES = {
   'kiwix': { fqdn: makeFqdn('kiwix') },
   'filebrowser': { fqdn: makeFqdn('filebrowser') },
   'terminal': { fqdn: makeFqdn('terminal') },
+  // API-only services — no browser UI
+  'api': { fqdn: makeFqdn('api'), hasUI: false },
+  'cubeos-api': { fqdn: makeFqdn('api'), hasUI: false },
+  'hal': { fqdn: makeFqdn('hal'), hasUI: false },
+  'cubeos-hal': { fqdn: makeFqdn('hal'), hasUI: false },
+  'dashboard': { fqdn: makeFqdn('dashboard'), hasUI: false },
+  'cubeos-dashboard': { fqdn: makeFqdn('dashboard'), hasUI: false },
+  'watchdog': { hasUI: false },
+  'backup': { hasUI: false },
+  'diagnostics': { hasUI: false },
+  'reset': { hasUI: false },
 }
 
 export const useAppsStore = defineStore('apps', () => {

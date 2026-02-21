@@ -521,7 +521,7 @@ function handleClose() {
                 Open
               </button>
               <button
-                v-if="isRunning && !isCore"
+                v-if="isRunning"
                 @click="handleAction('restart')"
                 :disabled="actionLoading"
                 class="flex items-center gap-2 px-4 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
@@ -530,7 +530,7 @@ function handleClose() {
                 Restart
               </button>
               <button
-                v-if="!isRunning && !isCore"
+                v-if="!isRunning"
                 @click="handleAction('start')"
                 :disabled="actionLoading"
                 class="flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium"
