@@ -199,7 +199,7 @@ const STANDARD_DEFAULTS = {
   show_greeting: true,
   my_apps_rows: 2,
   favorite_cols: 4,
-  quick_actions: ['add_app', 'network', 'storage', 'ask_cubeos'],
+  quick_actions: ['add_app', 'network', 'storage', 'system', 'docs'],
   widget_order: ['clock', 'status', 'actions', 'favorites', 'my_apps', 'vitals', 'network', 'battery', 'recent_apps', 'search'],
   grid_layout: STANDARD_GRID_LAYOUT,
   widget_opacity: { clock: CLOCK_DEFAULT_OPACITY },

@@ -207,7 +207,10 @@ async function handleUninstall() {
 }
 
 function openWebUI() {
-  if (appUrl.value) window.open(appUrl.value, '_blank', 'noopener,noreferrer')
+  if (appUrl.value) {
+    if (props.app?.name) appsStore.trackRecent(props.app.name)
+    window.open(appUrl.value, '_blank', 'noopener,noreferrer')
+  }
 }
 
 // ─── Active tab (installed apps) ─────────────────────────────

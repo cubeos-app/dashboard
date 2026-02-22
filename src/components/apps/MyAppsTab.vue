@@ -114,6 +114,7 @@ function handleCardClick(app) {
   if (appsStore.isRunning(app) && appsStore.hasWebUI(app)) {
     const url = appsStore.getAppUrl(app)
     if (url) {
+      appsStore.trackRecent(app.name)
       window.open(url, '_blank', 'noopener,noreferrer')
       return
     }
@@ -129,6 +130,7 @@ function openApp(app, e) {
   }
   const url = appsStore.getAppUrl(app)
   if (url) {
+    appsStore.trackRecent(app.name)
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 }

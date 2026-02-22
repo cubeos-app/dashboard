@@ -33,7 +33,7 @@ const recentApps = computed(() => {
     .filter(name => !favNames.has(name))
     .map(name => appsStore.getAppByName(name))
     .filter(Boolean)
-    .slice(0, 6)
+    .slice(0, 10)
 })
 
 function cardBase() {

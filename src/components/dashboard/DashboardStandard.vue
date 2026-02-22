@@ -167,13 +167,17 @@ const ACTIONS_POOL = {
 }
 
 const filteredQuickActions = computed(() => {
-  const ollamaApp = appsStore.getAppByName('ollama')
-  const ollamaRunning = ollamaApp && appsStore.isRunning(ollamaApp)
   return configQuickActions.value
-    .filter(id => id !== 'ask_cubeos' || ollamaRunning)
     .map(id => ACTIONS_POOL[id] ? { id, ...ACTIONS_POOL[id] } : null)
     .filter(Boolean)
 })
+
+/** Whether ask_cubeos should be disabled (Ollama not running) */
+function isActionDisabled(qa) {
+  if (qa.id !== 'ask_cubeos') return false
+  const ollamaApp = appsStore.getAppByName('ollama')
+  return !ollamaApp || !appsStore.isRunning(ollamaApp)
+}
 
 // ─── Grid rows (visibility-filtered, with original layout index) ─
 //
@@ -196,6 +200,7 @@ const quickActionsGridCols = computed(() => {
   const count = filteredQuickActions.value.length
   if (count <= 3) return 'grid-cols-3'
   if (count <= 4) return 'grid-cols-2 sm:grid-cols-4'
+  if (count <= 5) return 'grid-cols-3 sm:grid-cols-5'
   if (count <= 6) return 'grid-cols-3 sm:grid-cols-6'
   return 'grid-cols-4 sm:grid-cols-8'
 })
@@ -478,9 +483,11 @@ onBeforeUnmount(() => {
                     <button
                       v-for="qa in filteredQuickActions"
                       :key="qa.id"
+                      :disabled="isActionDisabled(qa)"
                       class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl transition-all duration-200
-                             hover:bg-theme-tertiary hover:-translate-y-px group"
-                      @click="qa.action()"
+                             hover:bg-theme-tertiary hover:-translate-y-px group
+                             disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:bg-transparent"
+                      @click="!isActionDisabled(qa) && qa.action()"
                     >
                       <div
                         class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"

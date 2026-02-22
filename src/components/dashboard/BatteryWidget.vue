@@ -16,26 +16,41 @@
  * B63 fix: "Configure" button now routes to /system?tab=hardware (works in
  * both Standard and Advanced mode) instead of /hardware (Advanced-only dead-end).
  */
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useHardwareStore } from '@/stores/hardware'
 import { useWallpaper } from '@/composables/useWallpaper'
+import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
 const systemStore = useSystemStore()
 const hardwareStore = useHardwareStore()
 const { isActive: wallpaperActive } = useWallpaper()
+const { getRefreshInterval } = useDashboardConfig()
 
 // Animate bar on mount
 const mounted = ref(false)
+const pollTimer = ref(null)
+
 onMounted(() => {
   requestAnimationFrame(() => { mounted.value = true })
   // Fetch UPS config if not already loaded
   if (!hardwareStore.upsConfig) {
     hardwareStore.fetchUPSConfig()
   }
+  // Poll battery status periodically (default 30s from dashboard config)
+  const intervalSecs = getRefreshInterval('battery')
+  if (intervalSecs > 0) {
+    pollTimer.value = setInterval(() => {
+      systemStore.fetchBattery()
+    }, intervalSecs * 1000)
+  }
+})
+
+onUnmounted(() => {
+  if (pollTimer.value) clearInterval(pollTimer.value)
 })
 
 // ─── UPS config awareness ──────────────────────────────────────

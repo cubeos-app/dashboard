@@ -13,6 +13,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAppsApi } from '@/composables/useAppsApi'
 import { makeFqdn, getCubeDomain } from '@/utils/domain'
+import { safeGetItem, safeSetItem } from '@/utils/storage'
 
 const appsApi = useAppsApi()
 
@@ -730,6 +731,24 @@ export const useAppsStore = defineStore('apps', () => {
   }
 
   // ==========================================
+  // Recent Apps Tracking (Bug Fix — centralized)
+  // ==========================================
+
+  /**
+   * Track an app as recently used.
+   * Called from anywhere an app is opened (dashboard, apps page, detail sheet).
+   * Stores up to 20 recent app names in localStorage.
+   */
+  function trackRecent(appName) {
+    if (!appName) return
+    let recent = safeGetItem('cubeos-recent', [])
+    if (!Array.isArray(recent)) recent = []
+    recent = recent.filter(n => n !== appName)
+    recent.unshift(appName)
+    safeSetItem('cubeos-recent', recent.slice(0, 20))
+  }
+
+  // ==========================================
   // Export
   // ==========================================
   
@@ -797,6 +816,9 @@ export const useAppsStore = defineStore('apps', () => {
     
     // Polling
     startPolling,
-    stopPolling
+    stopPolling,
+    
+    // Recent tracking
+    trackRecent
   }
 })

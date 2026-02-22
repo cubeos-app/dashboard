@@ -30,7 +30,6 @@ import { useMode } from '@/composables/useMode'
 import { useDashboardConfig } from '@/composables/useDashboardConfig'
 import { useDashboardEdit } from '@/composables/useDashboardEdit'
 import { useWidgetWebSocket, WS_STATE } from '@/composables/useWidgetWebSocket'
-import { safeGetItem, safeSetItem } from '@/utils/storage'
 import Icon from '@/components/ui/Icon.vue'
 import DashboardStandard from './DashboardStandard.vue'
 import DashboardAdvanced from './DashboardAdvanced.vue'
@@ -86,16 +85,8 @@ const standardDashRef = ref(null)
 
 // ─── App interaction ──────────────────────────────────────────────
 
-function trackUsage(appName) {
-  let recent = safeGetItem('cubeos-recent', [])
-  if (!Array.isArray(recent)) recent = []
-  recent = recent.filter(n => n !== appName)
-  recent.unshift(appName)
-  safeSetItem('cubeos-recent', recent.slice(0, 10))
-}
-
 function openApp(app) {
-  trackUsage(app.name)
+  appsStore.trackRecent(app.name)
   const url = appsStore.getAppUrl(app)
   if (url) {
     window.open(url, '_blank')
