@@ -18,7 +18,7 @@
  *   - useRegistryStore → status, images, disk-usage, cleanup, tags, delete
  *   - useAppManagerStore → initRegistry, cacheImage (legacy — not yet in registry store)
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRegistryStore } from '@/stores/registry'
 import { useAppManagerStore } from '@/stores/appmanager'
 import { confirm } from '@/utils/confirmDialog'
@@ -75,6 +75,13 @@ const usagePercent = computed(() => {
 
 onMounted(() => {
   registryStore.fetchAll()
+})
+
+// Auto-refresh when a cache operation completes
+watch(() => registryStore.cachingApp, (newVal, oldVal) => {
+  if (oldVal && !newVal) {
+    setTimeout(() => registryStore.fetchAll(), 2000)
+  }
 })
 
 async function refresh() {

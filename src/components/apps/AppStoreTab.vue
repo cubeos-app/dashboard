@@ -412,6 +412,15 @@ onUnmounted(() => {
             Install
           </button>
 
+          <!-- Installed label for store apps that are already installed -->
+          <div
+            v-if="app.installed"
+            class="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium text-success"
+          >
+            <Icon name="CheckCircle" :size="12" />
+            Installed
+          </div>
+
           <!-- Cache for Offline button (store apps only, not already cached) -->
           <button
             v-if="!app.installed && app._source !== 'offline_cache' && !isAppCachedOffline(app)"
