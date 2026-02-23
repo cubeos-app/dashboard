@@ -5,17 +5,18 @@
 # Usage: GHCR_TOKEN=... GHCR_USER=... GHCR_IMAGE=... CI_COMMIT_SHORT_SHA=...
 #        bash /tmp/ci-deploy-dashboard.sh
 #
-# Deploy strategy:
+# Deploy strategy (registry-first):
 #   1. Stop watchdog timer (prevents interference during deploy)
-#   2. stack rm -> wait for drain
-#   3. stack deploy with local-only image (no registry prefix)
-#   4. Wait for convergence + HTTP health check
+#   2. Pull from GHCR, tag + push to localhost:5000
+#   3. stack rm -> wait for drain
+#   4. stack deploy from compose (uses localhost:5000 image ref)
+#   5. Wait for convergence + HTTP health check
 #   NOTE: Watchdog restart is handled separately by the CI after_script
 #         to ensure it runs even on deploy failure.
 # =============================================================================
 set -euo pipefail
 
-LOCAL_IMAGE="cubeos-dashboard"
+LOCAL_REG_IMAGE="localhost:5000/cubeos-app/dashboard:latest"
 SERVICE_NAME="cubeos-dashboard_cubeos-dashboard"
 STACK_NAME="cubeos-dashboard"
 COMPOSE_DIR="/cubeos/coreapps/cubeos-dashboard/appconfig"
@@ -46,34 +47,14 @@ echo "=== Stopping watchdog ==="
 sudo systemctl stop cubeos-watchdog.timer 2>/dev/null || true
 echo "  Watchdog timer stopped"
 
-# === PULL AND RE-TAG AS LOCAL ===
+# === PULL AND PUSH TO LOCAL REGISTRY ===
 echo "=== Pulling image ==="
 docker pull ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA}
 
-# Re-tag to local-only name (no registry prefix).
-docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}
-echo "  Tagged: ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}"
-
-# Verify local image exists
-docker image inspect ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA} > /dev/null 2>&1
-echo "  Verified: local image present"
-
-# === PREPARE COMPOSE ===
-echo "=== Preparing compose ==="
-cp ${COMPOSE_DIR}/docker-compose.yml /tmp/deploy-compose.yml
-
-# Replace image line with local-only name
-sed -i "s|image:.*dashboard.*|image: ${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}|" /tmp/deploy-compose.yml
-
-echo "  Image tag in compose:"
-grep "image:" /tmp/deploy-compose.yml | head -1
-
-# Sanity check
-if grep "image:" /tmp/deploy-compose.yml | head -1 | grep -q "ghcr.io\|docker.io"; then
-  echo "  FATAL: Compose still references remote registry!"
-  exit 1
-fi
-echo "  Confirmed: local-only image reference"
+# Push to local registry (registry-first: services always run from localhost:5000)
+docker tag ${GHCR_IMAGE}:${CI_COMMIT_SHORT_SHA} ${LOCAL_REG_IMAGE}
+docker push ${LOCAL_REG_IMAGE}
+echo "  Pushed to local registry: ${LOCAL_REG_IMAGE}"
 
 # === REMOVE OLD STACK ===
 echo "=== Removing old stack ==="
@@ -116,7 +97,7 @@ echo "  Clean slate"
 # === DEPLOY FRESH STACK ===
 echo "=== Deploying stack ==="
 docker stack deploy \
-  --compose-file /tmp/deploy-compose.yml \
+  --compose-file ${COMPOSE_DIR}/docker-compose.yml \
   --resolve-image never \
   ${STACK_NAME}
 echo "  Stack deployed"
@@ -205,14 +186,13 @@ fi
 echo "=== Verifying ==="
 RUNNING_IMAGE=$(docker service inspect ${SERVICE_NAME} \
   --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' 2>/dev/null || echo "unknown")
-EXPECTED="${LOCAL_IMAGE}:${CI_COMMIT_SHORT_SHA}"
 echo "  Running:  ${RUNNING_IMAGE}"
-echo "  Expected: ${EXPECTED}"
-if [ "${RUNNING_IMAGE}" != "${EXPECTED}" ]; then
-  echo "  FATAL: Image mismatch - possible watchdog interference"
+echo "  Expected: ${LOCAL_REG_IMAGE}"
+if ! echo "${RUNNING_IMAGE}" | grep -q "localhost:5000/cubeos-app/dashboard"; then
+  echo "  FATAL: Image not using local registry"
   exit 1
 fi
-echo "  Image verified"
+echo "  Image verified (registry-first)"
 
 # === DONE ===
 echo "=== Deploy complete ==="
