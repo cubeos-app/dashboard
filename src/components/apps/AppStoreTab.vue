@@ -416,7 +416,7 @@ onUnmounted(() => {
           <button
             v-if="!app.installed && app._source !== 'offline_cache' && !isAppCachedOffline(app)"
             @click.stop="handleCacheForOffline(app, $event)"
-            class="mt-1 w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-theme-secondary bg-theme-tertiary hover:bg-theme-secondary hover:text-theme-primary transition-colors"
+            class="mt-1 w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-accent/70 border border-accent/30 hover:bg-accent-muted hover:text-accent transition-colors"
             :disabled="registryStore.cachingApp === app.name"
             :aria-label="'Cache ' + getAppTitle(app) + ' for offline use'"
           >

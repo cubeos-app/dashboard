@@ -37,17 +37,17 @@ const emit = defineEmits(['done', 'error', 'close'])
 
 const INSTALL_STEPS = [
   { key: 'validate', label: 'Validating manifest' },
-  { key: 'manifest', label: 'Reading configuration' },
-  { key: 'directories', label: 'Creating directories' },
-  { key: 'compose', label: 'Preparing containers' },
-  { key: 'port', label: 'Allocating port' },
-  { key: 'volumes', label: 'Configuring volumes' },
-  { key: 'deploy', label: 'Deploying containers' },
-  { key: 'services', label: 'Starting services' },
-  { key: 'dns', label: 'Configuring DNS' },
-  { key: 'proxy', label: 'Setting up access' },
-  { key: 'database', label: 'Saving configuration' },
-  { key: 'health_check', label: 'Verifying accessibility' },
+  { key: 'read_manifest', label: 'Reading configuration' },
+  { key: 'allocate_port', label: 'Allocating port' },
+  { key: 'process_manifest', label: 'Processing manifest' },
+  { key: 'create_dirs', label: 'Creating directories' },
+  { key: 'write_compose', label: 'Preparing containers' },
+  { key: 'deploy_stack', label: 'Deploying containers' },
+  { key: 'wait_convergence', label: 'Starting services' },
+  { key: 'insert_db', label: 'Saving configuration' },
+  { key: 'add_dns', label: 'Configuring DNS' },
+  { key: 'create_proxy', label: 'Setting up access' },
+  { key: 'detect_webui', label: 'Detecting web interface' },
   { key: 'complete', label: 'Ready!' },
 ]
 
@@ -56,25 +56,26 @@ const INSTALL_STEPS = [
  * Orchestrator.InstallFromRegistryWithProgress() pipeline.
  */
 const REGISTRY_INSTALL_STEPS = [
-  { key: 'setup', label: 'Creating app directories' },
-  { key: 'port', label: 'Allocating port' },
-  { key: 'manifest', label: 'Detecting container port' },
-  { key: 'compose', label: 'Generating configuration' },
-  { key: 'database', label: 'Saving to database' },
-  { key: 'deploy', label: 'Deploying containers' },
-  { key: 'dns', label: 'Configuring DNS' },
-  { key: 'proxy', label: 'Setting up access' },
+  { key: 'validate', label: 'Validating app' },
+  { key: 'allocate_port', label: 'Allocating port' },
+  { key: 'create_dirs', label: 'Creating directories' },
+  { key: 'write_compose', label: 'Generating configuration' },
+  { key: 'deploy_stack', label: 'Deploying containers' },
+  { key: 'wait_convergence', label: 'Starting services' },
+  { key: 'insert_db', label: 'Saving to database' },
+  { key: 'add_dns', label: 'Configuring DNS' },
+  { key: 'create_proxy', label: 'Setting up access' },
   { key: 'complete', label: 'Ready!' },
 ]
 
 const UNINSTALL_STEPS = [
   { key: 'validate', label: 'Validating app' },
-  { key: 'stop', label: 'Stopping services' },
+  { key: 'stop_stack', label: 'Stopping services' },
   { key: 'remove_stack', label: 'Removing containers' },
   { key: 'remove_dns', label: 'Removing DNS entry' },
   { key: 'remove_proxy', label: 'Removing proxy' },
-  { key: 'cleanup', label: 'Cleaning up files' },
-  { key: 'database', label: 'Removing configuration' },
+  { key: 'delete_db', label: 'Removing configuration' },
+  { key: 'cleanup_files', label: 'Cleaning up files' },
   { key: 'complete', label: 'Uninstalled' },
 ]
 
@@ -148,14 +149,17 @@ function connect() {
 }
 
 function handleEvent(event) {
-  currentStep.value = event.step
   progress.value = event.progress || 0
   detail.value = event.detail || ''
 
-  // Mark all previous steps as complete
+  // Only update currentStep if the step is in our known steps list.
+  // Unknown steps (e.g. cache_retag, remap_volumes) are internal and
+  // should not reset the visible active step indicator.
   const stepKeys = steps.value.map(s => s.key)
   const currentIdx = stepKeys.indexOf(event.step)
-  if (currentIdx > 0) {
+  if (currentIdx >= 0) {
+    currentStep.value = event.step
+    // Mark all previous known steps as complete
     for (let i = 0; i < currentIdx; i++) {
       completedSteps.value.add(stepKeys[i])
     }
