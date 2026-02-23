@@ -13,6 +13,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useAppsStore } from '@/stores/apps'
 import { useAppStoreStore } from '@/stores/appstore'
+import { useRegistryStore } from '@/stores/registry'
 import { useMode } from '@/composables/useMode'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { confirm, confirmState } from '@/utils/confirmDialog'
@@ -28,6 +29,7 @@ const emit = defineEmits(['close', 'install'])
 
 const appsStore = useAppsStore()
 const appStoreStore = useAppStoreStore()
+const registryStore = useRegistryStore()
 const { isAdvanced } = useMode()
 const { signal } = useAbortOnUnmount()
 
@@ -116,6 +118,27 @@ function handleInstallClick() {
 
 function handleQuickInstall() {
   emit('install', catalogStoreId.value, catalogAppName.value, {})
+}
+
+// ─── Cache for offline ──────────────────────────────────────
+const isCaching = computed(() => {
+  const appName = catalogAppName.value || props.app?.name || ''
+  return registryStore.cachingApp === appName
+})
+const isAlreadyCached = computed(() => {
+  const appName = catalogAppName.value || props.app?.name || ''
+  return registryStore.cachedApps?.some(c => c.app_name === appName)
+})
+
+async function handleCacheOffline() {
+  const storeId = catalogStoreId.value || props.app?.store_id || ''
+  const appName = catalogAppName.value || props.app?.name || ''
+  if (!storeId || !appName) return
+  try {
+    await registryStore.cacheAppForOffline(storeId, appName)
+  } catch {
+    // Error already handled in store
+  }
 }
 
 // ─── Installed app state ─────────────────────────────────────
@@ -694,8 +717,26 @@ function handleClose() {
           Close
         </button>
 
-        <!-- Catalog: Install button -->
+        <!-- Catalog: Install + Cache buttons -->
         <div v-if="isCatalogApp && !app.installed" class="flex items-center gap-2">
+          <!-- Cache for Offline button -->
+          <button
+            v-if="!isAlreadyCached"
+            @click="handleCacheOffline"
+            :disabled="isCaching"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg border border-accent/30 text-sm font-medium text-accent/70 hover:bg-accent-muted hover:text-accent transition-colors"
+          >
+            <div v-if="isCaching" class="w-4 h-4 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+            <Icon v-else name="HardDrive" :size="16" />
+            {{ isCaching ? 'Caching...' : 'Cache Offline' }}
+          </button>
+
+          <!-- Already cached badge -->
+          <span v-if="isAlreadyCached" class="flex items-center gap-2 text-sm text-success">
+            <Icon name="CheckCircle" :size="16" />
+            Cached Offline
+          </span>
+
           <button
             v-if="isAdvanced && showInstallOptions"
             @click="handleQuickInstall"

@@ -272,7 +272,8 @@ export const useRegistryStore = defineStore('registry', () => {
   /**
    * Cache an app from a store for offline use
    * POST /registry/cache-app
-   * Returns { job_id, workflow_id } for SSE progress tracking
+   * Returns { job_id, workflow_id } for SSE progress tracking.
+   * cachingApp stays set until poll confirms the app is cached.
    */
   async function cacheAppForOffline(storeId, appName) {
     cachingApp.value = appName
@@ -281,13 +282,37 @@ export const useRegistryStore = defineStore('registry', () => {
         store_id: storeId,
         app_name: appName
       })
+      // Don't clear cachingApp — start polling until cache completes
+      pollUntilCached(appName)
       return result
     } catch (e) {
+      cachingApp.value = null  // Only clear on error
       error.value = e.message
       throw e
-    } finally {
-      cachingApp.value = null
     }
+  }
+
+  let _cachePollInterval = null
+
+  /**
+   * Poll GET /registry/cached-apps every 3s until the app appears,
+   * then clear cachingApp and refresh registry images.
+   */
+  function pollUntilCached(appName, maxAttempts = 40) {
+    let attempts = 0
+    if (_cachePollInterval) clearInterval(_cachePollInterval)
+    _cachePollInterval = setInterval(async () => {
+      attempts++
+      await fetchCachedApps(true)
+      const found = cachedApps.value?.some(c => c.app_name === appName)
+      if (found || attempts >= maxAttempts) {
+        clearInterval(_cachePollInterval)
+        _cachePollInterval = null
+        cachingApp.value = null
+        // Refresh registry images so Registry tab is up to date
+        fetchImages(true)
+      }
+    }, 3000)
   }
 
   // ==========================================
