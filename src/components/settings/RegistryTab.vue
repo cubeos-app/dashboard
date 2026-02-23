@@ -24,6 +24,7 @@ onMounted(() => {
   registry.fetchSettings()
   registry.fetchSyncStatus()
   registry.fetchSystemImages()
+  registry.acknowledgeUpdates()
 })
 
 onUnmounted(() => {

@@ -41,6 +41,7 @@ export const useRegistryStore = defineStore('registry', () => {
   const systemImages = ref([])
   const syncStatus = ref({ running: false, last_result: null })
   const syncing = ref(false)
+  const updatesAcknowledged = ref(false)
 
   // ==========================================
   // Computed
@@ -61,6 +62,18 @@ export const useRegistryStore = defineStore('registry', () => {
   const curatedImages = computed(() => systemImages.value.filter(i => i.type === 'curated'))
   const userImages = computed(() => systemImages.value.filter(i => i.type === 'user'))
   const systemImageCount = computed(() => systemImages.value.length)
+
+  /** True when sync found updates the user hasn't seen yet */
+  const hasUpdates = computed(() => {
+    if (updatesAcknowledged.value) return false
+    const result = syncStatus.value?.last_result
+    return result?.updated > 0
+  })
+
+  /** Count of available updates */
+  const updateCount = computed(() => {
+    return syncStatus.value?.last_result?.updated || 0
+  })
 
   // ==========================================
   // Existing Methods (migrated from appmanager.js)
@@ -391,9 +404,15 @@ export const useRegistryStore = defineStore('registry', () => {
    */
   async function fetchSyncStatus() {
     try {
+      const prevCompleted = syncStatus.value?.last_result?.completed_at
       const data = await api.get('/registry/sync/status')
       syncStatus.value = data
       syncing.value = data.running
+      // Reset acknowledgment when a new sync completes with updates
+      if (data?.last_result?.updated > 0 &&
+          data.last_result.completed_at !== prevCompleted) {
+        updatesAcknowledged.value = false
+      }
       return data
     } catch (e) {
       console.error('Failed to fetch sync status:', e)
@@ -414,6 +433,11 @@ export const useRegistryStore = defineStore('registry', () => {
         fetchSystemImages()
       }
     }, 3000)
+  }
+
+  /** Mark updates as seen (clears badge) */
+  function acknowledgeUpdates() {
+    updatesAcknowledged.value = true
   }
 
   /** Stop sync polling (call on component unmount) */
@@ -460,6 +484,7 @@ export const useRegistryStore = defineStore('registry', () => {
     systemImages,
     syncStatus,
     syncing,
+    updatesAcknowledged,
 
     // Computed
     isOnline,
@@ -469,6 +494,8 @@ export const useRegistryStore = defineStore('registry', () => {
     curatedImages,
     userImages,
     systemImageCount,
+    hasUpdates,
+    updateCount,
 
     // Existing Actions
     fetchStatus,
@@ -492,6 +519,7 @@ export const useRegistryStore = defineStore('registry', () => {
     fetchSyncStatus,
     pollSyncStatus,
     stopSyncPolling,
+    acknowledgeUpdates,
     runCleanup,
 
     // Utilities

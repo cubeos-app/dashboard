@@ -15,9 +15,10 @@
  *   Terminal link only visible in Advanced mode.
  *   Communication/Media gated by HAL hardware detection (S09).
  */
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppsStore } from '@/stores/apps'
+import { useRegistryStore } from '@/stores/registry'
 import { useBrandingStore } from '@/stores/branding'
 import { useSystemStore } from '@/stores/system'
 import { useMode } from '@/composables/useMode'
@@ -28,11 +29,16 @@ import Icon from '@/components/ui/Icon.vue'
 const route = useRoute()
 const router = useRouter()
 const appsStore = useAppsStore()
+const registryStore = useRegistryStore()
 const brandingStore = useBrandingStore()
 const systemStore = useSystemStore()
 const { isAdvanced } = useMode()
 const { isMobile, isWide } = useBreakpoint()
 const { hasCommHardware, hasMediaHardware } = useHardwareDetection()
+
+onMounted(() => {
+  registryStore.fetchSyncStatus()
+})
 // B43: Read version from API via system store, fall back to build-time constant
 const appVersion = computed(() => systemStore.cubeosVersion || import.meta.env.VITE_APP_VERSION || 'dev')
 
@@ -162,7 +168,7 @@ const sidebarWidth = computed(() => {
         :aria-current="!item.external && isActive(item.path) ? 'page' : undefined"
         class="w-full flex items-center gap-2.5 rounded-lg text-sm font-medium transition-all duration-150"
         :class="[
-          showLabels ? 'px-2.5 py-2' : 'px-0 py-2 justify-center',
+          showLabels ? 'px-2.5 py-2' : 'px-0 py-2 justify-center relative',
           !item.external && isActive(item.path)
             ? 'bg-accent-muted text-accent'
             : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
@@ -178,6 +184,11 @@ const sidebarWidth = computed(() => {
         <span v-if="showLabels" class="flex-1 text-left text-xs whitespace-nowrap overflow-hidden">
           {{ item.name }}
         </span>
+        <span
+          v-if="item.path === '/settings' && registryStore.hasUpdates"
+          class="w-2 h-2 rounded-full bg-accent shrink-0"
+          :class="showLabels ? '' : 'absolute top-1.5 right-1.5'"
+        />
         <Icon
           v-if="showLabels && item.external"
           name="ExternalLink"
