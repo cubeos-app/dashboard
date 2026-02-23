@@ -22,6 +22,7 @@ import Icon from '@/components/ui/Icon.vue'
 import AccountTab from './AccountTab.vue'
 import AppearanceTab from './AppearanceTab.vue'
 import ProfilesTab from './ProfilesTab.vue'
+import RegistryTab from './RegistryTab.vue'
 import SupportTab from './SupportTab.vue'
 
 const route = useRoute()
@@ -39,6 +40,7 @@ const TAB_DEFS = computed(() => {
   if (isAdvanced.value) {
     tabs.push(
       { key: 'profiles', label: 'Profiles', icon: 'Layers' },
+      { key: 'registry', label: 'Registry', icon: 'Archive' },
       { key: 'support', label: 'Support', icon: 'LifeBuoy' }
     )
   }
@@ -107,6 +109,7 @@ onMounted(async () => {
       <AccountTab v-if="activeTab === 'account'" />
       <AppearanceTab v-else-if="activeTab === 'appearance'" />
       <ProfilesTab v-else-if="activeTab === 'profiles'" />
+      <RegistryTab v-else-if="activeTab === 'registry'" />
       <SupportTab v-else-if="activeTab === 'support'" />
     </KeepAlive>
   </div>

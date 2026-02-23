@@ -10,6 +10,8 @@
  *   - fetchImages()     → GET /registry/images
  *
  * Sprint 3 adds: disk-usage, cleanup, image tags, delete image (4 new).
+ *
+ * Batch 6 adds: settings (auto_update), system images, sync management.
  */
 
 import { defineStore } from 'pinia'
@@ -30,6 +32,12 @@ export const useRegistryStore = defineStore('registry', () => {
   const selectedImageTags = ref([])     // Sprint 3
   const selectedImageName = ref(null)   // Which image's tags are loaded
 
+  // Batch 6: Settings, system images, sync
+  const settings = ref({ auto_update: true })
+  const systemImages = ref([])
+  const syncStatus = ref({ running: false, last_result: null })
+  const syncing = ref(false)
+
   // ==========================================
   // Computed
   // ==========================================
@@ -43,6 +51,12 @@ export const useRegistryStore = defineStore('registry', () => {
     diskUsage.value?.bytes || diskUsage.value?.disk_usage_bytes ||
     diskUsage.value?.total_size || diskUsage.value?.size || 0
   )
+
+  // Batch 6: System image type filters
+  const coreImages = computed(() => systemImages.value.filter(i => i.type === 'core'))
+  const curatedImages = computed(() => systemImages.value.filter(i => i.type === 'curated'))
+  const userImages = computed(() => systemImages.value.filter(i => i.type === 'user'))
+  const systemImageCount = computed(() => systemImages.value.length)
 
   // ==========================================
   // Existing Methods (migrated from appmanager.js)
@@ -228,6 +242,133 @@ export const useRegistryStore = defineStore('registry', () => {
     }
   }
 
+  // ==========================================
+  // Batch 6: Settings, System Images, Sync
+  // ==========================================
+
+  /**
+   * Fetch registry settings
+   * GET /registry/settings
+   */
+  async function fetchSettings() {
+    try {
+      settings.value = await api.get('/registry/settings')
+    } catch (e) {
+      console.error('Failed to fetch registry settings:', e)
+    }
+  }
+
+  /**
+   * Update registry settings
+   * PUT /registry/settings
+   */
+  async function updateSettings(newSettings) {
+    try {
+      const result = await api.put('/registry/settings', newSettings)
+      settings.value = result
+      return result
+    } catch (e) {
+      console.error('Failed to update registry settings:', e)
+      throw e
+    }
+  }
+
+  /**
+   * Fetch system images (core + curated + user)
+   * GET /system/images
+   */
+  async function fetchSystemImages() {
+    loading.value = true
+    try {
+      const response = await api.get('/system/images')
+      systemImages.value = response.images || []
+    } catch (e) {
+      console.error('Failed to fetch system images:', e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Trigger a registry sync
+   * POST /registry/sync (409 if already running)
+   */
+  async function triggerSync() {
+    syncing.value = true
+    try {
+      await api.post('/registry/sync')
+      pollSyncStatus()
+    } catch (e) {
+      syncing.value = false
+      if (e.status === 409) {
+        // Already running — just start polling
+        pollSyncStatus()
+      } else {
+        throw e
+      }
+    }
+  }
+
+  /**
+   * Fetch current sync status
+   * GET /registry/sync/status
+   */
+  async function fetchSyncStatus() {
+    try {
+      const data = await api.get('/registry/sync/status')
+      syncStatus.value = data
+      syncing.value = data.running
+      return data
+    } catch (e) {
+      console.error('Failed to fetch sync status:', e)
+    }
+  }
+
+  let _syncPollInterval = null
+
+  /** Poll sync status every 3s until sync completes */
+  function pollSyncStatus() {
+    if (_syncPollInterval) return
+    _syncPollInterval = setInterval(async () => {
+      const data = await fetchSyncStatus()
+      if (!data?.running) {
+        clearInterval(_syncPollInterval)
+        _syncPollInterval = null
+        syncing.value = false
+        fetchSystemImages()
+      }
+    }, 3000)
+  }
+
+  /** Stop sync polling (call on component unmount) */
+  function stopSyncPolling() {
+    if (_syncPollInterval) {
+      clearInterval(_syncPollInterval)
+      _syncPollInterval = null
+    }
+  }
+
+  /**
+   * Run registry cleanup with parameters
+   * POST /registry/cleanup
+   */
+  async function runCleanup(keepTags = 2, dryRun = false) {
+    try {
+      const result = await api.post('/registry/cleanup', {
+        keep_tags: keepTags,
+        dry_run: dryRun,
+      })
+      if (!dryRun) {
+        fetchStatus(true)
+        fetchDiskUsage(true)
+      }
+      return result
+    } catch (e) {
+      console.error('Failed to run cleanup:', e)
+      throw e
+    }
+  }
+
   return {
     // State
     loading,
@@ -237,11 +378,19 @@ export const useRegistryStore = defineStore('registry', () => {
     diskUsage,
     selectedImageTags,
     selectedImageName,
+    settings,
+    systemImages,
+    syncStatus,
+    syncing,
 
     // Computed
     isOnline,
     imageCount,
     totalDiskUsage,
+    coreImages,
+    curatedImages,
+    userImages,
+    systemImageCount,
 
     // Existing Actions
     fetchStatus,
@@ -252,6 +401,16 @@ export const useRegistryStore = defineStore('registry', () => {
     cleanup,
     fetchImageTags,
     deleteImage,
+
+    // Batch 6 Actions
+    fetchSettings,
+    updateSettings,
+    fetchSystemImages,
+    triggerSync,
+    fetchSyncStatus,
+    pollSyncStatus,
+    stopSyncPolling,
+    runCleanup,
 
     // Utilities
     fetchAll,
