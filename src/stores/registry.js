@@ -309,10 +309,11 @@ export const useRegistryStore = defineStore('registry', () => {
         clearInterval(_cachePollInterval)
         _cachePollInterval = null
         cachingApp.value = null
-        // Refresh registry images so Registry tab is up to date
-        // Double-fetch with delay for Docker catalog propagation
+        // Triple-fetch with escalating delays for Docker catalog propagation
+        // Registry v2 _catalog can take 5-30s to reflect new images
         fetchImages(true)
-        setTimeout(() => fetchImages(true), 5000)
+        setTimeout(() => fetchImages(true), 10000)
+        setTimeout(() => fetchImages(true), 20000)
       }
     }, 3000)
   }
