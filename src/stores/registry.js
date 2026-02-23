@@ -259,7 +259,8 @@ export const useRegistryStore = defineStore('registry', () => {
     if (!skipLoading) loading.value = true
     try {
       const response = await api.get('/registry/cached-apps')
-      cachedApps.value = response.apps ?? response ?? []
+      const data = response.cached_apps ?? response.apps ?? response
+      cachedApps.value = Array.isArray(data) ? data : []
     } catch (e) {
       // Non-fatal — might not have any cached apps
       cachedApps.value = []
