@@ -40,39 +40,28 @@ const actionError = ref(null)
 
 // ─── Computed ────────────────────────────────────────────────
 
-// Convert registry images to catalog-compatible app objects
-const registryApps = computed(() => {
-  if (!registryStore.images || registryStore.images.length === 0) return []
-  // Filter out critical system images (Tier 2) — keep low-risk ones (dozzle, dufs, kiwix, ttyd)
-  return registryStore.images.filter(img => !img.critical).map(img => {
-    const imgName = typeof img === 'string' ? img : img.name || ''
-    const shortName = imgName.split('/').pop() || imgName
-    // Title-case: "kiwix-serve" → "Kiwix Serve"
-    const title = shortName
-      .replace(/[-_]/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase())
-    // Check if already installed
-    const normalizedName = shortName.toLowerCase().replace(/[^a-z0-9]/g, '-')
-    const installed = appsStore.apps.some(a =>
-      a.name === normalizedName || a.name === shortName
-    )
-    return {
-      id: `_registry/${imgName}`,
-      store_id: '_registry',
-      name: shortName,
-      title: { en_us: title },
-      tagline: { en_us: imgName },
-      description: { en_us: `Docker image cached for offline deployment: ${imgName}` },
-      category: 'Offline Apps',
-      icon: '',
-      installed,
-      _source: 'registry',
-      _imageName: imgName
-    }
-  })
+// Cached apps from API (have full manifest metadata)
+const offlineApps = computed(() => {
+  if (!registryStore.cachedApps || registryStore.cachedApps.length === 0) return []
+  return registryStore.cachedApps.map(cached => ({
+    id: `_offline/${cached.app_name}`,
+    store_id: cached.store_id,
+    name: cached.app_name,
+    title: { en_us: cached.title || cached.app_name },
+    tagline: { en_us: cached.tagline || cached.image },
+    description: { en_us: `Cached for offline deployment: ${cached.image}` },
+    category: cached.category || 'Offline Apps',
+    icon: cached.icon || '',
+    installed: cached.installed,
+    _source: 'offline_cache',
+    _imageName: cached.image,
+    _registryImage: cached.registry_image,
+    _storeId: cached.store_id,
+    _cachedAt: cached.cached_at
+  }))
 })
 
-// Merge store catalog + registry apps based on active filter
+// Merge store catalog + offline cached apps based on active filter
 const browsableApps = computed(() => {
   const storeFilter = selectedStoreFilter.value
   const query = (appStore.searchQuery || '').toLowerCase()
@@ -80,28 +69,28 @@ const browsableApps = computed(() => {
 
   let apps = []
 
-  // Add store catalog apps (unless filtering to registry only)
-  if (storeFilter !== '_registry') {
+  // Add store catalog apps (unless filtering to offline only)
+  if (storeFilter !== '_offline') {
     apps = [...appStore.filteredApps]
   }
 
-  // Add registry apps (when showing all, or filtering to registry)
-  if (storeFilter === '' || storeFilter === '_registry') {
-    let regApps = registryApps.value
+  // Add offline cached apps (when showing all, or filtering to offline)
+  if (storeFilter === '' || storeFilter === '_offline') {
+    let cached = offlineApps.value
     // Apply search filter
     if (query) {
-      regApps = regApps.filter(a => {
+      cached = cached.filter(a => {
         const t = (a.title?.en_us || '').toLowerCase()
         const n = (a.name || '').toLowerCase()
         const img = (a._imageName || '').toLowerCase()
         return t.includes(query) || n.includes(query) || img.includes(query)
       })
     }
-    // Apply category filter (registry apps are all "Offline Apps")
+    // Apply category filter
     if (category && category !== 'Offline Apps') {
-      regApps = []
+      cached = cached.filter(a => a.category === category)
     }
-    apps = [...apps, ...regApps]
+    apps = [...apps, ...cached]
   }
 
   return apps
@@ -109,15 +98,15 @@ const browsableApps = computed(() => {
 
 const hasApps = computed(() => browsableApps.value.length > 0)
 
-// Store options for filter dropdown (All + each registered store + registry)
+// Store options for filter dropdown (All + each registered store + offline)
 const storeOptions = computed(() => {
   const opts = appStore.stores.map(s => ({
     id: s.id,
     name: s.name || s.url || s.id
   }))
-  // Add registry as a virtual store if images exist
-  if (registryStore.images?.length > 0) {
-    opts.push({ id: '_registry', name: 'Offline Apps' })
+  // Add offline as a virtual store if cached apps exist
+  if (registryStore.cachedApps?.length > 0) {
+    opts.push({ id: '_offline', name: 'Offline Apps' })
   }
   return opts
 })
@@ -128,8 +117,8 @@ watch(() => appStore.selectedCategory, () => {
 })
 
 watch(selectedStoreFilter, (val) => {
-  // Only re-fetch from API if filtering to a real store (not registry)
-  if (val !== '_registry') {
+  // Only re-fetch from API if filtering to a real store (not offline)
+  if (val !== '_offline') {
     appStore.fetchCatalog(appStore.selectedCategory, appStore.searchQuery, val)
   }
 })
@@ -156,13 +145,10 @@ function clearFilters() {
 }
 
 function openDetail(app) {
-  // Registry apps: if already installed, navigate to My Apps; if not, install
-  if (app._source === 'registry') {
-    if (app.installed) {
-      // Already installed — navigate to My Apps (user can manage from there)
-      return
-    }
-    handleRegistryInstall(app)
+  // Offline cached apps: if already installed, do nothing; if not, install
+  if (app._source === 'offline_cache') {
+    if (app.installed) return
+    handleOfflineInstall(app)
     return
   }
   emit('openDetail', app)
@@ -173,10 +159,10 @@ function handleQuickInstall(app, e) {
     e.preventDefault()
     e.stopPropagation()
   }
-  // Registry apps go through unified install flow
-  if (app._source === 'registry') {
-    if (app.installed) return // Already installed — do nothing
-    handleRegistryInstall(app)
+  // Offline cached apps go through unified install flow
+  if (app._source === 'offline_cache') {
+    if (app.installed) return
+    handleOfflineInstall(app)
     return
   }
   const storeId = app.store_id || app.id?.split('/')[0] || ''
@@ -185,18 +171,15 @@ function handleQuickInstall(app, e) {
 }
 
 /**
- * Batch 2: Registry install now emits @install (same as store apps).
- * Fetches tags, picks first available, then emits to AppsPage which
- * opens InstallFlow.vue — unified experience with progress tracking.
+ * Install from offline cache. Fetches tags, picks first available,
+ * then emits to AppsPage which opens InstallFlow.vue.
  */
-async function handleRegistryInstall(app) {
+async function handleOfflineInstall(app) {
   const imageName = app._imageName
   if (!imageName) return
 
-  // Derive app name
   const appName = imageName.split('/').pop().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '')
 
-  // Fetch tags to pick the right one
   let tags = []
   try {
     tags = await registryStore.fetchImageTags(imageName)
@@ -205,14 +188,39 @@ async function handleRegistryInstall(app) {
   }
   const tag = tags?.length > 0 ? tags[0] : 'latest'
 
-  // Emit same event as store apps — AppsPage.startInstall() handles the rest
   emit('install', '_registry', appName, {
     ...app,
-    _source: 'registry',
+    _source: 'offline_cache',
     _imageName: imageName,
     _tag: tag,
     title: app.title || { en_us: appName }
   }, {})
+}
+
+/**
+ * Check if a store app has already been cached for offline use
+ */
+function isAppCachedOffline(app) {
+  const appName = app.name || ''
+  return registryStore.cachedApps?.some(c => c.app_name === appName)
+}
+
+/**
+ * Cache a store app for offline use (no deploy)
+ */
+async function handleCacheForOffline(app, e) {
+  if (e) {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+  const storeId = app.store_id || app.id?.split('/')[0] || ''
+  const appName = app.name || app.id?.split('/')[1] || ''
+  try {
+    await registryStore.cacheAppForOffline(storeId, appName)
+    await registryStore.fetchCachedApps(true)
+  } catch (err) {
+    actionError.value = 'Failed to cache app: ' + err.message
+  }
 }
 
 function getAppTitle(app) {
@@ -223,29 +231,13 @@ function getAppTagline(app) {
   return app.tagline?.en_us || app.tagline?.en_US || app.category || ''
 }
 
-/**
- * Check if an app's image is available in the local registry.
- * Matches app name against registry image catalog using fuzzy matching.
- * e.g., app "kiwix-serve" matches registry image "kiwix/kiwix-serve"
- */
-function isAvailableOffline(app) {
-  if (!registryStore.images || registryStore.images.length === 0) return false
-  const appName = (app.name || '').toLowerCase()
-  if (!appName) return false
-  return registryStore.images.some(img => {
-    const imgName = (typeof img === 'string' ? img : img.name || '').toLowerCase()
-    // Check if the image path contains the app name (e.g., "kiwix/kiwix-serve" contains "kiwix")
-    return imgName.includes(appName) || appName.includes(imgName.split('/').pop())
-  })
-}
-
 // ─── Lifecycle ───────────────────────────────────────────────
 onMounted(async () => {
   if (appStore.catalog.length === 0) {
     await appStore.init()
   }
-  // Fetch registry images for offline availability badge
-  registryStore.fetchImages(true)
+  // Fetch cached apps for offline availability badge
+  registryStore.fetchCachedApps(true)
 })
 
 onUnmounted(() => {
@@ -302,7 +294,7 @@ onUnmounted(() => {
         >
           <option value="">All Categories</option>
           <option v-for="cat in appStore.categories" :key="cat" :value="cat">{{ cat }}</option>
-          <option v-if="registryApps.length > 0" value="Offline Apps">Offline Apps</option>
+          <option v-if="offlineApps.length > 0" value="Offline Apps">Offline Apps</option>
         </select>
 
         <!-- Store filter -->
@@ -339,7 +331,7 @@ onUnmounted(() => {
         </div>
         <h3 class="text-base font-semibold text-theme-primary mb-1">No Apps Found</h3>
         <p class="text-theme-tertiary text-sm mb-4">
-          {{ registryApps.length > 0 ? 'No store apps match your filters. Try clearing filters to see offline apps.' : 'Sync the app stores when online, or cache Docker images in the Registry tab for offline use.' }}
+          {{ offlineApps.length > 0 ? 'No store apps match your filters. Try clearing filters to see offline apps.' : 'Sync the app stores when online. Cache apps for offline use with the Cache Offline button.' }}
         </p>
         <div class="flex items-center justify-center gap-3">
           <button
@@ -378,11 +370,11 @@ onUnmounted(() => {
 
           <!-- Offline / Available Offline badge -->
           <div
-            v-if="!app.installed && (app._source === 'registry' || isAvailableOffline(app))"
+            v-if="!app.installed && (app._source === 'offline_cache' || isAppCachedOffline(app))"
             class="absolute top-2 left-2"
-            :title="app._source === 'registry' ? 'Offline — cached in local registry' : 'Available offline'"
+            :title="app._source === 'offline_cache' ? 'Offline — cached in local registry' : 'Available offline'"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="app._source === 'registry' ? 'text-success' : 'text-theme-muted'"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="app._source === 'offline_cache' ? 'text-success' : 'text-theme-muted'"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </div>
 
           <!-- Icon -->
@@ -395,7 +387,7 @@ onUnmounted(() => {
               loading="lazy"
               @error="(e) => e.target.style.display = 'none'"
             />
-            <Icon v-else-if="app._source === 'registry'" name="HardDrive" :size="24" class="text-success group-hover:text-accent transition-colors" />
+            <Icon v-else-if="app._source === 'offline_cache'" name="HardDrive" :size="24" class="text-success group-hover:text-accent transition-colors" />
             <Icon v-else name="Package" :size="24" class="text-theme-muted group-hover:text-accent transition-colors" />
           </div>
 
@@ -409,7 +401,7 @@ onUnmounted(() => {
             {{ getAppTagline(app) }}
           </p>
 
-          <!-- Quick install button -->
+          <!-- Quick install button (store apps + offline cached apps) -->
           <button
             v-if="!app.installed"
             @click="handleQuickInstall(app, $event)"
@@ -419,16 +411,37 @@ onUnmounted(() => {
             <Icon name="Download" :size="12" />
             Install
           </button>
+
+          <!-- Cache for Offline button (store apps only, not already cached) -->
+          <button
+            v-if="!app.installed && app._source !== 'offline_cache' && !isAppCachedOffline(app)"
+            @click.stop="handleCacheForOffline(app, $event)"
+            class="mt-1 w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-theme-secondary bg-theme-tertiary hover:bg-theme-secondary hover:text-theme-primary transition-colors"
+            :disabled="registryStore.cachingApp === app.name"
+            :aria-label="'Cache ' + getAppTitle(app) + ' for offline use'"
+          >
+            <Icon name="HardDrive" :size="12" />
+            {{ registryStore.cachingApp === app.name ? 'Caching...' : 'Cache Offline' }}
+          </button>
+
+          <!-- "Cached" badge for store apps that are already cached -->
+          <div
+            v-if="!app.installed && app._source !== 'offline_cache' && isAppCachedOffline(app)"
+            class="mt-1 w-full flex items-center justify-center gap-1 px-2 py-1 text-[10px] text-success"
+          >
+            <Icon name="CheckCircle" :size="12" />
+            Cached Offline
+          </div>
         </button>
       </div>
 
       <!-- Results count -->
       <div v-if="hasApps" class="text-center text-xs text-theme-muted">
         Showing {{ browsableApps.length }} apps
-        <template v-if="selectedStoreFilter === '_registry'">from local registry</template>
+        <template v-if="selectedStoreFilter === '_offline'">from offline cache</template>
         <template v-else-if="selectedStoreFilter">from {{ storeOptions.find(s => s.id === selectedStoreFilter)?.name }}</template>
         <template v-else>
-          ({{ appStore.catalog.length }} store + {{ registryApps.length }} offline)
+          ({{ appStore.catalog.length }} store + {{ offlineApps.length }} offline)
         </template>
       </div>
     </template>

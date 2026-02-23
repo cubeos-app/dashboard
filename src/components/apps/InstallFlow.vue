@@ -50,7 +50,9 @@ const jobId = ref('')
 const installError = ref('')
 
 // ─── Computed ────────────────────────────────────────────────
-const isRegistry = computed(() => props.app?._source === 'registry')
+const isOfflineInstall = computed(() =>
+  props.app?._source === 'registry' || props.app?._source === 'offline_cache'
+)
 
 const appTitle = computed(() => {
   const t = props.app?.title
@@ -67,7 +69,7 @@ const appIcon = computed(() => {
  *   Store installs    → /api/v1/appstore/jobs/
  */
 const sseBasePath = computed(() => {
-  return isRegistry.value ? '/api/v1/apps/jobs/' : '/api/v1/appstore/jobs/'
+  return isOfflineInstall.value ? '/api/v1/apps/jobs/' : '/api/v1/appstore/jobs/'
 })
 
 // ─── Lifecycle ───────────────────────────────────────────────
@@ -79,8 +81,8 @@ async function loadVolumes() {
   step.value = 'loading'
   loadError.value = ''
 
-  // Registry apps: generate synthetic volume mapping (same UI as store apps)
-  if (isRegistry.value) {
+  // Offline/registry apps: generate synthetic volume mapping (same UI as store apps)
+  if (isOfflineInstall.value) {
     const appNameClean = (props.appName || '').toLowerCase().replace(/[^a-z0-9-]/g, '-')
     volumes.value = [{
       service_name: appNameClean,
@@ -136,7 +138,7 @@ async function doInstall(volumeOverrides, port = 0, subdomain = '') {
   try {
     let result
 
-    if (isRegistry.value) {
+    if (isOfflineInstall.value) {
       // Registry install → unified POST /apps endpoint with same overrides as store
       const payload = {
         name: props.appName,

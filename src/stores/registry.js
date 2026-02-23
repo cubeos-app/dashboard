@@ -32,6 +32,10 @@ export const useRegistryStore = defineStore('registry', () => {
   const selectedImageTags = ref([])     // Sprint 3
   const selectedImageName = ref(null)   // Which image's tags are loaded
 
+  // Batch 3: Cached apps (manifests stored for offline install)
+  const cachedApps = ref([])
+  const cachingApp = ref(null)
+
   // Batch 6: Settings, system images, sync
   const settings = ref({ auto_update: true })
   const systemImages = ref([])
@@ -206,7 +210,8 @@ export const useRegistryStore = defineStore('registry', () => {
       await Promise.all([
         fetchStatus(true),
         fetchImages(true),
-        fetchDiskUsage(true)
+        fetchDiskUsage(true),
+        fetchCachedApps(true)
       ])
       // B101: Merge image_count from status into diskUsage
       if (diskUsage.value && status.value) {
@@ -239,6 +244,48 @@ export const useRegistryStore = defineStore('registry', () => {
       return await api.get(`/registry/check?${params}`)
     } catch (e) {
       return { exists: false, image: imageName, tag }
+    }
+  }
+
+  // ==========================================
+  // Batch 3: Cached Apps (Offline Manifests)
+  // ==========================================
+
+  /**
+   * Fetch apps cached in registry with full manifest metadata
+   * GET /registry/cached-apps
+   */
+  async function fetchCachedApps(skipLoading = false) {
+    if (!skipLoading) loading.value = true
+    try {
+      const response = await api.get('/registry/cached-apps')
+      cachedApps.value = response.apps ?? response ?? []
+    } catch (e) {
+      // Non-fatal — might not have any cached apps
+      cachedApps.value = []
+    } finally {
+      if (!skipLoading) loading.value = false
+    }
+  }
+
+  /**
+   * Cache an app from a store for offline use
+   * POST /registry/cache-app
+   * Returns { job_id, workflow_id } for SSE progress tracking
+   */
+  async function cacheAppForOffline(storeId, appName) {
+    cachingApp.value = appName
+    try {
+      const result = await api.post('/registry/cache-app', {
+        store_id: storeId,
+        app_name: appName
+      })
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      cachingApp.value = null
     }
   }
 
@@ -378,6 +425,8 @@ export const useRegistryStore = defineStore('registry', () => {
     diskUsage,
     selectedImageTags,
     selectedImageName,
+    cachedApps,
+    cachingApp,
     settings,
     systemImages,
     syncStatus,
@@ -401,6 +450,10 @@ export const useRegistryStore = defineStore('registry', () => {
     cleanup,
     fetchImageTags,
     deleteImage,
+
+    // Batch 3 Actions
+    fetchCachedApps,
+    cacheAppForOffline,
 
     // Batch 6 Actions
     fetchSettings,

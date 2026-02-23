@@ -47,6 +47,16 @@ const actionError = ref(null)
 
 const registryHost = computed(() => registryStore.status?.url || 'Not configured')
 
+const cachedAppNames = computed(() => {
+  return new Set(
+    (registryStore.cachedApps || []).map(c => c.image?.split(':')[0] || '')
+  )
+})
+
+function isImageCached(imageName) {
+  return cachedAppNames.value.has(imageName)
+}
+
 const images = computed(() => {
   const raw = registryStore.images || []
   return raw.map(img => typeof img === 'string' ? { name: img, tags: [] } : img)
@@ -170,6 +180,7 @@ async function deleteImage(name) {
     }
     await registryStore.fetchImages()
     await registryStore.fetchDiskUsage()
+    await registryStore.fetchCachedApps(true)
   } catch (e) {
     actionError.value = `Failed to delete "${name}": ` + e.message
   } finally {
@@ -470,6 +481,9 @@ function getImageTags(image) {
                   +{{ image.tags.length - 3 }}
                 </span>
               </div>
+              <span v-if="isImageCached(image.name)" class="text-[10px] text-success ml-1">
+                Offline App
+              </span>
               <span
                 v-if="image.system"
                 class="p-2 text-zinc-500"
