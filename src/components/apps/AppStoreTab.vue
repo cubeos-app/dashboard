@@ -151,6 +151,16 @@ function openDetail(app) {
     handleOfflineInstall(app)
     return
   }
+  // Enrich installed catalog apps with runtime data (status, deploy_mode, etc.)
+  if (app.installed) {
+    const installed = appStore.installedApps.find(a =>
+      a.store_app_id === app.id || a.name === app.name
+    )
+    if (installed) {
+      emit('openDetail', { ...app, ...installed, _catalogData: app })
+      return
+    }
+  }
   emit('openDetail', app)
 }
 

@@ -67,6 +67,14 @@ const catalogAppName = computed(() =>
   props.app.name || props.app.id?.split('/')[1] || ''
 )
 
+// Resolve URL for an installed catalog app by name convention
+const installedAppUrl = computed(() => {
+  if (!props.app?.installed) return null
+  const name = props.app.name || catalogAppName.value
+  if (!name) return null
+  return `http://${name}.cubeos.cube`
+})
+
 // ─── Registry app computed ────────────────────────────────────
 const registryImageName = computed(() => props.app?._imageName || '')
 const registryTag = computed(() => props.app?._tag || 'latest')
@@ -755,11 +763,23 @@ function handleClose() {
           </button>
         </div>
 
-        <!-- Catalog: Already installed -->
-        <span v-if="isCatalogApp && app.installed" class="flex items-center gap-2 text-sm text-success">
-          <Icon name="CheckCircle" :size="16" />
-          Installed
-        </span>
+        <!-- Catalog: Already installed — show Open button -->
+        <div v-if="isCatalogApp && app.installed" class="flex items-center gap-2">
+          <span class="flex items-center gap-2 text-sm text-success">
+            <Icon name="CheckCircle" :size="16" />
+            Installed
+          </span>
+          <a
+            v-if="installedAppUrl"
+            :href="installedAppUrl"
+            target="_blank"
+            rel="noopener"
+            class="flex items-center gap-2 px-5 py-2 rounded-lg btn-accent text-sm font-medium"
+          >
+            <Icon name="ExternalLink" :size="16" />
+            Open
+          </a>
+        </div>
       </div>
     </div>
   </div>
