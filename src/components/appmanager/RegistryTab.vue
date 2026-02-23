@@ -467,7 +467,18 @@ function getImageTags(image) {
                   +{{ image.tags.length - 3 }}
                 </span>
               </div>
+              <span
+                v-if="image.system"
+                class="p-2 text-zinc-500"
+                title="System image — managed by CubeOS"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </span>
               <button
+                v-else
                 @click.stop="deleteImage(image.name)"
                 :disabled="deleteLoading[image.name]"
                 class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50"
@@ -532,6 +543,7 @@ function getImageTags(image) {
                       <Icon name="Copy" :size="12" />
                     </button>
                     <button
+                      v-if="!image.system"
                       @click.stop="deleteImageTag(image.name, tag)"
                       class="p-0.5 text-theme-muted hover:text-error opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Delete tag"

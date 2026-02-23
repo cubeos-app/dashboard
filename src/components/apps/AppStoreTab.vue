@@ -43,7 +43,8 @@ const actionError = ref(null)
 // Convert registry images to catalog-compatible app objects
 const registryApps = computed(() => {
   if (!registryStore.images || registryStore.images.length === 0) return []
-  return registryStore.images.map(img => {
+  // Filter out system images — these are managed by CubeOS, not user-installable
+  return registryStore.images.filter(img => !img.system).map(img => {
     const imgName = typeof img === 'string' ? img : img.name || ''
     const shortName = imgName.split('/').pop() || imgName
     // Title-case: "kiwix-serve" → "Kiwix Serve"
