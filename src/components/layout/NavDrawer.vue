@@ -13,6 +13,7 @@ import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBrandingStore } from '@/stores/branding'
 import { useRegistryStore } from '@/stores/registry'
+import { useUpdatesStore } from '@/stores/updates'
 import { useSystemStore } from '@/stores/system'
 import { useMode } from '@/composables/useMode'
 import { useHardwareDetection } from '@/composables/useHardwareDetection'
@@ -30,6 +31,7 @@ const emit = defineEmits(['close', 'navigate'])
 const route = useRoute()
 const brandingStore = useBrandingStore()
 const registryStore = useRegistryStore()
+const updatesStore = useUpdatesStore()
 const systemStore = useSystemStore()
 const { isAdvanced } = useMode()
 const { hasCommHardware, hasMediaHardware } = useHardwareDetection()
@@ -125,7 +127,7 @@ watch(() => props.open, (isOpen) => {
                 />
                 <span>{{ item.name }}</span>
                 <span
-                  v-if="item.path === '/settings' && registryStore.hasUpdates"
+                  v-if="item.path === '/settings' && (registryStore.hasUpdates || updatesStore.hasUpdate)"
                   class="w-2 h-2 rounded-full bg-accent shrink-0"
                 />
               </button>

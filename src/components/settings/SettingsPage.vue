@@ -21,6 +21,7 @@ import Icon from '@/components/ui/Icon.vue'
 
 import AccountTab from './AccountTab.vue'
 import AppearanceTab from './AppearanceTab.vue'
+import UpdatesTab from './UpdatesTab.vue'
 import ProfilesTab from './ProfilesTab.vue'
 import RegistryTab from './RegistryTab.vue'
 import SupportTab from './SupportTab.vue'
@@ -35,7 +36,8 @@ const { signal } = useAbortOnUnmount()
 const TAB_DEFS = computed(() => {
   const tabs = [
     { key: 'account', label: 'Account', icon: 'User' },
-    { key: 'appearance', label: 'Appearance', icon: 'Palette' }
+    { key: 'appearance', label: 'Appearance', icon: 'Palette' },
+    { key: 'updates', label: 'Updates', icon: 'Download' }
   ]
   if (isAdvanced.value) {
     tabs.push(
@@ -108,6 +110,7 @@ onMounted(async () => {
     <KeepAlive>
       <AccountTab v-if="activeTab === 'account'" />
       <AppearanceTab v-else-if="activeTab === 'appearance'" />
+      <UpdatesTab v-else-if="activeTab === 'updates'" />
       <ProfilesTab v-else-if="activeTab === 'profiles'" />
       <RegistryTab v-else-if="activeTab === 'registry'" />
       <SupportTab v-else-if="activeTab === 'support'" />
