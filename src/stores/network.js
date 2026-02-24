@@ -20,42 +20,42 @@ import api from '@/api/client'
 
 // Network mode constants matching Go backend
 export const NETWORK_MODES = {
-  OFFLINE: 'offline',
-  ONLINE_ETH: 'online_eth',
-  ONLINE_WIFI: 'online_wifi',
-  ONLINE_TETHER: 'online_tether',
-  SERVER_ETH: 'server_eth',
-  SERVER_WIFI: 'server_wifi'
+  OFFLINE_HOTSPOT: 'offline_hotspot',
+  WIFI_ROUTER: 'wifi_router',
+  WIFI_BRIDGE: 'wifi_bridge',
+  ANDROID_TETHER: 'android_tether',
+  ETH_CLIENT: 'eth_client',
+  WIFI_CLIENT: 'wifi_client'
 }
 
 // Human-readable mode labels
 export const MODE_LABELS = {
-  [NETWORK_MODES.OFFLINE]: 'Offline (AP Only)',
-  [NETWORK_MODES.ONLINE_ETH]: 'Online (Ethernet)',
-  [NETWORK_MODES.ONLINE_WIFI]: 'Online (WiFi Client)',
-  [NETWORK_MODES.ONLINE_TETHER]: 'Online (Tethering)',
-  [NETWORK_MODES.SERVER_ETH]: 'Server (Ethernet)',
-  [NETWORK_MODES.SERVER_WIFI]: 'Server (WiFi)'
+  [NETWORK_MODES.OFFLINE_HOTSPOT]: 'Offline Hotspot',
+  [NETWORK_MODES.WIFI_ROUTER]: 'WiFi Router',
+  [NETWORK_MODES.WIFI_BRIDGE]: 'WiFi Bridge',
+  [NETWORK_MODES.ANDROID_TETHER]: 'Android Tether',
+  [NETWORK_MODES.ETH_CLIENT]: 'Ethernet Client',
+  [NETWORK_MODES.WIFI_CLIENT]: 'WiFi Client'
 }
 
 // Mode descriptions
 export const MODE_DESCRIPTIONS = {
-  [NETWORK_MODES.OFFLINE]: 'Air-gapped mode. Access Point only, no internet connectivity.',
-  [NETWORK_MODES.ONLINE_ETH]: 'Connect to internet via Ethernet. NAT provides internet to AP clients.',
-  [NETWORK_MODES.ONLINE_WIFI]: 'Connect to upstream WiFi via USB dongle. NAT provides internet to AP clients.',
-  [NETWORK_MODES.ONLINE_TETHER]: 'Connect to internet via Android USB tethering. NAT provides internet to AP clients.',
-  [NETWORK_MODES.SERVER_ETH]: 'No Access Point. Direct Ethernet connection only.',
-  [NETWORK_MODES.SERVER_WIFI]: 'No Access Point. Direct WiFi connection only.'
+  [NETWORK_MODES.OFFLINE_HOTSPOT]: 'Air-gapped mode. Access Point only, no internet connectivity.',
+  [NETWORK_MODES.WIFI_ROUTER]: 'Connect to internet via Ethernet. AP provides WiFi access to clients.',
+  [NETWORK_MODES.WIFI_BRIDGE]: 'Connect to upstream WiFi via USB dongle. AP bridges internet to clients.',
+  [NETWORK_MODES.ANDROID_TETHER]: 'Connect to internet via Android USB tethering. AP provides WiFi access to clients.',
+  [NETWORK_MODES.ETH_CLIENT]: 'No Access Point. Direct Ethernet connection only.',
+  [NETWORK_MODES.WIFI_CLIENT]: 'No Access Point. Direct WiFi connection only.'
 }
 
 // Mode icons (Lucide icon names)
 export const MODE_ICONS = {
-  [NETWORK_MODES.OFFLINE]: 'WifiOff',
-  [NETWORK_MODES.ONLINE_ETH]: 'Cable',
-  [NETWORK_MODES.ONLINE_WIFI]: 'Wifi',
-  [NETWORK_MODES.ONLINE_TETHER]: 'Smartphone',
-  [NETWORK_MODES.SERVER_ETH]: 'Server',
-  [NETWORK_MODES.SERVER_WIFI]: 'Server'
+  [NETWORK_MODES.OFFLINE_HOTSPOT]: 'WifiOff',
+  [NETWORK_MODES.WIFI_ROUTER]: 'Cable',
+  [NETWORK_MODES.WIFI_BRIDGE]: 'Wifi',
+  [NETWORK_MODES.ANDROID_TETHER]: 'Smartphone',
+  [NETWORK_MODES.ETH_CLIENT]: 'Server',
+  [NETWORK_MODES.WIFI_CLIENT]: 'Server'
 }
 
 export const useNetworkStore = defineStore('network', () => {
@@ -93,7 +93,7 @@ export const useNetworkStore = defineStore('network', () => {
   // Computed
   // ==========================================
   
-  const currentMode = computed(() => status.value?.mode || networkMode.value?.mode || NETWORK_MODES.OFFLINE)
+  const currentMode = computed(() => status.value?.mode || networkMode.value?.mode || NETWORK_MODES.OFFLINE_HOTSPOT)
   const hasInternet = computed(() => status.value?.internet === true)
   const isAPActive = computed(() => !!status.value?.ap?.ssid)
   const apSSID = computed(() => status.value?.ap?.ssid || 'CubeOS')
@@ -146,7 +146,7 @@ export const useNetworkStore = defineStore('network', () => {
    *
    * @param {string} mode - One of NETWORK_MODES
    * @param {object} options - Additional options:
-   *   - ssid {string}               WiFi SSID (for ONLINE_WIFI / SERVER_WIFI)
+   *   - ssid {string}               WiFi SSID (for WIFI_BRIDGE / WIFI_CLIENT)
    *   - password {string}           WiFi password
    *   - use_static_ip {boolean}     Enable static IP on upstream interface
    *   - static_ip {string}          Static IPv4 address
@@ -214,7 +214,7 @@ export const useNetworkStore = defineStore('network', () => {
   }
   
   /**
-   * Connect to a WiFi network (for ONLINE_WIFI mode)
+   * Connect to a WiFi network (for WIFI_BRIDGE mode)
    */
   async function connectWiFi(ssid, password) {
     connecting.value = true

@@ -19,7 +19,7 @@ const networkStore = useNetworkStore()
 // ─── Offline mode awareness (B36) ─────────────────────────
 const isOffline = computed(() => {
   const mode = (networkStore.networkMode?.mode || networkStore.status?.mode || '').toLowerCase()
-  return mode === 'offline' || mode === ''
+  return mode === 'offline_hotspot' || mode === ''
 })
 
 // ─── State ───────────────────────────────────────────────────

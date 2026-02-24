@@ -5,9 +5,9 @@
  * Network mode selector with connection-aware safety warnings.
  * Shows all 5 modes in a 3+2 grid.
  *
- * Batch 4 change: All 4 client modes (ONLINE_ETH, ONLINE_WIFI, SERVER_ETH,
- * SERVER_WIFI) now open NetworkConfigDialog instead of switching directly.
- * Only OFFLINE mode switches immediately (no upstream interface to configure).
+ * Batch 4 change: All 4 client modes (WIFI_ROUTER, WIFI_BRIDGE, ETH_CLIENT,
+ * WIFI_CLIENT) now open NetworkConfigDialog instead of switching directly.
+ * Only OFFLINE_HOTSPOT mode switches immediately (no upstream interface to configure).
  *
  * The old `showWifiConnect` emit is replaced by the integrated dialog.
  */
@@ -23,18 +23,18 @@ const networkStore = useNetworkStore()
 
 // Mode metadata: icons, colors, and connection characteristics
 const modeMetadata = {
-  [NETWORK_MODES.OFFLINE]:       { icon: 'WifiOff',     color: 'text-warning', bgColor: 'bg-warning-muted', label: 'Offline (AP Only)',       desc: 'Air-gapped access point mode',       hasAP: true,  uplink: null },
-  [NETWORK_MODES.ONLINE_ETH]:    { icon: 'Cable',       color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'Online via Ethernet',     desc: 'AP + NAT via Ethernet uplink',       hasAP: true,  uplink: 'eth0' },
-  [NETWORK_MODES.ONLINE_WIFI]:   { icon: 'Wifi',        color: 'text-success', bgColor: 'bg-success-muted', label: 'Online via WiFi',         desc: 'AP + NAT via USB WiFi dongle',       hasAP: true,  uplink: 'wifi' },
-  [NETWORK_MODES.ONLINE_TETHER]: { icon: 'Smartphone',  color: 'text-success', bgColor: 'bg-success-muted', label: 'Online via Tethering',    desc: 'AP + NAT via Android USB tethering', hasAP: true,  uplink: 'usb' },
-  [NETWORK_MODES.SERVER_ETH]:    { icon: 'Server',      color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'Server via Ethernet',     desc: 'No AP, direct Ethernet connection',  hasAP: false, uplink: 'eth0' },
-  [NETWORK_MODES.SERVER_WIFI]:   { icon: 'Server',      color: 'text-success', bgColor: 'bg-success-muted', label: 'Server via WiFi',         desc: 'No AP, direct WiFi connection',      hasAP: false, uplink: 'wifi' },
+  [NETWORK_MODES.OFFLINE_HOTSPOT]: { icon: 'WifiOff',     color: 'text-warning', bgColor: 'bg-warning-muted', label: 'Offline Hotspot',         desc: 'Air-gapped access point mode',       hasAP: true,  uplink: null },
+  [NETWORK_MODES.WIFI_ROUTER]:     { icon: 'Cable',       color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'WiFi Router',             desc: 'AP + internet via Ethernet uplink',  hasAP: true,  uplink: 'eth0' },
+  [NETWORK_MODES.WIFI_BRIDGE]:     { icon: 'Wifi',        color: 'text-success', bgColor: 'bg-success-muted', label: 'WiFi Bridge',             desc: 'AP + internet via USB WiFi dongle',  hasAP: true,  uplink: 'wifi' },
+  [NETWORK_MODES.ANDROID_TETHER]:  { icon: 'Smartphone',  color: 'text-success', bgColor: 'bg-success-muted', label: 'Android Tether',          desc: 'AP + internet via Android USB tethering', hasAP: true,  uplink: 'usb' },
+  [NETWORK_MODES.ETH_CLIENT]:      { icon: 'Server',      color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'Ethernet Client',         desc: 'No AP, direct Ethernet connection',  hasAP: false, uplink: 'eth0' },
+  [NETWORK_MODES.WIFI_CLIENT]:     { icon: 'Server',      color: 'text-success', bgColor: 'bg-success-muted', label: 'WiFi Client',             desc: 'No AP, direct WiFi connection',      hasAP: false, uplink: 'wifi' },
 }
 
 // Fallback mode IDs if API unavailable
 const fallbackModeList = [
-  NETWORK_MODES.OFFLINE, NETWORK_MODES.ONLINE_ETH, NETWORK_MODES.ONLINE_WIFI,
-  NETWORK_MODES.ONLINE_TETHER, NETWORK_MODES.SERVER_ETH, NETWORK_MODES.SERVER_WIFI
+  NETWORK_MODES.OFFLINE_HOTSPOT, NETWORK_MODES.WIFI_ROUTER, NETWORK_MODES.WIFI_BRIDGE,
+  NETWORK_MODES.ANDROID_TETHER, NETWORK_MODES.ETH_CLIENT, NETWORK_MODES.WIFI_CLIENT
 ]
 
 const modesLoaded = ref(false)
@@ -88,10 +88,10 @@ function getUserConnectionInfo() {
   if (curMeta.hasAP) {
     return { via: 'the CubeOS WiFi access point (wlan0)', isAP: true }
   }
-  if (cur === NETWORK_MODES.SERVER_ETH) {
+  if (cur === NETWORK_MODES.ETH_CLIENT) {
     return { via: 'Ethernet (eth0)', isAP: false }
   }
-  if (cur === NETWORK_MODES.SERVER_WIFI) {
+  if (cur === NETWORK_MODES.WIFI_CLIENT) {
     return { via: 'WiFi (wlan0)', isAP: false }
   }
   return { via: 'the network', isAP: false }
@@ -126,7 +126,7 @@ async function selectMode(mode) {
   if (mode.id === currentMode.value) return
   
   // ── Batch 4: All 4 client modes open the config dialog ──
-  if (mode.id !== NETWORK_MODES.OFFLINE) {
+  if (mode.id !== NETWORK_MODES.OFFLINE_HOTSPOT) {
     configDialogTarget.value = mode.id
     showConfigDialog.value = true
     return

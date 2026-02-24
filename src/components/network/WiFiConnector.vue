@@ -2,7 +2,7 @@
 /**
  * WiFiConnector.vue - Sprint 2 Enhanced
  * 
- * Scan and connect to upstream WiFi networks for ONLINE_WIFI mode.
+ * Scan and connect to upstream WiFi networks for WIFI_BRIDGE mode.
  * Sprint 2 additions: disconnect button, saved networks list with forget action,
  * WiFi status indicator showing connected SSID + signal.
  */
@@ -119,7 +119,7 @@ async function connect() {
   connectError.value = null
   
   try {
-    const success = await networkStore.setMode(NETWORK_MODES.ONLINE_WIFI, {
+    const success = await networkStore.setMode(NETWORK_MODES.WIFI_BRIDGE, {
       ssid: selectedNetwork.value.ssid,
       password: password.value
     })
@@ -153,7 +153,7 @@ async function connectSaved(ssid) {
   
   try {
     // Call setMode with SSID but no password — HAL will reuse saved credentials
-    const success = await networkStore.setMode(NETWORK_MODES.ONLINE_WIFI, {
+    const success = await networkStore.setMode(NETWORK_MODES.WIFI_BRIDGE, {
       ssid,
       password: ''
     })

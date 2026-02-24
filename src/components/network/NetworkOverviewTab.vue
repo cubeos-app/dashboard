@@ -61,13 +61,13 @@ const natEnabled = computed(() => {
 const isInternetSharing = computed(() => {
   if (!natEnabled.value) return false
   const mode = (props.networkMode?.mode || '').toLowerCase()
-  return mode === 'online_eth' || mode === 'online_wifi' || mode === 'online_tether'
+  return mode === 'wifi_router' || mode === 'wifi_bridge' || mode === 'android_tether'
 })
 
 // B75 fix: Detect OFFLINE mode — NAT toggle has no meaning without upstream
 const isOfflineMode = computed(() => {
   const mode = (props.networkMode?.mode || '').toLowerCase()
-  return mode === 'offline' || mode === ''
+  return mode === 'offline_hotspot' || mode === ''
 })
 
 // Firewall IP forward — normalize field name (API returns forwarding_enabled, not ip_forward)

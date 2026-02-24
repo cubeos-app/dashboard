@@ -100,12 +100,12 @@ const apHardwarePresent = ref(true)
 const normalizedMode = computed(() => (networkMode.value?.mode || '').toLowerCase())
 const modeLabelDisplay = computed(() => {
   switch (normalizedMode.value) {
-    case 'offline': return 'Offline (AP Only)'
-    case 'online_eth': return 'Online via Ethernet'
-    case 'online_wifi': return 'Online via WiFi'
-    case 'server_eth': return 'Server via Ethernet'
-    case 'server_wifi': return 'Server via WiFi'
-    case 'online_tether': return 'Online via Tethering'
+    case 'offline_hotspot': return 'Offline Hotspot'
+    case 'wifi_router': return 'WiFi Router'
+    case 'wifi_bridge': return 'WiFi Bridge'
+    case 'eth_client': return 'Ethernet Client'
+    case 'wifi_client': return 'WiFi Client'
+    case 'android_tether': return 'Android Tether'
     default: return networkMode.value?.mode || 'Unknown'
   }
 })
@@ -240,10 +240,10 @@ onUnmounted(() => {
         </div>
         <span
           class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-          :class="networkStore.isOnline ? 'bg-success-muted text-success' : normalizedMode === 'offline' ? 'bg-warning-muted text-warning' : 'bg-error-muted text-error'"
+          :class="networkStore.isOnline ? 'bg-success-muted text-success' : normalizedMode === 'offline_hotspot' ? 'bg-warning-muted text-warning' : 'bg-error-muted text-error'"
         >
-          <span class="w-1.5 h-1.5 rounded-full" :class="networkStore.isOnline ? 'bg-success' : normalizedMode === 'offline' ? 'bg-warning' : 'bg-error'"></span>
-          {{ networkStore.isOnline ? 'Online' : normalizedMode === 'offline' ? 'Air-gapped' : 'No Internet' }}
+          <span class="w-1.5 h-1.5 rounded-full" :class="networkStore.isOnline ? 'bg-success' : normalizedMode === 'offline_hotspot' ? 'bg-warning' : 'bg-error'"></span>
+          {{ networkStore.isOnline ? 'Online' : normalizedMode === 'offline_hotspot' ? 'Air-gapped' : 'No Internet' }}
         </span>
       </div>
       <div class="flex items-center gap-3">

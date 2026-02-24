@@ -29,7 +29,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 // Determine whether this is an AP mode (DNS default → Pi-hole) or server mode (DNS default → public)
-const isAPMode = computed(() => props.mode === 'online_eth' || props.mode === 'online_wifi')
+const isAPMode = computed(() => props.mode === 'wifi_router' || props.mode === 'wifi_bridge' || props.mode === 'android_tether')
 const defaultDNS = computed(() => isAPMode.value ? '10.42.24.1' : '1.1.1.1')
 
 // Two-way binding helper
@@ -95,10 +95,10 @@ defineExpose({ validation })
 // Interface label for context
 const interfaceLabel = computed(() => {
   switch (props.mode) {
-    case 'online_eth': return 'eth0 (Ethernet uplink)'
-    case 'online_wifi': return 'wlan1 (WiFi uplink)'
-    case 'server_eth': return 'eth0 (Ethernet)'
-    case 'server_wifi': return 'wlan0 (WiFi)'
+    case 'wifi_router': return 'eth0 (Ethernet uplink)'
+    case 'wifi_bridge': return 'wlan1 (WiFi uplink)'
+    case 'eth_client': return 'eth0 (Ethernet)'
+    case 'wifi_client': return 'wlan0 (WiFi)'
     default: return 'upstream interface'
   }
 })

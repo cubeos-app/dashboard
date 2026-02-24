@@ -39,14 +39,23 @@ const uptimeHuman = computed(() => systemStore.uptime?.uptime_human || null)
 
 const networkModeLabel = computed(() => {
   const mode = networkStore.currentMode
-  const labels = { offline: 'Offline', online_eth: 'Ethernet', online_wifi: 'WiFi' }
+  const labels = {
+    offline_hotspot: 'Offline Hotspot',
+    wifi_router: 'WiFi Router',
+    wifi_bridge: 'WiFi Bridge',
+    android_tether: 'Android Tether',
+    eth_client: 'Ethernet Client',
+    wifi_client: 'WiFi Client'
+  }
   return labels[mode] || 'Unknown'
 })
 
 const networkModeIcon = computed(() => {
   const mode = networkStore.currentMode
-  if (mode === 'offline') return 'WifiOff'
-  if (mode === 'online_wifi') return 'Wifi'
+  if (mode === 'offline_hotspot') return 'WifiOff'
+  if (mode === 'wifi_bridge' || mode === 'wifi_client') return 'Wifi'
+  if (mode === 'android_tether') return 'Smartphone'
+  if (mode === 'wifi_router' || mode === 'eth_client') return 'Cable'
   return 'Globe'
 })
 

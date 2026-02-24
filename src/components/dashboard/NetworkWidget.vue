@@ -29,18 +29,24 @@ const currentMode = computed(() => networkStore.currentMode)
 
 const modeLabel = computed(() => {
   const labels = {
-    [NETWORK_MODES.OFFLINE]: 'Offline',
-    [NETWORK_MODES.ONLINE_ETH]: 'Ethernet',
-    [NETWORK_MODES.ONLINE_WIFI]: 'WiFi Client'
+    [NETWORK_MODES.OFFLINE_HOTSPOT]: 'Offline Hotspot',
+    [NETWORK_MODES.WIFI_ROUTER]: 'WiFi Router',
+    [NETWORK_MODES.WIFI_BRIDGE]: 'WiFi Bridge',
+    [NETWORK_MODES.ANDROID_TETHER]: 'Android Tether',
+    [NETWORK_MODES.ETH_CLIENT]: 'Ethernet Client',
+    [NETWORK_MODES.WIFI_CLIENT]: 'WiFi Client'
   }
   return labels[currentMode.value] || 'Unknown'
 })
 
 const modeIcon = computed(() => {
   const icons = {
-    [NETWORK_MODES.OFFLINE]: 'WifiOff',
-    [NETWORK_MODES.ONLINE_ETH]: 'Cable',
-    [NETWORK_MODES.ONLINE_WIFI]: 'Wifi'
+    [NETWORK_MODES.OFFLINE_HOTSPOT]: 'WifiOff',
+    [NETWORK_MODES.WIFI_ROUTER]: 'Cable',
+    [NETWORK_MODES.WIFI_BRIDGE]: 'Wifi',
+    [NETWORK_MODES.ANDROID_TETHER]: 'Smartphone',
+    [NETWORK_MODES.ETH_CLIENT]: 'Server',
+    [NETWORK_MODES.WIFI_CLIENT]: 'Server'
   }
   return icons[currentMode.value] || 'Globe'
 })

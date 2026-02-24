@@ -43,34 +43,34 @@ const ipConfigRef = ref(null)
 
 // ── Mode metadata ────────────────────────────────────────────
 const modeLabels = {
-  [NETWORK_MODES.ONLINE_ETH]:    'Online via Ethernet',
-  [NETWORK_MODES.ONLINE_WIFI]:   'Online via WiFi',
-  [NETWORK_MODES.ONLINE_TETHER]: 'Online via Tethering',
-  [NETWORK_MODES.SERVER_ETH]:    'Server via Ethernet',
-  [NETWORK_MODES.SERVER_WIFI]:   'Server via WiFi',
+  [NETWORK_MODES.WIFI_ROUTER]:     'WiFi Router',
+  [NETWORK_MODES.WIFI_BRIDGE]:     'WiFi Bridge',
+  [NETWORK_MODES.ANDROID_TETHER]:  'Android Tether',
+  [NETWORK_MODES.ETH_CLIENT]:      'Ethernet Client',
+  [NETWORK_MODES.WIFI_CLIENT]:     'WiFi Client',
 }
 
 const modeIcons = {
-  [NETWORK_MODES.ONLINE_ETH]:    'Cable',
-  [NETWORK_MODES.ONLINE_WIFI]:   'Wifi',
-  [NETWORK_MODES.ONLINE_TETHER]: 'Smartphone',
-  [NETWORK_MODES.SERVER_ETH]:    'Server',
-  [NETWORK_MODES.SERVER_WIFI]:   'Server',
+  [NETWORK_MODES.WIFI_ROUTER]:     'Cable',
+  [NETWORK_MODES.WIFI_BRIDGE]:     'Wifi',
+  [NETWORK_MODES.ANDROID_TETHER]:  'Smartphone',
+  [NETWORK_MODES.ETH_CLIENT]:      'Server',
+  [NETWORK_MODES.WIFI_CLIENT]:     'Server',
 }
 
 const isWiFiMode = computed(() =>
-  props.targetMode === NETWORK_MODES.ONLINE_WIFI ||
-  props.targetMode === NETWORK_MODES.SERVER_WIFI
+  props.targetMode === NETWORK_MODES.WIFI_BRIDGE ||
+  props.targetMode === NETWORK_MODES.WIFI_CLIENT
 )
 
 const isAPMode = computed(() =>
-  props.targetMode === NETWORK_MODES.ONLINE_ETH ||
-  props.targetMode === NETWORK_MODES.ONLINE_WIFI ||
-  props.targetMode === NETWORK_MODES.ONLINE_TETHER
+  props.targetMode === NETWORK_MODES.WIFI_ROUTER ||
+  props.targetMode === NETWORK_MODES.WIFI_BRIDGE ||
+  props.targetMode === NETWORK_MODES.ANDROID_TETHER
 )
 
 const isTetherMode = computed(() =>
-  props.targetMode === NETWORK_MODES.ONLINE_TETHER
+  props.targetMode === NETWORK_MODES.ANDROID_TETHER
 )
 
 // ── Step management ──────────────────────────────────────────
@@ -200,14 +200,14 @@ const applyError = ref(null)
 
 const warningMessage = computed(() => {
   const lines = []
-  const fromHasAP = ['offline', 'online_eth', 'online_wifi'].includes(props.currentMode)
+  const fromHasAP = ['offline_hotspot', 'wifi_router', 'wifi_bridge', 'android_tether'].includes(props.currentMode)
   const toHasAP = isAPMode.value
   const toMode = props.targetMode
 
   if (fromHasAP && !toHasAP) {
     lines.push('This will disable the Access Point. All WiFi clients will be disconnected.')
     lines.push('If you are connected via the CubeOS WiFi, you will lose access to this dashboard.')
-    if (toMode === NETWORK_MODES.SERVER_ETH) {
+    if (toMode === NETWORK_MODES.ETH_CLIENT) {
       lines.push('To reconnect: access the dashboard via the Ethernet IP address.')
     } else {
       lines.push('To reconnect: join the same WiFi network as the device.')

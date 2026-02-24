@@ -31,7 +31,14 @@ const composeServices = computed(() => allApps.value.filter(a => a.deploy_mode =
 
 const networkMode = computed(() => networkStore.currentMode || 'unknown')
 const networkModeLabel = computed(() => {
-  const labels = { offline: 'Offline', online_eth: 'Ethernet', online_wifi: 'WiFi Client' }
+  const labels = {
+    offline_hotspot: 'Offline Hotspot',
+    wifi_router: 'WiFi Router',
+    wifi_bridge: 'WiFi Bridge',
+    android_tether: 'Android Tether',
+    eth_client: 'Ethernet Client',
+    wifi_client: 'WiFi Client'
+  }
   return labels[networkMode.value] || 'Unknown'
 })
 
