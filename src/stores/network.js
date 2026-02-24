@@ -487,6 +487,19 @@ export const useNetworkStore = defineStore('network', () => {
   }
   
   /**
+   * Fetch Pi Imager WiFi credentials (for wifi_client pre-fill)
+   * @returns {Object|null} {ssid, has_password} or null if not available
+   */
+  async function fetchImagerWiFi() {
+    try {
+      const response = await api.get('/network/imager-wifi')
+      return response // {ssid: "...", has_password: true/false}
+    } catch {
+      return null // No Pi Imager creds available
+    }
+  }
+
+  /**
    * Forget a saved WiFi network
    * @param {string} ssid - Network SSID to forget
    */
@@ -807,6 +820,9 @@ export const useNetworkStore = defineStore('network', () => {
     startAP,
     stopAP,
     
+    // API Methods (Phase 6b)
+    fetchImagerWiFi,
+
     // API Methods (Sprint 5)
     fetchAPStatus,
     fetchDetailedInterfaces,

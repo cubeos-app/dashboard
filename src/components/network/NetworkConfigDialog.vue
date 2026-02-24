@@ -16,6 +16,7 @@ import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import Icon from '@/components/ui/Icon.vue'
 import IPConfigStep from './IPConfigStep.vue'
+import WiFiClientTransition from './WiFiClientTransition.vue'
 
 const props = defineProps({
   show: {
@@ -197,6 +198,7 @@ const ipStepValid = computed(() => {
 // ── Confirm step ─────────────────────────────────────────────
 const applying = ref(false)
 const applyError = ref(null)
+const showWifiClientTransition = ref(false)
 
 const warningMessage = computed(() => {
   const lines = []
@@ -307,7 +309,12 @@ async function applyChanges() {
     const success = await networkStore.setMode(props.targetMode, options)
     if (success) {
       emit('applied', props.targetMode)
-      close()
+      // For wifi_client, show transition overlay instead of closing
+      if (props.targetMode === NETWORK_MODES.WIFI_CLIENT) {
+        showWifiClientTransition.value = true
+      } else {
+        close()
+      }
     } else {
       applyError.value = networkStore.error || 'Failed to apply network configuration'
     }
@@ -324,6 +331,11 @@ function close() {
   reset()
 }
 
+function handleWifiClientClose() {
+  showWifiClientTransition.value = false
+  close()
+}
+
 function reset() {
   currentStepIndex.value = 0
   selectedNetwork.value = null
@@ -334,15 +346,25 @@ function reset() {
   ipConfig.value = { useStaticIP: false, ip: '', netmask: '255.255.255.0', gateway: '', dnsPrimary: '', dnsSecondary: '' }
   applying.value = false
   applyError.value = null
+  showWifiClientTransition.value = false
 }
 
 // On dialog open: scan WiFi if needed, reset state
-watch(() => props.show, (val) => {
+watch(() => props.show, async (val) => {
   if (val) {
     reset()
     if (isWiFiMode.value) {
       scanNetworks()
       networkStore.fetchSavedNetworks()
+
+      // Pre-fill SSID from Pi Imager WiFi credentials for wifi_client mode
+      if (props.targetMode === NETWORK_MODES.WIFI_CLIENT) {
+        const imagerCreds = await networkStore.fetchImagerWiFi()
+        if (imagerCreds?.ssid && !selectedNetwork.value && !manualSSID.value) {
+          showManualEntry.value = true
+          manualSSID.value = imagerCreds.ssid
+        }
+      }
     }
     nextTick(() => { modalRef.value?.focus() })
   }
@@ -697,4 +719,13 @@ onUnmounted(() => {
       </div>
     </Transition>
   </Teleport>
+
+  <!-- WiFi Client transition overlay -->
+  <WiFiClientTransition
+    :show="showWifiClientTransition"
+    :ssid="effectiveSSID"
+    @close="handleWifiClientClose"
+    @success="handleWifiClientClose"
+    @failed="handleWifiClientClose"
+  />
 </template>
