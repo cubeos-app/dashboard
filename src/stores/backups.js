@@ -1,15 +1,24 @@
 /**
  * CubeOS Backups Store — S07
  *
- * Pinia store for backup management. Wires all 8 backup endpoints:
- *   GET    /backups           — List all backups
- *   POST   /backups           — Create backup with config
- *   GET    /backups/stats     — Backup statistics
- *   POST   /backups/quick     — Quick one-click backup
- *   GET    /backups/{id}      — Get single backup detail
- *   DELETE /backups/{id}      — Delete a backup
- *   GET    /backups/{id}/download — Download backup file
- *   POST   /backups/{id}/restore  — Restore from backup
+ * Pinia store for backup management. Wires all backup endpoints:
+ *   GET    /backups                    — List all backups
+ *   POST   /backups                    — Create backup (enhanced: scope, destination, encrypt)
+ *   GET    /backups/stats              — Backup statistics
+ *   POST   /backups/quick              — Quick one-click backup
+ *   GET    /backups/{id}               — Get single backup detail
+ *   DELETE /backups/{id}               — Delete a backup
+ *   GET    /backups/{id}/download      — Download backup file
+ *   POST   /backups/{id}/restore       — Restore from backup
+ *   POST   /backups/{id}/verify        — Verify backup integrity
+ *   GET    /backups/destinations       — List available destinations
+ *   POST   /backups/destinations/test  — Test a destination
+ *   GET    /backups/schedules          — List schedules
+ *   POST   /backups/schedules          — Create schedule
+ *   PUT    /backups/schedules/{id}     — Update schedule
+ *   DELETE /backups/schedules/{id}     — Delete schedule
+ *   POST   /backups/schedules/{id}/run — Trigger schedule immediately
+ *   GET    /backups/restore-status     — Pending restore info
  */
 
 import { defineStore } from 'pinia'
@@ -29,6 +38,14 @@ export const useBackupsStore = defineStore('backups', () => {
   const totalSizeBytes = ref(0)
   const stats = ref(null)
   const selectedBackup = ref(null)
+
+  // New state — destinations, schedules, restore status
+  const destinations = ref([])
+  const schedules = ref([])
+  const restoreStatus = ref(null)
+  const schedulesLoading = ref(false)
+  const destinationsLoading = ref(false)
+  const verifyLoading = ref(false)
 
   // Operation states
   const createLoading = ref(false)
@@ -110,17 +127,26 @@ export const useBackupsStore = defineStore('backups', () => {
   /**
    * Create a new backup with config
    * POST /backups
+   * Enhanced: supports scope, destination, encryption params
    */
   async function createBackup(config = {}) {
     createLoading.value = true
     error.value = null
     try {
-      const result = await api.post('/backups', {
+      const payload = {
         type: config.type || 'config',
         description: config.description || '',
         include_docker_volumes: config.include_docker_volumes || false,
         compress: config.compress !== false
-      })
+      }
+      // Enhanced params (Batch 4)
+      if (config.scope) payload.scope = config.scope
+      if (config.destination) payload.destination = config.destination
+      if (config.encrypt !== undefined) payload.encrypt = config.encrypt
+      if (config.encryption_mode) payload.encryption_mode = config.encryption_mode
+      if (config.passphrase) payload.passphrase = config.passphrase
+
+      const result = await api.post('/backups', payload)
       await fetchBackups(true)
       return result
     } catch (e) {
@@ -230,6 +256,154 @@ export const useBackupsStore = defineStore('backups', () => {
   }
 
   /**
+   * Verify backup integrity
+   * POST /backups/{id}/verify
+   */
+  async function verifyBackup(id) {
+    verifyLoading.value = true
+    error.value = null
+    try {
+      const encoded = encodeURIComponent(id)
+      const result = await api.post(`/backups/${encoded}/verify`)
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      verifyLoading.value = false
+    }
+  }
+
+  /**
+   * List available backup destinations
+   * GET /backups/destinations
+   */
+  async function fetchDestinations() {
+    destinationsLoading.value = true
+    try {
+      const response = await api.get('/backups/destinations')
+      destinations.value = response.destinations ?? response ?? []
+      return destinations.value
+    } catch (e) {
+      if (import.meta.env.DEV) console.error('Failed to fetch destinations:', e)
+      return []
+    } finally {
+      destinationsLoading.value = false
+    }
+  }
+
+  /**
+   * Test a backup destination configuration
+   * POST /backups/destinations/test
+   */
+  async function testDestination(config) {
+    error.value = null
+    try {
+      return await api.post('/backups/destinations/test', config)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * List backup schedules
+   * GET /backups/schedules
+   */
+  async function fetchSchedules() {
+    schedulesLoading.value = true
+    try {
+      const response = await api.get('/backups/schedules')
+      schedules.value = response.schedules ?? response ?? []
+      return schedules.value
+    } catch (e) {
+      if (import.meta.env.DEV) console.error('Failed to fetch schedules:', e)
+      return []
+    } finally {
+      schedulesLoading.value = false
+    }
+  }
+
+  /**
+   * Create a backup schedule
+   * POST /backups/schedules
+   */
+  async function createSchedule(schedule) {
+    error.value = null
+    try {
+      const result = await api.post('/backups/schedules', schedule)
+      await fetchSchedules()
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Update a backup schedule
+   * PUT /backups/schedules/{id}
+   */
+  async function updateSchedule(id, schedule) {
+    error.value = null
+    try {
+      const encoded = encodeURIComponent(id)
+      const result = await api.put(`/backups/schedules/${encoded}`, schedule)
+      await fetchSchedules()
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Delete a backup schedule
+   * DELETE /backups/schedules/{id}
+   */
+  async function deleteSchedule(id) {
+    error.value = null
+    try {
+      const encoded = encodeURIComponent(id)
+      await api.delete(`/backups/schedules/${encoded}`)
+      schedules.value = schedules.value.filter(s => s.id !== id)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Trigger a schedule to run immediately
+   * POST /backups/schedules/{id}/run
+   */
+  async function triggerSchedule(id) {
+    error.value = null
+    try {
+      const encoded = encodeURIComponent(id)
+      const result = await api.post(`/backups/schedules/${encoded}/run`)
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Get pending restore status (bare-metal restore info)
+   * GET /backups/restore-status
+   */
+  async function fetchRestoreStatus() {
+    try {
+      restoreStatus.value = await api.get('/backups/restore-status')
+      return restoreStatus.value
+    } catch (e) {
+      if (import.meta.env.DEV) console.error('Failed to fetch restore status:', e)
+      return null
+    }
+  }
+
+  /**
    * Fetch all backup data in parallel
    */
   async function fetchAll() {
@@ -273,6 +447,12 @@ export const useBackupsStore = defineStore('backups', () => {
     createLoading,
     restoreLoading,
     deleteLoading,
+    verifyLoading,
+    destinations,
+    schedules,
+    restoreStatus,
+    schedulesLoading,
+    destinationsLoading,
 
     // Computed
     backupCount,
@@ -289,6 +469,15 @@ export const useBackupsStore = defineStore('backups', () => {
     restoreBackup,
     getDownloadUrl,
     downloadBackup,
+    verifyBackup,
+    fetchDestinations,
+    testDestination,
+    fetchSchedules,
+    createSchedule,
+    updateSchedule,
+    deleteSchedule,
+    triggerSchedule,
+    fetchRestoreStatus,
     fetchAll,
 
     // Helpers
