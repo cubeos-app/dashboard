@@ -65,7 +65,8 @@ const displayModes = computed(() => {
       bgColor: meta.bgColor,
       hasAP: meta.hasAP,
       uplink: meta.uplink,
-      available: apiMode ? apiMode.available !== false : true
+      available: apiMode ? apiMode.available !== false : true,
+      reason: apiMode?.reason || ''
     }
   })
 })
@@ -218,6 +219,7 @@ function isCurrentMode(modeId) {
               >Active</span>
             </div>
             <p class="text-xs text-theme-tertiary mt-1 leading-relaxed">{{ mode.description }}</p>
+            <p v-if="!mode.available && mode.reason" class="text-xs text-warning mt-1">{{ mode.reason }}</p>
           </div>
         </div>
       </button>
@@ -263,6 +265,7 @@ function isCurrentMode(modeId) {
               >Active</span>
             </div>
             <p class="text-xs text-theme-tertiary mt-1 leading-relaxed">{{ mode.description }}</p>
+            <p v-if="!mode.available && mode.reason" class="text-xs text-warning mt-1">{{ mode.reason }}</p>
           </div>
         </div>
       </button>
