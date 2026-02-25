@@ -11,15 +11,17 @@
  * Standard tabs: Overview
  * Advanced tabs: Overview, Monitoring, Processes, Logs, Hardware
  */
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSystemStore } from '@/stores/system'
 import { useHardwareStore } from '@/stores/hardware'
 import { useMonitoringStore } from '@/stores/monitoring'
 import { useMode } from '@/composables/useMode'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { usePolling } from '@/composables/usePolling'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 import api from '@/api/client'
 
 import SystemOverviewTab from './SystemOverviewTab.vue'
@@ -43,7 +45,7 @@ const TAB_DEFS = computed(() => {
   ]
   if (isAdvanced.value) {
     tabs.push(
-      { key: 'monitoring', label: 'Monitoring', icon: 'Activity', badge: monitoringStore.alertCount > 0 ? monitoringStore.alertCount : null },
+      { key: 'monitoring', label: 'Monitoring', icon: 'Activity', badge: monitoringStore.alertCount > 0 ? monitoringStore.alertCount : null, badgeVariant: 'alert' },
       { key: 'processes', label: 'Processes', icon: 'Terminal' },
       { key: 'logs', label: 'Logs', icon: 'FileText' },
       { key: 'hardware', label: 'Hardware', icon: 'Cpu' }
@@ -125,34 +127,10 @@ async function fetchSharedData(isInitial = false) {
 }
 
 // ─── Polling ─────────────────────────────────────────────────
-let pollInterval = null
-
-function startPolling() {
-  if (!pollInterval) pollInterval = setInterval(fetchSharedData, 15000)
-}
-
-function stopPolling() {
-  if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
-}
-
-function handleVisibilityChange() {
-  if (document.hidden) {
-    stopPolling()
-  } else {
-    fetchSharedData()
-    startPolling()
-  }
-}
+usePolling(fetchSharedData, 15000, { immediate: false, pauseWhenHidden: true })
 
 onMounted(() => {
   fetchSharedData(true)
-  startPolling()
-  document.addEventListener('visibilitychange', handleVisibilityChange)
-})
-
-onUnmounted(() => {
-  stopPolling()
-  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
@@ -186,30 +164,12 @@ onUnmounted(() => {
     </div>
 
     <!-- Tabs -->
-    <div class="border-b border-theme-primary overflow-x-auto scrollbar-hide">
-      <nav class="flex gap-1 sm:gap-4 min-w-max" role="tablist" aria-label="System sections">
-        <button
-          v-for="tab in TAB_DEFS"
-          :key="tab.key"
-          @click="setTab(tab.key)"
-          role="tab"
-          :aria-selected="activeTab === tab.key"
-          class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap flex items-center gap-2"
-          :class="activeTab === tab.key
-            ? 'border-[color:var(--accent-primary)] text-accent'
-            : 'border-transparent text-theme-muted hover:text-theme-primary'"
-        >
-          {{ tab.label }}
-          <span
-            v-if="tab.badge"
-            class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full"
-            :class="activeTab === tab.key ? 'bg-accent text-on-accent' : 'bg-error-muted text-error'"
-          >
-            {{ tab.badge }}
-          </span>
-        </button>
-      </nav>
-    </div>
+    <TabBar
+      :model-value="activeTab"
+      @update:model-value="setTab"
+      :tabs="TAB_DEFS"
+      aria-label="System sections"
+    />
 
     <!-- Tab Content -->
     <SystemOverviewTab

@@ -9,9 +9,10 @@
  * Store: network.js (fetchTraffic, fetchTrafficHistory)
  * Emits: refresh
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useNetworkStore } from '@/stores/network'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { usePolling } from '@/composables/usePolling'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
@@ -204,19 +205,7 @@ function formatRate(bytesPerSec) {
 }
 
 // ─── Polling ─────────────────────────────────────────────────
-let trafficInterval = null
-
-onMounted(() => {
-  fetchTraffic()
-  trafficInterval = setInterval(fetchTraffic, 5000)
-})
-
-onUnmounted(() => {
-  if (trafficInterval) {
-    clearInterval(trafficInterval)
-    trafficInterval = null
-  }
-})
+usePolling(fetchTraffic, 5000, { immediate: true, pauseWhenHidden: true })
 </script>
 
 <template>

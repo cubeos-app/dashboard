@@ -9,9 +9,10 @@
  * Lazy-loaded by CommunicationView.
  * Store: useCommunicationStore — fetchGPSDevices, fetchGPSStatus, fetchGPSPosition
  */
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useCommunicationStore } from '@/stores/communication'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { usePolling } from '@/composables/usePolling'
 import { useMode } from '@/composables/useMode'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
@@ -23,7 +24,6 @@ const { isAdvanced } = useMode()
 const loading = ref(true)
 const selectedPort = ref(null)
 const autoRefresh = ref(false)
-let autoRefreshTimer = null
 
 // ==========================================
 // Computed — device list
@@ -181,22 +181,12 @@ function selectDevice(port) {
 // Auto-refresh
 // ==========================================
 
-function startAutoRefresh() {
-  stopAutoRefresh()
-  autoRefreshTimer = setInterval(() => {
-    const port = activePort.value
-    if (port) {
-      communicationStore.fetchGPSPosition(port, { signal: signal() })
-    }
-  }, 2000)
-}
-
-function stopAutoRefresh() {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer)
-    autoRefreshTimer = null
+const { start: startAutoRefresh, stop: stopAutoRefresh } = usePolling(() => {
+  const port = activePort.value
+  if (port) {
+    communicationStore.fetchGPSPosition(port, { signal: signal() })
   }
-}
+}, 2000, { immediate: false, pauseWhenHidden: true, autoStart: false })
 
 function toggleAutoRefresh() {
   autoRefresh.value = !autoRefresh.value
@@ -209,6 +199,7 @@ function toggleAutoRefresh() {
 
 watch(activePort, () => {
   if (autoRefresh.value) {
+    stopAutoRefresh()
     startAutoRefresh()
   }
 })
@@ -228,10 +219,6 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
-
-onUnmounted(() => {
-  stopAutoRefresh()
 })
 </script>
 

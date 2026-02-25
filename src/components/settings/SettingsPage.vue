@@ -18,6 +18,7 @@ import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import ModeToggle from '@/components/ui/ModeToggle.vue'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 
 import AccountTab from './AccountTab.vue'
 import AppearanceTab from './AppearanceTab.vue'
@@ -89,21 +90,13 @@ onMounted(async () => {
     </PageHeader>
 
     <!-- Tab Navigation -->
-    <div class="flex gap-1 mb-6 overflow-x-auto scrollbar-hide border-b border-theme-primary -mx-4 px-4 sm:mx-0 sm:px-0">
-      <button
-        v-for="tab in TAB_DEFS"
-        :key="tab.key"
-        @click="setTab(tab.key)"
-        :aria-selected="activeTab === tab.key"
-        :aria-label="`${tab.label} settings`"
-        class="flex items-center gap-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors shrink-0"
-        :class="activeTab === tab.key
-          ? 'border-accent text-accent'
-          : 'border-transparent text-theme-tertiary hover:text-theme-secondary hover:border-theme-secondary'"
-      >
-        <Icon :name="tab.icon" :size="16" />
-        {{ tab.label }}
-      </button>
+    <div class="mb-6">
+      <TabBar
+        :model-value="activeTab"
+        @update:model-value="setTab"
+        :tabs="TAB_DEFS"
+        aria-label="Settings sections"
+      />
     </div>
 
     <!-- Tab Content -->

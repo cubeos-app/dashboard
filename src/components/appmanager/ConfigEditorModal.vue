@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 
 const props = defineProps({
   show: {
@@ -30,6 +31,10 @@ const emit = defineEmits(['close', 'save'])
 const localCompose = ref('')
 const localEnv = ref('')
 const activeTab = ref('compose')
+const CONFIG_TABS = [
+  { key: 'compose', label: 'docker-compose.yml', icon: 'FileCode' },
+  { key: 'env', label: '.env', icon: 'Settings' }
+]
 const recreateOnSave = ref(true)
 const modalRef = ref(null)
 
@@ -91,35 +96,12 @@ function handleSave() {
         </div>
         
         <!-- Tabs -->
-        <div class="flex border-b border-theme-primary px-6">
-          <button
-            @click="activeTab = 'compose'"
-            :class="[
-              'px-4 py-3 text-sm font-medium border-b-2 -mb-px',
-              activeTab === 'compose' 
-                ? 'border-accent text-accent' 
-                : 'border-transparent text-theme-secondary hover:text-theme-primary'
-            ]"
-          >
-            <div class="flex items-center gap-2">
-              <Icon name="FileCode" :size="16" />
-              docker-compose.yml
-            </div>
-          </button>
-          <button
-            @click="activeTab = 'env'"
-            :class="[
-              'px-4 py-3 text-sm font-medium border-b-2 -mb-px',
-              activeTab === 'env' 
-                ? 'border-accent text-accent' 
-                : 'border-transparent text-theme-secondary hover:text-theme-primary'
-            ]"
-          >
-            <div class="flex items-center gap-2">
-              <Icon name="Settings" :size="16" />
-              .env
-            </div>
-          </button>
+        <div class="px-6">
+          <TabBar
+            v-model="activeTab"
+            :tabs="CONFIG_TABS"
+            aria-label="Configuration files"
+          />
         </div>
         
         <!-- Content -->

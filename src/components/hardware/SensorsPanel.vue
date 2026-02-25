@@ -9,9 +9,10 @@
  * Lazy-loaded by HardwareView via defineAsyncComponent.
  * Store: useHardwareStore — fetchSensors, fetchBME280, fetch1Wire, read1Wire
  */
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useHardwareStore } from '@/stores/hardware'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { usePolling } from '@/composables/usePolling'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
@@ -21,10 +22,7 @@ const { signal } = useAbortOnUnmount()
 const loading = ref(true)
 const error = ref(null)
 const autoRefresh = ref(false)
-const refreshTimer = ref(null)
 const oneWireReadings = ref({})   // { [deviceId]: { value, loading, error } }
-
-const AUTO_REFRESH_INTERVAL = 5000 // 5 seconds
 
 // ==========================================
 // Data
@@ -72,57 +70,28 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-
-  // Pause auto-refresh when tab is hidden, resume when visible
-  visibilityHandler = () => {
-    if (document.hidden) {
-      if (autoRefresh.value) stopAutoRefresh()
-    } else {
-      if (autoRefresh.value) startAutoRefresh()
-    }
-  }
-  document.addEventListener('visibilitychange', visibilityHandler)
-})
-
-let visibilityHandler = null
-
-onUnmounted(() => {
-  stopAutoRefresh()
-  if (visibilityHandler) {
-    document.removeEventListener('visibilitychange', visibilityHandler)
-  }
 })
 
 // ==========================================
 // Auto-refresh
 // ==========================================
 
+const { start: startAutoRefresh, stop: stopAutoRefresh } = usePolling(async () => {
+  try {
+    const s = signal()
+    await Promise.all([
+      hardwareStore.fetchBME280({ signal: s }),
+      hardwareStore.fetch1Wire({ signal: s })
+    ])
+  } catch {
+    // Silently handle — next tick retries
+  }
+}, 5000, { immediate: false, pauseWhenHidden: true, autoStart: false })
+
 watch(autoRefresh, (enabled) => {
   if (enabled) startAutoRefresh()
   else stopAutoRefresh()
 })
-
-function startAutoRefresh() {
-  stopAutoRefresh()
-  refreshTimer.value = setInterval(async () => {
-    try {
-      const s = signal()
-      await Promise.all([
-        hardwareStore.fetchBME280({ signal: s }),
-        hardwareStore.fetch1Wire({ signal: s })
-      ])
-    } catch {
-      // Silently handle — next tick retries
-    }
-  }, AUTO_REFRESH_INTERVAL)
-}
-
-function stopAutoRefresh() {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value)
-    refreshTimer.value = null
-  }
-}
 
 // ==========================================
 // Actions

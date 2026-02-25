@@ -19,6 +19,7 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 
 import { confirm } from '@/utils/confirmDialog'
 
@@ -238,26 +239,12 @@ const headerSubtitle = computed(() => {
     </PageHeader>
 
     <!-- Tabs -->
-    <div
-      role="tablist"
+    <TabBar
+      :model-value="activeTab"
+      @update:model-value="setTab"
+      :tabs="TAB_DEFS"
       aria-label="Apps sections"
-      class="flex items-center gap-1 p-1 bg-theme-tertiary rounded-lg overflow-x-auto scrollbar-hide"
-    >
-      <button
-        v-for="tab in TAB_DEFS"
-        :key="tab.key"
-        role="tab"
-        :aria-selected="activeTab === tab.key"
-        @click="setTab(tab.key)"
-        class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0"
-        :class="activeTab === tab.key
-          ? 'bg-theme-card text-theme-primary shadow-sm'
-          : 'text-theme-secondary hover:text-theme-primary'"
-      >
-        <Icon :name="tab.icon" :size="16" class="hidden sm:block" />
-        {{ tab.label }}
-      </button>
-    </div>
+    />
 
     <!-- Tab Content -->
     <MyAppsTab

@@ -11,10 +11,12 @@
  * Self-manages its own data fetching and polling.
  */
 import { ref, computed, onMounted, onUnmounted, watch, inject } from 'vue'
+import { usePolling } from '@/composables/usePolling'
 import { useMonitoringStore } from '@/stores/monitoring'
 import { useSystemStore } from '@/stores/system'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
@@ -29,11 +31,11 @@ const wsConnected = inject('wsConnected', ref(false))
 
 // ─── Sub-tabs ───────────────────────────────────────────────
 const activeTab = ref('overview')
-const tabs = [
-  { id: 'overview', label: 'Overview', icon: 'Activity' },
-  { id: 'alerts', label: 'Alerts', icon: 'Bell' },
-  { id: 'settings', label: 'Settings', icon: 'Settings' }
-]
+const subTabs = computed(() => [
+  { key: 'overview', label: 'Overview', icon: 'Activity' },
+  { key: 'alerts', label: 'Alerts', icon: 'Bell', badge: monitoringStore.alertCount > 0 ? monitoringStore.alertCount : null, badgeVariant: 'alert' },
+  { key: 'settings', label: 'Settings', icon: 'Settings' }
+])
 
 // ─── Period selector ────────────────────────────────────────
 const periods = [
@@ -198,9 +200,7 @@ function progressColor(percent) {
 // ─── WS & Polling ───────────────────────────────────────────
 const initialLoaded = ref(false)
 const refreshing = ref(false)
-let pollInterval = null
 const WS_SUBSCRIBER_KEY = 'monitoring-tab'
-const POLL_INTERVAL_MS = 5000
 
 function handleWsMessage(data) {
   if (!data) return
@@ -226,14 +226,11 @@ function handleWsMessage(data) {
   }
 }
 
-function startPolling() {
-  if (pollInterval) return
-  pollInterval = setInterval(() => { monitoringStore.fetchStats() }, POLL_INTERVAL_MS)
-}
-
-function stopPolling() {
-  if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
-}
+const { start: startPolling, stop: stopPolling } = usePolling(
+  () => { monitoringStore.fetchStats() },
+  5000,
+  { immediate: false, pauseWhenHidden: true, autoStart: false }
+)
 
 watch(wsConnected, (isConnected) => {
   if (isConnected) stopPolling()
@@ -251,7 +248,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  stopPolling()
   if (wsUnsubscribe) wsUnsubscribe(WS_SUBSCRIBER_KEY)
   if (saveSuccessTimeout) clearTimeout(saveSuccessTimeout)
   if (saveErrorTimeout) clearTimeout(saveErrorTimeout)
@@ -293,28 +289,12 @@ async function refresh() {
     </div>
 
     <!-- Sub-tab Bar -->
-    <div class="flex gap-1 p-1 bg-theme-tertiary rounded-lg overflow-x-auto" role="tablist" aria-label="Monitoring sections">
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        @click="activeTab = tab.id"
-        role="tab"
-        :aria-selected="activeTab === tab.id"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap"
-        :class="activeTab === tab.id
-          ? 'bg-theme-card text-theme-primary shadow-sm'
-          : 'text-theme-muted hover:text-theme-secondary'"
-      >
-        <Icon :name="tab.icon" :size="14" />
-        {{ tab.label }}
-        <span
-          v-if="tab.id === 'alerts' && monitoringStore.alertCount > 0"
-          class="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-error-muted text-error"
-        >
-          {{ monitoringStore.alertCount }}
-        </span>
-      </button>
-    </div>
+    <TabBar
+      v-model="activeTab"
+      :tabs="subTabs"
+      variant="pill"
+      aria-label="Monitoring sections"
+    />
 
     <!-- Loading Skeleton -->
     <template v-if="!initialLoaded">

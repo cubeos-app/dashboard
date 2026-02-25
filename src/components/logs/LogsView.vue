@@ -20,10 +20,12 @@
  *   - HAL Kernel  → logsStore.fetchHALKernel (NEW)
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { usePolling } from '@/composables/usePolling'
 import api from '@/api/client'
 import { useLogsStore } from '@/stores/logs'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 
 const logsStore = useLogsStore()
 const { signal, abort } = useAbortOnUnmount()
@@ -55,15 +57,15 @@ const containers = ref([])
 // ==========================================
 
 const tabs = [
-  { id: 'system', label: 'System', icon: 'Monitor' },
-  { id: 'container', label: 'Container', icon: 'Box' },
-  { id: 'kernel', label: 'Kernel', icon: 'Cpu' },
-  { id: 'errors', label: 'Errors', icon: 'AlertTriangle' },
-  { id: 'boot', label: 'Boot', icon: 'Power' },
-  { id: 'file', label: 'File', icon: 'FileText' },
-  { id: 'hal-hardware', label: 'HAL Hardware', icon: 'Wrench' },
-  { id: 'hal-journal', label: 'HAL Journal', icon: 'ScrollText' },
-  { id: 'hal-kernel', label: 'HAL Kernel', icon: 'Terminal' }
+  { key: 'system', label: 'System', icon: 'Monitor' },
+  { key: 'container', label: 'Container', icon: 'Box' },
+  { key: 'kernel', label: 'Kernel', icon: 'Cpu' },
+  { key: 'errors', label: 'Errors', icon: 'AlertTriangle' },
+  { key: 'boot', label: 'Boot', icon: 'Power' },
+  { key: 'file', label: 'File', icon: 'FileText' },
+  { key: 'hal-hardware', label: 'HAL Hardware', icon: 'Wrench' },
+  { key: 'hal-journal', label: 'HAL Journal', icon: 'ScrollText' },
+  { key: 'hal-kernel', label: 'HAL Kernel', icon: 'Terminal' }
 ]
 
 const logLevels = [
@@ -284,16 +286,16 @@ function processEntries() {
 // Auto-refresh
 // ==========================================
 
-let refreshInterval = null
 const autoRefresh = ref(false)
+const { start: startLogPolling, stop: stopLogPolling } = usePolling(fetchLogs, 5000, {
+  immediate: false,
+  pauseWhenHidden: true,
+  autoStart: false
+})
 
 watch(autoRefresh, (val) => {
-  if (val) {
-    refreshInterval = setInterval(fetchLogs, 5000)
-  } else {
-    if (refreshInterval) clearInterval(refreshInterval)
-    refreshInterval = null
-  }
+  if (val) startLogPolling()
+  else stopLogPolling()
 })
 
 // Re-fetch on filter changes (debounced to prevent rapid fire)
@@ -316,7 +318,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
   if (filterDebounce) clearTimeout(filterDebounce)
 })
 
@@ -433,25 +434,11 @@ function handleFileSubmit() {
     </div>
 
     <!-- Tabs (horizontal scrollable on mobile) -->
-    <div class="border-b border-theme-primary overflow-x-auto">
-      <nav class="flex gap-1 min-w-max" role="tablist" aria-label="Log sources">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          @click="activeTab = tab.id"
-          role="tab"
-          :aria-selected="activeTab === tab.id"
-          :aria-label="tab.label + ' logs'"
-          class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap"
-          :class="activeTab === tab.id
-            ? 'border-[color:var(--accent-primary)] text-accent'
-            : 'border-transparent text-theme-muted hover:text-theme-primary'"
-        >
-          <Icon :name="tab.icon" :size="14" />
-          {{ tab.label }}
-        </button>
-      </nav>
-    </div>
+    <TabBar
+      v-model="activeTab"
+      :tabs="tabs"
+      aria-label="Log sources"
+    />
 
     <!-- Filters -->
     <div class="flex flex-wrap gap-3">

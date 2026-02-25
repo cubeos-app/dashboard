@@ -18,6 +18,7 @@ import { useSystemStore } from '@/stores/system'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 // Lazy tab panels — G3/G4 will create these files
@@ -36,11 +37,11 @@ const { signal } = useAbortOnUnmount()
 // ==========================================
 
 const tabs = [
-  { id: 'overview', name: 'Overview', icon: 'Monitor' },
-  { id: 'gpio', name: 'GPIO', icon: 'ToggleRight' },
-  { id: 'i2c', name: 'I2C', icon: 'Cable' },
-  { id: 'sensors', name: 'Sensors', icon: 'Thermometer' },
-  { id: 'rtc-watchdog', name: 'RTC / Watchdog', icon: 'Clock' }
+  { key: 'overview', label: 'Overview', icon: 'Monitor' },
+  { key: 'gpio', label: 'GPIO', icon: 'ToggleRight' },
+  { key: 'i2c', label: 'I2C', icon: 'Cable' },
+  { key: 'sensors', label: 'Sensors', icon: 'Thermometer' },
+  { key: 'rtc-watchdog', label: 'RTC / Watchdog', icon: 'Clock' }
 ]
 
 const activeTab = ref('overview')
@@ -319,11 +320,11 @@ async function handleChangeUPS() {
 // Track which tabs have been auto-loaded
 const tabsLoaded = ref({ overview: true })
 
-function onTabChange(tabId) {
-  activeTab.value = tabId
+function onTabChange(key) {
+  activeTab.value = key
   // Load tab data on first visit (lazy loading)
-  if (!tabsLoaded.value[tabId]) {
-    tabsLoaded.value[tabId] = true
+  if (!tabsLoaded.value[key]) {
+    tabsLoaded.value[key] = true
     // GPIO, I2C, Sensors, RTC/Watchdog panels fetch their own data
     // on mount, so just marking as loaded is sufficient
   }
@@ -394,26 +395,12 @@ onUnmounted(() => {
 
     <!-- Tabs -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="border-b border-theme-primary overflow-x-auto">
-        <nav class="-mb-px flex space-x-8" role="tablist" aria-label="Hardware tabs">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            @click="onTabChange(tab.id)"
-            role="tab"
-            :aria-selected="activeTab === tab.id"
-            :class="[
-              activeTab === tab.id
-                ? 'border-accent text-accent'
-                : 'border-transparent text-theme-secondary hover:text-theme-primary hover:border-theme-tertiary',
-              'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2'
-            ]"
-          >
-            <Icon :name="tab.icon" :size="16" />
-            <span>{{ tab.name }}</span>
-          </button>
-        </nav>
-      </div>
+      <TabBar
+        :model-value="activeTab"
+        @update:model-value="onTabChange"
+        :tabs="tabs"
+        aria-label="Hardware tabs"
+      />
     </div>
 
     <!-- Tab Content -->

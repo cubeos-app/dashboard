@@ -13,12 +13,13 @@
  *
  * WebSocket + HTTP fallback polling for system stats is unchanged.
  */
-import { onMounted, ref, onUnmounted, watch, provide } from 'vue'
+import { onMounted, ref, watch, provide } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useBrandingStore } from '@/stores/branding'
 import { useSystemStore } from '@/stores/system'
 import { useWebSocket } from '@/composables/useWebSocket'
+import { usePolling } from '@/composables/usePolling'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useWallpaper } from '@/composables/useWallpaper'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -40,10 +41,6 @@ const { wallpaperStyle, isActive: wallpaperActive } = useWallpaper()
 // Credentials banner
 const credentialsBannerDismissed = ref(false)
 
-// HTTP fallback polling
-let fallbackInterval = null
-const FALLBACK_POLL_MS = 5000
-
 // ─── WebSocket ────────────────────────────────────────────────────
 
 const {
@@ -63,6 +60,13 @@ provide('wsSubscribe', wsSubscribe)
 provide('wsUnsubscribe', wsUnsubscribe)
 provide('wsConnected', wsConnected)
 
+// HTTP fallback polling — starts/stops based on WS connection
+const { start: startFallbackPolling, stop: stopFallbackPolling } = usePolling(
+  () => { systemStore.fetchStats() },
+  5000,
+  { immediate: false, pauseWhenHidden: true, autoStart: false }
+)
+
 watch(wsConnected, (isConnected) => {
   systemStore.setWsConnected(isConnected)
   if (isConnected) {
@@ -71,20 +75,6 @@ watch(wsConnected, (isConnected) => {
     startFallbackPolling()
   }
 })
-
-function startFallbackPolling() {
-  if (fallbackInterval) return
-  fallbackInterval = setInterval(() => {
-    systemStore.fetchStats()
-  }, FALLBACK_POLL_MS)
-}
-
-function stopFallbackPolling() {
-  if (fallbackInterval) {
-    clearInterval(fallbackInterval)
-    fallbackInterval = null
-  }
-}
 
 // ─── Lifecycle ────────────────────────────────────────────────────
 
@@ -109,9 +99,6 @@ watch(() => authStore.isAuthenticated, (isAuth, wasAuth) => {
   }
 })
 
-onUnmounted(() => {
-  stopFallbackPolling()
-})
 </script>
 
 <template>

@@ -13,6 +13,7 @@ import { confirm, confirmState } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import TorToggle from '@/components/swarm/TorToggle.vue'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +26,12 @@ const loading = ref(true)
 const logsLoading = ref(false)
 const actionLoading = ref(false)
 const activeTab = ref('overview')
+const SERVICE_TABS = [
+  { key: 'overview', label: 'Overview', icon: 'LayoutDashboard' },
+  { key: 'logs', label: 'Logs', icon: 'FileText' },
+  { key: 'docker', label: 'Docker', icon: 'Container' },
+  { key: 'settings', label: 'Settings', icon: 'Settings' }
+]
 const dockerLoading = ref(false)
 const dockerDetail = ref(null)
 
@@ -279,22 +286,11 @@ function formatBytes(bytes) {
     <!-- Content -->
     <div v-else-if="app" class="space-y-6">
       <!-- Tabs -->
-      <div class="flex items-center gap-1 border-b border-theme-primary" role="tablist" aria-label="Service details">
-        <button
-          v-for="tab in ['overview', 'logs', 'docker', 'settings']"
-          :key="tab"
-          @click="activeTab = tab"
-          role="tab"
-          :aria-selected="activeTab === tab"
-          :aria-controls="'panel-' + tab"
-          class="px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px"
-          :class="activeTab === tab 
-            ? 'text-accent border-accent' 
-            : 'text-theme-secondary border-transparent hover:text-theme-primary'"
-        >
-          {{ tab }}
-        </button>
-      </div>
+      <TabBar
+        v-model="activeTab"
+        :tabs="SERVICE_TABS"
+        aria-label="Service details"
+      />
       
       <!-- Overview Tab -->
       <div v-if="activeTab === 'overview'" id="panel-overview" role="tabpanel" class="space-y-6">

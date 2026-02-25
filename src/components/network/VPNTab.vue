@@ -9,10 +9,11 @@
  * Stores: vpn.js
  * Emits: refresh (to parent NetworkPage)
  */
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useVPNStore, VPN_TYPES } from '@/stores/vpn'
 import { useMode } from '@/composables/useMode'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { usePolling } from '@/composables/usePolling'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
@@ -75,20 +76,12 @@ async function refresh() {
   emit('refresh')
 }
 
-let statusPollInterval = null
+usePolling(() => {
+  vpnStore.fetchStatus(false, { signal: signal() }).catch(() => {})
+}, 30000, { immediate: false, pauseWhenHidden: true, autoStart: true })
 
 onMounted(() => {
   loadAll()
-  statusPollInterval = setInterval(() => {
-    vpnStore.fetchStatus(false, { signal: signal() }).catch(() => {})
-  }, 30000)
-})
-
-onUnmounted(() => {
-  if (statusPollInterval) {
-    clearInterval(statusPollInterval)
-    statusPollInterval = null
-  }
 })
 
 // Focus add modal when shown

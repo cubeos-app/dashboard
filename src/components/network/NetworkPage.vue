@@ -9,7 +9,7 @@
  *
  * Pattern: Shell → tab components (following S04 AppsPage pattern)
  */
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNetworkStore } from '@/stores/network'
 import { useFirewallStore } from '@/stores/firewall'
@@ -19,8 +19,10 @@ import { useMode } from '@/composables/useMode'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useWallpaper } from '@/composables/useWallpaper'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { usePolling } from '@/composables/usePolling'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 
 import NetworkOverviewTab from './NetworkOverviewTab.vue'
 import WiFiTab from './WiFiTab.vue'
@@ -169,35 +171,7 @@ async function fetchSharedData() {
 }
 
 // ─── Polling ─────────────────────────────────────────────────
-let pollInterval = null
-
-function startPolling() {
-  if (!pollInterval) pollInterval = setInterval(fetchSharedData, 10000)
-}
-
-function stopPolling() {
-  if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
-}
-
-function handleVisibilityChange() {
-  if (document.hidden) {
-    stopPolling()
-  } else {
-    fetchSharedData()
-    startPolling()
-  }
-}
-
-onMounted(() => {
-  fetchSharedData()
-  startPolling()
-  document.addEventListener('visibilitychange', handleVisibilityChange)
-})
-
-onUnmounted(() => {
-  stopPolling()
-  document.removeEventListener('visibilitychange', handleVisibilityChange)
-})
+usePolling(fetchSharedData, 10000, { immediate: true, pauseWhenHidden: true })
 </script>
 
 <template>
@@ -264,30 +238,12 @@ onUnmounted(() => {
     </div>
 
     <!-- Tabs -->
-    <div class="border-b border-theme-primary overflow-x-auto scrollbar-hide">
-      <nav class="flex gap-1 sm:gap-4 min-w-max" role="tablist" aria-label="Network sections">
-        <button
-          v-for="tab in TAB_DEFS"
-          :key="tab.key"
-          @click="setTab(tab.key)"
-          role="tab"
-          :aria-selected="activeTab === tab.key"
-          class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap flex items-center gap-2"
-          :class="activeTab === tab.key
-            ? 'border-[color:var(--accent-primary)] text-accent'
-            : 'border-transparent text-theme-muted hover:text-theme-primary'"
-        >
-          {{ tab.label }}
-          <span
-            v-if="tab.badge"
-            class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full"
-            :class="activeTab === tab.key ? 'bg-accent text-on-accent' : 'bg-theme-tertiary text-theme-secondary'"
-          >
-            {{ tab.badge }}
-          </span>
-        </button>
-      </nav>
-    </div>
+    <TabBar
+      :model-value="activeTab"
+      @update:model-value="setTab"
+      :tabs="TAB_DEFS"
+      aria-label="Network sections"
+    />
 
     <!-- Tab Content -->
     <NetworkOverviewTab

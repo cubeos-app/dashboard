@@ -5,6 +5,7 @@ import { confirm } from '@/utils/confirmDialog'
 import { load as yamlLoad } from 'js-yaml'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,6 +46,12 @@ const backups = ref([])
 const activeTab = ref('compose') // compose, env, backups
 const showDangerConfirm = ref(false)
 const dangerAction = ref(null) // 'save' or 'apply'
+
+const CONFIG_TABS = computed(() => [
+  { key: 'compose', label: 'docker-compose.yml', icon: 'FileCode' },
+  { key: 'env', label: '.env', icon: 'Settings' },
+  { key: 'backups', label: 'Backups', icon: 'History', badge: backups.value.length > 0 ? backups.value.length : null }
+])
 
 // Computed
 const hasChanges = computed(() => {
@@ -347,46 +354,13 @@ watch(() => route.params.appId, () => {
 
     <template v-else>
       <!-- Tabs -->
-      <div role="tablist" aria-label="Configuration editor" class="flex items-center gap-1 p-1 bg-theme-tertiary rounded-lg mb-4 w-fit">
-        <button
-          role="tab"
-          :aria-selected="activeTab === 'compose'"
-          @click="activeTab = 'compose'"
-          class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          :class="activeTab === 'compose' 
-            ? 'bg-theme-card text-theme-primary shadow-sm' 
-            : 'text-theme-secondary hover:text-theme-primary'"
-        >
-          <Icon name="FileCode" :size="14" class="inline mr-1.5" />
-          docker-compose.yml
-        </button>
-        <button
-          role="tab"
-          :aria-selected="activeTab === 'env'"
-          @click="activeTab = 'env'"
-          class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          :class="activeTab === 'env' 
-            ? 'bg-theme-card text-theme-primary shadow-sm' 
-            : 'text-theme-secondary hover:text-theme-primary'"
-        >
-          <Icon name="Settings" :size="14" class="inline mr-1.5" />
-          .env
-        </button>
-        <button
-          role="tab"
-          :aria-selected="activeTab === 'backups'"
-          @click="activeTab = 'backups'"
-          class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
-          :class="activeTab === 'backups' 
-            ? 'bg-theme-card text-theme-primary shadow-sm' 
-            : 'text-theme-secondary hover:text-theme-primary'"
-        >
-          <Icon name="History" :size="14" />
-          Backups
-          <span v-if="backups.length > 0" class="px-1.5 py-0.5 text-[10px] rounded bg-theme-tertiary">
-            {{ backups.length }}
-          </span>
-        </button>
+      <div class="mb-4 w-fit">
+        <TabBar
+          v-model="activeTab"
+          :tabs="CONFIG_TABS"
+          variant="pill"
+          aria-label="Configuration editor"
+        />
       </div>
 
       <!-- Compose Editor -->

@@ -18,11 +18,12 @@
  *   addConfig, deleteConfig, connect, disconnect, setAutoConnect,
  *   getTypeLabel, getTypeIcon, formatDuration
  */
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useVPNStore, VPN_TYPES } from '@/stores/vpn'
 import { confirm } from '@/utils/confirmDialog'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { usePolling } from '@/composables/usePolling'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -90,21 +91,13 @@ async function refresh() {
   await loadAll()
 }
 
-let statusPollInterval = null
+// Poll VPN status every 30s to detect external disconnects
+usePolling(() => {
+  vpnStore.fetchStatus(false, { signal: signal() }).catch(() => {})
+}, 30000, { immediate: false, pauseWhenHidden: true, autoStart: true })
 
 onMounted(() => {
   loadAll()
-  // Poll VPN status every 30s to detect external disconnects
-  statusPollInterval = setInterval(() => {
-    vpnStore.fetchStatus(false, { signal: signal() }).catch(() => {})
-  }, 30000)
-})
-
-onUnmounted(() => {
-  if (statusPollInterval) {
-    clearInterval(statusPollInterval)
-    statusPollInterval = null
-  }
 })
 
 // Focus add modal when shown
