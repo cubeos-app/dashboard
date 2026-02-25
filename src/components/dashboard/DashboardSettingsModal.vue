@@ -1,4 +1,5 @@
 <script setup>
+// TODO: i18n — extract strings to en.json
 /**
  * DashboardSettingsModal.vue — Session 1, Session 9
  *

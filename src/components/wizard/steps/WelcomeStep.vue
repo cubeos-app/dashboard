@@ -7,7 +7,10 @@
  * B39: Device model resolved via /system/info fallback in parent.
  */
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   requirements: { type: Object, default: () => ({}) },
@@ -43,40 +46,40 @@ const swapInfo = computed(() => {
     <div class="w-20 h-20 rounded-2xl bg-accent/20 flex items-center justify-center mx-auto mb-6">
       <img src="/icon.svg" alt="CubeOS" class="w-10 h-10" />
     </div>
-    <h1 class="text-2xl font-bold text-theme-primary mb-3">Welcome to CubeOS</h1>
+    <h1 class="text-2xl font-bold text-theme-primary mb-3">{{ t('wizard.steps.welcome.heading') }}</h1>
     <p class="text-theme-secondary mb-6 max-w-md mx-auto">
-      Let's set up your device. This wizard will guide you through the initial configuration.
+      {{ t('wizard.steps.welcome.description') }}
     </p>
 
     <!-- System Info -->
     <div v-if="requirements" class="bg-theme-secondary rounded-xl p-4 text-left max-w-sm mx-auto">
-      <h3 class="text-sm font-medium text-theme-primary mb-3">System Detected</h3>
+      <h3 class="text-sm font-medium text-theme-primary mb-3">{{ t('wizard.steps.welcome.systemDetected') }}</h3>
       <div class="space-y-2 text-sm">
         <div class="flex justify-between">
-          <span class="text-theme-muted">Device</span>
-          <span class="text-theme-primary">{{ requirements.device_model || 'Detecting...' }}</span>
+          <span class="text-theme-muted">{{ t('wizard.steps.welcome.device') }}</span>
+          <span class="text-theme-primary">{{ requirements.device_model || t('wizard.steps.welcome.detecting') }}</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-theme-muted">RAM</span>
+          <span class="text-theme-muted">{{ t('wizard.steps.welcome.ram') }}</span>
           <span class="text-theme-primary">{{ requirements.total_ram_mb || 0 }} MB</span>
         </div>
         <!-- B36: Swap/ZRAM directly under RAM for logical memory grouping -->
         <div v-if="swapInfo" class="flex justify-between">
-          <span class="text-theme-muted">Swap / ZRAM</span>
+          <span class="text-theme-muted">{{ t('wizard.steps.welcome.swapZram') }}</span>
           <span class="text-theme-primary">{{ swapInfo }}</span>
         </div>
         <div v-else class="flex justify-between">
-          <span class="text-theme-muted">Swap / ZRAM</span>
-          <span class="text-theme-muted">Not configured</span>
+          <span class="text-theme-muted">{{ t('wizard.steps.welcome.swapZram') }}</span>
+          <span class="text-theme-muted">{{ t('wizard.steps.welcome.notConfigured') }}</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-theme-muted">CPU Cores</span>
+          <span class="text-theme-muted">{{ t('wizard.steps.welcome.cpuCores') }}</span>
           <span class="text-theme-primary">{{ requirements.cpu_cores || 0 }}</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-theme-muted">WiFi</span>
+          <span class="text-theme-muted">{{ t('wizard.steps.welcome.wifi') }}</span>
           <span :class="requirements.has_wifi ? 'text-success' : 'text-warning'">
-            {{ requirements.has_wifi ? 'Available' : 'Not detected' }}
+            {{ requirements.has_wifi ? t('wizard.steps.welcome.wifiAvailable') : t('wizard.steps.welcome.wifiNotDetected') }}
           </span>
         </div>
       </div>
@@ -87,7 +90,7 @@ const swapInfo = computed(() => {
       aria-label="Skip setup wizard and use default settings"
       class="mt-6 text-sm text-theme-muted hover:text-theme-secondary transition-colors underline"
     >
-      Skip wizard and use defaults
+      {{ t('wizard.skipDefault') }}
     </button>
   </div>
 </template>

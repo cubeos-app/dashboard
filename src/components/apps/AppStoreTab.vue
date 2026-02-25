@@ -1,4 +1,5 @@
 <script setup>
+// TODO: i18n — extract strings to en.json
 /**
  * AppStoreTab.vue — S04 Component
  *

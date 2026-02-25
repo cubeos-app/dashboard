@@ -5,6 +5,10 @@
  * Configure WiFi access point: SSID, password, channel, country code.
  */
 
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 const props = defineProps({
   modelValue: { type: Object, required: true }
 })
@@ -61,39 +65,39 @@ const COUNTRY_CODES = [
 
 <template>
   <div>
-    <p class="text-theme-secondary mb-6">Configure the WiFi access point that clients will connect to.</p>
+    <p class="text-theme-secondary mb-6">{{ t('wizard.steps.wifi.description') }}</p>
 
     <div class="space-y-4">
       <div>
-        <label for="wifi-ssid" class="block text-sm font-medium text-theme-primary mb-1.5">Network Name (SSID)</label>
+        <label for="wifi-ssid" class="block text-sm font-medium text-theme-primary mb-1.5">{{ t('wizard.steps.wifi.ssid') }}</label>
         <input
           id="wifi-ssid"
           :value="modelValue.wifi_ssid"
           @input="update('wifi_ssid', $event.target.value)"
           type="text"
-          placeholder="CubeOS"
+          :placeholder="t('wizard.steps.wifi.ssidPlaceholder')"
           maxlength="32"
           class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
         />
-        <p class="text-xs text-theme-muted mt-1">The name devices will see when connecting (max 32 chars)</p>
+        <p class="text-xs text-theme-muted mt-1">{{ t('wizard.steps.wifi.ssidHelp') }}</p>
       </div>
 
       <div>
-        <label for="wifi-password" class="block text-sm font-medium text-theme-primary mb-1.5">WiFi Password</label>
+        <label for="wifi-password" class="block text-sm font-medium text-theme-primary mb-1.5">{{ t('wizard.steps.wifi.password') }}</label>
         <input
           id="wifi-password"
           :value="modelValue.wifi_password"
           @input="update('wifi_password', $event.target.value)"
           type="password"
-          placeholder="Leave empty for open network"
+          :placeholder="t('wizard.steps.wifi.passwordPlaceholder')"
           class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
         />
-        <p class="text-xs text-theme-muted mt-1">Minimum 8 characters for WPA2 security</p>
+        <p class="text-xs text-theme-muted mt-1">{{ t('wizard.steps.wifi.passwordHelp') }}</p>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label for="wifi-channel" class="block text-sm font-medium text-theme-primary mb-1.5">Channel</label>
+          <label for="wifi-channel" class="block text-sm font-medium text-theme-primary mb-1.5">{{ t('wizard.steps.wifi.channel') }}</label>
           <select
             id="wifi-channel"
             :value="modelValue.wifi_channel"
@@ -101,14 +105,14 @@ const COUNTRY_CODES = [
             class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent"
           >
             <option v-for="ch in [1,2,3,4,5,6,7,8,9,10,11]" :key="ch" :value="ch">
-              Channel {{ ch }}{{ ch === 6 ? ' (recommended)' : '' }}
+              {{ ch === 6 ? t('wizard.steps.wifi.channelRecommended', { ch }) : t('wizard.steps.wifi.channelDefault', { ch }) }}
             </option>
           </select>
-          <p class="text-xs text-theme-muted mt-1">1, 6, or 11 have least interference</p>
+          <p class="text-xs text-theme-muted mt-1">{{ t('wizard.steps.wifi.channelHelp') }}</p>
         </div>
 
         <div>
-          <label for="wifi-country" class="block text-sm font-medium text-theme-primary mb-1.5">Country / Region</label>
+          <label for="wifi-country" class="block text-sm font-medium text-theme-primary mb-1.5">{{ t('wizard.steps.wifi.country') }}</label>
           <select
             id="wifi-country"
             :value="modelValue.country_code"
@@ -124,7 +128,7 @@ const COUNTRY_CODES = [
               {{ country.label }} ({{ country.code }})
             </option>
           </select>
-          <p class="text-xs text-theme-muted mt-1">Required for WiFi regulatory compliance</p>
+          <p class="text-xs text-theme-muted mt-1">{{ t('wizard.steps.wifi.countryHelp') }}</p>
         </div>
       </div>
     </div>

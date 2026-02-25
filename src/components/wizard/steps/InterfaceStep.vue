@@ -1,4 +1,5 @@
 <script setup>
+// TODO: i18n — extract strings to en.json
 /**
  * InterfaceStep.vue — Batch 6c / T6c-10
  *

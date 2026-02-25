@@ -5,6 +5,10 @@
  * Set hostname and friendly display name.
  */
 
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 const props = defineProps({
   modelValue: { type: Object, required: true }
 })
@@ -18,38 +22,38 @@ function update(field, value) {
 
 <template>
   <div>
-    <p class="text-theme-secondary mb-6">Give your device a name for easy identification on your network.</p>
+    <p class="text-theme-secondary mb-6">{{ t('wizard.steps.device.description') }}</p>
 
     <div class="space-y-4">
       <div>
-        <label for="device-hostname" class="block text-sm font-medium text-theme-primary mb-1.5">Hostname</label>
+        <label for="device-hostname" class="block text-sm font-medium text-theme-primary mb-1.5">{{ t('wizard.steps.device.hostname') }}</label>
         <input
           id="device-hostname"
           :value="modelValue.hostname"
           @input="update('hostname', $event.target.value)"
           type="text"
-          placeholder="cubeos"
+          :placeholder="t('wizard.steps.device.hostnamePlaceholder')"
           class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
         />
         <p class="text-xs text-theme-muted mt-1">
-          Network hostname (e.g., <code class="text-accent">{{ modelValue.hostname || 'cubeos' }}.cube</code>)
+          {{ t('wizard.steps.device.hostnameHelp', { hostname: modelValue.hostname || 'cubeos' }) }}
         </p>
         <p class="mt-1 text-xs text-theme-muted">
-          Note: Hostname changes take effect after reboot.
+          {{ t('wizard.steps.device.hostnameReboot') }}
         </p>
       </div>
 
       <div>
-        <label for="device-display-name" class="block text-sm font-medium text-theme-primary mb-1.5">Display Name</label>
+        <label for="device-display-name" class="block text-sm font-medium text-theme-primary mb-1.5">{{ t('wizard.steps.device.displayName') }}</label>
         <input
           id="device-display-name"
           :value="modelValue.device_name"
           @input="update('device_name', $event.target.value)"
           type="text"
-          placeholder="CubeOS Server"
+          :placeholder="t('wizard.steps.device.displayNamePlaceholder')"
           class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
         />
-        <p class="text-xs text-theme-muted mt-1">Friendly name shown in the dashboard</p>
+        <p class="text-xs text-theme-muted mt-1">{{ t('wizard.steps.device.displayNameHelp') }}</p>
       </div>
     </div>
   </div>

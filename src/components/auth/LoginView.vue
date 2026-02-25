@@ -1,10 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useBrandingStore } from '@/stores/branding'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const route = useRoute()
@@ -65,7 +68,7 @@ async function handleSubmit() {
         <h1 class="text-2xl font-bold text-theme-primary">
           {{ brandingStore.brandNameFormatted.prefix }}<span class="text-accent">{{ brandingStore.brandNameFormatted.accent }}</span>
         </h1>
-        <p class="text-theme-tertiary mt-1 text-xs">Sign in to your dashboard</p>
+        <p class="text-theme-tertiary mt-1 text-xs">{{ t('auth.signInSubtitle') }}</p>
       </div>
 
       <!-- Login form -->
@@ -84,7 +87,7 @@ async function handleSubmit() {
         <!-- Username -->
         <div class="mb-4">
           <label for="username" class="block text-xs font-medium text-theme-secondary mb-1.5">
-            Username
+            {{ t('auth.username') }}
           </label>
           <div class="relative">
             <div class="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted">
@@ -97,7 +100,7 @@ async function handleSubmit() {
               required
               autocomplete="username"
               class="w-full pl-9 pr-3 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
-              placeholder="Enter your username"
+              :placeholder="t('auth.usernamePlaceholder')"
             />
           </div>
         </div>
@@ -105,7 +108,7 @@ async function handleSubmit() {
         <!-- Password -->
         <div class="mb-5">
           <label for="password" class="block text-xs font-medium text-theme-secondary mb-1.5">
-            Password
+            {{ t('auth.password') }}
           </label>
           <div class="relative">
             <div class="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted">
@@ -118,12 +121,12 @@ async function handleSubmit() {
               required
               autocomplete="current-password"
               class="w-full pl-9 pr-10 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
-              placeholder="Enter your password"
+              :placeholder="t('auth.passwordPlaceholder')"
             />
             <button
               type="button"
               @click="showPassword = !showPassword"
-              :aria-label="showPassword ? 'Hide password' : 'Show password'"
+              :aria-label="showPassword ? t('auth.hidePassword') : t('auth.showPassword')"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-secondary transition-colors"
             >
               <Icon :name="showPassword ? 'EyeOff' : 'Eye'" :size="16" />
@@ -138,7 +141,7 @@ async function handleSubmit() {
           class="w-full py-2.5 px-4 btn-accent font-medium rounded-lg transition-all flex items-center justify-center gap-2 shadow-theme-sm hover:shadow-theme-md disabled:opacity-50 text-sm"
         >
           <Icon v-if="authStore.loading" name="Loader2" :size="18" class="animate-spin" />
-          <span>{{ authStore.loading ? 'Signing in...' : 'Sign in' }}</span>
+          <span>{{ authStore.loading ? t('auth.signingIn') : t('auth.signIn') }}</span>
         </button>
       </form>
 
@@ -156,16 +159,16 @@ async function handleSubmit() {
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
             </svg>
-            GitHub
+            {{ t('nav.github') }}
           </a>
           <span class="text-theme-muted">|</span>
-          <a 
-            href="//api.cubeos.cube/api/v1/swagger/index.html" 
+          <a
+            href="//api.cubeos.cube/api/v1/swagger/index.html"
             target="_blank"
             class="text-theme-tertiary hover:text-theme-secondary transition-colors flex items-center gap-1"
           >
             <Icon name="Code2" :size="12" />
-            API Docs
+            {{ t('nav.apiDocs') }}
           </a>
         </div>
       </div>

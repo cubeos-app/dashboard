@@ -19,6 +19,7 @@
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useSystemStore } from '@/stores/system'
 import { useAppsStore } from '@/stores/apps'
 import { useFavoritesStore } from '@/stores/favorites'
@@ -38,6 +39,7 @@ import PresetPickerModal from './PresetPickerModal.vue'
 import AskCubeOS from '@/components/chat/AskCubeOS.vue'
 import ServiceHealthModal from '@/components/services/ServiceHealthModal.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const systemStore = useSystemStore()
 const appsStore = useAppsStore()
@@ -211,8 +213,8 @@ onUnmounted(() => {
       <div
         class="flex items-center gap-1 mr-1"
         :title="wsConnectionState === 'connected'
-          ? 'Live updates active'
-          : 'Polling mode (WebSocket disconnected)'"
+          ? t('dashboard.liveUpdates')
+          : t('dashboard.pollingMode')"
       >
         <span
           class="w-2 h-2 rounded-full transition-colors duration-300"
@@ -224,7 +226,7 @@ onUnmounted(() => {
         <span
           v-if="wsConnectionState === 'connected'"
           class="text-[10px] text-emerald-400 font-medium hidden sm:inline"
-        >Live</span>
+        >{{ t('dashboard.live') }}</span>
       </div>
 
       <!-- Edit mode: undo/redo buttons + done/check button (Session 6) -->
@@ -236,7 +238,7 @@ onUnmounted(() => {
             ? 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary/50'
             : 'text-theme-muted/30 cursor-not-allowed'"
           :disabled="!canUndo"
-          aria-label="Undo (Ctrl+Z)"
+          :aria-label="t('dashboard.undo') + ' (Ctrl+Z)'"
           :title="`Undo (${undoCount})`"
           @click="undo"
         >
@@ -254,7 +256,7 @@ onUnmounted(() => {
             ? 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary/50'
             : 'text-theme-muted/30 cursor-not-allowed'"
           :disabled="!canRedo"
-          aria-label="Redo (Ctrl+Shift+Z)"
+          :aria-label="t('dashboard.redo') + ' (Ctrl+Shift+Z)'"
           :title="`Redo (${redoCount})`"
           @click="redo"
         >
@@ -269,8 +271,8 @@ onUnmounted(() => {
         <button
           class="w-8 h-8 rounded-lg flex items-center justify-center
                  text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors"
-          aria-label="Done editing"
-          title="Done editing (Esc)"
+          :aria-label="t('dashboard.doneEditing')"
+          :title="t('dashboard.doneEditing') + ' (Esc)'"
           @click="toggleEdit"
         >
           <Icon name="Check" :size="18" :stroke-width="2" />
@@ -284,8 +286,8 @@ onUnmounted(() => {
           v-if="isLayoutLocked"
           class="w-8 h-8 rounded-lg flex items-center justify-center
                  text-warning/60 hover:text-warning hover:bg-warning/10 transition-colors"
-          aria-label="Layout is locked"
-          title="Layout is locked. Unlock in Settings."
+          :aria-label="t('dashboard.layoutLocked')"
+          :title="t('dashboard.layoutLockedMessage')"
           @click="handleLockedClick"
         >
           <Icon name="Lock" :size="16" :stroke-width="1.5" />
@@ -296,8 +298,8 @@ onUnmounted(() => {
           v-else
           class="w-8 h-8 rounded-lg flex items-center justify-center
                  text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary/50 transition-colors"
-          aria-label="Edit layout"
-          title="Edit layout"
+          :aria-label="t('dashboard.editLayout')"
+          :title="t('dashboard.editLayout')"
           @click="handleEditToggle"
         >
           <Icon name="Pencil" :size="16" :stroke-width="1.5" />
@@ -307,8 +309,8 @@ onUnmounted(() => {
         <button
           class="w-8 h-8 rounded-lg flex items-center justify-center
                  text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary/50 transition-colors"
-          aria-label="Dashboard settings (Ctrl+,)"
-          title="Dashboard settings (Ctrl+,)"
+          :aria-label="t('dashboard.dashboardSettings') + ' (Ctrl+,)'"
+          :title="t('dashboard.dashboardSettings') + ' (Ctrl+,)'"
           @click="showSettings = true"
         >
           <Icon name="Settings2" :size="18" :stroke-width="1.5" />
@@ -324,7 +326,7 @@ onUnmounted(() => {
                shadow-lg flex items-center gap-2 text-sm text-warning"
       >
         <Icon name="Lock" :size="14" />
-        <span>Layout is locked. Unlock in Settings.</span>
+        <span>{{ t('dashboard.layoutLockedMessage') }}</span>
       </div>
     </Transition>
 
@@ -338,10 +340,9 @@ onUnmounted(() => {
           <Icon name="Zap" :size="16" class="text-accent" />
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-theme-primary">UPS hardware detected</p>
+          <p class="text-sm font-medium text-theme-primary">{{ t('dashboard.upsDetected') }}</p>
           <p class="text-xs text-theme-secondary mt-0.5">
-            A {{ hardwareStore.upsDetection?.suggested_name || 'UPS HAT' }} was detected on this device.
-            Configure it to enable battery monitoring and safe shutdown.
+            {{ t('dashboard.upsDescription', { model: hardwareStore.upsDetection?.suggested_name || 'UPS HAT' }) }}
           </p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
@@ -349,12 +350,12 @@ onUnmounted(() => {
             @click="router.push('/hardware')"
             class="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent text-on-accent hover:bg-accent-hover transition-colors"
           >
-            Configure
+            {{ t('dashboard.configure') }}
           </button>
           <button
             @click="upsBannerDismissed = true"
             class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-            aria-label="Dismiss UPS banner"
+            :aria-label="t('dashboard.dismissUpsBanner')"
           >
             <Icon name="X" :size="14" />
           </button>

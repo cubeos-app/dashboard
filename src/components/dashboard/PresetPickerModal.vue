@@ -1,4 +1,5 @@
 <script setup>
+// TODO: i18n — extract strings to en.json
 /**
  * PresetPickerModal.vue — Session 10
  *

@@ -5,6 +5,10 @@
  * Set timezone and language preferences.
  */
 
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 const props = defineProps({
   modelValue: { type: Object, required: true },
   timezones: { type: Array, default: () => [] }
@@ -19,11 +23,11 @@ function update(field, value) {
 
 <template>
   <div>
-    <p class="text-theme-secondary mb-6">Set your timezone and language preferences.</p>
+    <p class="text-theme-secondary mb-6">{{ t('wizard.steps.locale.description') }}</p>
 
     <div class="space-y-4">
       <div>
-        <label for="locale-timezone" class="block text-sm font-medium text-theme-primary mb-1.5">Timezone</label>
+        <label for="locale-timezone" class="block text-sm font-medium text-theme-primary mb-1.5">{{ t('wizard.steps.locale.timezone') }}</label>
         <select
           id="locale-timezone"
           :value="modelValue.timezone"
@@ -44,7 +48,7 @@ function update(field, value) {
       </div>
 
       <div>
-        <label for="locale-language" class="block text-sm font-medium text-theme-primary mb-1.5">Language</label>
+        <label for="locale-language" class="block text-sm font-medium text-theme-primary mb-1.5">{{ t('wizard.steps.locale.language') }}</label>
         <select
           id="locale-language"
           :value="modelValue.language"

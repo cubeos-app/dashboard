@@ -16,11 +16,14 @@
  */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useSetupStore } from '@/stores/setup'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 import WelcomeStep from './steps/WelcomeStep.vue'
 import AdminStep from './steps/AdminStep.vue'
@@ -45,12 +48,12 @@ const systemStats = ref(null)
 
 // Step definitions — simplified from original 11 to 6 core steps
 const STEPS = [
-  { id: 'welcome', title: 'Welcome', icon: 'Box', required: true },
-  { id: 'admin', title: 'Admin Account', icon: 'UserCog', required: true },
-  { id: 'device', title: 'Device Identity', icon: 'Server', required: true },
-  { id: 'wifi', title: 'WiFi Access Point', icon: 'Wifi', required: true },
-  { id: 'locale', title: 'Time & Language', icon: 'Globe', required: true },
-  { id: 'summary', title: 'Complete', icon: 'CheckCircle', required: true }
+  { id: 'welcome', titleKey: 'wizard.steps.welcome.title', icon: 'Box', required: true },
+  { id: 'admin', titleKey: 'wizard.steps.admin.title', icon: 'UserCog', required: true },
+  { id: 'device', titleKey: 'wizard.steps.device.title', icon: 'Server', required: true },
+  { id: 'wifi', titleKey: 'wizard.steps.wifi.title', icon: 'Wifi', required: true },
+  { id: 'locale', titleKey: 'wizard.steps.locale.title', icon: 'Globe', required: true },
+  { id: 'summary', titleKey: 'wizard.steps.summary.title', icon: 'CheckCircle', required: true }
 ]
 
 // Form data
@@ -187,9 +190,9 @@ function prevStep() {
 
 async function skipWizard() {
   if (!await confirm({
-    title: 'Skip Setup Wizard',
-    message: 'Are you sure? You can run it again later from Settings.',
-    confirmText: 'Skip',
+    title: t('wizard.skipSetup'),
+    message: t('wizard.skipConfirm'),
+    confirmText: t('wizard.skip'),
     variant: 'warning'
   })) return
 
@@ -223,9 +226,9 @@ async function finishSetup() {
     if (ssidChanged) parts.push(`SSID to "${config.value.wifi_ssid}"`)
     if (passwordChanged) parts.push('the WiFi password')
     const confirmed = await confirm({
-      title: 'WiFi Settings Changed',
-      message: `You changed ${parts.join(' and ')}. Applying these settings will restart the access point and disconnect your current session. After setup completes, reconnect to the new network and sign in.`,
-      confirmText: 'Apply & Disconnect',
+      title: t('wizard.wifiChanged'),
+      message: t('wizard.wifiChangedMessage', { changes: parts.join(' and ') }),
+      confirmText: t('wizard.wifiApplyDisconnect'),
       variant: 'warning'
     })
     if (!confirmed) return
@@ -255,7 +258,7 @@ onMounted(() => { loadSetupData() })
       <!-- Loading -->
       <div v-if="loading" class="text-center py-12">
         <Icon name="Loader2" :size="48" class="animate-spin text-accent mx-auto mb-4" />
-        <p class="text-theme-secondary">Loading setup wizard...</p>
+        <p class="text-theme-secondary">{{ t('wizard.loadingSetup') }}</p>
       </div>
 
       <!-- Wizard Card -->
@@ -268,8 +271,8 @@ onMounted(() => { loadSetupData() })
                 <Icon :name="currentStepData.icon || 'Settings'" :size="20" class="text-accent" />
               </div>
               <div>
-                <h2 class="font-semibold text-theme-primary">{{ currentStepData.title }}</h2>
-                <p class="text-xs text-theme-muted">Step {{ currentStep + 1 }} of {{ totalSteps }}</p>
+                <h2 class="font-semibold text-theme-primary">{{ t(currentStepData.titleKey) }}</h2>
+                <p class="text-xs text-theme-muted">{{ t('wizard.stepOf', { current: currentStep + 1, total: totalSteps }) }}</p>
               </div>
             </div>
           </div>
@@ -280,7 +283,7 @@ onMounted(() => { loadSetupData() })
             :aria-valuenow="currentStep + 1"
             :aria-valuemin="1"
             :aria-valuemax="totalSteps"
-            :aria-label="`Setup progress: step ${currentStep + 1} of ${totalSteps}`"
+            :aria-label="t('wizard.setupProgress', { current: currentStep + 1, total: totalSteps })"
           >
             <div
               class="h-full bg-accent transition-all duration-500 ease-out"
@@ -334,23 +337,23 @@ onMounted(() => { loadSetupData() })
           <button
             v-if="!isFirstStep"
             @click="prevStep"
-            :aria-label="`Back to step ${currentStep}: ${STEPS[currentStep - 1]?.title || 'previous'}`"
+            :aria-label="t('wizard.back')"
             class="flex items-center gap-2 px-4 py-2 rounded-lg border border-theme-primary text-theme-secondary hover:bg-theme-tertiary transition-colors"
           >
             <Icon name="ChevronLeft" :size="16" />
-            Back
+            {{ t('wizard.back') }}
           </button>
           <div v-else></div>
 
           <button
             @click="nextStep"
             :disabled="!canProceed || saving"
-            :aria-label="isLastStep ? 'Finish setup' : `Continue to step ${currentStep + 2}`"
+            :aria-label="isLastStep ? t('wizard.finishSetup') : t('wizard.continue')"
             class="flex items-center gap-2 px-6 py-2 rounded-lg btn-accent font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Icon v-if="saving" name="Loader2" :size="16" class="animate-spin" />
             <template v-else>
-              {{ isLastStep ? 'Finish Setup' : 'Continue' }}
+              {{ isLastStep ? t('wizard.finishSetup') : t('wizard.continue') }}
               <Icon v-if="!isLastStep" name="ChevronRight" :size="16" />
             </template>
           </button>
@@ -363,7 +366,7 @@ onMounted(() => { loadSetupData() })
           v-for="(step, index) in STEPS"
           :key="step.id"
           @click="index < currentStep && (currentStep = index)"
-          :aria-label="`Step ${index + 1}: ${step.title}${index === currentStep ? ' (current)' : ''}`"
+          :aria-label="`Step ${index + 1}: ${t(step.titleKey)}${index === currentStep ? ' (current)' : ''}`"
           :aria-current="index === currentStep ? 'step' : undefined"
           class="w-2 h-2 rounded-full transition-all"
           :class="[

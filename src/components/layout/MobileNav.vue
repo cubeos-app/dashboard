@@ -11,10 +11,13 @@
  */
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useHardwareDetection } from '@/composables/useHardwareDetection'
 import Icon from '@/components/ui/Icon.vue'
 import NavDrawer from '@/components/layout/NavDrawer.vue'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -24,10 +27,10 @@ const { hasCommHardware, hasMediaHardware } = useHardwareDetection()
 const drawerOpen = ref(false)
 
 const tabItems = [
-  { path: '/', name: 'Dashboard', icon: 'LayoutDashboard' },
-  { path: '/apps', name: 'Apps', icon: 'Grid3X3' },
-  { path: '/network', name: 'Network', icon: 'Globe' },
-  { path: '/storage', name: 'Storage', icon: 'HardDrive' }
+  { path: '/', nameKey: 'nav.dashboard', icon: 'LayoutDashboard' },
+  { path: '/apps', nameKey: 'nav.apps', icon: 'Grid3X3' },
+  { path: '/network', nameKey: 'nav.network', icon: 'Globe' },
+  { path: '/storage', nameKey: 'nav.storage', icon: 'HardDrive' }
 ]
 
 /** Pages that live under the "More" menu — if active, highlight More tab */
@@ -79,24 +82,24 @@ function onDrawerNavigate(path) {
           v-for="item in tabItems"
           :key="item.path"
           @click="navigate(item.path)"
-          :aria-label="item.name"
+          :aria-label="t(item.nameKey)"
           :aria-current="isActive(item.path) ? 'page' : undefined"
           class="flex-1 flex flex-col items-center justify-center gap-0.5 min-w-[64px] transition-colors"
           :class="isActive(item.path) ? 'text-accent' : 'text-theme-muted'"
         >
           <Icon :name="item.icon" :size="20" />
-          <span class="text-[10px] font-medium leading-tight">{{ item.name }}</span>
+          <span class="text-[10px] font-medium leading-tight">{{ t(item.nameKey) }}</span>
         </button>
 
         <!-- More button -->
         <button
           @click="openDrawer"
-          aria-label="More navigation options"
+          :aria-label="t('nav.more')"
           class="flex-1 flex flex-col items-center justify-center gap-0.5 min-w-[64px] transition-colors"
           :class="isMoreActive() || drawerOpen ? 'text-accent' : 'text-theme-muted'"
         >
           <Icon name="MoreHorizontal" :size="20" />
-          <span class="text-[10px] font-medium leading-tight">More</span>
+          <span class="text-[10px] font-medium leading-tight">{{ t('nav.more') }}</span>
         </button>
       </div>
     </nav>

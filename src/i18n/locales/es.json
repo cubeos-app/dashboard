@@ -1,0 +1,21 @@
+{
+  "nav": {
+    "dashboard": "Panel",
+    "apps": "Aplicaciones",
+    "network": "Red",
+    "storage": "Almacenamiento",
+    "system": "Sistema",
+    "communication": "Comunicacion",
+    "media": "Multimedia",
+    "docs": "Documentacion",
+    "settings": "Configuracion",
+    "terminal": "Terminal",
+    "more": "Mas",
+    "main": "Principal",
+    "hardware": "Hardware",
+    "other": "Otro",
+    "uiMode": "Modo de interfaz",
+    "github": "GitHub",
+    "apiDocs": "Documentacion API"
+  }
+}

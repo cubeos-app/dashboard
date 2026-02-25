@@ -12,6 +12,7 @@
  */
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useSystemStore } from '@/stores/system'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -19,6 +20,8 @@ import { useBrandingStore } from '@/stores/branding'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import Icon from '@/components/ui/Icon.vue'
 import ModeToggle from '@/components/ui/ModeToggle.vue'
+
+const { t } = useI18n()
 
 const systemStore = useSystemStore()
 const authStore = useAuthStore()
@@ -102,13 +105,13 @@ const hostname = computed(() => systemStore.hostname || 'CubeOS')
         <!-- Connection indicator -->
         <div
           class="flex items-center gap-1 px-2 py-1 rounded-md text-xs"
-          :title="wsConnected ? 'Real-time WebSocket connection' : 'Polling (HTTP fallback)'"
+          :title="wsConnected ? t('header.liveConnection') : t('header.pollingConnection')"
         >
           <span
             class="w-1.5 h-1.5 rounded-full"
             :class="wsConnected ? 'bg-success animate-pulse' : 'bg-warning'"
           ></span>
-          <span class="text-theme-muted font-medium">{{ wsConnected ? 'LIVE' : 'POLL' }}</span>
+          <span class="text-theme-muted font-medium">{{ wsConnected ? t('header.live') : t('header.poll') }}</span>
         </div>
 
         <div class="w-px h-3 bg-theme-primary mx-1"></div>
@@ -191,7 +194,7 @@ const hostname = computed(() => systemStore.hostname || 'CubeOS')
         <!-- Settings -->
         <router-link
           to="/settings"
-          aria-label="Settings"
+          :aria-label="t('header.settingsLabel')"
           class="p-2 rounded-lg text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
         >
           <Icon name="Settings" :size="18" />
@@ -200,7 +203,7 @@ const hostname = computed(() => systemStore.hostname || 'CubeOS')
         <!-- User menu -->
         <router-link
           to="/settings"
-          aria-label="User menu"
+          :aria-label="t('header.userMenu')"
           class="flex items-center gap-2 pl-2 ml-1 border-l border-theme-primary"
         >
           <div class="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-theme-tertiary transition-colors">

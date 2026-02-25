@@ -44,6 +44,7 @@
 </template>
 
 <script setup>
+// TODO: i18n — extract strings to en.json
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSetupStore } from '@/stores/setup'

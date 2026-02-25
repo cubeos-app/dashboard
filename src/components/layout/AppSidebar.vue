@@ -17,6 +17,7 @@
  */
 import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAppsStore } from '@/stores/apps'
 import { useRegistryStore } from '@/stores/registry'
 import { useUpdatesStore } from '@/stores/updates'
@@ -26,6 +27,8 @@ import { useMode } from '@/composables/useMode'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useHardwareDetection } from '@/composables/useHardwareDetection'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -51,13 +54,13 @@ const hovered = ref(false)
 // ─── Navigation Items ─────────────────────────────────────────────
 
 const allPrimaryNavItems = [
-  { path: '/', name: 'Dashboard', icon: 'LayoutDashboard' },
-  { path: '/apps', name: 'Apps', icon: 'Grid3X3', badge: () => appsStore.runningCount },
-  { path: '/network', name: 'Network', icon: 'Globe' },
-  { path: '/storage', name: 'Storage', icon: 'HardDrive' },
-  { path: '/system', name: 'System', icon: 'Settings2' },
-  { path: '/communication', name: 'Communication', icon: 'Radio' },
-  { path: '/media', name: 'Media', icon: 'Volume2' }
+  { path: '/', nameKey: 'nav.dashboard', icon: 'LayoutDashboard' },
+  { path: '/apps', nameKey: 'nav.apps', icon: 'Grid3X3', badge: () => appsStore.runningCount },
+  { path: '/network', nameKey: 'nav.network', icon: 'Globe' },
+  { path: '/storage', nameKey: 'nav.storage', icon: 'HardDrive' },
+  { path: '/system', nameKey: 'nav.system', icon: 'Settings2' },
+  { path: '/communication', nameKey: 'nav.communication', icon: 'Radio' },
+  { path: '/media', nameKey: 'nav.media', icon: 'Volume2' }
 ]
 
 const primaryNavItems = computed(() => {
@@ -70,11 +73,11 @@ const primaryNavItems = computed(() => {
 
 const footerNavItems = computed(() => {
   const items = [
-    { path: '/docs', name: 'Docs', icon: 'BookOpen' },
-    { path: '/settings', name: 'Settings', icon: 'SlidersHorizontal' }
+    { path: '/docs', nameKey: 'nav.docs', icon: 'BookOpen' },
+    { path: '/settings', nameKey: 'nav.settings', icon: 'SlidersHorizontal' }
   ]
   if (isAdvanced.value) {
-    items.push({ path: '/terminal', name: 'Terminal', icon: 'Terminal', external: true })
+    items.push({ path: '/terminal', nameKey: 'nav.terminal', icon: 'Terminal', external: true })
   }
   return items
 })
@@ -128,7 +131,7 @@ const sidebarWidth = computed(() => {
         v-for="item in primaryNavItems"
         :key="item.path"
         @click="navigate(item.path)"
-        :aria-label="item.name"
+        :aria-label="t(item.nameKey)"
         :aria-current="isActive(item.path) ? 'page' : undefined"
         class="w-full flex items-center gap-2.5 rounded-lg text-sm font-medium transition-all duration-150"
         :class="[
@@ -137,7 +140,7 @@ const sidebarWidth = computed(() => {
             ? 'bg-accent-muted text-accent'
             : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
         ]"
-        :title="!showLabels ? item.name : undefined"
+        :title="!showLabels ? t(item.nameKey) : undefined"
       >
         <Icon
           :name="item.icon"
@@ -149,7 +152,7 @@ const sidebarWidth = computed(() => {
           v-if="showLabels"
           class="flex-1 text-left text-xs whitespace-nowrap overflow-hidden"
         >
-          {{ item.name }}
+          {{ t(item.nameKey) }}
         </span>
         <span
           v-if="showLabels && item.badge && item.badge()"
@@ -167,7 +170,7 @@ const sidebarWidth = computed(() => {
         v-for="item in footerNavItems"
         :key="item.path"
         @click="navigate(item.path)"
-        :aria-label="item.name"
+        :aria-label="t(item.nameKey)"
         :aria-current="!item.external && isActive(item.path) ? 'page' : undefined"
         class="w-full flex items-center gap-2.5 rounded-lg text-sm font-medium transition-all duration-150"
         :class="[
@@ -176,7 +179,7 @@ const sidebarWidth = computed(() => {
             ? 'bg-accent-muted text-accent'
             : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
         ]"
-        :title="!showLabels ? item.name : undefined"
+        :title="!showLabels ? t(item.nameKey) : undefined"
       >
         <Icon
           :name="item.icon"
@@ -185,7 +188,7 @@ const sidebarWidth = computed(() => {
           :class="!item.external && isActive(item.path) ? 'text-accent' : 'text-theme-tertiary'"
         />
         <span v-if="showLabels" class="flex-1 text-left text-xs whitespace-nowrap overflow-hidden">
-          {{ item.name }}
+          {{ t(item.nameKey) }}
         </span>
         <span
           v-if="item.path === '/settings' && (registryStore.hasUpdates || updatesStore.hasUpdate)"
@@ -212,7 +215,7 @@ const sidebarWidth = computed(() => {
           <svg class="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 24 24">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
           </svg>
-          <span class="font-mono">GitHub</span>
+          <span class="font-mono">{{ t('nav.github') }}</span>
         </a>
         <a
           href="//api.cubeos.cube/api/v1/swagger/index.html"
@@ -221,7 +224,7 @@ const sidebarWidth = computed(() => {
           class="flex items-center gap-1.5 text-[10px] text-theme-muted hover:text-theme-tertiary transition-colors mt-1"
         >
           <Icon name="Code2" :size="12" />
-          <span>API Docs</span>
+          <span>{{ t('nav.apiDocs') }}</span>
         </a>
       </div>
     </div>
