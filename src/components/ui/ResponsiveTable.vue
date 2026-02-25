@@ -45,7 +45,7 @@ const props = defineProps({
   },
   /** Unique key field on each row object */
   rowKey: {
-    type: String,
+    type: [String, Function],
     default: 'id'
   },
   /** Text shown when rows is empty */
@@ -67,10 +67,35 @@ const props = defineProps({
   compact: {
     type: Boolean,
     default: false
+  },
+  /** Function returning CSS class(es) for a row: (row) => string|object */
+  rowClass: {
+    type: Function,
+    default: null
+  },
+  /** Key of the currently expanded row (v-model:expandedKey) */
+  expandedKey: {
+    type: [String, Number],
+    default: null
   }
 })
 
-defineEmits(['row-click'])
+const emit = defineEmits(['row-click', 'update:expandedKey'])
+
+function getRowKey(row) {
+  if (typeof props.rowKey === 'function') return props.rowKey(row)
+  return row[props.rowKey]
+}
+
+function handleRowClick(row) {
+  if (slots['row-expand']) {
+    const key = getRowKey(row)
+    emit('update:expandedKey', props.expandedKey === key ? null : key)
+  }
+  emit('row-click', row)
+}
+
+const slots = defineSlots()
 
 const { isMobile } = useBreakpoint()
 
@@ -149,30 +174,38 @@ const sortedRows = computed(() => {
 
       <!-- Data rows -->
       <tbody v-else-if="sortedRows.length > 0">
-        <tr
-          v-for="row in sortedRows"
-          :key="row[rowKey]"
-          class="border-b border-theme-primary hover:bg-theme-secondary/50 transition-colors"
-          :class="$attrs['onRow-click'] ? 'cursor-pointer' : ''"
-          @click="$emit('row-click', row)"
-        >
-          <td
-            v-for="col in columns"
-            :key="col.key"
-            class="px-3"
+        <template v-for="row in sortedRows" :key="getRowKey(row)">
+          <tr
+            class="border-b border-theme-primary hover:bg-theme-secondary/50 transition-colors"
             :class="[
-              compact ? 'py-2' : 'py-3',
-              col.align === 'right' ? 'text-right' : ''
+              $attrs['onRow-click'] || $slots['row-expand'] ? 'cursor-pointer' : '',
+              rowClass ? rowClass(row) : ''
             ]"
+            @click="handleRowClick(row)"
           >
-            <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
-              {{ row[col.key] ?? '-' }}
-            </slot>
-          </td>
-          <td v-if="$slots['row-actions']" class="px-2 text-right">
-            <slot name="row-actions" :row="row" />
-          </td>
-        </tr>
+            <td
+              v-for="col in columns"
+              :key="col.key"
+              class="px-3"
+              :class="[
+                compact ? 'py-2' : 'py-3',
+                col.align === 'right' ? 'text-right' : ''
+              ]"
+            >
+              <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
+                {{ row[col.key] ?? '-' }}
+              </slot>
+            </td>
+            <td v-if="$slots['row-actions']" class="px-2 text-right">
+              <slot name="row-actions" :row="row" />
+            </td>
+          </tr>
+          <tr v-if="$slots['row-expand'] && expandedKey === getRowKey(row)">
+            <td :colspan="columns.length + ($slots['row-actions'] ? 1 : 0)" class="p-0">
+              <slot name="row-expand" :row="row" />
+            </td>
+          </tr>
+        </template>
       </tbody>
 
       <!-- Empty state -->
@@ -205,10 +238,13 @@ const sortedRows = computed(() => {
     <template v-else-if="sortedRows.length > 0">
       <div
         v-for="row in sortedRows"
-        :key="row[rowKey]"
+        :key="getRowKey(row)"
         class="bg-theme-card border border-theme-primary rounded-lg p-3"
-        :class="$attrs['onRow-click'] ? 'cursor-pointer active:bg-theme-secondary/50' : ''"
-        @click="$emit('row-click', row)"
+        :class="[
+          $attrs['onRow-click'] || $slots['row-expand'] ? 'cursor-pointer active:bg-theme-secondary/50' : '',
+          rowClass ? rowClass(row) : ''
+        ]"
+        @click="handleRowClick(row)"
       >
         <div class="space-y-1.5">
           <div
@@ -227,6 +263,10 @@ const sortedRows = computed(() => {
 
         <div v-if="$slots['row-actions']" class="mt-2 pt-2 border-t border-theme-primary flex justify-end gap-2">
           <slot name="row-actions" :row="row" />
+        </div>
+
+        <div v-if="$slots['row-expand'] && expandedKey === getRowKey(row)" class="mt-2 pt-2 border-t border-theme-primary">
+          <slot name="row-expand" :row="row" />
         </div>
       </div>
     </template>

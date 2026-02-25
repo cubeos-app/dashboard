@@ -19,6 +19,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useStorageHalStore } from '@/stores/storage-hal'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 
 const storageHalStore = useStorageHalStore()
 
@@ -166,10 +167,6 @@ async function resetDevice(device) {
 // Helpers
 // ==========================================
 
-function toggleExpand(deviceKey) {
-  expandedDevice.value = expandedDevice.value === deviceKey ? null : deviceKey
-}
-
 function deviceKey(device) {
   return device.device || device.path || `${device.bus}:${device.port}`
 }
@@ -313,286 +310,137 @@ function formatSize(bytes) {
         >{{ cls }}</button>
       </div>
 
-      <!-- Desktop table -->
-      <div class="hidden md:block overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-theme-muted border-b border-theme-primary text-xs">
-              <th class="py-2 px-3">Device</th>
-              <th class="py-2 px-3">Vendor</th>
-              <th class="py-2 px-3">Class</th>
-              <th class="py-2 px-3">Bus</th>
-              <th class="py-2 px-3">Status</th>
-              <th class="py-2 px-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="device in filteredDevices" :key="deviceKey(device)">
-              <tr
-                class="border-b border-theme-primary/50 hover:bg-theme-card cursor-pointer transition-colors"
-                @click="toggleExpand(deviceKey(device))"
-              >
-                <td class="py-3 px-3">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                      :class="isStorageDevice(device) ? 'bg-accent-muted' : 'bg-theme-tertiary'"
-                    >
-                      <Icon :name="classIcon(device.class || device.type)" :size="16"
-                        :class="isStorageDevice(device) ? 'text-accent' : 'text-theme-muted'"
-                      />
-                    </div>
-                    <div class="min-w-0">
-                      <p class="font-medium text-theme-primary truncate">
-                        {{ device.product || device.name || device.description || 'USB Device' }}
-                      </p>
-                      <p v-if="device.device || device.path" class="text-xs text-theme-muted font-mono truncate">
-                        {{ device.device || device.path }}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-                <td class="py-3 px-3 text-theme-secondary text-xs truncate max-w-[140px]">
-                  {{ device.vendor || device.manufacturer || '-' }}
-                </td>
-                <td class="py-3 px-3">
-                  <span
-                    class="px-2 py-0.5 text-[10px] font-semibold rounded-full capitalize"
-                    :class="classBadgeClass(device.class || device.type)"
-                  >{{ device.class || device.type || 'device' }}</span>
-                </td>
-                <td class="py-3 px-3 text-theme-muted text-xs font-mono">
-                  {{ device.bus || '-' }}{{ device.port ? ':' + device.port : '' }}
-                </td>
-                <td class="py-3 px-3">
-                  <span v-if="isMounted(device)" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-success-muted text-success">Mounted</span>
-                  <span v-else-if="isStorageDevice(device)" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-theme-tertiary text-theme-muted">Not Mounted</span>
-                </td>
-                <td class="py-3 px-3 text-right" @click.stop>
-                  <div class="flex items-center justify-end gap-1">
-                    <template v-if="isDeviceLoading(device)">
-                      <Icon name="Loader2" :size="14" class="animate-spin text-theme-muted" />
-                    </template>
-                    <template v-else-if="isStorageDevice(device)">
-                      <button
-                        v-if="!isMounted(device)"
-                        @click="mountDevice(device)"
-                        class="p-1.5 text-theme-muted hover:text-success rounded-lg hover:bg-success-muted"
-                        title="Mount"
-                        :aria-label="'Mount ' + (device.product || device.name || device.device || 'device')"
-                      >
-                        <Icon name="FolderInput" :size="14" />
-                      </button>
-                      <button
-                        v-if="isMounted(device)"
-                        @click="unmountDevice(device)"
-                        class="p-1.5 text-theme-muted hover:text-warning rounded-lg hover:bg-warning-muted"
-                        title="Unmount"
-                        :aria-label="'Unmount ' + (device.product || device.name || device.device || 'device')"
-                      >
-                        <Icon name="FolderOutput" :size="14" />
-                      </button>
-                      <button
-                        @click="ejectDevice(device)"
-                        class="p-1.5 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted"
-                        title="Eject"
-                        :aria-label="'Eject ' + (device.product || device.name || device.device || 'device')"
-                      >
-                        <Icon name="Eject" :size="14" />
-                      </button>
-                    </template>
-                    <button
-                      v-if="device.bus"
-                      @click="resetDevice(device)"
-                      class="p-1.5 text-theme-muted hover:text-theme-secondary rounded-lg hover:bg-theme-tertiary"
-                      title="Reset USB port"
-                      :aria-label="'Reset ' + (device.product || device.name || device.device || 'device')"
-                    >
-                      <Icon name="RotateCcw" :size="14" />
-                    </button>
-                    <Icon
-                      name="ChevronDown"
-                      :size="14"
-                      class="text-theme-muted transition-transform ml-1"
-                      :class="{ 'rotate-180': expandedDevice === deviceKey(device) }"
-                    />
-                  </div>
-                </td>
-              </tr>
-
-              <!-- Expanded detail row -->
-              <tr v-if="expandedDevice === deviceKey(device)">
-                <td colspan="6" class="px-3 pb-4 pt-2">
-                  <div class="bg-theme-secondary/30 rounded-lg p-4">
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                      <div v-if="device.vendor_id || device.product_id">
-                        <span class="text-xs text-theme-muted block">ID</span>
-                        <span class="text-theme-primary font-mono text-xs">
-                          {{ device.vendor_id || '----' }}:{{ device.product_id || '----' }}
-                        </span>
-                      </div>
-                      <div v-if="device.serial">
-                        <span class="text-xs text-theme-muted block">Serial</span>
-                        <span class="text-theme-primary font-mono text-xs truncate block">{{ device.serial }}</span>
-                      </div>
-                      <div v-if="device.speed">
-                        <span class="text-xs text-theme-muted block">Speed</span>
-                        <span class="text-theme-primary text-xs">{{ device.speed }}</span>
-                      </div>
-                      <div v-if="device.driver">
-                        <span class="text-xs text-theme-muted block">Driver</span>
-                        <span class="text-theme-primary text-xs">{{ device.driver }}</span>
-                      </div>
-                      <div v-if="device.mountpoint">
-                        <span class="text-xs text-theme-muted block">Mount Point</span>
-                        <span class="text-theme-primary font-mono text-xs">{{ device.mountpoint }}</span>
-                      </div>
-                      <div v-if="device.filesystem">
-                        <span class="text-xs text-theme-muted block">Filesystem</span>
-                        <span class="text-theme-primary text-xs">{{ device.filesystem }}</span>
-                      </div>
-                      <div v-if="device.size">
-                        <span class="text-xs text-theme-muted block">Size</span>
-                        <span class="text-theme-primary text-xs">{{ formatSize(device.size) }}</span>
-                      </div>
-                      <div v-if="device.label">
-                        <span class="text-xs text-theme-muted block">Label</span>
-                        <span class="text-theme-primary text-xs">{{ device.label }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Mobile card layout -->
-      <div class="md:hidden space-y-3">
-        <div
-          v-for="device in filteredDevices"
-          :key="'m-' + deviceKey(device)"
-          class="bg-theme-card rounded-xl border border-theme-primary overflow-hidden"
-        >
-          <!-- Device header -->
-          <div class="p-4 flex items-center gap-3" @click="toggleExpand(deviceKey(device))">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-              :class="isStorageDevice(device) ? 'bg-accent-muted' : 'bg-theme-tertiary'"
+      <ResponsiveTable
+        :columns="[
+          { key: 'product', label: 'Device' },
+          { key: 'vendor', label: 'Vendor' },
+          { key: 'class', label: 'Class' },
+          { key: 'bus', label: 'Bus' },
+          { key: 'status', label: 'Status' }
+        ]"
+        :rows="filteredDevices"
+        :row-key="(row) => deviceKey(row)"
+        v-model:expanded-key="expandedDevice"
+        compact
+      >
+        <template #cell-product="{ row }">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              :class="isStorageDevice(row) ? 'bg-accent-muted' : 'bg-theme-tertiary'"
             >
-              <Icon :name="classIcon(device.class || device.type)" :size="20"
-                :class="isStorageDevice(device) ? 'text-accent' : 'text-theme-muted'"
+              <Icon :name="classIcon(row.class || row.type)" :size="16"
+                :class="isStorageDevice(row) ? 'text-accent' : 'text-theme-muted'"
               />
             </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-theme-primary truncate">
-                {{ device.product || device.name || device.description || 'USB Device' }}
+            <div class="min-w-0">
+              <p class="font-medium text-theme-primary truncate">
+                {{ row.product || row.name || row.description || 'USB Device' }}
               </p>
-              <p class="text-xs text-theme-muted truncate">
-                {{ device.vendor || device.manufacturer || '' }}
-                <span v-if="device.bus"> · Bus {{ device.bus }}</span>
+              <p v-if="row.device || row.path" class="text-xs text-theme-muted font-mono truncate">
+                {{ row.device || row.path }}
               </p>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-              <span
-                class="px-2 py-0.5 text-[10px] font-semibold rounded-full capitalize"
-                :class="classBadgeClass(device.class || device.type)"
-              >{{ device.class || device.type || 'device' }}</span>
-              <Icon
-                name="ChevronDown"
-                :size="14"
-                class="text-theme-muted transition-transform"
-                :class="{ 'rotate-180': expandedDevice === deviceKey(device) }"
-              />
             </div>
           </div>
-
-          <!-- Expanded detail + actions -->
-          <div v-if="expandedDevice === deviceKey(device)" class="px-4 pb-4 border-t border-theme-primary/50">
-            <div class="pt-3 grid grid-cols-2 gap-3 text-sm">
-              <div v-if="device.device || device.path">
-                <span class="text-xs text-theme-muted block">Device</span>
-                <span class="text-theme-primary font-mono text-xs">{{ device.device || device.path }}</span>
-              </div>
-              <div v-if="device.vendor_id || device.product_id">
+        </template>
+        <template #cell-vendor="{ row }">
+          <span class="text-theme-secondary text-xs truncate">{{ row.vendor || row.manufacturer || '-' }}</span>
+        </template>
+        <template #cell-class="{ row }">
+          <span
+            class="px-2 py-0.5 text-[10px] font-semibold rounded-full capitalize"
+            :class="classBadgeClass(row.class || row.type)"
+          >{{ row.class || row.type || 'device' }}</span>
+        </template>
+        <template #cell-bus="{ row }">
+          <span class="text-theme-muted text-xs font-mono">{{ row.bus || '-' }}{{ row.port ? ':' + row.port : '' }}</span>
+        </template>
+        <template #cell-status="{ row }">
+          <span v-if="isMounted(row)" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-success-muted text-success">Mounted</span>
+          <span v-else-if="isStorageDevice(row)" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-theme-tertiary text-theme-muted">Not Mounted</span>
+        </template>
+        <template #row-actions="{ row }">
+          <div class="flex items-center justify-end gap-1" @click.stop>
+            <template v-if="isDeviceLoading(row)">
+              <Icon name="Loader2" :size="14" class="animate-spin text-theme-muted" />
+            </template>
+            <template v-else-if="isStorageDevice(row)">
+              <button
+                v-if="!isMounted(row)"
+                @click="mountDevice(row)"
+                class="p-1.5 text-theme-muted hover:text-success rounded-lg hover:bg-success-muted"
+                title="Mount"
+                :aria-label="'Mount ' + (row.product || row.name || row.device || 'device')"
+              >
+                <Icon name="FolderInput" :size="14" />
+              </button>
+              <button
+                v-if="isMounted(row)"
+                @click="unmountDevice(row)"
+                class="p-1.5 text-theme-muted hover:text-warning rounded-lg hover:bg-warning-muted"
+                title="Unmount"
+                :aria-label="'Unmount ' + (row.product || row.name || row.device || 'device')"
+              >
+                <Icon name="FolderOutput" :size="14" />
+              </button>
+              <button
+                @click="ejectDevice(row)"
+                class="p-1.5 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted"
+                title="Eject"
+                :aria-label="'Eject ' + (row.product || row.name || row.device || 'device')"
+              >
+                <Icon name="Eject" :size="14" />
+              </button>
+            </template>
+            <button
+              v-if="row.bus"
+              @click="resetDevice(row)"
+              class="p-1.5 text-theme-muted hover:text-theme-secondary rounded-lg hover:bg-theme-tertiary"
+              title="Reset USB port"
+              :aria-label="'Reset ' + (row.product || row.name || row.device || 'device')"
+            >
+              <Icon name="RotateCcw" :size="14" />
+            </button>
+          </div>
+        </template>
+        <template #row-expand="{ row }">
+          <div class="p-4 bg-theme-secondary/30 rounded-lg">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              <div v-if="row.vendor_id || row.product_id">
                 <span class="text-xs text-theme-muted block">ID</span>
-                <span class="text-theme-primary font-mono text-xs">{{ device.vendor_id || '----' }}:{{ device.product_id || '----' }}</span>
+                <span class="text-theme-primary font-mono text-xs">{{ row.vendor_id || '----' }}:{{ row.product_id || '----' }}</span>
               </div>
-              <div v-if="device.serial">
+              <div v-if="row.serial">
                 <span class="text-xs text-theme-muted block">Serial</span>
-                <span class="text-theme-primary font-mono text-xs truncate block">{{ device.serial }}</span>
+                <span class="text-theme-primary font-mono text-xs truncate block">{{ row.serial }}</span>
               </div>
-              <div v-if="device.speed">
+              <div v-if="row.speed">
                 <span class="text-xs text-theme-muted block">Speed</span>
-                <span class="text-theme-primary text-xs">{{ device.speed }}</span>
+                <span class="text-theme-primary text-xs">{{ row.speed }}</span>
               </div>
-              <div v-if="device.mountpoint">
+              <div v-if="row.driver">
+                <span class="text-xs text-theme-muted block">Driver</span>
+                <span class="text-theme-primary text-xs">{{ row.driver }}</span>
+              </div>
+              <div v-if="row.mountpoint">
                 <span class="text-xs text-theme-muted block">Mount Point</span>
-                <span class="text-theme-primary font-mono text-xs">{{ device.mountpoint }}</span>
+                <span class="text-theme-primary font-mono text-xs">{{ row.mountpoint }}</span>
               </div>
-              <div v-if="device.size">
+              <div v-if="row.filesystem">
+                <span class="text-xs text-theme-muted block">Filesystem</span>
+                <span class="text-theme-primary text-xs">{{ row.filesystem }}</span>
+              </div>
+              <div v-if="row.size">
                 <span class="text-xs text-theme-muted block">Size</span>
-                <span class="text-theme-primary text-xs">{{ formatSize(device.size) }}</span>
+                <span class="text-theme-primary text-xs">{{ formatSize(row.size) }}</span>
               </div>
-            </div>
-
-            <!-- Mounted status -->
-            <div v-if="isStorageDevice(device)" class="mt-3 flex items-center gap-2">
-              <span
-                class="px-2 py-0.5 text-[10px] font-semibold rounded-full"
-                :class="isMounted(device) ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'"
-              >{{ isMounted(device) ? 'Mounted' : 'Not Mounted' }}</span>
-            </div>
-
-            <!-- Action buttons -->
-            <div class="mt-3 flex flex-wrap gap-2">
-              <template v-if="isDeviceLoading(device)">
-                <span class="flex items-center gap-2 text-sm text-theme-muted">
-                  <Icon name="Loader2" :size="14" class="animate-spin" />
-                  Working...
-                </span>
-              </template>
-              <template v-else>
-                <button
-                  v-if="isStorageDevice(device) && !isMounted(device)"
-                  @click.stop="mountDevice(device)"
-                  class="px-3 py-1.5 text-xs bg-success-muted text-success rounded-lg hover:bg-success/20 flex items-center gap-1.5"
-                  :aria-label="'Mount ' + (device.product || device.name || device.device || 'device')"
-                >
-                  <Icon name="FolderInput" :size="12" />
-                  Mount
-                </button>
-                <button
-                  v-if="isStorageDevice(device) && isMounted(device)"
-                  @click.stop="unmountDevice(device)"
-                  class="px-3 py-1.5 text-xs bg-warning-muted text-warning rounded-lg hover:bg-warning/20 flex items-center gap-1.5"
-                  :aria-label="'Unmount ' + (device.product || device.name || device.device || 'device')"
-                >
-                  <Icon name="FolderOutput" :size="12" />
-                  Unmount
-                </button>
-                <button
-                  v-if="isStorageDevice(device)"
-                  @click.stop="ejectDevice(device)"
-                  class="px-3 py-1.5 text-xs bg-error-muted text-error rounded-lg hover:bg-error/20 flex items-center gap-1.5"
-                  :aria-label="'Eject ' + (device.product || device.name || device.device || 'device')"
-                >
-                  <Icon name="Eject" :size="12" />
-                  Eject
-                </button>
-                <button
-                  v-if="device.bus"
-                  @click.stop="resetDevice(device)"
-                  class="px-3 py-1.5 text-xs bg-theme-tertiary text-theme-secondary rounded-lg hover:bg-theme-secondary/50 flex items-center gap-1.5"
-                  :aria-label="'Reset ' + (device.product || device.name || device.device || 'device')"
-                >
-                  <Icon name="RotateCcw" :size="12" />
-                  Reset
-                </button>
-              </template>
+              <div v-if="row.label">
+                <span class="text-xs text-theme-muted block">Label</span>
+                <span class="text-theme-primary text-xs">{{ row.label }}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </template>
+      </ResponsiveTable>
     </template>
 
     <!-- ==================== Storage Devices View ==================== -->

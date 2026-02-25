@@ -15,6 +15,7 @@ import { useUpdatesStore } from '@/stores/updates'
 import { confirm } from '@/utils/confirmDialog'
 import { safeGetRaw } from '@/utils/storage'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 
 const updates = useUpdatesStore()
 
@@ -428,45 +429,38 @@ function statusClass(status) {
         </div>
 
         <!-- History table -->
-        <div v-else class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-theme-primary">
-                <th class="text-left px-4 py-2.5 text-xs font-medium text-theme-tertiary uppercase tracking-wider">Version</th>
-                <th class="text-left px-4 py-2.5 text-xs font-medium text-theme-tertiary uppercase tracking-wider">Status</th>
-                <th class="text-left px-4 py-2.5 text-xs font-medium text-theme-tertiary uppercase tracking-wider hidden sm:table-cell">Date</th>
-                <th class="text-left px-4 py-2.5 text-xs font-medium text-theme-tertiary uppercase tracking-wider hidden sm:table-cell">Duration</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="entry in updates.history"
-                :key="entry.id"
-                class="border-b border-theme-primary last:border-0"
-              >
-                <td class="px-4 py-3">
-                  <span class="text-theme-primary font-medium">{{ entry.from_version }}</span>
-                  <Icon name="ArrowRight" :size="12" class="text-theme-muted mx-1 inline" />
-                  <span class="text-theme-primary font-medium">{{ entry.to_version }}</span>
-                </td>
-                <td class="px-4 py-3">
-                  <span
-                    class="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full"
-                    :class="statusClass(entry.status)"
-                  >
-                    {{ entry.status }}
-                  </span>
-                </td>
-                <td class="px-4 py-3 text-theme-tertiary text-xs hidden sm:table-cell">
-                  {{ formatDate(entry.started_at) }}
-                </td>
-                <td class="px-4 py-3 text-theme-tertiary text-xs hidden sm:table-cell">
-                  {{ formatDuration(entry.started_at, entry.completed_at) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <ResponsiveTable
+          v-else
+          :columns="[
+            { key: 'version', label: 'Version' },
+            { key: 'status', label: 'Status' },
+            { key: 'started_at', label: 'Date' },
+            { key: 'duration', label: 'Duration' }
+          ]"
+          :rows="updates.history"
+          row-key="id"
+          compact
+        >
+          <template #cell-version="{ row }">
+            <span class="text-theme-primary font-medium">{{ row.from_version }}</span>
+            <Icon name="ArrowRight" :size="12" class="text-theme-muted mx-1 inline" />
+            <span class="text-theme-primary font-medium">{{ row.to_version }}</span>
+          </template>
+          <template #cell-status="{ row }">
+            <span
+              class="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full"
+              :class="statusClass(row.status)"
+            >
+              {{ row.status }}
+            </span>
+          </template>
+          <template #cell-started_at="{ row }">
+            <span class="text-theme-tertiary text-xs">{{ formatDate(row.started_at) }}</span>
+          </template>
+          <template #cell-duration="{ row }">
+            <span class="text-theme-tertiary text-xs">{{ formatDuration(row.started_at, row.completed_at) }}</span>
+          </template>
+        </ResponsiveTable>
       </div>
     </section>
 

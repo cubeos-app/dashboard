@@ -11,6 +11,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useFirewallStore } from '@/stores/firewall'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 
 const { signal } = useAbortOnUnmount()
 const firewallStore = useFirewallStore()
@@ -446,61 +447,48 @@ function formatDirection(dir) {
         </div>
       </div>
 
-      <!-- Rules List — Desktop Table -->
-      <div v-if="hasRules" class="hidden md:block overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-xs text-theme-muted uppercase tracking-wide border-b border-theme-primary">
-              <th class="px-4 py-3 font-medium">Action</th>
-              <th class="px-4 py-3 font-medium">Direction</th>
-              <th class="px-4 py-3 font-medium">Port</th>
-              <th class="px-4 py-3 font-medium">Protocol</th>
-              <th class="px-4 py-3 font-medium">From</th>
-              <th class="px-4 py-3 font-medium">To</th>
-              <th class="px-4 py-3 font-medium">Comment</th>
-              <th class="px-4 py-3 font-medium w-16"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(rule, idx) in displayedRules" :key="idx" class="border-b border-theme-primary last:border-0 hover:bg-theme-secondary transition-colors">
-              <td class="px-4 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase" :class="[ruleActionColor(rule.action), ruleActionBg(rule.action)]">{{ rule.action }}</span></td>
-              <td class="px-4 py-3 text-theme-secondary">{{ formatDirection(rule.direction) }}</td>
-              <td class="px-4 py-3 text-theme-primary font-mono">{{ rule.port || 'any' }}</td>
-              <td class="px-4 py-3 text-theme-secondary uppercase">{{ rule.protocol || 'any' }}</td>
-              <td class="px-4 py-3 text-theme-secondary font-mono">{{ rule.from || 'any' }}</td>
-              <td class="px-4 py-3 text-theme-secondary font-mono">{{ rule.to || 'any' }}</td>
-              <td class="px-4 py-3 text-theme-muted max-w-[200px] truncate">{{ rule.comment || '-' }}</td>
-              <td class="px-4 py-3">
-                <button @click="handleDeleteRule(rule)" :disabled="firewallStore.loading" class="p-1.5 text-theme-muted hover:text-error hover:bg-error-muted rounded-lg transition-colors disabled:opacity-50" title="Delete rule" :aria-label="`Delete firewall rule for port ${rule.port || 'any'}`">
-                  <Icon name="Trash2" :size="16" />
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Rules List — Mobile Cards -->
-      <div v-if="hasRules" class="md:hidden divide-y divide-theme-primary">
-        <div v-for="(rule, idx) in displayedRules" :key="idx" class="p-4 space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase" :class="[ruleActionColor(rule.action), ruleActionBg(rule.action)]">{{ rule.action }}</span>
-              <span class="text-xs text-theme-muted">{{ formatDirection(rule.direction) }}</span>
-            </div>
-            <button @click="handleDeleteRule(rule)" :disabled="firewallStore.loading" class="p-1.5 text-theme-muted hover:text-error hover:bg-error-muted rounded-lg transition-colors disabled:opacity-50" :aria-label="`Delete firewall rule for port ${rule.port || 'any'}`">
-              <Icon name="Trash2" :size="16" />
-            </button>
-          </div>
-          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-            <div><span class="text-theme-muted">Port: </span><span class="text-theme-primary font-mono">{{ rule.port || 'any' }}</span></div>
-            <div><span class="text-theme-muted">Protocol: </span><span class="text-theme-secondary uppercase">{{ rule.protocol || 'any' }}</span></div>
-            <div><span class="text-theme-muted">From: </span><span class="text-theme-secondary font-mono">{{ rule.from || 'any' }}</span></div>
-            <div><span class="text-theme-muted">To: </span><span class="text-theme-secondary font-mono">{{ rule.to || 'any' }}</span></div>
-          </div>
-          <p v-if="rule.comment" class="text-xs text-theme-muted">{{ rule.comment }}</p>
-        </div>
-      </div>
+      <ResponsiveTable
+        v-if="hasRules"
+        :columns="[
+          { key: 'action', label: 'Action' },
+          { key: 'direction', label: 'Direction' },
+          { key: 'port', label: 'Port' },
+          { key: 'protocol', label: 'Protocol' },
+          { key: 'from', label: 'From' },
+          { key: 'to', label: 'To' },
+          { key: 'comment', label: 'Comment' }
+        ]"
+        :rows="displayedRules"
+        :row-key="(row) => displayedRules.indexOf(row)"
+        compact
+      >
+        <template #cell-action="{ row }">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase" :class="[ruleActionColor(row.action), ruleActionBg(row.action)]">{{ row.action }}</span>
+        </template>
+        <template #cell-direction="{ row }">
+          <span class="text-theme-secondary">{{ formatDirection(row.direction) }}</span>
+        </template>
+        <template #cell-port="{ row }">
+          <span class="text-theme-primary font-mono">{{ row.port || 'any' }}</span>
+        </template>
+        <template #cell-protocol="{ row }">
+          <span class="text-theme-secondary uppercase">{{ row.protocol || 'any' }}</span>
+        </template>
+        <template #cell-from="{ row }">
+          <span class="text-theme-secondary font-mono">{{ row.from || 'any' }}</span>
+        </template>
+        <template #cell-to="{ row }">
+          <span class="text-theme-secondary font-mono">{{ row.to || 'any' }}</span>
+        </template>
+        <template #cell-comment="{ row }">
+          <span class="text-theme-muted truncate max-w-[200px]">{{ row.comment || '-' }}</span>
+        </template>
+        <template #row-actions="{ row }">
+          <button @click="handleDeleteRule(row)" :disabled="firewallStore.loading" class="p-1.5 text-theme-muted hover:text-error hover:bg-error-muted rounded-lg transition-colors disabled:opacity-50" title="Delete rule" :aria-label="`Delete firewall rule for port ${row.port || 'any'}`">
+            <Icon name="Trash2" :size="16" />
+          </button>
+        </template>
+      </ResponsiveTable>
 
       <!-- Empty State -->
       <div v-if="!hasRules && !firewallStore.loading" class="p-8 text-center">

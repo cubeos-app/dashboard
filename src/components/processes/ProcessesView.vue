@@ -17,6 +17,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useProcessesStore } from '@/stores/processes'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const processesStore = useProcessesStore()
@@ -55,48 +56,9 @@ function clearSearch() {
   processesStore.clearSearch()
 }
 
-// ==========================================
-// Sorting (client-side)
-// ==========================================
-
-const sortField = ref('cpu')
-const sortDir = ref('desc')
-
-function toggleSort(field) {
-  if (sortField.value === field) {
-    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortField.value = field
-    sortDir.value = 'desc'
-  }
-}
-
-const sortedProcesses = computed(() => {
-  const list = [...processesStore.processes]
-  const dir = sortDir.value === 'asc' ? 1 : -1
-
-  return list.sort((a, b) => {
-    let aVal, bVal
-    switch (sortField.value) {
-      case 'pid':
-        aVal = a.pid ?? 0; bVal = b.pid ?? 0; break
-      case 'name':
-        aVal = (a.name || '').toLowerCase(); bVal = (b.name || '').toLowerCase()
-        return dir * aVal.localeCompare(bVal)
-      case 'cpu':
-        aVal = a.cpu_percent ?? a.cpu ?? 0; bVal = b.cpu_percent ?? b.cpu ?? 0; break
-      case 'memory':
-        aVal = a.memory_percent ?? a.memory ?? 0; bVal = b.memory_percent ?? b.memory ?? 0; break
-      default:
-        return 0
-    }
-    return dir * (aVal - bVal)
-  })
-})
-
 const displayedProcesses = computed(() => {
   if (processesStore.searchQuery) return processesStore.searchResults
-  return sortedProcesses.value
+  return processesStore.processes
 })
 
 // ==========================================
@@ -360,215 +322,66 @@ async function refresh() {
         </div>
       </div>
 
-      <!-- Process Table: Desktop -->
-      <div class="hidden md:block rounded-xl bg-theme-card border border-theme-primary overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead>
-              <tr class="border-b border-theme-primary bg-theme-secondary">
-                <th
-                  @click="toggleSort('pid')"
-                  class="px-4 py-3 text-left text-xs font-medium text-theme-tertiary uppercase tracking-wide cursor-pointer hover:text-theme-secondary select-none"
-                  :aria-label="'Sort by PID ' + (sortField === 'pid' ? (sortDir === 'asc' ? 'descending' : 'ascending') : 'descending')"
-                  :aria-sort="sortField === 'pid' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                >
-                  <span class="inline-flex items-center gap-1">
-                    PID
-                    <Icon
-                      v-if="sortField === 'pid'"
-                      :name="sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'"
-                      :size="12"
-                      class="text-accent"
-                    />
-                    <Icon v-else name="ArrowUpDown" :size="12" class="text-theme-muted" />
-                  </span>
-                </th>
-                <th
-                  @click="toggleSort('name')"
-                  class="px-4 py-3 text-left text-xs font-medium text-theme-tertiary uppercase tracking-wide cursor-pointer hover:text-theme-secondary select-none"
-                  :aria-label="'Sort by name ' + (sortField === 'name' ? (sortDir === 'asc' ? 'descending' : 'ascending') : 'descending')"
-                  :aria-sort="sortField === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                >
-                  <span class="inline-flex items-center gap-1">
-                    Name
-                    <Icon
-                      v-if="sortField === 'name'"
-                      :name="sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'"
-                      :size="12"
-                      class="text-accent"
-                    />
-                    <Icon v-else name="ArrowUpDown" :size="12" class="text-theme-muted" />
-                  </span>
-                </th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-theme-tertiary uppercase tracking-wide">
-                  User
-                </th>
-                <th
-                  @click="toggleSort('cpu')"
-                  class="px-4 py-3 text-right text-xs font-medium text-theme-tertiary uppercase tracking-wide cursor-pointer hover:text-theme-secondary select-none"
-                  :aria-label="'Sort by CPU ' + (sortField === 'cpu' ? (sortDir === 'asc' ? 'descending' : 'ascending') : 'descending')"
-                  :aria-sort="sortField === 'cpu' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                >
-                  <span class="inline-flex items-center gap-1 justify-end">
-                    CPU%
-                    <Icon
-                      v-if="sortField === 'cpu'"
-                      :name="sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'"
-                      :size="12"
-                      class="text-accent"
-                    />
-                    <Icon v-else name="ArrowUpDown" :size="12" class="text-theme-muted" />
-                  </span>
-                </th>
-                <th
-                  @click="toggleSort('memory')"
-                  class="px-4 py-3 text-right text-xs font-medium text-theme-tertiary uppercase tracking-wide cursor-pointer hover:text-theme-secondary select-none"
-                  :aria-label="'Sort by memory ' + (sortField === 'memory' ? (sortDir === 'asc' ? 'descending' : 'ascending') : 'descending')"
-                  :aria-sort="sortField === 'memory' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                >
-                  <span class="inline-flex items-center gap-1 justify-end">
-                    Memory%
-                    <Icon
-                      v-if="sortField === 'memory'"
-                      :name="sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'"
-                      :size="12"
-                      class="text-accent"
-                    />
-                    <Icon v-else name="ArrowUpDown" :size="12" class="text-theme-muted" />
-                  </span>
-                </th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-theme-tertiary uppercase tracking-wide">
-                  State
-                </th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-theme-tertiary uppercase tracking-wide">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="proc in displayedProcesses"
-                :key="proc.pid"
-                @click="selectProcess(proc)"
-                class="border-b border-theme-primary last:border-b-0 cursor-pointer hover:bg-theme-secondary transition-colors"
-                :class="{ 'bg-theme-secondary': processesStore.selectedProcess?.pid === proc.pid }"
-              >
-                <td class="px-4 py-2.5 text-theme-muted font-mono text-xs">{{ proc.pid }}</td>
-                <td class="px-4 py-2.5 text-theme-primary font-medium truncate max-w-[200px]">{{ proc.name }}</td>
-                <td class="px-4 py-2.5 text-theme-tertiary text-xs">{{ proc.user || '-' }}</td>
-                <td class="px-4 py-2.5 text-right">
-                  <span class="text-xs font-medium" :class="cpuVal(proc) > 50 ? 'text-warning' : 'text-theme-secondary'">
-                    {{ cpuVal(proc).toFixed(1) }}%
-                  </span>
-                </td>
-                <td class="px-4 py-2.5 text-right">
-                  <span class="text-xs font-medium" :class="memVal(proc) > 50 ? 'text-warning' : 'text-theme-secondary'">
-                    {{ memVal(proc).toFixed(1) }}%
-                  </span>
-                </td>
-                <td class="px-4 py-2.5">
-                  <span class="text-xs capitalize" :class="stateClass(proc.state)">{{ proc.state || '-' }}</span>
-                </td>
-                <td class="px-4 py-2.5 text-right">
-                  <div class="flex items-center justify-end gap-1">
-                    <button
-                      @click.stop="processesStore.terminateProcess(proc.pid, proc.name)"
-                      class="p-1 rounded text-theme-muted hover:text-warning hover:bg-warning-muted transition-colors"
-                      title="Terminate (SIGTERM)"
-                      :aria-label="'Terminate ' + proc.name + ' (PID ' + proc.pid + ')'"
-                    >
-                      <Icon name="AlertTriangle" :size="14" />
-                    </button>
-                    <button
-                      @click.stop="processesStore.killProcess(proc.pid, proc.name)"
-                      class="p-1 rounded text-theme-muted hover:text-error hover:bg-error-muted transition-colors"
-                      title="Kill (SIGKILL)"
-                      :aria-label="'Kill ' + proc.name + ' (PID ' + proc.pid + ')'"
-                    >
-                      <Icon name="Skull" :size="14" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Empty state (desktop) -->
-        <div
-          v-if="displayedProcesses.length === 0"
-          class="py-12 text-center"
-        >
-          <Icon name="Search" :size="24" class="text-theme-muted mx-auto mb-2" />
-          <p class="text-sm text-theme-tertiary">
-            {{ processesStore.searchQuery ? 'No processes match your search' : 'No processes found' }}
-          </p>
-        </div>
-      </div>
-
-      <!-- Process Cards: Mobile -->
-      <div class="md:hidden space-y-2">
-        <div
-          v-for="proc in displayedProcesses"
-          :key="'m-' + proc.pid"
-          @click="selectProcess(proc)"
-          class="p-3 rounded-xl bg-theme-card border border-theme-primary cursor-pointer"
-          :class="{ 'border-accent': processesStore.selectedProcess?.pid === proc.pid }"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="text-xs font-mono text-theme-muted">{{ proc.pid }}</span>
-              <span class="text-sm font-medium text-theme-primary truncate">{{ proc.name }}</span>
-            </div>
-            <span class="text-xs capitalize" :class="stateClass(proc.state)">{{ proc.state || '-' }}</span>
-          </div>
-          <div class="flex items-center gap-4 text-xs">
-            <div class="flex items-center gap-1.5 flex-1">
-              <span class="text-theme-muted">CPU</span>
-              <div class="flex-1 h-1 rounded-full bg-theme-tertiary overflow-hidden">
-                <div class="h-full rounded-full bg-accent" :style="{ width: `${Math.min(cpuVal(proc), 100)}%` }"></div>
-              </div>
-              <span class="text-theme-secondary font-medium w-10 text-right">{{ cpuVal(proc).toFixed(1) }}%</span>
-            </div>
-            <div class="flex items-center gap-1.5 flex-1">
-              <span class="text-theme-muted">Mem</span>
-              <div class="flex-1 h-1 rounded-full bg-theme-tertiary overflow-hidden">
-                <div class="h-full rounded-full bg-success" :style="{ width: `${Math.min(memVal(proc), 100)}%` }"></div>
-              </div>
-              <span class="text-theme-secondary font-medium w-10 text-right">{{ memVal(proc).toFixed(1) }}%</span>
-            </div>
-          </div>
-          <div class="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-theme-primary">
+      <!-- Process Table -->
+      <ResponsiveTable
+        :columns="[
+          { key: 'pid', label: 'PID', sortable: true },
+          { key: 'name', label: 'Name', sortable: true },
+          { key: 'user', label: 'User' },
+          { key: 'cpu', label: 'CPU%', align: 'right', sortable: true },
+          { key: 'memory', label: 'Memory%', align: 'right', sortable: true },
+          { key: 'state', label: 'State' }
+        ]"
+        :rows="displayedProcesses"
+        row-key="pid"
+        :row-class="(row) => processesStore.selectedProcess?.pid === row.pid ? 'bg-theme-secondary' : ''"
+        :empty-text="processesStore.searchQuery ? 'No processes match your search' : 'No processes found'"
+        compact
+        @row-click="selectProcess"
+      >
+        <template #cell-pid="{ row }">
+          <span class="text-theme-muted font-mono text-xs">{{ row.pid }}</span>
+        </template>
+        <template #cell-name="{ row }">
+          <span class="text-theme-primary font-medium truncate">{{ row.name }}</span>
+        </template>
+        <template #cell-user="{ row }">
+          <span class="text-theme-tertiary text-xs">{{ row.user || '-' }}</span>
+        </template>
+        <template #cell-cpu="{ row }">
+          <span class="text-xs font-medium" :class="cpuVal(row) > 50 ? 'text-warning' : 'text-theme-secondary'">
+            {{ cpuVal(row).toFixed(1) }}%
+          </span>
+        </template>
+        <template #cell-memory="{ row }">
+          <span class="text-xs font-medium" :class="memVal(row) > 50 ? 'text-warning' : 'text-theme-secondary'">
+            {{ memVal(row).toFixed(1) }}%
+          </span>
+        </template>
+        <template #cell-state="{ row }">
+          <span class="text-xs capitalize" :class="stateClass(row.state)">{{ row.state || '-' }}</span>
+        </template>
+        <template #row-actions="{ row }">
+          <div class="flex items-center justify-end gap-1">
             <button
-              @click.stop="processesStore.terminateProcess(proc.pid, proc.name)"
-              class="flex items-center gap-1 px-2 py-1 rounded text-xs text-warning hover:bg-warning-muted transition-colors"
-              :aria-label="'Terminate ' + proc.name + ' (PID ' + proc.pid + ')'"
+              @click.stop="processesStore.terminateProcess(row.pid, row.name)"
+              class="p-1 rounded text-theme-muted hover:text-warning hover:bg-warning-muted transition-colors"
+              title="Terminate (SIGTERM)"
+              :aria-label="'Terminate ' + row.name + ' (PID ' + row.pid + ')'"
             >
-              <Icon name="AlertTriangle" :size="12" />
-              Terminate
+              <Icon name="AlertTriangle" :size="14" />
             </button>
             <button
-              @click.stop="processesStore.killProcess(proc.pid, proc.name)"
-              class="flex items-center gap-1 px-2 py-1 rounded text-xs text-error hover:bg-error-muted transition-colors"
-              :aria-label="'Kill ' + proc.name + ' (PID ' + proc.pid + ')'"
+              @click.stop="processesStore.killProcess(row.pid, row.name)"
+              class="p-1 rounded text-theme-muted hover:text-error hover:bg-error-muted transition-colors"
+              title="Kill (SIGKILL)"
+              :aria-label="'Kill ' + row.name + ' (PID ' + row.pid + ')'"
             >
-              <Icon name="Skull" :size="12" />
-              Kill
+              <Icon name="Skull" :size="14" />
             </button>
           </div>
-        </div>
-
-        <!-- Empty state (mobile) -->
-        <div
-          v-if="displayedProcesses.length === 0"
-          class="py-12 text-center"
-        >
-          <Icon name="Search" :size="24" class="text-theme-muted mx-auto mb-2" />
-          <p class="text-sm text-theme-tertiary">
-            {{ processesStore.searchQuery ? 'No processes match your search' : 'No processes found' }}
-          </p>
-        </div>
-      </div>
+        </template>
+      </ResponsiveTable>
 
       <!-- Process Detail Panel -->
       <div

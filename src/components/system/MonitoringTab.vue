@@ -15,6 +15,7 @@ import { useMonitoringStore } from '@/stores/monitoring'
 import { useSystemStore } from '@/stores/system'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const monitoringStore = useMonitoringStore()
@@ -468,54 +469,41 @@ async function refresh() {
           <p class="text-sm text-theme-tertiary">All systems are operating within normal thresholds</p>
         </div>
         <template v-else>
-          <!-- Desktop table -->
-          <div class="hidden md:block rounded-xl bg-theme-card border border-theme-primary overflow-hidden">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-theme-primary">
-                  <th class="text-left px-4 py-3 text-xs font-medium text-theme-tertiary uppercase tracking-wide">Severity</th>
-                  <th class="text-left px-4 py-3 text-xs font-medium text-theme-tertiary uppercase tracking-wide">Resource</th>
-                  <th class="text-left px-4 py-3 text-xs font-medium text-theme-tertiary uppercase tracking-wide">Message</th>
-                  <th class="text-right px-4 py-3 text-xs font-medium text-theme-tertiary uppercase tracking-wide">Threshold</th>
-                  <th class="text-right px-4 py-3 text-xs font-medium text-theme-tertiary uppercase tracking-wide">Actual</th>
-                  <th class="text-right px-4 py-3 text-xs font-medium text-theme-tertiary uppercase tracking-wide">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(alert, idx) in monitoringStore.alerts" :key="idx" class="border-b border-theme-primary last:border-b-0">
-                  <td class="px-4 py-3">
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium" :class="severityClass(alert.severity)">
-                      <Icon :name="severityIcon(alert.severity)" :size="12" />
-                      {{ alert.severity }}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3 text-theme-primary font-medium capitalize">{{ alert.resource }}</td>
-                  <td class="px-4 py-3 text-theme-secondary">{{ alert.message }}</td>
-                  <td class="px-4 py-3 text-right text-theme-tertiary">{{ alert.threshold }}%</td>
-                  <td class="px-4 py-3 text-right font-medium" :class="alert.severity === 'critical' ? 'text-error' : 'text-warning'">{{ alert.actual }}%</td>
-                  <td class="px-4 py-3 text-right text-theme-tertiary">{{ formatTimestamp(alert.triggered_at) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <!-- Mobile cards -->
-          <div class="md:hidden space-y-3">
-            <div v-for="(alert, idx) in monitoringStore.alerts" :key="idx" class="p-4 rounded-xl bg-theme-card border border-theme-primary">
-              <div class="flex items-center justify-between mb-2">
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium" :class="severityClass(alert.severity)">
-                  <Icon :name="severityIcon(alert.severity)" :size="12" />
-                  {{ alert.severity }}
-                </span>
-                <span class="text-xs text-theme-tertiary">{{ formatTimestamp(alert.triggered_at) }}</span>
-              </div>
-              <p class="text-sm font-medium text-theme-primary capitalize mb-1">{{ alert.resource }}</p>
-              <p class="text-xs text-theme-secondary mb-2">{{ alert.message }}</p>
-              <div class="flex items-center gap-4 text-xs">
-                <span class="text-theme-tertiary">Threshold: {{ alert.threshold }}%</span>
-                <span :class="alert.severity === 'critical' ? 'text-error' : 'text-warning'" class="font-medium">Actual: {{ alert.actual }}%</span>
-              </div>
-            </div>
-          </div>
+          <ResponsiveTable
+            :columns="[
+              { key: 'severity', label: 'Severity' },
+              { key: 'resource', label: 'Resource' },
+              { key: 'message', label: 'Message' },
+              { key: 'threshold', label: 'Threshold', align: 'right' },
+              { key: 'actual', label: 'Actual', align: 'right' },
+              { key: 'triggered_at', label: 'Time', align: 'right' }
+            ]"
+            :rows="monitoringStore.alerts"
+            :row-key="(row) => monitoringStore.alerts.indexOf(row)"
+            compact
+          >
+            <template #cell-severity="{ row }">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium" :class="severityClass(row.severity)">
+                <Icon :name="severityIcon(row.severity)" :size="12" />
+                {{ row.severity }}
+              </span>
+            </template>
+            <template #cell-resource="{ row }">
+              <span class="text-theme-primary font-medium capitalize">{{ row.resource }}</span>
+            </template>
+            <template #cell-message="{ row }">
+              <span class="text-theme-secondary">{{ row.message }}</span>
+            </template>
+            <template #cell-threshold="{ row }">
+              <span class="text-theme-tertiary">{{ row.threshold }}%</span>
+            </template>
+            <template #cell-actual="{ row }">
+              <span class="font-medium" :class="row.severity === 'critical' ? 'text-error' : 'text-warning'">{{ row.actual }}%</span>
+            </template>
+            <template #cell-triggered_at="{ row }">
+              <span class="text-theme-tertiary">{{ formatTimestamp(row.triggered_at) }}</span>
+            </template>
+          </ResponsiveTable>
         </template>
       </template>
 

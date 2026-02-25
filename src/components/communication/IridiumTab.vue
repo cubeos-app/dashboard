@@ -21,6 +21,7 @@ import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 
 const communicationStore = useCommunicationStore()
 const { signal } = useAbortOnUnmount()
@@ -754,60 +755,48 @@ onUnmounted(() => {
         </div>
 
         <!-- Messages list -->
-        <div v-else class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-theme-primary">
-                <th class="text-left px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider">Direction</th>
-                <th class="text-left px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider">Message</th>
-                <th class="text-right px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider hidden sm:table-cell">Size</th>
-                <th class="text-left px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider hidden sm:table-cell">Status</th>
-                <th class="text-right px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider">Time</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-theme-primary">
-              <tr
-                v-for="(msg, idx) in messages"
-                :key="msg.id ?? idx"
-                class="hover:bg-theme-secondary transition-colors"
-              >
-                <td class="px-5 py-3">
-                  <span
-                    v-if="formatDirection(msg.direction)"
-                    :class="[
-                      'text-xs font-medium px-2 py-0.5 rounded-full',
-                      formatDirection(msg.direction) === 'MO'
-                        ? 'bg-accent-muted text-accent'
-                        : 'bg-success-muted text-success'
-                    ]"
-                  >
-                    {{ formatDirection(msg.direction) === 'MO' ? 'Sent' : 'Received' }}
-                  </span>
-                  <span v-else class="text-xs text-theme-muted">—</span>
-                </td>
-                <td class="px-5 py-3 text-theme-primary font-mono text-xs max-w-xs truncate">
-                  {{ truncatePreview(msg.data) }}
-                </td>
-                <td class="px-5 py-3 text-right text-theme-muted hidden sm:table-cell">
-                  <span v-if="msg.size !== null">{{ msg.size }} B</span>
-                  <span v-else>—</span>
-                </td>
-                <td class="px-5 py-3 hidden sm:table-cell">
-                  <span
-                    v-if="msg.status"
-                    class="text-xs text-theme-muted"
-                  >
-                    {{ msg.status }}
-                  </span>
-                  <span v-else class="text-xs text-theme-muted">—</span>
-                </td>
-                <td class="px-5 py-3 text-right text-xs text-theme-muted">
-                  {{ formatTimestamp(msg.timestamp) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <ResponsiveTable
+          v-else
+          :columns="[
+            { key: 'direction', label: 'Direction' },
+            { key: 'data', label: 'Message' },
+            { key: 'size', label: 'Size', align: 'right' },
+            { key: 'status', label: 'Status' },
+            { key: 'timestamp', label: 'Time', align: 'right' }
+          ]"
+          :rows="messages"
+          :row-key="(row) => row.id ?? messages.indexOf(row)"
+          compact
+        >
+          <template #cell-direction="{ row }">
+            <span
+              v-if="formatDirection(row.direction)"
+              :class="[
+                'text-xs font-medium px-2 py-0.5 rounded-full',
+                formatDirection(row.direction) === 'MO'
+                  ? 'bg-accent-muted text-accent'
+                  : 'bg-success-muted text-success'
+              ]"
+            >
+              {{ formatDirection(row.direction) === 'MO' ? 'Sent' : 'Received' }}
+            </span>
+            <span v-else class="text-xs text-theme-muted">—</span>
+          </template>
+          <template #cell-data="{ row }">
+            <span class="text-theme-primary font-mono text-xs">{{ truncatePreview(row.data) }}</span>
+          </template>
+          <template #cell-size="{ row }">
+            <span v-if="row.size !== null">{{ row.size }} B</span>
+            <span v-else>—</span>
+          </template>
+          <template #cell-status="{ row }">
+            <span v-if="row.status" class="text-xs text-theme-muted">{{ row.status }}</span>
+            <span v-else class="text-xs text-theme-muted">—</span>
+          </template>
+          <template #cell-timestamp="{ row }">
+            <span class="text-xs text-theme-muted">{{ formatTimestamp(row.timestamp) }}</span>
+          </template>
+        </ResponsiveTable>
       </div>
 
       <!-- ======================================== -->

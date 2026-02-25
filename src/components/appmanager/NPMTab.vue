@@ -19,6 +19,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useNPMStore } from '@/stores/npm'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 import { makePlaceholder } from '@/utils/domain'
 
 const npmStore = useNPMStore()
@@ -246,109 +247,55 @@ function hostStatusText(host) {
       <p class="text-sm text-theme-muted">Start Nginx Proxy Manager to manage reverse proxy hosts.</p>
     </div>
 
-    <!-- ==================== Hosts List — Desktop Table ==================== -->
-    <div v-if="hosts.length > 0" class="hidden md:block bg-theme-card rounded-xl border border-theme-primary overflow-hidden">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-theme-muted border-b border-theme-primary bg-theme-tertiary/30">
-            <th class="py-3 px-4">Domain</th>
-            <th class="py-3 px-4">Forward To</th>
-            <th class="py-3 px-4">SSL</th>
-            <th class="py-3 px-4">Status</th>
-            <th class="py-3 px-4 w-10"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="host in hosts"
-            :key="host.id"
-            class="border-b border-theme-primary/50 hover:bg-theme-tertiary/30 transition-colors"
-          >
-            <td class="py-3 px-4">
-              <div class="flex items-center gap-2">
-                <Icon name="Globe" :size="16" class="text-accent flex-shrink-0" />
-                <span class="text-theme-primary font-medium truncate max-w-xs">{{ getDomainDisplay(host) }}</span>
-              </div>
-            </td>
-            <td class="py-3 px-4">
-              <span class="text-theme-secondary font-mono text-xs">{{ getForwardDisplay(host) }}</span>
-            </td>
-            <td class="py-3 px-4">
-              <span
-                class="px-2 py-0.5 text-[10px] font-semibold rounded"
-                :class="host.ssl_forced || host.certificate_id ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'"
-              >
-                {{ host.ssl_forced || host.certificate_id ? 'Enabled' : 'Off' }}
-              </span>
-            </td>
-            <td class="py-3 px-4">
-              <span
-                class="px-2 py-0.5 text-[10px] font-semibold rounded"
-                :class="hostStatusClass(host)"
-              >{{ hostStatusText(host) }}</span>
-            </td>
-            <td class="py-3 px-4">
-              <button
-                @click="deleteHost(host)"
-                :disabled="deleteLoading[host.id]"
-                class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50"
-                title="Delete host"
-                :aria-label="'Delete proxy host ' + getDomainDisplay(host)"
-              >
-                <Icon v-if="deleteLoading[host.id]" name="Loader2" :size="14" class="animate-spin" />
-                <Icon v-else name="Trash2" :size="14" />
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- ==================== Hosts List — Mobile Cards ==================== -->
-    <div v-if="hosts.length > 0" class="md:hidden space-y-3">
-      <div
-        v-for="host in hosts"
-        :key="'m-' + host.id"
-        class="bg-theme-card rounded-xl border border-theme-primary p-4"
-      >
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center flex-shrink-0">
-              <Icon name="Globe" :size="20" class="text-accent" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-sm font-medium text-theme-primary truncate">{{ getDomainDisplay(host) }}</p>
-              <p class="text-xs text-theme-muted font-mono truncate mt-0.5">{{ getForwardDisplay(host) }}</p>
-            </div>
-          </div>
-          <button
-            @click="deleteHost(host)"
-            :disabled="deleteLoading[host.id]"
-            class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50 flex-shrink-0"
-            title="Delete host"
-            :aria-label="'Delete proxy host ' + getDomainDisplay(host)"
-          >
-            <Icon v-if="deleteLoading[host.id]" name="Loader2" :size="14" class="animate-spin" />
-            <Icon v-else name="Trash2" :size="14" />
-          </button>
+    <!-- ==================== Hosts List ==================== -->
+    <ResponsiveTable
+      v-if="hosts.length > 0"
+      :columns="[
+        { key: 'domain', label: 'Domain' },
+        { key: 'forward', label: 'Forward To' },
+        { key: 'ssl', label: 'SSL' },
+        { key: 'status', label: 'Status' }
+      ]"
+      :rows="hosts"
+      row-key="id"
+      compact
+    >
+      <template #cell-domain="{ row }">
+        <div class="flex items-center gap-2">
+          <Icon name="Globe" :size="16" class="text-accent flex-shrink-0" />
+          <span class="text-theme-primary font-medium truncate">{{ getDomainDisplay(row) }}</span>
         </div>
-        <div class="flex items-center gap-2 mt-3">
-          <span
-            class="px-2 py-0.5 text-[10px] font-semibold rounded"
-            :class="hostStatusClass(host)"
-          >{{ hostStatusText(host) }}</span>
-          <span
-            class="px-2 py-0.5 text-[10px] font-semibold rounded"
-            :class="host.ssl_forced || host.certificate_id ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'"
-          >
-            SSL {{ host.ssl_forced || host.certificate_id ? 'On' : 'Off' }}
-          </span>
-          <span v-if="host.block_exploits" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-accent-muted text-accent">
-            Exploits Blocked
-          </span>
-        </div>
-      </div>
-    </div>
+      </template>
+      <template #cell-forward="{ row }">
+        <span class="text-theme-secondary font-mono text-xs">{{ getForwardDisplay(row) }}</span>
+      </template>
+      <template #cell-ssl="{ row }">
+        <span
+          class="px-2 py-0.5 text-[10px] font-semibold rounded"
+          :class="row.ssl_forced || row.certificate_id ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'"
+        >
+          {{ row.ssl_forced || row.certificate_id ? 'Enabled' : 'Off' }}
+        </span>
+      </template>
+      <template #cell-status="{ row }">
+        <span
+          class="px-2 py-0.5 text-[10px] font-semibold rounded"
+          :class="hostStatusClass(row)"
+        >{{ hostStatusText(row) }}</span>
+      </template>
+      <template #row-actions="{ row }">
+        <button
+          @click="deleteHost(row)"
+          :disabled="deleteLoading[row.id]"
+          class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50"
+          title="Delete host"
+          :aria-label="'Delete proxy host ' + getDomainDisplay(row)"
+        >
+          <Icon v-if="deleteLoading[row.id]" name="Loader2" :size="14" class="animate-spin" />
+          <Icon v-else name="Trash2" :size="14" />
+        </button>
+      </template>
+    </ResponsiveTable>
 
     <!-- Empty state -->
     <div v-if="hosts.length === 0 && npmStore.isOnline && !npmStore.loading" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">

@@ -14,6 +14,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useHardwareStore } from '@/stores/hardware'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const hardwareStore = useHardwareStore()
@@ -219,41 +220,34 @@ function formatDeviceData(data) {
           </div>
 
           <!-- Device table -->
-          <div v-else class="overflow-x-auto">
-            <table class="w-full">
-              <thead>
-                <tr class="border-b border-theme-primary">
-                  <th class="px-5 py-2.5 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Address</th>
-                  <th class="px-5 py-2.5 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Device</th>
-                  <th class="px-5 py-2.5 text-right text-xs font-medium text-theme-secondary uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-theme-primary">
-                <tr
-                  v-for="device in scanResults[busId(bus)]"
-                  :key="deviceAddr(device)"
-                  class="hover:bg-theme-tertiary transition-colors"
-                >
-                  <td class="px-5 py-3">
-                    <span class="text-sm font-mono font-medium text-accent">{{ deviceAddr(device) }}</span>
-                  </td>
-                  <td class="px-5 py-3">
-                    <span v-if="deviceName(device)" class="text-sm text-theme-primary">{{ deviceName(device) }}</span>
-                    <span v-else class="text-sm text-theme-muted italic">Unknown device</span>
-                  </td>
-                  <td class="px-5 py-3 text-right">
-                    <button
-                      @click="readDevice(busId(bus), deviceAddr(device))"
-                      :aria-label="'Read device at ' + deviceAddr(device)"
-                      class="px-3 py-1 text-xs font-medium rounded-lg bg-neutral-muted text-theme-secondary hover:bg-theme-tertiary transition-colors"
-                    >
-                      Read
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveTable
+            v-else
+            :columns="[
+              { key: 'address', label: 'Address' },
+              { key: 'device', label: 'Device' },
+              { key: 'action', label: 'Action', align: 'right' }
+            ]"
+            :rows="scanResults[busId(bus)]"
+            :row-key="(row) => deviceAddr(row)"
+            compact
+          >
+            <template #cell-address="{ row }">
+              <span class="text-sm font-mono font-medium text-accent">{{ deviceAddr(row) }}</span>
+            </template>
+            <template #cell-device="{ row }">
+              <span v-if="deviceName(row)" class="text-sm text-theme-primary">{{ deviceName(row) }}</span>
+              <span v-else class="text-sm text-theme-muted italic">Unknown device</span>
+            </template>
+            <template #cell-action="{ row }">
+              <button
+                @click="readDevice(busId(bus), deviceAddr(row))"
+                :aria-label="'Read device at ' + deviceAddr(row)"
+                class="px-3 py-1 text-xs font-medium rounded-lg bg-neutral-muted text-theme-secondary hover:bg-theme-tertiary transition-colors"
+              >
+                Read
+              </button>
+            </template>
+          </ResponsiveTable>
         </div>
 
         <!-- Hint when no scan done yet -->

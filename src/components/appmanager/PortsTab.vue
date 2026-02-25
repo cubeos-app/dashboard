@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useAppManagerStore } from '@/stores/appmanager'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 
 const store = useAppManagerStore()
 
@@ -128,36 +129,36 @@ async function releasePort(port, protocol) {
     </div>
 
     <!-- Ports Table -->
-    <div v-else class="bg-theme-secondary rounded-lg border border-theme-primary overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-theme-primary">
-          <thead class="bg-theme-tertiary">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Port</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Protocol</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Application</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider hidden sm:table-cell">Description</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-theme-secondary uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-theme-primary">
-            <tr v-for="port in store.ports" :key="`${port.port}-${port.protocol}`" class="hover:bg-theme-tertiary/50">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium text-theme-primary">{{ port.port }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase', port.protocol === 'tcp' ? 'bg-accent-muted text-accent' : 'bg-warning-muted text-warning']">{{ port.protocol }}</span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-theme-primary">{{ port.app_name || '-' }}</td>
-              <td class="px-6 py-4 text-sm text-theme-secondary hidden sm:table-cell">{{ port.description || '-' }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-right">
-                <button @click="releasePort(port.port, port.protocol)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Release port" :aria-label="'Release port ' + port.port + '/' + port.protocol">
-                  <Icon name="Trash2" :size="14" />
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <ResponsiveTable
+      v-else
+      :columns="[
+        { key: 'port', label: 'Port' },
+        { key: 'protocol', label: 'Protocol' },
+        { key: 'app_name', label: 'Application' },
+        { key: 'description', label: 'Description' }
+      ]"
+      :rows="store.ports"
+      :row-key="(row) => `${row.port}-${row.protocol}`"
+      compact
+    >
+      <template #cell-port="{ row }">
+        <span class="font-mono font-medium text-theme-primary">{{ row.port }}</span>
+      </template>
+      <template #cell-protocol="{ row }">
+        <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase', row.protocol === 'tcp' ? 'bg-accent-muted text-accent' : 'bg-warning-muted text-warning']">{{ row.protocol }}</span>
+      </template>
+      <template #cell-app_name="{ row }">
+        <span class="text-theme-primary">{{ row.app_name || '-' }}</span>
+      </template>
+      <template #cell-description="{ row }">
+        <span class="text-theme-secondary">{{ row.description || '-' }}</span>
+      </template>
+      <template #row-actions="{ row }">
+        <button @click="releasePort(row.port, row.protocol)" class="p-1.5 text-error hover:bg-error-muted rounded transition-colors" title="Release port" :aria-label="'Release port ' + row.port + '/' + row.protocol">
+          <Icon name="Trash2" :size="14" />
+        </button>
+      </template>
+    </ResponsiveTable>
 
     <!-- Reserved System Ports -->
     <div v-if="store.reservedPorts.length > 0" class="mt-6">
@@ -175,28 +176,30 @@ async function releasePort(port, protocol) {
       </button>
 
       <div v-show="showReservedPorts" class="mt-3 bg-theme-secondary rounded-lg border border-theme-primary overflow-hidden transition-all duration-200">
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-theme-primary">
-            <thead class="bg-theme-tertiary">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Port</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Protocol</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider">Service</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-theme-secondary uppercase tracking-wider hidden sm:table-cell">Description</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-theme-primary">
-              <tr v-for="rp in store.reservedPorts" :key="`reserved-${rp.port}-${rp.protocol}`" class="bg-theme-tertiary/30">
-                <td class="px-6 py-3 whitespace-nowrap text-sm font-mono text-theme-muted">{{ rp.port }}</td>
-                <td class="px-6 py-3 whitespace-nowrap">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase bg-theme-tertiary text-theme-muted">{{ rp.protocol }}</span>
-                </td>
-                <td class="px-6 py-3 whitespace-nowrap text-sm text-theme-muted">{{ rp.service || '-' }}</td>
-                <td class="px-6 py-3 text-sm text-theme-muted hidden sm:table-cell">{{ rp.description || '-' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <ResponsiveTable
+          :columns="[
+            { key: 'port', label: 'Port' },
+            { key: 'protocol', label: 'Protocol' },
+            { key: 'service', label: 'Service' },
+            { key: 'description', label: 'Description' }
+          ]"
+          :rows="store.reservedPorts"
+          :row-key="(row) => `reserved-${row.port}-${row.protocol}`"
+          compact
+        >
+          <template #cell-port="{ row }">
+            <span class="font-mono text-theme-muted">{{ row.port }}</span>
+          </template>
+          <template #cell-protocol="{ row }">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase bg-theme-tertiary text-theme-muted">{{ row.protocol }}</span>
+          </template>
+          <template #cell-service="{ row }">
+            <span class="text-theme-muted">{{ row.service || '-' }}</span>
+          </template>
+          <template #cell-description="{ row }">
+            <span class="text-theme-muted">{{ row.description || '-' }}</span>
+          </template>
+        </ResponsiveTable>
       </div>
     </div>
 

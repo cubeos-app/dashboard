@@ -17,6 +17,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useStorageHalStore } from '@/stores/storage-hal'
 import { useStorageStore } from '@/stores/storage'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 
 const props = defineProps({
   device: {
@@ -306,94 +307,55 @@ function tempClass(temp) {
             Show {{ attributes.length }} S.M.A.R.T. attributes
           </summary>
 
-          <!-- Desktop table -->
-          <div class="mt-3 hidden md:block overflow-x-auto">
-            <table class="w-full text-xs">
-              <thead>
-                <tr class="text-left text-theme-muted border-b border-theme-primary">
-                  <th class="py-2 px-2">ID</th>
-                  <th class="py-2 px-2">Attribute</th>
-                  <th class="py-2 px-2">Value</th>
-                  <th class="py-2 px-2">Worst</th>
-                  <th class="py-2 px-2">Thresh</th>
-                  <th class="py-2 px-2">Raw</th>
-                  <th class="py-2 px-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="attr in attributes"
-                  :key="attr.id"
-                  class="border-b border-theme-primary/50"
-                  :class="attrStatusClass(attr)"
-                >
-                  <td class="py-1.5 px-2 text-theme-muted">{{ attr.id }}</td>
-                  <td class="py-1.5 px-2 text-theme-primary">{{ attr.name || attr.attribute }}</td>
-                  <td class="py-1.5 px-2" :class="attrValueClass(attr)">{{ attr.value }}</td>
-                  <td class="py-1.5 px-2 text-theme-muted">{{ attr.worst }}</td>
-                  <td class="py-1.5 px-2 text-theme-muted">{{ attr.threshold }}</td>
-                  <td class="py-1.5 px-2 text-theme-muted font-mono">{{ attr.raw_value ?? attr.raw ?? '-' }}</td>
-                  <td class="py-1.5 px-2">
-                    <span
-                      v-if="attr.failing"
-                      class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-error-muted text-error"
-                    >FAIL</span>
-                    <span
-                      v-else-if="attr.value > 0 && attr.threshold > 0 && attr.value <= attr.threshold + 10"
-                      class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-warning-muted text-warning"
-                    >WARN</span>
-                    <span
-                      v-else
-                      class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-success-muted text-success"
-                    >OK</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Mobile card view -->
-          <div class="mt-3 md:hidden space-y-2 max-h-80 overflow-y-auto">
-            <div
-              v-for="attr in attributes"
-              :key="'m-' + attr.id"
-              class="p-3 rounded-lg border border-theme-primary/50"
-              :class="attrStatusClass(attr)"
+          <div class="mt-3">
+            <ResponsiveTable
+              :columns="[
+                { key: 'id', label: 'ID' },
+                { key: 'name', label: 'Attribute' },
+                { key: 'value', label: 'Value' },
+                { key: 'worst', label: 'Worst' },
+                { key: 'threshold', label: 'Thresh' },
+                { key: 'raw_value', label: 'Raw' },
+                { key: 'status', label: 'Status' }
+              ]"
+              :rows="attributes"
+              row-key="id"
+              :row-class="(row) => attrStatusClass(row)"
+              compact
             >
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-xs font-medium text-theme-primary">{{ attr.name || attr.attribute }}</span>
+              <template #cell-id="{ row }">
+                <span class="text-theme-muted">{{ row.id }}</span>
+              </template>
+              <template #cell-name="{ row }">
+                <span class="text-theme-primary">{{ row.name || row.attribute }}</span>
+              </template>
+              <template #cell-value="{ row }">
+                <span :class="attrValueClass(row)">{{ row.value }}</span>
+              </template>
+              <template #cell-worst="{ row }">
+                <span class="text-theme-muted">{{ row.worst }}</span>
+              </template>
+              <template #cell-threshold="{ row }">
+                <span class="text-theme-muted">{{ row.threshold }}</span>
+              </template>
+              <template #cell-raw_value="{ row }">
+                <span class="text-theme-muted font-mono">{{ row.raw_value ?? row.raw ?? '-' }}</span>
+              </template>
+              <template #cell-status="{ row }">
                 <span
-                  v-if="attr.failing"
+                  v-if="row.failing"
                   class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-error-muted text-error"
                 >FAIL</span>
                 <span
-                  v-else-if="attr.value > 0 && attr.threshold > 0 && attr.value <= attr.threshold + 10"
+                  v-else-if="row.value > 0 && row.threshold > 0 && row.value <= row.threshold + 10"
                   class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-warning-muted text-warning"
                 >WARN</span>
                 <span
                   v-else
                   class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-success-muted text-success"
                 >OK</span>
-              </div>
-              <div class="grid grid-cols-4 gap-2 text-[11px]">
-                <div>
-                  <span class="text-theme-muted block">Value</span>
-                  <span :class="attrValueClass(attr)">{{ attr.value }}</span>
-                </div>
-                <div>
-                  <span class="text-theme-muted block">Worst</span>
-                  <span class="text-theme-secondary">{{ attr.worst }}</span>
-                </div>
-                <div>
-                  <span class="text-theme-muted block">Thresh</span>
-                  <span class="text-theme-secondary">{{ attr.threshold }}</span>
-                </div>
-                <div>
-                  <span class="text-theme-muted block">Raw</span>
-                  <span class="text-theme-muted font-mono">{{ attr.raw_value ?? attr.raw ?? '-' }}</span>
-                </div>
-              </div>
-            </div>
+              </template>
+            </ResponsiveTable>
           </div>
         </details>
       </div>

@@ -21,6 +21,7 @@ import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 
 const communicationStore = useCommunicationStore()
 const { signal } = useAbortOnUnmount()
@@ -778,58 +779,53 @@ onUnmounted(() => {
         </div>
 
         <!-- Node list -->
-        <div v-else class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-theme-primary">
-                <th class="text-left px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider">Node</th>
-                <th class="text-left px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider">ID</th>
-                <th class="text-right px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider">SNR</th>
-                <th class="text-right px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider hidden sm:table-cell">Distance</th>
-                <th class="text-right px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider hidden sm:table-cell">Battery</th>
-                <th class="text-right px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider hidden md:table-cell">Hops</th>
-                <th class="text-right px-5 py-3 text-xs font-medium text-theme-muted uppercase tracking-wider">Last Heard</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-theme-primary">
-              <tr
-                v-for="node in nodes"
-                :key="node.id"
-                class="hover:bg-theme-secondary transition-colors"
+          <ResponsiveTable
+            v-else
+            :columns="[
+              { key: 'name', label: 'Node' },
+              { key: 'id', label: 'ID' },
+              { key: 'snr', label: 'SNR', align: 'right' },
+              { key: 'distance', label: 'Distance', align: 'right' },
+              { key: 'battery', label: 'Battery', align: 'right' },
+              { key: 'hops', label: 'Hops', align: 'right' },
+              { key: 'lastHeard', label: 'Last Heard', align: 'right' }
+            ]"
+            :rows="nodes"
+            row-key="id"
+            compact
+          >
+            <template #cell-name="{ row }">
+              <span class="font-medium text-theme-primary">{{ row.name || row.shortName || '—' }}</span>
+              <span v-if="row.name && row.shortName" class="text-xs text-theme-muted ml-1.5">({{ row.shortName }})</span>
+            </template>
+            <template #cell-id="{ row }">
+              <span class="font-mono text-xs text-theme-muted">{{ row.id }}</span>
+            </template>
+            <template #cell-snr="{ row }">
+              <span
+                v-if="row.snr !== null"
+                :class="[
+                  'text-xs font-medium',
+                  Number(row.snr) >= 5 ? 'text-success' : Number(row.snr) >= 0 ? 'text-warning' : 'text-error'
+                ]"
               >
-                <td class="px-5 py-3">
-                  <span class="font-medium text-theme-primary">{{ node.name || node.shortName || '—' }}</span>
-                  <span v-if="node.name && node.shortName" class="text-xs text-theme-muted ml-1.5">({{ node.shortName }})</span>
-                </td>
-                <td class="px-5 py-3 font-mono text-xs text-theme-muted">{{ node.id }}</td>
-                <td class="px-5 py-3 text-right">
-                  <span
-                    v-if="node.snr !== null"
-                    :class="[
-                      'text-xs font-medium',
-                      Number(node.snr) >= 5 ? 'text-success' : Number(node.snr) >= 0 ? 'text-warning' : 'text-error'
-                    ]"
-                  >
-                    {{ Number(node.snr).toFixed(1) }} dB
-                  </span>
-                  <span v-else class="text-xs text-theme-muted">—</span>
-                </td>
-                <td class="px-5 py-3 text-right text-theme-muted hidden sm:table-cell">
-                  {{ formatDistance(node.distance) || '—' }}
-                </td>
-                <td class="px-5 py-3 text-right text-theme-muted hidden sm:table-cell">
-                  {{ formatBattery(node.battery) || '—' }}
-                </td>
-                <td class="px-5 py-3 text-right text-theme-muted hidden md:table-cell">
-                  {{ node.hops !== null ? node.hops : '—' }}
-                </td>
-                <td class="px-5 py-3 text-right text-xs text-theme-muted">
-                  {{ formatLastHeard(node.lastHeard) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                {{ Number(row.snr).toFixed(1) }} dB
+              </span>
+              <span v-else class="text-xs text-theme-muted">—</span>
+            </template>
+            <template #cell-distance="{ row }">
+              <span class="text-theme-muted">{{ formatDistance(row.distance) || '—' }}</span>
+            </template>
+            <template #cell-battery="{ row }">
+              <span class="text-theme-muted">{{ formatBattery(row.battery) || '—' }}</span>
+            </template>
+            <template #cell-hops="{ row }">
+              <span class="text-theme-muted">{{ row.hops !== null ? row.hops : '—' }}</span>
+            </template>
+            <template #cell-lastHeard="{ row }">
+              <span class="text-xs text-theme-muted">{{ formatLastHeard(row.lastHeard) }}</span>
+            </template>
+          </ResponsiveTable>
       </div>
 
       <!-- ======================================== -->
