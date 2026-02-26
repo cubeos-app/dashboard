@@ -28,9 +28,12 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
 import MobileNav from '@/components/layout/MobileNav.vue'
 import Icon from '@/components/ui/Icon.vue'
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
+import DemoBanner from '@/components/ui/DemoBanner.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import SystemTransitionScreen from '@/components/system/SystemTransitionScreen.vue'
 import { confirmState, handleConfirm, handleCancel } from '@/utils/confirmDialog'
+
+const isDemoMode = __CUBEOS_DEMO__
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -103,7 +106,10 @@ watch(() => authStore.isAuthenticated, (isAuth, wasAuth) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-theme-primary transition-colors duration-200">
+  <div class="min-h-screen bg-theme-primary transition-colors duration-200" :class="{ 'pt-8 demo-mode': isDemoMode }">
+    <!-- Demo banner (only rendered when VITE_DEMO_MODE=true at build time) -->
+    <DemoBanner v-if="isDemoMode" />
+
     <!-- Authenticated layout -->
     <template v-if="authStore.isAuthenticated">
       <AppHeader />

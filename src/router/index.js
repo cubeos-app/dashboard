@@ -188,6 +188,21 @@ const router = createRouter({
 // ─── Navigation Guard ─────────────────────────────────────────────
 
 router.beforeEach(async (to, from, next) => {
+  // Demo mode: skip all auth/setup checks, auto-login as admin
+  if (__CUBEOS_DEMO__) {
+    const authStore = useAuthStore()
+    if (!authStore.user) {
+      authStore.user = { username: 'admin', role: 'admin' }
+      authStore.token = 'demo-token'
+    }
+    if (to.name === 'setup' || to.name === 'login' || to.name === 'connecting') {
+      next({ name: 'dashboard' })
+      return
+    }
+    next()
+    return
+  }
+
   const authStore = useAuthStore()
   const setupStore = useSetupStore()
 

@@ -15,6 +15,65 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 export function useWebSocket(options = {}) {
   const { interval = 2, autoConnect = true, onStats = null } = options
 
+  // ── Demo mode: mock WebSocket with fluctuating stats ───────────
+  if (__CUBEOS_DEMO__) {
+    const connected = ref(false)
+    const error = ref(null)
+    const lastMessage = ref(null)
+    const reconnectAttempts = ref(0)
+    const stats = ref({})
+    const subscribers = ref(new Map())
+    let timer = null
+
+    function fluctuate(base, range, min = 0, max = Infinity) {
+      const delta = (Math.random() - 0.5) * range * 2
+      return Math.max(min, Math.min(max, +(base + delta).toFixed(2)))
+    }
+
+    function emitStats() {
+      // Lazy import to avoid circular deps at module-load time
+      import('../api/demo-data.js').then(({ generateWsStats }) => {
+        const payload = generateWsStats(fluctuate)
+        lastMessage.value = payload
+        if (onStats) onStats(payload)
+        for (const cb of subscribers.value.values()) {
+          try { cb(payload) } catch { /* ignore */ }
+        }
+      })
+    }
+
+    function connect() {
+      if (timer) return
+      connected.value = true
+      emitStats()
+      timer = setInterval(emitStats, 2000)
+    }
+
+    function disconnect() {
+      clearInterval(timer)
+      timer = null
+      connected.value = false
+    }
+
+    function reconnect() { disconnect(); connect() }
+    function send() { }
+    function subscribe(key, cb) { subscribers.value.set(key, cb) }
+    function unsubscribe(key) { subscribers.value.delete(key) }
+
+    onMounted(() => { if (autoConnect) connect() })
+    onUnmounted(() => { disconnect() })
+
+    return {
+      connected, error, lastMessage, stats, reconnectAttempts,
+      cpuPercent: computed(() => 0), memoryPercent: computed(() => 0),
+      diskPercent: computed(() => 0), temperature: computed(() => null),
+      wifiClients: computed(() => 0), runningContainers: computed(() => 0),
+      totalContainers: computed(() => 0),
+      connect, disconnect, reconnect, send, subscribe, unsubscribe
+    }
+  }
+  // ── End demo mode ──────────────────────────────────────────────
+
   const ws = ref(null)
   const connected = ref(false)
   const error = ref(null)

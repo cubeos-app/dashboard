@@ -352,5 +352,15 @@ class ApiClient {
   }
 }
 
-export const api = new ApiClient()
-export default api
+// Demo mode: swap in mock client when built with VITE_DEMO_MODE=true.
+// Dynamic import ensures demo-client.js is never bundled in production.
+let exportedApi
+if (__CUBEOS_DEMO__) {
+  const { DemoApiClient } = await import('./demo-client.js')
+  exportedApi = new DemoApiClient()
+} else {
+  exportedApi = new ApiClient()
+}
+
+export const api = exportedApi
+export default exportedApi

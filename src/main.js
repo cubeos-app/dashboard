@@ -17,3 +17,12 @@ app.config.errorHandler = (err, instance, info) => {
 }
 
 app.mount('#app')
+
+// Umami analytics — only in demo mode (demo.cubeos.app)
+if (__CUBEOS_DEMO__) {
+  const s = document.createElement('script')
+  s.defer = true
+  s.src = 'https://analytics.cubeos.app/script.js'
+  s.dataset.websiteId = '1f6e3823-418c-420d-9c7a-9ded87130215'
+  document.head.appendChild(s)
+}
