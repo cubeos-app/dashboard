@@ -1,5 +1,4 @@
 <script setup>
-// TODO: i18n — extract strings to en.json
 /**
  * SystemPage.vue — S08 Component
  *
@@ -20,6 +19,7 @@ import { useMonitoringStore } from '@/stores/monitoring'
 import { useMode } from '@/composables/useMode'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { usePolling } from '@/composables/usePolling'
+import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import Icon from '@/components/ui/Icon.vue'
 import TabBar from '@/components/ui/TabBar.vue'
@@ -31,6 +31,7 @@ import ProcessesTab from './ProcessesTab.vue'
 import LogsTab from './LogsTab.vue'
 import HardwareTab from './HardwareTab.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const systemStore = useSystemStore()
@@ -42,14 +43,14 @@ const { signal } = useAbortOnUnmount()
 // ─── Tab Management ──────────────────────────────────────────
 const TAB_DEFS = computed(() => {
   const tabs = [
-    { key: 'overview', label: 'Overview', icon: 'Monitor' }
+    { key: 'overview', label: t('system.overview'), icon: 'Monitor' }
   ]
   if (isAdvanced.value) {
     tabs.push(
-      { key: 'monitoring', label: 'Monitoring', icon: 'Activity', badge: monitoringStore.alertCount > 0 ? monitoringStore.alertCount : null, badgeVariant: 'alert' },
-      { key: 'processes', label: 'Processes', icon: 'Terminal' },
-      { key: 'logs', label: 'Logs', icon: 'FileText' },
-      { key: 'hardware', label: 'Hardware', icon: 'Cpu' }
+      { key: 'monitoring', label: t('system.monitoring'), icon: 'Activity', badge: monitoringStore.alertCount > 0 ? monitoringStore.alertCount : null, badgeVariant: 'alert' },
+      { key: 'processes', label: t('system.processes'), icon: 'Terminal' },
+      { key: 'logs', label: t('system.logs'), icon: 'FileText' },
+      { key: 'hardware', label: t('system.hardwareTab'), icon: 'Cpu' }
     )
   }
   return tabs
@@ -140,15 +141,15 @@ onMounted(() => {
     <!-- Header -->
     <PageHeader
       icon="Monitor"
-      title="System"
-      subtitle="System information, monitoring, and management"
+      :title="t('system.title')"
+      :subtitle="t('system.subtitle')"
     >
       <template #actions>
         <button
           @click="fetchSharedData"
           :disabled="loading"
           class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
-          aria-label="Refresh system"
+          :aria-label="t('system.refresh')"
         >
           <Icon name="RefreshCw" :size="20" :class="{ 'animate-spin': loading }" />
         </button>
@@ -159,7 +160,7 @@ onMounted(() => {
     <div v-if="error" class="bg-error-muted border border-error-subtle rounded-lg p-4 flex items-center gap-3">
       <Icon name="AlertCircle" :size="18" class="text-error shrink-0" />
       <p class="text-error text-sm flex-1">{{ error }}</p>
-      <button @click="error = null" class="p-1 text-error hover:opacity-70" aria-label="Dismiss error">
+      <button @click="error = null" class="p-1 text-error hover:opacity-70" :aria-label="t('common.dismissError')">
         <Icon name="X" :size="14" />
       </button>
     </div>
@@ -169,7 +170,7 @@ onMounted(() => {
       :model-value="activeTab"
       @update:model-value="setTab"
       :tabs="TAB_DEFS"
-      aria-label="System sections"
+      :aria-label="t('system.tabsLabel')"
     />
 
     <!-- Tab Content -->

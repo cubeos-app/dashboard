@@ -1,5 +1,4 @@
 <script setup>
-// TODO: i18n — extract strings to en.json
 /**
  * SettingsPage.vue — S10 Component
  *
@@ -16,6 +15,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useMode } from '@/composables/useMode'
 import { usePreferencesStore } from '@/stores/preferences'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import ModeToggle from '@/components/ui/ModeToggle.vue'
 import Icon from '@/components/ui/Icon.vue'
@@ -28,6 +28,7 @@ import ProfilesTab from './ProfilesTab.vue'
 import RegistryTab from './RegistryTab.vue'
 import SupportTab from './SupportTab.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const preferencesStore = usePreferencesStore()
@@ -37,15 +38,15 @@ const { signal } = useAbortOnUnmount()
 // ─── Tab Management ──────────────────────────────────────────
 const TAB_DEFS = computed(() => {
   const tabs = [
-    { key: 'account', label: 'Account', icon: 'User' },
-    { key: 'appearance', label: 'Appearance', icon: 'Palette' },
-    { key: 'updates', label: 'Updates', icon: 'Download' }
+    { key: 'account', label: t('settings.account'), icon: 'User' },
+    { key: 'appearance', label: t('settings.appearance'), icon: 'Palette' },
+    { key: 'updates', label: t('settings.updates'), icon: 'Download' }
   ]
   if (isAdvanced.value) {
     tabs.push(
-      { key: 'profiles', label: 'Profiles', icon: 'Layers' },
-      { key: 'registry', label: 'Registry', icon: 'Archive' },
-      { key: 'support', label: 'Support', icon: 'LifeBuoy' }
+      { key: 'profiles', label: t('settings.profiles'), icon: 'Layers' },
+      { key: 'registry', label: t('settings.registry'), icon: 'Archive' },
+      { key: 'support', label: t('settings.support'), icon: 'LifeBuoy' }
     )
   }
   return tabs
@@ -81,8 +82,8 @@ onMounted(async () => {
 <template>
   <div class="max-w-4xl mx-auto px-4 sm:px-6 pb-8">
     <PageHeader
-      title="Settings"
-      subtitle="Customize your experience"
+      :title="t('settings.title')"
+      :subtitle="t('settings.subtitle')"
       icon="Settings"
     >
       <template #actions>
@@ -96,7 +97,7 @@ onMounted(async () => {
         :model-value="activeTab"
         @update:model-value="setTab"
         :tabs="TAB_DEFS"
-        aria-label="Settings sections"
+        :aria-label="t('settings.tabsLabel')"
       />
     </div>
 
