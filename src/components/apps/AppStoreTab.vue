@@ -1,5 +1,4 @@
 <script setup>
-// TODO: i18n — extract strings to en.json
 /**
  * AppStoreTab.vue — S04 Component
  *
@@ -17,12 +16,15 @@
  * instead of calling registryStore.deployImage() directly.
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAppStoreStore } from '@/stores/appstore'
 import { useAppsStore } from '@/stores/apps'
 import { useRegistryStore } from '@/stores/registry'
 import { useMode } from '@/composables/useMode'
 import { useWallpaper } from '@/composables/useWallpaper'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 const emit = defineEmits(['openDetail', 'install'])
 
@@ -230,7 +232,7 @@ async function handleCacheForOffline(app, e) {
     await registryStore.cacheAppForOffline(storeId, appName)
     await registryStore.fetchCachedApps(true)
   } catch (err) {
-    actionError.value = 'Failed to cache app: ' + err.message
+    actionError.value = t('apps.store.cacheError', { error: err.message })
   }
 }
 
@@ -265,14 +267,14 @@ onUnmounted(() => {
         class="text-sm font-medium pb-1 transition-colors"
         :class="activeSubTab === 'browse' ? 'text-theme-primary border-b-2 border-accent' : 'text-theme-secondary hover:text-theme-primary'"
       >
-        Browse
+        {{ t('apps.store.browse') }}
       </button>
       <button
         @click="activeSubTab = 'installed'"
         class="text-sm font-medium pb-1 transition-colors"
         :class="activeSubTab === 'installed' ? 'text-theme-primary border-b-2 border-accent' : 'text-theme-secondary hover:text-theme-primary'"
       >
-        Installed
+        {{ t('apps.store.installed') }}
         <span
           v-if="appStore.installedCount > 0"
           class="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-accent-muted text-accent"
@@ -293,7 +295,7 @@ onUnmounted(() => {
             v-model="appStore.searchQuery"
             @input="handleSearch"
             type="text"
-            placeholder="Search apps..."
+            :placeholder="t('apps.store.searchPlaceholder')"
             class="w-full pl-9 pr-4 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
         </div>
@@ -303,9 +305,9 @@ onUnmounted(() => {
           v-model="appStore.selectedCategory"
           class="px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
-          <option value="">All Categories</option>
+          <option value="">{{ t('apps.store.allCategories') }}</option>
           <option v-for="cat in appStore.categories" :key="cat" :value="cat">{{ cat }}</option>
-          <option v-if="offlineApps.length > 0" value="Offline Apps">Offline Apps</option>
+          <option v-if="offlineApps.length > 0" value="Offline Apps">{{ t('apps.store.offlineApps') }}</option>
         </select>
 
         <!-- Store filter -->
@@ -314,7 +316,7 @@ onUnmounted(() => {
           v-model="selectedStoreFilter"
           class="px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
-          <option value="">All Sources</option>
+          <option value="">{{ t('apps.store.allSources') }}</option>
           <option v-for="store in storeOptions" :key="store.id" :value="store.id">{{ store.name }}</option>
         </select>
       </div>
@@ -340,9 +342,9 @@ onUnmounted(() => {
         <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-theme-tertiary flex items-center justify-center">
           <Icon name="Package" :size="28" class="text-theme-muted" />
         </div>
-        <h3 class="text-base font-semibold text-theme-primary mb-1">No Apps Found</h3>
+        <h3 class="text-base font-semibold text-theme-primary mb-1">{{ t('apps.store.noAppsFound') }}</h3>
         <p class="text-theme-tertiary text-sm mb-4">
-          {{ offlineApps.length > 0 ? 'No store apps match your filters. Try clearing filters to see offline apps.' : 'Sync the app stores when online. Cache apps for offline use with the Cache Offline button.' }}
+          {{ offlineApps.length > 0 ? t('apps.store.noStoreAppsHint') : t('apps.store.syncHint') }}
         </p>
         <div class="flex items-center justify-center gap-3">
           <button
@@ -350,14 +352,14 @@ onUnmounted(() => {
             class="inline-flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium"
           >
             <Icon name="RefreshCw" :size="16" />
-            Sync Stores
+            {{ t('apps.store.syncStores') }}
           </button>
           <button
             v-if="appStore.selectedCategory || appStore.searchQuery || selectedStoreFilter"
             @click="clearFilters"
             class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-theme-primary text-sm font-medium text-theme-secondary hover:text-theme-primary"
           >
-            Clear Filters
+            {{ t('apps.store.clearFilters') }}
           </button>
         </div>
       </div>
@@ -383,7 +385,7 @@ onUnmounted(() => {
           <div
             v-if="!app.installed && (app._source === 'offline_cache' || isAppCachedOffline(app))"
             class="absolute top-2 left-2"
-            :title="app._source === 'offline_cache' ? 'Offline — cached in local registry' : 'Available offline'"
+            :title="app._source === 'offline_cache' ? t('apps.store.offlineCachedTitle') : t('apps.store.availableOffline')"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="app._source === 'offline_cache' ? 'text-success' : 'text-theme-muted'"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </div>
@@ -417,10 +419,10 @@ onUnmounted(() => {
             v-if="!app.installed"
             @click="handleQuickInstall(app, $event)"
             class="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium text-accent bg-accent-muted hover:bg-accent hover:text-on-accent transition-colors"
-            :aria-label="'Install ' + getAppTitle(app)"
+            :aria-label="t('apps.store.installApp', { title: getAppTitle(app) })"
           >
             <Icon name="Download" :size="12" />
-            Install
+            {{ t('apps.install') }}
           </button>
 
           <!-- Installed label for store apps that are already installed -->
@@ -429,7 +431,7 @@ onUnmounted(() => {
             class="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium text-success"
           >
             <Icon name="CheckCircle" :size="12" />
-            Installed
+            {{ t('apps.store.installed') }}
           </div>
 
           <!-- Cache for Offline button (store apps only, not already cached) -->
@@ -438,10 +440,10 @@ onUnmounted(() => {
             @click.stop="handleCacheForOffline(app, $event)"
             class="mt-1 w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-accent/70 border border-accent/30 hover:bg-accent-muted hover:text-accent transition-colors"
             :disabled="registryStore.cachingApp === app.name"
-            :aria-label="'Cache ' + getAppTitle(app) + ' for offline use'"
+            :aria-label="t('apps.store.cacheForOffline', { title: getAppTitle(app) })"
           >
             <Icon name="HardDrive" :size="12" />
-            {{ registryStore.cachingApp === app.name ? 'Caching...' : 'Cache Offline' }}
+            {{ registryStore.cachingApp === app.name ? t('apps.store.caching') : t('apps.store.cacheOffline') }}
           </button>
 
           <!-- "Cached" badge for store apps that are already cached -->
@@ -450,18 +452,18 @@ onUnmounted(() => {
             class="mt-1 w-full flex items-center justify-center gap-1 px-2 py-1 text-[10px] text-success"
           >
             <Icon name="CheckCircle" :size="12" />
-            Cached Offline
+            {{ t('apps.store.cachedOffline') }}
           </div>
         </button>
       </div>
 
       <!-- Results count -->
       <div v-if="hasApps" class="text-center text-xs text-theme-muted">
-        Showing {{ browsableApps.length }} apps
-        <template v-if="selectedStoreFilter === '_offline'">from offline cache</template>
-        <template v-else-if="selectedStoreFilter">from {{ storeOptions.find(s => s.id === selectedStoreFilter)?.name }}</template>
+        {{ t('apps.store.showingApps', { count: browsableApps.length }) }}
+        <template v-if="selectedStoreFilter === '_offline'">{{ t('apps.store.fromOfflineCache') }}</template>
+        <template v-else-if="selectedStoreFilter">{{ t('apps.store.fromStore', { store: storeOptions.find(s => s.id === selectedStoreFilter)?.name }) }}</template>
         <template v-else>
-          ({{ appStore.catalog.length }} store + {{ offlineApps.length }} offline)
+          {{ t('apps.store.storeAndOffline', { storeCount: appStore.catalog.length, offlineCount: offlineApps.length }) }}
         </template>
       </div>
     </template>
@@ -473,13 +475,13 @@ onUnmounted(() => {
         <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-theme-tertiary flex items-center justify-center">
           <Icon name="Download" :size="28" class="text-theme-muted" />
         </div>
-        <h3 class="text-base font-semibold text-theme-primary mb-1">No Installed Apps</h3>
-        <p class="text-theme-tertiary text-sm mb-4">Browse the store and install some apps.</p>
+        <h3 class="text-base font-semibold text-theme-primary mb-1">{{ t('apps.store.noInstalledApps') }}</h3>
+        <p class="text-theme-tertiary text-sm mb-4">{{ t('apps.store.browseToInstall') }}</p>
         <button
           @click="activeSubTab = 'browse'"
           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium"
         >
-          Browse Apps
+          {{ t('apps.store.browseApps') }}
         </button>
       </div>
 
@@ -525,8 +527,8 @@ onUnmounted(() => {
               target="_blank"
               @click.stop
               class="p-2 rounded-lg text-accent hover:bg-accent-muted transition-colors"
-              title="Open Web UI"
-              :aria-label="'Open Web UI for ' + (app.title || app.name)"
+              :title="t('apps.store.openWebUI')"
+              :aria-label="t('apps.store.openWebUIFor', { name: app.title || app.name })"
             >
               <Icon name="ExternalLink" :size="16" />
             </a>
@@ -536,8 +538,8 @@ onUnmounted(() => {
               v-if="app.status === 'stopped'"
               @click.stop="appStore.startApp(app.id)"
               class="p-2 rounded-lg text-success hover:bg-success-muted transition-colors"
-              title="Start"
-              :aria-label="'Start ' + (app.title || app.name)"
+              :title="t('apps.start')"
+              :aria-label="t('apps.startApp', { name: app.title || app.name })"
             >
               <Icon name="Play" :size="16" />
             </button>
@@ -545,8 +547,8 @@ onUnmounted(() => {
               v-if="app.status === 'running'"
               @click.stop="appStore.stopApp(app.id)"
               class="p-2 rounded-lg text-warning hover:bg-warning-muted transition-colors"
-              title="Stop"
-              :aria-label="'Stop ' + (app.title || app.name)"
+              :title="t('apps.stop')"
+              :aria-label="t('apps.stopApp', { name: app.title || app.name })"
             >
               <Icon name="Square" :size="16" />
             </button>
@@ -555,8 +557,8 @@ onUnmounted(() => {
             <button
               @click.stop="appStore.restartApp(app.id)"
               class="p-2 rounded-lg text-theme-secondary hover:bg-theme-tertiary transition-colors"
-              title="Restart"
-              :aria-label="'Restart ' + (app.title || app.name)"
+              :title="t('apps.restart')"
+              :aria-label="t('apps.restartApp', { name: app.title || app.name })"
             >
               <Icon name="RotateCw" :size="16" />
             </button>
@@ -565,8 +567,8 @@ onUnmounted(() => {
             <button
               @click.stop="emit('openDetail', app)"
               class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-              title="App Info"
-              :aria-label="'Info for ' + (app.title || app.name)"
+              :title="t('apps.appInfo')"
+              :aria-label="t('apps.store.infoFor', { name: app.title || app.name })"
             >
               <Icon name="Info" :size="16" />
             </button>

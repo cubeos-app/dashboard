@@ -1,5 +1,4 @@
 <script setup>
-// TODO: i18n — extract strings to en.json
 /**
  * AppManagerTab.vue — S05 Component
  *
@@ -12,22 +11,25 @@
  *   - useAppManagerStore → FQDNs, NPM status, CasaOS import
  *   - useNPMStore → NPM proxy hosts CRUD
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAppManagerStore } from '@/stores/appmanager'
 import { useNPMStore } from '@/stores/npm'
 import { confirm } from '@/utils/confirmDialog'
 import { makeFqdn, getDomainSuffix, makePlaceholder } from '@/utils/domain'
 import Icon from '@/components/ui/Icon.vue'
 
+const { t } = useI18n()
+
 const store = useAppManagerStore()
 const npmStore = useNPMStore()
 
 // ─── Sub-tab Management ───────────────────────────────────────
-const SUB_TABS = [
-  { key: 'fqdns', label: 'Domains', icon: 'Globe' },
-  { key: 'npm', label: 'Proxy', icon: 'Shield' },
-  { key: 'casaos', label: 'Import', icon: 'Download' }
-]
+const SUB_TABS = computed(() => [
+  { key: 'fqdns', label: t('apps.manager.domains'), icon: 'Globe' },
+  { key: 'npm', label: t('apps.manager.proxy'), icon: 'Shield' },
+  { key: 'casaos', label: t('apps.manager.import'), icon: 'Download' }
+])
 const activeSubTab = ref('fqdns')
 
 // ─── Data Fetching ────────────────────────────────────────────
@@ -55,7 +57,6 @@ const editData = ref({ subdomain: '', backend_port: 80, ssl_enabled: false })
 const editingFQDN = ref('')
 const editError = ref('')
 
-import { computed } from 'vue'
 const editPreviewFQDN = computed(() => makeFqdn(editData.value.subdomain || 'app'))
 
 function formatDate(dateStr) {
@@ -104,9 +105,9 @@ function openEditModal(detail) {
 async function saveEdit() {
   const subdomainChanged = editData.value.subdomain !== fqdnDetail.value?.subdomain
   if (subdomainChanged && !await confirm({
-    title: 'Change Domain',
-    message: `This will change the FQDN from ${editingFQDN.value} to ${editPreviewFQDN.value}. Existing links will break.`,
-    confirmText: 'Change',
+    title: t('apps.manager.changeDomain'),
+    message: t('apps.manager.changeDomainMessage', { oldFqdn: editingFQDN.value, newFqdn: editPreviewFQDN.value }),
+    confirmText: t('apps.manager.change'),
     variant: 'warning'
   })) return
   editing.value = true
@@ -134,7 +135,7 @@ async function registerFQDN() {
 }
 
 async function deregisterFQDN(fqdn) {
-  if (!await confirm({ title: 'Remove Domain', message: `Remove ${fqdn} from DNS?`, confirmText: 'Remove', variant: 'danger' })) return
+  if (!await confirm({ title: t('apps.manager.removeDomainTitle'), message: t('apps.manager.removeFromDns', { fqdn }), confirmText: t('common.remove'), variant: 'danger' })) return
   try {
     await store.deregisterFQDN(fqdn)
     if (expandedFQDN.value === fqdn) { expandedFQDN.value = null; fqdnDetail.value = null }
@@ -176,7 +177,7 @@ async function saveHost() {
     const domains = hostForm.value.domain_names.split(',').map(d => d.trim()).filter(Boolean)
     const domainPattern = /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/
     const invalid = domains.find(d => !domainPattern.test(d))
-    if (invalid) { npmError.value = `Invalid domain format: ${invalid}`; createHostLoading.value = false; return }
+    if (invalid) { npmError.value = t('apps.manager.invalidDomainFormat', { domain: invalid }); createHostLoading.value = false; return }
     await npmStore.createHost({
       domain_names: domains, forward_host: hostForm.value.forward_host.trim(),
       forward_port: Number(hostForm.value.forward_port) || 80, forward_scheme: hostForm.value.forward_scheme,
@@ -184,24 +185,24 @@ async function saveHost() {
       block_exploits: hostForm.value.block_exploits, allow_websocket_upgrade: hostForm.value.allow_websocket_upgrade
     })
     showCreateHostModal.value = false
-  } catch (e) { npmError.value = 'Failed to create host: ' + e.message }
+  } catch (e) { npmError.value = t('apps.manager.failedCreateHost', { error: e.message }) }
   finally { createHostLoading.value = false }
 }
 
 async function deleteHost(host) {
   const displayName = host.domain_names?.join(', ') || host.domain || `Host #${host.id}`
-  if (!await confirm({ title: 'Delete Proxy Host', message: `Delete proxy host for "${displayName}"?`, confirmText: 'Delete', variant: 'danger' })) return
+  if (!await confirm({ title: t('apps.manager.deleteProxyHost'), message: t('apps.manager.deleteProxyHostMessage', { name: displayName }), confirmText: t('common.delete'), variant: 'danger' })) return
   deleteHostLoading.value = { ...deleteHostLoading.value, [host.id]: true }
   npmError.value = null
   try { await npmStore.deleteHost(host.id) }
-  catch (e) { npmError.value = 'Failed to delete host: ' + e.message }
+  catch (e) { npmError.value = t('apps.manager.failedDeleteHost', { error: e.message }) }
   finally { deleteHostLoading.value = { ...deleteHostLoading.value, [host.id]: false } }
 }
 
 function getDomainDisplay(host) { return Array.isArray(host.domain_names) ? host.domain_names.join(', ') : host.domain || host.domain_names || '-' }
 function getForwardDisplay(host) { return `${host.forward_scheme || 'http'}://${host.forward_host || '-'}:${host.forward_port || 80}` }
 function hostStatusClass(host) { return host.enabled === false ? 'bg-theme-tertiary text-theme-muted' : 'bg-success-muted text-success' }
-function hostStatusText(host) { return host.enabled === false ? 'Disabled' : 'Active' }
+function hostStatusText(host) { return host.enabled === false ? t('common.disabled') : t('common.active') }
 
 // ═══════════════════════════════════════════════════════════════
 // CasaOS Import
@@ -237,7 +238,7 @@ async function previewAppJson(json) {
     const result = await store.previewCasaOSApp(json)
     previewCompose.value = result.compose; previewApp.value = result.app; showPreviewModal.value = true
   } catch (e) {
-    await confirm({ title: 'Parse Error', message: 'Failed to parse CasaOS JSON: ' + e.message, confirmText: 'OK', cancelText: '', variant: 'danger' })
+    await confirm({ title: t('apps.manager.parseError'), message: t('apps.manager.parseFailed', { error: e.message }), confirmText: 'OK', cancelText: '', variant: 'danger' })
   }
 }
 
@@ -251,7 +252,7 @@ async function importApp() {
     await store.importCasaOSApp(JSON.stringify(previewApp.value))
     showPreviewModal.value = false; previewApp.value = null; previewCompose.value = ''; pastedJson.value = ''
   } catch (e) {
-    await confirm({ title: 'Import Failed', message: 'Failed to import app: ' + e.message, confirmText: 'OK', cancelText: '', variant: 'danger' })
+    await confirm({ title: t('apps.manager.importFailed'), message: t('apps.manager.importFailedMessage', { error: e.message }), confirmText: 'OK', cancelText: '', variant: 'danger' })
   }
   finally { importing.value = false }
 }
@@ -283,10 +284,9 @@ async function importApp() {
         <div class="flex items-start">
           <Icon name="Info" :size="20" class="text-success mt-0.5" />
           <div class="ml-3 text-sm">
-            <p class="text-theme-primary font-medium">Pi-hole DNS Integration</p>
+            <p class="text-theme-primary font-medium">{{ t('apps.manager.piholeIntegration') }}</p>
             <p class="mt-1 text-theme-secondary">
-              Registered domains are automatically added to Pi-hole's custom DNS.
-              Access apps at <code class="bg-theme-tertiary px-1 rounded">subdomain{{ getDomainSuffix() }}</code>
+              {{ t('apps.manager.piholeDesc') }} <code class="bg-theme-tertiary px-1 rounded">subdomain{{ getDomainSuffix() }}</code>
             </p>
           </div>
         </div>
@@ -294,17 +294,17 @@ async function importApp() {
 
       <!-- Toolbar -->
       <div class="flex items-center justify-between">
-        <span class="text-sm text-theme-secondary">{{ store.fqdns.length }} registered domains</span>
+        <span class="text-sm text-theme-secondary">{{ t('apps.manager.registeredCount', { count: store.fqdns.length }) }}</span>
         <button @click="showRegisterModal = true" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors">
-          <Icon name="Plus" :size="16" />Register Domain
+          <Icon name="Plus" :size="16" />{{ t('apps.manager.registerDomain') }}
         </button>
       </div>
 
       <!-- Empty -->
       <div v-if="store.fqdns.length === 0" class="text-center py-12">
         <Icon name="Globe" :size="48" class="mx-auto text-theme-muted" />
-        <h3 class="mt-4 text-lg font-medium text-theme-primary">No domains registered</h3>
-        <p class="mt-1 text-sm text-theme-secondary">Register domains to access apps via friendly URLs</p>
+        <h3 class="mt-4 text-lg font-medium text-theme-primary">{{ t('apps.manager.noDomainsRegistered') }}</h3>
+        <p class="mt-1 text-sm text-theme-secondary">{{ t('apps.manager.noDomainsHint') }}</p>
       </div>
 
       <!-- FQDN Grid -->
@@ -316,7 +316,7 @@ async function importApp() {
           @keydown.enter="toggleFQDNDetail(fqdn.fqdn)"
           role="button" tabindex="0"
           :aria-expanded="expandedFQDN === fqdn.fqdn"
-          :aria-label="'Toggle details for ' + fqdn.fqdn"
+          :aria-label="t('apps.manager.toggleDetails', { fqdn: fqdn.fqdn })"
         >
           <div class="flex items-start justify-between">
             <div class="flex-1">
@@ -324,15 +324,15 @@ async function importApp() {
                 class="text-sm font-medium text-accent hover:underline flex items-center gap-1">
                 <Icon name="Globe" :size="14" />{{ fqdn.fqdn }}<Icon name="ExternalLink" :size="12" class="text-theme-muted" />
               </a>
-              <p class="mt-1 text-xs text-theme-secondary">App: {{ fqdn.app_name || 'Unknown' }}</p>
+              <p class="mt-1 text-xs text-theme-secondary">{{ t('apps.manager.appLabel', { name: fqdn.app_name || t('common.unknown') }) }}</p>
             </div>
             <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', fqdn.ssl_enabled ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-secondary']">
               <Icon :name="fqdn.ssl_enabled ? 'Lock' : 'Unlock'" :size="10" class="mr-1" />{{ fqdn.ssl_enabled ? 'HTTPS' : 'HTTP' }}
             </span>
           </div>
           <div class="mt-3 flex items-center justify-between text-xs text-theme-secondary">
-            <span class="flex items-center gap-1"><Icon name="Server" :size="12" />Backend port: {{ fqdn.backend_port }}</span>
-            <button @click.stop="deregisterFQDN(fqdn.fqdn)" class="p-1 text-error hover:bg-error-muted rounded transition-colors" title="Remove domain" :aria-label="'Remove domain ' + fqdn.fqdn">
+            <span class="flex items-center gap-1"><Icon name="Server" :size="12" />{{ t('apps.manager.backendPortLabel', { port: fqdn.backend_port }) }}</span>
+            <button @click.stop="deregisterFQDN(fqdn.fqdn)" class="p-1 text-error hover:bg-error-muted rounded transition-colors" :title="t('apps.manager.removeDomain')" :aria-label="t('apps.manager.removeDomainFor', { fqdn: fqdn.fqdn })">
               <Icon name="Trash2" :size="14" />
             </button>
           </div>
@@ -345,36 +345,36 @@ async function importApp() {
             </div>
             <div v-else-if="fqdnDetailError" class="text-center py-3">
               <p class="text-xs text-error mb-2">{{ fqdnDetailError }}</p>
-              <button @click.stop="loadFQDNDetail(fqdn.fqdn)" class="text-xs text-accent hover:underline">Retry</button>
+              <button @click.stop="loadFQDNDetail(fqdn.fqdn)" class="text-xs text-accent hover:underline">{{ t('common.retry') }}</button>
             </div>
             <div v-else-if="fqdnDetail" class="space-y-3">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 <div>
-                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">Full FQDN</p>
+                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">{{ t('apps.manager.fullFqdn') }}</p>
                   <p class="text-theme-primary font-mono">{{ fqdnDetail.fqdn }}</p>
                 </div>
                 <div>
-                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">Backend Port</p>
+                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">{{ t('apps.manager.backendPort') }}</p>
                   <p class="text-theme-primary font-mono">{{ fqdnDetail.backend_port }}</p>
                 </div>
                 <div>
-                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">SSL Status</p>
+                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">{{ t('apps.manager.sslStatus') }}</p>
                   <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', fqdnDetail.ssl_enabled ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-secondary']">
-                    <Icon :name="fqdnDetail.ssl_enabled ? 'Lock' : 'Unlock'" :size="10" class="mr-1" />{{ fqdnDetail.ssl_enabled ? 'Enabled' : 'Disabled' }}
+                    <Icon :name="fqdnDetail.ssl_enabled ? 'Lock' : 'Unlock'" :size="10" class="mr-1" />{{ fqdnDetail.ssl_enabled ? t('common.enabled') : t('common.disabled') }}
                   </span>
                 </div>
                 <div v-if="fqdnDetail.npm_proxy_id">
-                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">NPM Proxy ID</p>
+                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">{{ t('apps.manager.npmProxyId') }}</p>
                   <p class="text-theme-primary font-mono">{{ fqdnDetail.npm_proxy_id }}</p>
                 </div>
                 <div v-if="fqdnDetail.created_at">
-                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">Created</p>
+                  <p class="text-theme-muted uppercase tracking-wider text-[10px] mb-0.5">{{ t('apps.manager.created') }}</p>
                   <p class="text-theme-secondary flex items-center gap-1"><Icon name="Clock" :size="12" />{{ formatDate(fqdnDetail.created_at) }}</p>
                 </div>
               </div>
               <div class="pt-2">
                 <button @click.stop="openEditModal(fqdnDetail)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary rounded-md transition-colors">
-                  <Icon name="Edit3" :size="12" />Edit
+                  <Icon name="Edit3" :size="12" />{{ t('apps.manager.edit') }}
                 </button>
               </div>
             </div>
@@ -393,21 +393,21 @@ async function importApp() {
               <Icon name="Shield" :size="20" :class="npmStore.isOnline ? 'text-success' : 'text-theme-muted'" />
             </div>
             <div>
-              <h3 class="font-semibold text-theme-primary">Nginx Proxy Manager</h3>
-              <div v-if="npmStore.loading" class="flex items-center gap-2 text-sm text-theme-muted mt-0.5"><Icon name="Loader2" :size="14" class="animate-spin" />Loading...</div>
+              <h3 class="font-semibold text-theme-primary">{{ t('apps.manager.nginxProxyManager') }}</h3>
+              <div v-if="npmStore.loading" class="flex items-center gap-2 text-sm text-theme-muted mt-0.5"><Icon name="Loader2" :size="14" class="animate-spin" />{{ t('common.loading') }}</div>
               <div v-else class="flex flex-wrap items-center gap-3 text-sm mt-0.5">
                 <span class="flex items-center gap-1" :class="npmStore.isOnline ? 'text-success' : 'text-error'">
-                  <Icon :name="npmStore.isOnline ? 'CheckCircle' : 'XCircle'" :size="14" />{{ npmStore.isOnline ? 'Running' : 'Stopped' }}
+                  <Icon :name="npmStore.isOnline ? 'CheckCircle' : 'XCircle'" :size="14" />{{ npmStore.isOnline ? t('apps.running') : t('apps.stopped') }}
                 </span>
-                <span class="text-theme-muted">{{ npmStore.hostCount }} host{{ npmStore.hostCount !== 1 ? 's' : '' }}</span>
+                <span class="text-theme-muted">{{ t('apps.manager.hostCount', { count: npmStore.hostCount }) }}</span>
               </div>
             </div>
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
             <button @click="openCreateHost" :disabled="!npmStore.isOnline" class="px-4 py-2 btn-accent rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-              <Icon name="Plus" :size="16" />Add Host
+              <Icon name="Plus" :size="16" />{{ t('apps.manager.addHost') }}
             </button>
-            <button @click="npmStore.fetchAll()" :disabled="npmStore.loading" class="p-2 bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 disabled:opacity-50" title="Refresh" aria-label="Refresh NPM status">
+            <button @click="npmStore.fetchAll()" :disabled="npmStore.loading" class="p-2 bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 disabled:opacity-50" :title="t('common.refresh')" :aria-label="t('apps.manager.refreshNpm')">
               <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': npmStore.loading }" class="text-theme-secondary" />
             </button>
           </div>
@@ -417,13 +417,13 @@ async function importApp() {
       <!-- NPM Error -->
       <div v-if="npmError" class="bg-error-muted border border-error rounded-lg p-4 flex items-start gap-2">
         <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
-        <div class="flex-1"><p class="text-sm text-error">{{ npmError }}</p><button @click="npmError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">Dismiss</button></div>
+        <div class="flex-1"><p class="text-sm text-error">{{ npmError }}</p><button @click="npmError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">{{ t('common.dismiss') }}</button></div>
       </div>
 
       <!-- Not running -->
       <div v-if="npmStore.status && !npmStore.isOnline" class="bg-warning-muted border border-warning rounded-lg p-4">
-        <div class="flex items-center gap-2 mb-2"><Icon name="AlertCircle" :size="16" class="text-warning" /><p class="text-sm font-medium text-warning">NPM is not running</p></div>
-        <p class="text-sm text-theme-muted">Start Nginx Proxy Manager to manage reverse proxy hosts.</p>
+        <div class="flex items-center gap-2 mb-2"><Icon name="AlertCircle" :size="16" class="text-warning" /><p class="text-sm font-medium text-warning">{{ t('apps.manager.npmNotRunning') }}</p></div>
+        <p class="text-sm text-theme-muted">{{ t('apps.manager.npmNotRunningHint') }}</p>
       </div>
 
       <!-- Hosts list -->
@@ -440,9 +440,9 @@ async function importApp() {
             <div class="flex items-center gap-2 flex-shrink-0">
               <span class="px-2 py-0.5 text-[10px] font-semibold rounded" :class="hostStatusClass(host)">{{ hostStatusText(host) }}</span>
               <span class="px-2 py-0.5 text-[10px] font-semibold rounded" :class="host.ssl_forced || host.certificate_id ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'">
-                SSL {{ host.ssl_forced || host.certificate_id ? 'On' : 'Off' }}
+                {{ host.ssl_forced || host.certificate_id ? t('apps.manager.sslOn') : t('apps.manager.sslOff') }}
               </span>
-              <button @click="deleteHost(host)" :disabled="deleteHostLoading[host.id]" class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50" :aria-label="'Delete proxy host ' + getDomainDisplay(host)">
+              <button @click="deleteHost(host)" :disabled="deleteHostLoading[host.id]" class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50" :aria-label="t('apps.manager.deleteProxyHostLabel', { name: getDomainDisplay(host) })">
                 <Icon v-if="deleteHostLoading[host.id]" name="Loader2" :size="14" class="animate-spin" /><Icon v-else name="Trash2" :size="14" />
               </button>
             </div>
@@ -453,9 +453,9 @@ async function importApp() {
       <!-- Empty -->
       <div v-if="npmStore.hosts.length === 0 && npmStore.isOnline && !npmStore.loading" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
         <Icon name="Shield" :size="40" class="mx-auto text-theme-muted mb-4" />
-        <h3 class="text-lg font-medium text-theme-primary mb-2">No Proxy Hosts</h3>
-        <p class="text-theme-muted text-sm mb-4">Add a proxy host to route traffic to your services.</p>
-        <button @click="openCreateHost" class="px-4 py-2 btn-accent rounded-lg text-sm">Add First Host</button>
+        <h3 class="text-lg font-medium text-theme-primary mb-2">{{ t('apps.manager.noProxyHosts') }}</h3>
+        <p class="text-theme-muted text-sm mb-4">{{ t('apps.manager.noProxyHostsHint') }}</p>
+        <button @click="openCreateHost" class="px-4 py-2 btn-accent rounded-lg text-sm">{{ t('apps.manager.addFirstHost') }}</button>
       </div>
     </template>
 
@@ -465,7 +465,7 @@ async function importApp() {
         <!-- Browse Stores -->
         <div class="bg-theme-card rounded-lg border border-theme-primary p-6">
           <h3 class="text-lg font-medium text-theme-primary mb-4 flex items-center gap-2">
-            <Icon name="Store" :size="20" />Browse CasaOS Stores
+            <Icon name="Store" :size="20" />{{ t('apps.manager.browseCasaStores') }}
           </h3>
           <div class="space-y-2 mb-4">
             <button v-for="s in popularStores" :key="s.url" @click="selectStore(s.url)"
@@ -475,8 +475,8 @@ async function importApp() {
             </button>
           </div>
           <div class="flex gap-2">
-            <input v-model="customStoreUrl" type="text" placeholder="Custom store URL..." aria-label="Custom CasaOS store URL" class="flex-1 rounded-md border-theme-primary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] text-sm px-3 py-2">
-            <button @click="loadCustomStore" class="px-3 py-2 text-sm font-medium text-accent hover:bg-accent-muted rounded-md transition-colors" aria-label="Load custom store"><Icon name="ExternalLink" :size="16" /></button>
+            <input v-model="customStoreUrl" type="text" :placeholder="t('apps.manager.customStoreUrl')" :aria-label="t('apps.manager.customStoreUrlLabel')" class="flex-1 rounded-md border-theme-primary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] text-sm px-3 py-2">
+            <button @click="loadCustomStore" class="px-3 py-2 text-sm font-medium text-accent hover:bg-accent-muted rounded-md transition-colors" :aria-label="t('apps.manager.customStoreUrlLabel')"><Icon name="ExternalLink" :size="16" /></button>
           </div>
           <div v-if="loadingStore" class="mt-6 flex items-center justify-center py-8"><Icon name="Loader2" :size="24" class="animate-spin text-accent" /></div>
           <div v-else-if="storeApps.length > 0" class="mt-6 space-y-2 max-h-96 overflow-y-auto">
@@ -488,7 +488,7 @@ async function importApp() {
                   <p v-if="app.tagline" class="text-xs text-theme-muted line-clamp-1">{{ app.tagline }}</p>
                 </div>
               </div>
-              <button @click="previewStoreApp(app)" class="px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent-muted rounded transition-colors" :aria-label="`Preview ${app.title || app.name}`"><Icon name="Eye" :size="14" /></button>
+              <button @click="previewStoreApp(app)" class="px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent-muted rounded transition-colors" :aria-label="t('apps.manager.previewAppLabel', { name: app.title || app.name })"><Icon name="Eye" :size="14" /></button>
             </div>
           </div>
         </div>
@@ -496,18 +496,18 @@ async function importApp() {
         <!-- Paste JSON -->
         <div>
           <div class="bg-theme-card rounded-lg border border-theme-primary p-6">
-            <h3 class="text-lg font-medium text-theme-primary mb-4 flex items-center gap-2"><Icon name="FileJson" :size="20" />Paste CasaOS JSON</h3>
-            <textarea v-model="pastedJson" rows="12" aria-label="Paste CasaOS app JSON" placeholder="Paste CasaOS app JSON here..." class="w-full rounded-md border-theme-primary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] text-sm font-mono px-3 py-2"></textarea>
+            <h3 class="text-lg font-medium text-theme-primary mb-4 flex items-center gap-2"><Icon name="FileJson" :size="20" />{{ t('apps.manager.pasteCasaJson') }}</h3>
+            <textarea v-model="pastedJson" rows="12" :aria-label="t('apps.manager.pasteLabel')" :placeholder="t('apps.manager.pastePlaceholder')" class="w-full rounded-md border-theme-primary bg-theme-input text-theme-primary focus:ring-2 focus:ring-[color:var(--accent-primary)] text-sm font-mono px-3 py-2"></textarea>
             <div class="mt-4 flex justify-end">
-              <button @click="previewPastedJson" :disabled="!pastedJson.trim()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50"><Icon name="Eye" :size="16" />Preview & Import</button>
+              <button @click="previewPastedJson" :disabled="!pastedJson.trim()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md transition-colors disabled:opacity-50"><Icon name="Eye" :size="16" />{{ t('apps.manager.previewImport') }}</button>
             </div>
           </div>
           <div class="mt-4 bg-theme-tertiary rounded-lg p-4">
-            <h4 class="text-sm font-medium text-theme-primary mb-2 flex items-center gap-2"><Icon name="HelpCircle" :size="16" />How it works</h4>
+            <h4 class="text-sm font-medium text-theme-primary mb-2 flex items-center gap-2"><Icon name="HelpCircle" :size="16" />{{ t('apps.manager.howItWorks') }}</h4>
             <ul class="text-xs text-theme-secondary space-y-1">
-              <li class="flex items-start gap-2"><Icon name="ChevronRight" :size="12" class="mt-0.5" />CasaOS JSON is converted to docker-compose.yml</li>
-              <li class="flex items-start gap-2"><Icon name="ChevronRight" :size="12" class="mt-0.5" />Paths are mapped: /DATA/AppData/ becomes /cubeos/userapps/</li>
-              <li class="flex items-start gap-2"><Icon name="ChevronRight" :size="12" class="mt-0.5" />App is registered in AppManager with allocated ports</li>
+              <li class="flex items-start gap-2"><Icon name="ChevronRight" :size="12" class="mt-0.5" />{{ t('apps.manager.howStep1') }}</li>
+              <li class="flex items-start gap-2"><Icon name="ChevronRight" :size="12" class="mt-0.5" />{{ t('apps.manager.howStep2') }}</li>
+              <li class="flex items-start gap-2"><Icon name="ChevronRight" :size="12" class="mt-0.5" />{{ t('apps.manager.howStep3') }}</li>
             </ul>
           </div>
         </div>
@@ -518,39 +518,39 @@ async function importApp() {
 
     <!-- Register FQDN Modal -->
     <Teleport to="body">
-      <div v-if="showRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Register Domain">
+      <div v-if="showRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" :aria-label="t('apps.manager.registerDomain')">
         <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm" @click="showRegisterModal = false"></div>
         <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-medium text-theme-primary">Register Domain</h3>
-            <button @click="showRegisterModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
+            <h3 class="text-lg font-medium text-theme-primary">{{ t('apps.manager.registerDomain') }}</h3>
+            <button @click="showRegisterModal = false" class="text-theme-muted hover:text-theme-primary" :aria-label="t('common.close')"><Icon name="X" :size="20" /></button>
           </div>
           <form @submit.prevent="registerFQDN" class="space-y-4">
             <div>
-              <label for="mgr-reg-app" class="block text-sm font-medium text-theme-secondary mb-1">Application</label>
+              <label for="mgr-reg-app" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.application') }}</label>
               <select id="mgr-reg-app" v-model="newFQDN.app_name" required @change="onAppSelect(newFQDN.app_name)" class="w-full rounded-md border-theme-primary bg-theme-input text-theme-primary text-sm px-3 py-2">
-                <option value="">Select an app...</option>
+                <option value="">{{ t('apps.manager.selectApp') }}</option>
                 <option v-for="app in store.apps" :key="app.id" :value="app.name">{{ app.display_name || app.name }}</option>
               </select>
             </div>
             <div>
-              <label for="mgr-reg-sub" class="block text-sm font-medium text-theme-secondary mb-1">Subdomain</label>
+              <label for="mgr-reg-sub" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.subdomain') }}</label>
               <div class="flex items-center">
                 <input id="mgr-reg-sub" v-model="newFQDN.subdomain" type="text" required placeholder="my-app" pattern="[a-z0-9-]+" class="flex-1 rounded-l-md border-theme-primary bg-theme-input text-theme-primary text-sm px-3 py-2">
                 <span class="px-3 py-2 bg-theme-tertiary border border-l-0 border-theme-primary rounded-r-md text-sm text-theme-secondary">{{ getDomainSuffix() }}</span>
               </div>
             </div>
             <div>
-              <label for="mgr-reg-port" class="block text-sm font-medium text-theme-secondary mb-1">Backend Port</label>
+              <label for="mgr-reg-port" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.backendPort') }}</label>
               <input id="mgr-reg-port" v-model.number="newFQDN.backend_port" type="number" required min="1" max="65535" class="w-full rounded-md border-theme-primary bg-theme-input text-theme-primary text-sm px-3 py-2">
             </div>
             <label class="flex items-center gap-3 cursor-pointer">
               <input v-model="newFQDN.ssl_enabled" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
-              <span class="text-sm text-theme-secondary">Enable SSL (requires NPM proxy)</span>
+              <span class="text-sm text-theme-secondary">{{ t('apps.manager.enableSslProxy') }}</span>
             </label>
             <div class="flex justify-end gap-3 pt-4">
-              <button type="button" @click="showRegisterModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary">Cancel</button>
-              <button type="submit" :disabled="registering" class="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md disabled:opacity-50">{{ registering ? 'Registering...' : 'Register' }}</button>
+              <button type="button" @click="showRegisterModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary">{{ t('common.cancel') }}</button>
+              <button type="submit" :disabled="registering" class="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md disabled:opacity-50">{{ registering ? t('apps.manager.registering') : t('apps.manager.registerDomain') }}</button>
             </div>
           </form>
         </div>
@@ -559,38 +559,38 @@ async function importApp() {
 
     <!-- Edit FQDN Modal -->
     <Teleport to="body">
-      <div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Edit Domain">
+      <div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" :aria-label="t('apps.manager.editDomain')">
         <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm" @click="showEditModal = false"></div>
         <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-medium text-theme-primary">Edit Domain</h3>
-            <button @click="showEditModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
+            <h3 class="text-lg font-medium text-theme-primary">{{ t('apps.manager.editDomain') }}</h3>
+            <button @click="showEditModal = false" class="text-theme-muted hover:text-theme-primary" :aria-label="t('common.close')"><Icon name="X" :size="20" /></button>
           </div>
           <form @submit.prevent="saveEdit" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-theme-secondary mb-1">Application</label>
+              <label class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.application') }}</label>
               <p class="text-sm text-theme-primary py-2">{{ fqdnDetail?.app_name || '-' }}</p>
             </div>
             <div>
-              <label for="mgr-edit-sub" class="block text-sm font-medium text-theme-secondary mb-1">Subdomain</label>
+              <label for="mgr-edit-sub" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.subdomain') }}</label>
               <div class="flex items-center">
                 <input id="mgr-edit-sub" v-model="editData.subdomain" type="text" required placeholder="my-app" pattern="[a-z0-9-]+" class="flex-1 rounded-l-md border-theme-primary bg-theme-input text-theme-primary text-sm px-3 py-2">
                 <span class="px-3 py-2 bg-theme-tertiary border border-l-0 border-theme-primary rounded-r-md text-sm text-theme-secondary">{{ getDomainSuffix() }}</span>
               </div>
-              <p class="mt-1 text-xs text-theme-muted">Preview: <span class="font-mono text-theme-primary">{{ editPreviewFQDN }}</span></p>
+              <p class="mt-1 text-xs text-theme-muted">{{ t('apps.manager.previewLabel') }} <span class="font-mono text-theme-primary">{{ editPreviewFQDN }}</span></p>
             </div>
             <div>
-              <label for="mgr-edit-port" class="block text-sm font-medium text-theme-secondary mb-1">Backend Port</label>
+              <label for="mgr-edit-port" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.backendPort') }}</label>
               <input id="mgr-edit-port" v-model.number="editData.backend_port" type="number" required min="1" max="65535" class="w-full rounded-md border-theme-primary bg-theme-input text-theme-primary text-sm px-3 py-2">
             </div>
             <label class="flex items-center gap-3 cursor-pointer">
               <input v-model="editData.ssl_enabled" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent focus:ring-[color:var(--accent-primary)]">
-              <span class="text-sm text-theme-secondary">Enable SSL</span>
+              <span class="text-sm text-theme-secondary">{{ t('apps.manager.enableSsl') }}</span>
             </label>
             <p v-if="editError" class="text-xs text-error">{{ editError }}</p>
             <div class="flex justify-end gap-3 pt-4">
-              <button type="button" @click="showEditModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary">Cancel</button>
-              <button type="submit" :disabled="editing" class="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md disabled:opacity-50">{{ editing ? 'Saving...' : 'Save' }}</button>
+              <button type="button" @click="showEditModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary">{{ t('common.cancel') }}</button>
+              <button type="submit" :disabled="editing" class="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md disabled:opacity-50">{{ editing ? t('apps.manager.saving') : t('common.save') }}</button>
             </div>
           </form>
         </div>
@@ -599,45 +599,45 @@ async function importApp() {
 
     <!-- Create NPM Host Modal -->
     <Teleport to="body">
-      <div v-if="showCreateHostModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Create Proxy Host">
+      <div v-if="showCreateHostModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" :aria-label="t('apps.manager.createProxyHost')">
         <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm" @click="showCreateHostModal = false"></div>
         <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary max-h-[90vh] flex flex-col">
           <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary flex-shrink-0">
-            <h3 class="text-lg font-semibold text-theme-primary">Create Proxy Host</h3>
-            <button @click="showCreateHostModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg" aria-label="Close"><Icon name="X" :size="18" /></button>
+            <h3 class="text-lg font-semibold text-theme-primary">{{ t('apps.manager.createProxyHost') }}</h3>
+            <button @click="showCreateHostModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg" :aria-label="t('common.close')"><Icon name="X" :size="18" /></button>
           </div>
           <div class="p-6 space-y-4 overflow-y-auto flex-1">
             <div>
-              <label for="mgr-npm-domains" class="block text-sm font-medium text-theme-secondary mb-1">Domain Name(s)</label>
+              <label for="mgr-npm-domains" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.domainNames') }}</label>
               <input id="mgr-npm-domains" v-model="hostForm.domain_names" type="text" :placeholder="makePlaceholder('app')" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent">
-              <p class="mt-1 text-xs text-theme-muted">Comma-separated for multiple domains</p>
+              <p class="mt-1 text-xs text-theme-muted">{{ t('apps.manager.commaSeparated') }}</p>
             </div>
             <div class="grid grid-cols-3 gap-3">
               <div>
-                <label for="mgr-npm-scheme" class="block text-sm font-medium text-theme-secondary mb-1">Scheme</label>
+                <label for="mgr-npm-scheme" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.scheme') }}</label>
                 <select id="mgr-npm-scheme" v-model="hostForm.forward_scheme" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm">
                   <option value="http">http</option><option value="https">https</option>
                 </select>
               </div>
               <div>
-                <label for="mgr-npm-host" class="block text-sm font-medium text-theme-secondary mb-1">Host</label>
+                <label for="mgr-npm-host" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.host') }}</label>
                 <input id="mgr-npm-host" v-model="hostForm.forward_host" type="text" placeholder="192.168.1.100" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm">
               </div>
               <div>
-                <label for="mgr-npm-port" class="block text-sm font-medium text-theme-secondary mb-1">Port</label>
+                <label for="mgr-npm-port" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.port') }}</label>
                 <input id="mgr-npm-port" v-model.number="hostForm.forward_port" type="number" min="1" max="65535" placeholder="80" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm">
               </div>
             </div>
             <div class="space-y-3 pt-2">
-              <label class="flex items-center gap-3 cursor-pointer"><input v-model="hostForm.ssl_forced" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">Force SSL</span></label>
-              <label class="flex items-center gap-3 cursor-pointer"><input v-model="hostForm.block_exploits" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">Block common exploits</span></label>
-              <label class="flex items-center gap-3 cursor-pointer"><input v-model="hostForm.allow_websocket_upgrade" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">Allow WebSocket upgrade</span></label>
+              <label class="flex items-center gap-3 cursor-pointer"><input v-model="hostForm.ssl_forced" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">{{ t('apps.manager.forceSSL') }}</span></label>
+              <label class="flex items-center gap-3 cursor-pointer"><input v-model="hostForm.block_exploits" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">{{ t('apps.manager.blockExploits') }}</span></label>
+              <label class="flex items-center gap-3 cursor-pointer"><input v-model="hostForm.allow_websocket_upgrade" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">{{ t('apps.manager.allowWebSocket') }}</span></label>
             </div>
           </div>
           <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-theme-primary flex-shrink-0">
-            <button @click="showCreateHostModal = false" class="px-4 py-2 text-theme-secondary hover:bg-theme-tertiary rounded-lg text-sm">Cancel</button>
+            <button @click="showCreateHostModal = false" class="px-4 py-2 text-theme-secondary hover:bg-theme-tertiary rounded-lg text-sm">{{ t('common.cancel') }}</button>
             <button @click="saveHost" :disabled="createHostLoading || !hostForm.domain_names.trim() || !hostForm.forward_host.trim()" class="px-4 py-2 btn-accent rounded-lg text-sm disabled:opacity-50 flex items-center gap-2">
-              <Icon v-if="createHostLoading" name="Loader2" :size="14" class="animate-spin" />Create Host
+              <Icon v-if="createHostLoading" name="Loader2" :size="14" class="animate-spin" />{{ t('apps.manager.createHost') }}
             </button>
           </div>
         </div>
@@ -646,21 +646,21 @@ async function importApp() {
 
     <!-- CasaOS Preview Modal -->
     <Teleport to="body">
-      <div v-if="showPreviewModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Preview CasaOS app">
+      <div v-if="showPreviewModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" :aria-label="t('apps.manager.previewAppLabel', { name: previewApp?.title || previewApp?.name })">
         <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm" @click="showPreviewModal = false"></div>
         <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-2xl border border-theme-primary p-6 max-h-[80vh] overflow-y-auto">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-medium text-theme-primary">Preview: {{ previewApp?.title || previewApp?.name }}</h3>
-            <button @click="showPreviewModal = false" class="text-theme-muted hover:text-theme-primary" aria-label="Close"><Icon name="X" :size="20" /></button>
+            <h3 class="text-lg font-medium text-theme-primary">{{ t('apps.manager.previewTitle', { name: previewApp?.title || previewApp?.name }) }}</h3>
+            <button @click="showPreviewModal = false" class="text-theme-muted hover:text-theme-primary" :aria-label="t('common.close')"><Icon name="X" :size="20" /></button>
           </div>
           <div class="mb-4">
-            <h4 class="text-sm font-medium text-theme-secondary mb-2">Generated docker-compose.yml</h4>
+            <h4 class="text-sm font-medium text-theme-secondary mb-2">{{ t('apps.manager.generatedCompose') }}</h4>
             <pre class="bg-theme-primary rounded-lg p-4 text-xs font-mono text-theme-primary overflow-x-auto">{{ previewCompose }}</pre>
           </div>
           <div class="flex justify-end gap-3">
-            <button @click="showPreviewModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary">Cancel</button>
+            <button @click="showPreviewModal = false" class="px-4 py-2 text-sm font-medium text-theme-secondary hover:text-theme-primary">{{ t('common.cancel') }}</button>
             <button @click="importApp" :disabled="importing" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent-hover rounded-md disabled:opacity-50">
-              <Icon :name="importing ? 'Loader2' : 'Download'" :size="16" :class="importing ? 'animate-spin' : ''" />{{ importing ? 'Importing...' : 'Import App' }}
+              <Icon :name="importing ? 'Loader2' : 'Download'" :size="16" :class="importing ? 'animate-spin' : ''" />{{ importing ? t('apps.manager.importing') : t('apps.manager.importApp') }}
             </button>
           </div>
         </div>

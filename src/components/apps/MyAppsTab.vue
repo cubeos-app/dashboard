@@ -1,5 +1,4 @@
 <script setup>
-// TODO: i18n — extract strings to en.json
 /**
  * MyAppsTab.vue — S04 Component
  *
@@ -13,6 +12,7 @@
  * but provides its own richer card layout for the main apps page.
  */
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAppsStore } from '@/stores/apps'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useMode } from '@/composables/useMode'
@@ -20,6 +20,8 @@ import { useWallpaper } from '@/composables/useWallpaper'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+
+const { t } = useI18n()
 
 const emit = defineEmits(['openDetail', 'openStore'])
 
@@ -84,10 +86,14 @@ async function handleAction(app, action, e) {
 
   const displayName = appsStore.getAppDisplayName(app)
 
-  if (action !== 'start' && !await confirm({
-    title: `${action.charAt(0).toUpperCase() + action.slice(1)} ${displayName}?`,
-    message: `This will ${action} the ${displayName} service.`,
-    confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+  const confirmKeys = {
+    stop: { title: 'apps.confirmStopTitle', message: 'apps.confirmStopMessage' },
+    restart: { title: 'apps.confirmRestartTitle', message: 'apps.confirmRestartMessage' }
+  }
+  if (action !== 'start' && confirmKeys[action] && !await confirm({
+    title: t(confirmKeys[action].title, { name: displayName }),
+    message: t(confirmKeys[action].message, { name: displayName }),
+    confirmText: t(`apps.${action}`),
     variant: action === 'stop' ? 'danger' : 'warning'
   })) return
 
@@ -151,7 +157,7 @@ function openDetail(app, e) {
     <div v-if="favoriteApps.length > 0" class="space-y-3">
       <h3 class="text-sm font-medium text-theme-secondary flex items-center gap-2">
         <Icon name="Star" :size="14" />
-        Favorites
+        {{ t('apps.myApps.favorites') }}
       </h3>
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         <button
@@ -180,7 +186,7 @@ function openDetail(app, e) {
               class="text-xs"
               :class="appsStore.isRunning(app) ? 'text-success' : 'text-theme-muted'"
             >
-              {{ appsStore.isRunning(app) ? 'Running' : 'Stopped' }}
+              {{ appsStore.isRunning(app) ? t('apps.running') : t('apps.stopped') }}
             </p>
           </div>
           <!-- Status dot -->
@@ -203,7 +209,7 @@ function openDetail(app, e) {
         <button
           @click="clearCategory"
           class="p-1.5 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-          aria-label="Back to all apps"
+          :aria-label="t('apps.myApps.backToAllApps')"
         >
           <Icon name="ChevronLeft" :size="20" />
         </button>
@@ -217,8 +223,8 @@ function openDetail(app, e) {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search apps..."
-          aria-label="Search apps"
+          :placeholder="t('apps.myApps.searchPlaceholder')"
+          :aria-label="t('apps.myApps.searchLabel')"
           class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all text-sm"
         />
       </div>
@@ -237,7 +243,7 @@ function openDetail(app, e) {
         ]"
       >
         <Icon name="LayoutGrid" :size="18" class="opacity-70" />
-        <span>All Apps</span>
+        <span>{{ t('apps.myApps.allApps') }}</span>
         <span :class="[
           'px-1.5 py-0.5 rounded-md text-xs',
           showSystemApps && !activeCategory
@@ -272,7 +278,7 @@ function openDetail(app, e) {
         ]"
       >
         <Icon name="Box" :size="18" class="opacity-70" />
-        <span>CubeOS Core</span>
+        <span>{{ t('apps.myApps.cubeosCore') }}</span>
         <span :class="[
           'px-1.5 py-0.5 rounded-md text-xs',
           showSystemApps
@@ -337,7 +343,7 @@ function openDetail(app, e) {
               </div>
               <!-- Standard: simple status text -->
               <p class="text-xs text-theme-tertiary truncate mt-0.5">
-                {{ appsStore.isRunning(app) ? 'Running' : 'Stopped' }}
+                {{ appsStore.isRunning(app) ? t('apps.running') : t('apps.stopped') }}
                 <template v-if="isAdvanced && app.deploy_mode">
                   <span class="text-theme-muted"> · </span>
                   <span class="capitalize">{{ app.deploy_mode }}</span>
@@ -355,8 +361,8 @@ function openDetail(app, e) {
                   @click="handleAction(app, 'start', $event)"
                   :disabled="actionLoading === app.name"
                   class="p-1.5 text-theme-tertiary hover:text-success hover:bg-success-muted rounded-lg transition-colors"
-                  title="Start"
-                  aria-label="Start app"
+                  :title="t('apps.start')"
+                  :aria-label="t('apps.myApps.startApp')"
                 >
                   <Icon name="Play" :size="16" />
                 </button>
@@ -367,8 +373,8 @@ function openDetail(app, e) {
                   @click="handleAction(app, 'stop', $event)"
                   :disabled="actionLoading === app.name"
                   class="p-1.5 text-theme-tertiary hover:text-error hover:bg-error-muted rounded-lg transition-colors"
-                  title="Stop"
-                  aria-label="Stop app"
+                  :title="t('apps.stop')"
+                  :aria-label="t('apps.myApps.stopApp')"
                 >
                   <Icon name="Square" :size="16" />
                 </button>
@@ -379,8 +385,8 @@ function openDetail(app, e) {
                   @click="handleAction(app, 'restart', $event)"
                   :disabled="actionLoading === app.name"
                   class="p-1.5 text-theme-tertiary hover:text-warning hover:bg-warning-muted rounded-lg transition-colors"
-                  title="Restart"
-                  aria-label="Restart app"
+                  :title="t('apps.restart')"
+                  :aria-label="t('apps.myApps.restartApp')"
                 >
                   <Icon name="RotateCw" :size="16" />
                 </button>
@@ -393,8 +399,8 @@ function openDetail(app, e) {
                 :class="favoritesStore.isFavorite(app.name)
                   ? 'text-warning'
                   : 'text-theme-muted opacity-0 group-hover:opacity-100'"
-                :title="favoritesStore.isFavorite(app.name) ? 'Remove from favorites' : 'Add to favorites'"
-                :aria-label="favoritesStore.isFavorite(app.name) ? 'Remove from favorites' : 'Add to favorites'"
+                :title="favoritesStore.isFavorite(app.name) ? t('apps.myApps.removeFavorite') : t('apps.myApps.addFavorite')"
+                :aria-label="favoritesStore.isFavorite(app.name) ? t('apps.myApps.removeFavorite') : t('apps.myApps.addFavorite')"
               >
                 <Icon
                   name="Star"
@@ -408,16 +414,16 @@ function openDetail(app, e) {
                 v-if="appsStore.isRunning(app) && appsStore.hasWebUI(app)"
                 @click="openApp(app, $event)"
                 class="p-1.5 rounded-lg transition-colors text-accent hover:bg-accent-muted"
-                title="Open"
-                aria-label="Open web UI"
+                :title="t('apps.open')"
+                :aria-label="t('apps.myApps.openWebUI')"
               >
                 <Icon name="ExternalLink" :size="16" />
               </button>
               <button
                 @click="openDetail(app, $event)"
                 class="p-1.5 rounded-lg transition-colors text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary"
-                title="App Info"
-                aria-label="App info"
+                :title="t('apps.appInfo')"
+                :aria-label="t('apps.appInfo')"
               >
                 <Icon name="Info" :size="16" />
               </button>
@@ -431,7 +437,7 @@ function openDetail(app, e) {
           class="px-4 py-2 bg-theme-secondary border-t border-theme-primary"
         >
           <div class="flex items-center gap-2 text-xs">
-            <span class="text-theme-muted">Ports</span>
+            <span class="text-theme-muted">{{ t('apps.myApps.ports') }}</span>
             <div class="flex items-center gap-1">
               <span
                 v-for="port in app.ports.filter(p => p.port).slice(0, 3)"
@@ -466,10 +472,10 @@ function openDetail(app, e) {
         <Icon name="Package" :size="32" class="text-theme-muted" />
       </div>
       <h3 class="text-lg font-semibold text-theme-primary mb-2">
-        {{ searchQuery ? 'No apps found' : 'No apps installed' }}
+        {{ searchQuery ? t('apps.myApps.noAppsFound') : t('apps.noApps') }}
       </h3>
       <p class="text-theme-tertiary text-sm mb-4">
-        {{ searchQuery ? 'Try adjusting your search.' : 'Browse the App Store to get started.' }}
+        {{ searchQuery ? t('apps.myApps.trySearch') : t('apps.myApps.browseToStart') }}
       </p>
       <button
         v-if="!searchQuery || activeCategory"
@@ -477,7 +483,7 @@ function openDetail(app, e) {
         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium"
       >
         <Icon name="Store" :size="16" />
-        Browse App Store
+        {{ t('apps.myApps.browseAppStore') }}
       </button>
     </div>
   </div>
