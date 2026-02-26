@@ -11,6 +11,7 @@
  * Advanced: + full Docker inspect, Compose YAML, resource limits.
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAppsStore } from '@/stores/apps'
 import { useAppStoreStore } from '@/stores/appstore'
 import { useRegistryStore } from '@/stores/registry'
@@ -27,6 +28,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'install'])
 
+const { t } = useI18n()
 const appsStore = useAppsStore()
 const appStoreStore = useAppStoreStore()
 const registryStore = useRegistryStore()
@@ -200,10 +202,14 @@ async function fetchDockerDetail() {
 const actionLoading = ref(false)
 
 async function handleAction(action) {
-  if (action !== 'start' && !await confirm({
-    title: `${action.charAt(0).toUpperCase() + action.slice(1)} ${displayName.value}?`,
-    message: `Are you sure you want to ${action} ${displayName.value}?`,
-    confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+  const confirmKeys = {
+    stop: { title: 'apps.confirmStopTitle', message: 'apps.confirmStopMessage' },
+    restart: { title: 'apps.confirmRestartTitle', message: 'apps.confirmRestartMessage' }
+  }
+  if (action !== 'start' && confirmKeys[action] && !await confirm({
+    title: t(confirmKeys[action].title, { name: displayName.value }),
+    message: t(confirmKeys[action].message, { name: displayName.value }),
+    confirmText: t(`apps.${action}`),
     variant: action === 'stop' ? 'danger' : 'warning'
   })) return
 
@@ -220,11 +226,11 @@ async function handleAction(action) {
 
 async function handleUninstall() {
   if (!await confirm({
-    title: 'Uninstall App',
-    message: `This will stop and remove ${displayName.value} from your system.`,
-    confirmText: 'Uninstall',
+    title: t('apps.detail.uninstallConfirmTitle'),
+    message: t('apps.detail.uninstallMessage', { name: displayName.value }),
+    confirmText: t('apps.uninstall'),
     variant: 'danger',
-    checkboxLabel: 'Also delete app data',
+    checkboxLabel: t('apps.detail.deleteAppData'),
     checkboxDefault: true
   })) return
 
@@ -273,7 +279,7 @@ function handleClose() {
     class="fixed inset-0 z-50 flex justify-end"
     role="dialog"
     aria-modal="true"
-    :aria-label="displayName + ' details'"
+    :aria-label="t('apps.detail.details', { name: displayName })"
     tabindex="-1"
     @keydown.escape="handleClose"
   >
@@ -312,7 +318,7 @@ function handleClose() {
             {{ catalogTagline }}
           </p>
           <p v-else-if="isInstalledApp" class="text-sm mt-0.5" :class="isRunning ? 'text-success' : 'text-theme-muted'">
-            {{ isRunning ? 'Running' : 'Stopped' }}
+            {{ isRunning ? t('apps.running') : t('apps.stopped') }}
             <template v-if="isAdvanced && app.deploy_mode">
               <span class="text-theme-muted"> · </span>
               <span class="text-theme-secondary capitalize">{{ app.deploy_mode }}</span>
@@ -322,7 +328,7 @@ function handleClose() {
           <div v-if="isCatalogApp" class="flex items-center gap-3 mt-2 text-xs text-theme-muted">
             <span v-if="isRegistryApp" class="flex items-center gap-1 text-success">
               <Icon name="HardDrive" :size="12" />
-              Local Registry
+              {{ t('apps.detail.localRegistry') }}
             </span>
             <span v-if="isRegistryApp && registryImageName" class="flex items-center gap-1 font-mono">
               {{ registryImageName }}:{{ registryTag }}
@@ -345,7 +351,7 @@ function handleClose() {
         <!-- Close -->
         <button
           @click="handleClose"
-          aria-label="Close"
+          :aria-label="t('common.close')"
           class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
         >
           <Icon name="X" :size="18" />
@@ -361,38 +367,37 @@ function handleClose() {
             <!-- Offline badge -->
             <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success-muted text-success text-sm font-medium">
               <Icon name="HardDrive" :size="14" />
-              Cached locally — available offline
+              {{ t('apps.detail.cachedLocallyOffline') }}
             </div>
 
             <!-- Image info card -->
             <div class="p-4 rounded-xl bg-theme-tertiary space-y-3">
               <div>
-                <p class="text-xs text-theme-muted mb-1">Docker Image</p>
+                <p class="text-xs text-theme-muted mb-1">{{ t('apps.detail.dockerImage') }}</p>
                 <p class="font-mono text-sm text-theme-primary">{{ registryImageName }}</p>
               </div>
               <div>
-                <p class="text-xs text-theme-muted mb-1">Tag</p>
+                <p class="text-xs text-theme-muted mb-1">{{ t('apps.detail.tag') }}</p>
                 <p class="font-mono text-sm text-theme-primary">{{ registryTag }}</p>
               </div>
               <div v-if="registryFqdn">
-                <p class="text-xs text-theme-muted mb-1">FQDN (after install)</p>
+                <p class="text-xs text-theme-muted mb-1">{{ t('apps.detail.fqdnAfterInstall') }}</p>
                 <p class="font-mono text-sm text-accent">{{ registryFqdn }}</p>
               </div>
             </div>
 
             <!-- Description -->
             <div>
-              <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">About</h3>
+              <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">{{ t('apps.detail.about') }}</h3>
               <p class="text-sm text-theme-secondary leading-relaxed">
-                This Docker image is cached in the local registry and can be deployed as a Swarm service without an internet connection.
-                A port will be allocated automatically and DNS/proxy will be configured.
+                {{ t('apps.detail.registryDescription') }}
               </p>
             </div>
 
             <!-- Data directory note -->
             <div class="p-3 rounded-lg bg-theme-secondary/50 text-xs text-theme-muted">
               <Icon name="Info" :size="12" class="inline mr-1" />
-              App data will be stored in <code class="bg-theme-tertiary px-1 py-0.5 rounded">/cubeos/data/apps/{name}/data</code>
+              {{ t('apps.detail.appDataNote') }} <code class="bg-theme-tertiary px-1 py-0.5 rounded">/cubeos/data/apps/{name}/data</code>
             </div>
           </div>
         </template>
@@ -405,7 +410,7 @@ function handleClose() {
               v-for="ss in visibleScreenshots"
               :key="ss.index"
               :src="ss.url"
-              :alt="`Screenshot ${ss.index + 1}`"
+              :alt="t('apps.detail.screenshotAlt', { index: ss.index + 1 })"
               loading="lazy"
               class="h-40 sm:h-48 rounded-lg object-cover bg-theme-tertiary shrink-0"
               @error="failedScreenshots = new Set([...failedScreenshots, ss.index])"
@@ -415,15 +420,15 @@ function handleClose() {
 
         <!-- Description -->
         <div class="p-5">
-          <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">Description</h3>
+          <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">{{ t('apps.detail.description') }}</h3>
           <p class="text-sm text-theme-secondary leading-relaxed">
-            {{ catalogDescription || 'No description available.' }}
+            {{ catalogDescription || t('apps.detail.noDescription') }}
           </p>
         </div>
 
         <!-- Architectures -->
         <div v-if="app.architectures?.length > 0" class="px-5 pb-4">
-          <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">Architectures</h3>
+          <h3 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">{{ t('apps.detail.architectures') }}</h3>
           <div class="flex flex-wrap gap-1.5">
             <span
               v-for="arch in app.architectures"
@@ -441,10 +446,10 @@ function handleClose() {
         <!-- Install Options (Advanced, expandable) -->
         <div v-if="isAdvanced && showInstallOptions && !app.installed" class="px-5 pb-4">
           <div class="p-4 rounded-lg border border-theme-primary bg-theme-secondary">
-            <h4 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">Install Options</h4>
+            <h4 class="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">{{ t('apps.detail.installOptions') }}</h4>
             <div class="flex flex-col gap-3">
               <div>
-                <label for="detail-port" class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">Port (optional)</label>
+                <label for="detail-port" class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">{{ t('apps.detail.portOptional') }}</label>
                 <input
                   id="detail-port"
                   v-model="installPort"
@@ -454,7 +459,7 @@ function handleClose() {
                 />
               </div>
               <div>
-                <label for="detail-fqdn" class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">FQDN (optional)</label>
+                <label for="detail-fqdn" class="block text-[10px] text-theme-muted uppercase tracking-wider mb-1">{{ t('apps.detail.fqdnOptional') }}</label>
                 <input
                   id="detail-fqdn"
                   v-model="installFqdn"
@@ -464,7 +469,7 @@ function handleClose() {
                 />
               </div>
             </div>
-            <p class="mt-2 text-[10px] text-theme-muted">Leave blank to use defaults.</p>
+            <p class="mt-2 text-[10px] text-theme-muted">{{ t('apps.detail.leaveBlank') }}</p>
           </div>
         </div>
         </template>
@@ -476,9 +481,9 @@ function handleClose() {
         <div class="flex items-center gap-1 px-5 pt-3 border-b border-theme-primary">
           <button
             v-for="tab in [
-              { key: 'overview', label: 'Overview' },
-              { key: 'logs', label: 'Logs' },
-              ...(isAdvanced ? [{ key: 'docker', label: 'Docker' }] : [])
+              { key: 'overview', label: t('apps.detail.overview') },
+              { key: 'logs', label: t('apps.detail.logs') },
+              ...(isAdvanced ? [{ key: 'docker', label: t('apps.detail.dockerTab') }] : [])
             ]"
             :key="tab.key"
             @click="activeDetailTab = tab.key"
@@ -497,21 +502,21 @@ function handleClose() {
             <!-- Status cards -->
             <div class="grid grid-cols-3 gap-3">
               <div class="p-3 rounded-xl bg-theme-tertiary">
-                <p class="text-xs text-theme-muted mb-1">Status</p>
+                <p class="text-xs text-theme-muted mb-1">{{ t('apps.detail.statusLabel') }}</p>
                 <p class="font-medium" :class="isRunning ? 'text-success' : 'text-theme-muted'">
-                  {{ isRunning ? 'Running' : 'Stopped' }}
+                  {{ isRunning ? t('apps.running') : t('apps.stopped') }}
                 </p>
               </div>
               <div class="p-3 rounded-xl bg-theme-tertiary">
-                <p class="text-xs text-theme-muted mb-1">Health</p>
+                <p class="text-xs text-theme-muted mb-1">{{ t('apps.detail.healthLabel') }}</p>
                 <p class="font-medium" :class="isHealthy ? 'text-success' : isRunning ? 'text-warning' : 'text-theme-muted'">
-                  {{ isHealthy ? 'Healthy' : isRunning ? 'Unhealthy' : 'N/A' }}
+                  {{ isHealthy ? t('apps.healthy') : isRunning ? t('apps.unhealthy') : t('common.notAvailable') }}
                 </p>
               </div>
               <div class="p-3 rounded-xl bg-theme-tertiary">
-                <p class="text-xs text-theme-muted mb-1">Type</p>
+                <p class="text-xs text-theme-muted mb-1">{{ t('apps.detail.typeLabel') }}</p>
                 <p class="font-medium text-theme-primary capitalize">
-                  {{ isCore ? (app.type === 'system' ? 'System' : 'Platform') : (app.type || 'Unknown') }}
+                  {{ isCore ? (app.type === 'system' ? t('apps.detail.systemType') : t('apps.detail.platformType')) : (app.type || t('common.unknown')) }}
                 </p>
               </div>
             </div>
@@ -519,13 +524,13 @@ function handleClose() {
             <!-- Advanced: Deploy mode + ports -->
             <div v-if="isAdvanced" class="grid grid-cols-2 gap-3">
               <div class="p-3 rounded-xl bg-theme-tertiary">
-                <p class="text-xs text-theme-muted mb-1">Deploy Mode</p>
+                <p class="text-xs text-theme-muted mb-1">{{ t('apps.detail.deployMode') }}</p>
                 <p class="font-medium text-theme-primary capitalize">
-                  {{ app.deploy_mode || 'Unknown' }}
+                  {{ app.deploy_mode || t('common.unknown') }}
                 </p>
               </div>
               <div v-if="app.ports?.length" class="p-3 rounded-xl bg-theme-tertiary">
-                <p class="text-xs text-theme-muted mb-1">Ports</p>
+                <p class="text-xs text-theme-muted mb-1">{{ t('apps.portsLabel') }}</p>
                 <div class="flex flex-wrap gap-1">
                   <span
                     v-for="p in app.ports.filter(p => p.port).slice(0, 5)"
@@ -540,7 +545,7 @@ function handleClose() {
 
             <!-- Description -->
             <div v-if="app.description" class="p-4 rounded-xl bg-theme-tertiary">
-              <h3 class="text-xs text-theme-muted mb-2">Description</h3>
+              <h3 class="text-xs text-theme-muted mb-2">{{ t('apps.detail.description') }}</h3>
               <p class="text-sm text-theme-primary">{{ app.description }}</p>
             </div>
 
@@ -552,7 +557,7 @@ function handleClose() {
                 class="flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium"
               >
                 <Icon name="ExternalLink" :size="16" />
-                Open
+                {{ t('apps.open') }}
               </button>
               <button
                 v-if="isRunning"
@@ -561,7 +566,7 @@ function handleClose() {
                 class="flex items-center gap-2 px-4 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
               >
                 <Icon name="RotateCw" :size="16" />
-                Restart
+                {{ t('apps.restart') }}
               </button>
               <button
                 v-if="!isRunning"
@@ -570,7 +575,7 @@ function handleClose() {
                 class="flex items-center gap-2 px-4 py-2 rounded-lg btn-accent text-sm font-medium"
               >
                 <Icon name="Play" :size="16" />
-                Start
+                {{ t('apps.start') }}
               </button>
               <button
                 v-if="isRunning && !isCore"
@@ -579,20 +584,20 @@ function handleClose() {
                 class="flex items-center gap-2 px-4 py-2 rounded-lg border border-error/30 text-sm text-error hover:bg-error-muted transition-colors"
               >
                 <Icon name="Square" :size="16" />
-                Stop
+                {{ t('apps.stop') }}
               </button>
             </div>
 
             <!-- Danger zone (non-core only) -->
             <div v-if="!isCore && isInstalledApp" class="p-4 rounded-xl bg-error-muted border border-error-subtle">
-              <h3 class="text-sm font-medium text-error mb-2">Danger Zone</h3>
-              <p class="text-xs text-theme-muted mb-3">Uninstalling will remove this app and its containers.</p>
+              <h3 class="text-sm font-medium text-error mb-2">{{ t('apps.detail.dangerZone') }}</h3>
+              <p class="text-xs text-theme-muted mb-3">{{ t('apps.detail.uninstallWarning') }}</p>
               <button
                 @click="handleUninstall"
                 :disabled="actionLoading"
                 class="px-4 py-2 rounded-lg btn-error text-sm font-medium"
               >
-                Uninstall App
+                {{ t('apps.detail.uninstallConfirmTitle') }}
               </button>
             </div>
           </template>
@@ -600,14 +605,14 @@ function handleClose() {
           <!-- Logs Tab -->
           <template v-if="activeDetailTab === 'logs'">
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium text-theme-secondary">Container Logs</h3>
+              <h3 class="text-sm font-medium text-theme-secondary">{{ t('apps.detail.containerLogs') }}</h3>
               <button
                 @click="fetchLogs"
                 :disabled="logsLoading"
                 class="px-3 py-1.5 rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors text-sm flex items-center gap-2"
               >
                 <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': logsLoading }" />
-                Refresh
+                {{ t('common.refresh') }}
               </button>
             </div>
             <div class="bg-code rounded-xl p-4 max-h-[500px] overflow-auto">
@@ -615,8 +620,8 @@ function handleClose() {
                 v-if="logs.length > 0"
                 class="text-xs font-mono text-code whitespace-pre-wrap"
               >{{ logs.join('\n') }}</pre>
-              <p v-else-if="logsLoading" class="text-code-muted italic">Loading logs...</p>
-              <p v-else class="text-code-muted italic">No logs available</p>
+              <p v-else-if="logsLoading" class="text-code-muted italic">{{ t('apps.detail.loadingLogs') }}</p>
+              <p v-else class="text-code-muted italic">{{ t('apps.detail.noLogs') }}</p>
             </div>
           </template>
 
@@ -629,18 +634,18 @@ function handleClose() {
             <template v-else-if="dockerDetail">
               <!-- Container Info -->
               <div class="p-4 rounded-xl bg-theme-tertiary">
-                <h3 class="text-xs text-theme-muted mb-3">Container Info</h3>
+                <h3 class="text-xs text-theme-muted mb-3">{{ t('apps.detail.containerInfo') }}</h3>
                 <div class="grid grid-cols-1 gap-3 text-sm">
                   <div v-if="dockerDetail.container_id">
-                    <p class="text-xs text-theme-muted">Container ID</p>
+                    <p class="text-xs text-theme-muted">{{ t('apps.detail.containerId') }}</p>
                     <p class="font-mono text-theme-primary break-all text-xs">{{ dockerDetail.container_id }}</p>
                   </div>
                   <div v-if="dockerDetail.image">
-                    <p class="text-xs text-theme-muted">Image</p>
+                    <p class="text-xs text-theme-muted">{{ t('apps.detail.image') }}</p>
                     <p class="font-mono text-theme-primary break-all text-xs">{{ dockerDetail.image }}</p>
                   </div>
                   <div v-if="dockerDetail.created">
-                    <p class="text-xs text-theme-muted">Created</p>
+                    <p class="text-xs text-theme-muted">{{ t('apps.detail.created') }}</p>
                     <p class="text-theme-primary text-xs">{{ new Date(dockerDetail.created).toLocaleString() }}</p>
                   </div>
                 </div>
@@ -651,14 +656,14 @@ function handleClose() {
                 v-if="dockerDetail.resources || dockerDetail.limits"
                 class="p-4 rounded-xl bg-theme-tertiary"
               >
-                <h3 class="text-xs text-theme-muted mb-3">Resource Limits</h3>
+                <h3 class="text-xs text-theme-muted mb-3">{{ t('apps.detail.resourceLimits') }}</h3>
                 <div class="grid grid-cols-2 gap-3 text-sm">
                   <div v-if="dockerDetail.resources?.limits?.memory || dockerDetail.limits?.memory">
-                    <p class="text-xs text-theme-muted">Memory</p>
+                    <p class="text-xs text-theme-muted">{{ t('apps.detail.memoryLabel') }}</p>
                     <p class="text-theme-primary">{{ dockerDetail.resources?.limits?.memory || dockerDetail.limits?.memory }}</p>
                   </div>
                   <div v-if="dockerDetail.resources?.limits?.cpus || dockerDetail.limits?.cpus">
-                    <p class="text-xs text-theme-muted">CPU</p>
+                    <p class="text-xs text-theme-muted">{{ t('apps.detail.cpuLabel') }}</p>
                     <p class="text-theme-primary">{{ dockerDetail.resources?.limits?.cpus || dockerDetail.limits?.cpus }}</p>
                   </div>
                 </div>
@@ -666,7 +671,7 @@ function handleClose() {
 
               <!-- Networks -->
               <div v-if="dockerDetail.networks?.length" class="p-4 rounded-xl bg-theme-tertiary">
-                <h3 class="text-xs text-theme-muted mb-3">Networks</h3>
+                <h3 class="text-xs text-theme-muted mb-3">{{ t('apps.detail.networks') }}</h3>
                 <div class="flex flex-wrap gap-2">
                   <span
                     v-for="net in dockerDetail.networks"
@@ -683,7 +688,7 @@ function handleClose() {
                 v-if="dockerDetail.mounts?.length || dockerDetail.volumes?.length"
                 class="p-4 rounded-xl bg-theme-tertiary"
               >
-                <h3 class="text-xs text-theme-muted mb-3">Mounts</h3>
+                <h3 class="text-xs text-theme-muted mb-3">{{ t('apps.detail.mounts') }}</h3>
                 <div class="space-y-2">
                   <div
                     v-for="(mount, idx) in (dockerDetail.mounts || dockerDetail.volumes)"
@@ -704,12 +709,12 @@ function handleClose() {
 
             <div v-else class="text-center py-12">
               <Icon name="Box" :size="32" class="mx-auto text-theme-muted mb-3" />
-              <p class="text-theme-muted text-sm">Docker details not available.</p>
+              <p class="text-theme-muted text-sm">{{ t('apps.detail.dockerNotAvailable') }}</p>
               <button
                 @click="fetchDockerDetail"
                 class="mt-3 px-4 py-2 rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors text-sm"
               >
-                Retry
+                {{ t('common.retry') }}
               </button>
             </div>
           </template>
@@ -722,7 +727,7 @@ function handleClose() {
           @click="handleClose"
           class="px-4 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
         >
-          Close
+          {{ t('common.close') }}
         </button>
 
         <!-- Catalog: Install + Cache buttons -->
@@ -736,13 +741,13 @@ function handleClose() {
           >
             <div v-if="isCaching" class="w-4 h-4 rounded-full border-2 border-accent border-t-transparent animate-spin" />
             <Icon v-else name="HardDrive" :size="16" />
-            {{ isCaching ? 'Caching...' : 'Cache Offline' }}
+            {{ isCaching ? t('apps.store.caching') : t('apps.store.cacheOffline') }}
           </button>
 
           <!-- Already cached badge -->
           <span v-if="isAlreadyCached" class="flex items-center gap-2 text-sm text-success">
             <Icon name="CheckCircle" :size="16" />
-            Cached Offline
+            {{ t('apps.store.cachedOffline') }}
           </span>
 
           <button
@@ -750,16 +755,16 @@ function handleClose() {
             @click="handleQuickInstall"
             class="px-4 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
           >
-            Use Defaults
+            {{ t('apps.detail.useDefaults') }}
           </button>
           <button
             @click="handleInstallClick"
             class="flex items-center gap-2 px-5 py-2 rounded-lg btn-accent text-sm font-medium"
-            :aria-label="showInstallOptions ? 'Confirm install' : 'Install ' + catalogTitle"
+            :aria-label="showInstallOptions ? t('apps.detail.confirmInstallLabel') : t('apps.detail.installLabel', { name: catalogTitle })"
           >
             <Icon name="Download" :size="16" />
-            <span v-if="showInstallOptions">Confirm Install</span>
-            <span v-else>Install</span>
+            <span v-if="showInstallOptions">{{ t('apps.detail.confirmInstall') }}</span>
+            <span v-else>{{ t('apps.install') }}</span>
           </button>
         </div>
 
@@ -767,7 +772,7 @@ function handleClose() {
         <div v-if="isCatalogApp && app.installed" class="flex items-center gap-2">
           <span class="flex items-center gap-2 text-sm text-success">
             <Icon name="CheckCircle" :size="16" />
-            Installed
+            {{ t('apps.store.installed') }}
           </span>
           <a
             v-if="installedAppUrl"
@@ -777,7 +782,7 @@ function handleClose() {
             class="flex items-center gap-2 px-5 py-2 rounded-lg btn-accent text-sm font-medium"
           >
             <Icon name="ExternalLink" :size="16" />
-            Open
+            {{ t('apps.open') }}
           </a>
         </div>
       </div>

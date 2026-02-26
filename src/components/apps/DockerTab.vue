@@ -10,9 +10,12 @@
  *   - POST /docker/prune
  */
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import api from '@/api/client'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 // ─── State ────────────────────────────────────────────────────
 const loading = ref(false)
@@ -38,7 +41,7 @@ const sections = computed(() => {
   return [
     {
       key: 'images',
-      label: 'Images',
+      label: t('apps.docker.images'),
       icon: 'Layers',
       count: d.images?.count ?? d.images?.total_count ?? 0,
       size: d.images?.total_size ?? d.images?.size ?? 0,
@@ -48,7 +51,7 @@ const sections = computed(() => {
     },
     {
       key: 'containers',
-      label: 'Containers',
+      label: t('apps.docker.containers'),
       icon: 'Box',
       count: d.containers?.count ?? d.containers?.total_count ?? 0,
       size: d.containers?.total_size ?? d.containers?.size ?? 0,
@@ -58,7 +61,7 @@ const sections = computed(() => {
     },
     {
       key: 'volumes',
-      label: 'Volumes',
+      label: t('apps.docker.volumes'),
       icon: 'Database',
       count: d.volumes?.count ?? d.volumes?.total_count ?? 0,
       size: d.volumes?.total_size ?? d.volumes?.size ?? 0,
@@ -68,7 +71,7 @@ const sections = computed(() => {
     },
     {
       key: 'build_cache',
-      label: 'Build Cache',
+      label: t('apps.docker.buildCache'),
       icon: 'Archive',
       count: d.build_cache?.count ?? d.build_cache?.total_count ?? 0,
       size: d.build_cache?.total_size ?? d.build_cache?.size ?? 0,
@@ -106,9 +109,9 @@ async function fetchDiskUsage() {
 
 async function pruneDocker() {
   if (!await confirm({
-    title: 'Prune Docker Resources',
-    message: 'This will remove unused containers, networks, images, and optionally build cache. Running containers and their images are not affected.',
-    confirmText: 'Prune',
+    title: t('apps.docker.pruneTitle'),
+    message: t('apps.docker.pruneMessage'),
+    confirmText: t('apps.docker.pruneLabel'),
     variant: 'warning'
   })) return
 
@@ -121,7 +124,7 @@ async function pruneDocker() {
     // Refresh disk usage after prune
     await fetchDiskUsage()
   } catch (e) {
-    error.value = 'Prune failed: ' + e.message
+    error.value = t('apps.docker.pruneFailed', { error: e.message })
   } finally {
     pruning.value = false
   }
@@ -150,7 +153,7 @@ function sizePercent(size) {
     <!-- Loading -->
     <div v-if="loading && !diskUsage" class="flex items-center justify-center py-12">
       <Icon name="Loader2" :size="24" class="animate-spin text-accent" />
-      <span class="ml-3 text-theme-secondary">Loading Docker disk usage...</span>
+      <span class="ml-3 text-theme-secondary">{{ t('apps.docker.loadingDiskUsage') }}</span>
     </div>
 
     <!-- Error -->
@@ -158,7 +161,7 @@ function sizePercent(size) {
       <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-sm text-error">{{ error }}</p>
-        <button @click="error = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss error">Dismiss</button>
+        <button @click="error = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" :aria-label="t('common.dismissError')">{{ t('common.dismiss') }}</button>
       </div>
     </div>
 
@@ -167,12 +170,12 @@ function sizePercent(size) {
       <Icon name="CheckCircle" :size="16" class="text-success flex-shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-sm text-success">
-          Docker cleanup completed.
+          {{ t('apps.docker.pruneSuccess') }}
           <span v-if="pruneResult.result?.space_reclaimed">
-            Freed {{ formatBytes(pruneResult.result.space_reclaimed) }}.
+            {{ t('apps.docker.freedSpace', { size: formatBytes(pruneResult.result.space_reclaimed) }) }}
           </span>
         </p>
-        <button @click="pruneResult = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss">Dismiss</button>
+        <button @click="pruneResult = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" :aria-label="t('common.dismiss')">{{ t('common.dismiss') }}</button>
       </div>
     </div>
 
@@ -185,11 +188,11 @@ function sizePercent(size) {
               <Icon name="Container" :size="20" class="text-accent" />
             </div>
             <div>
-              <h3 class="font-semibold text-theme-primary">Docker Disk Usage</h3>
+              <h3 class="font-semibold text-theme-primary">{{ t('apps.docker.diskUsage') }}</h3>
               <p class="text-sm text-theme-secondary mt-0.5">
-                {{ formatBytes(totalSize) }} total
+                {{ t('apps.docker.totalSize', { size: formatBytes(totalSize) }) }}
                 <span v-if="totalReclaimable > 0" class="text-warning">
-                  ({{ formatBytes(totalReclaimable) }} reclaimable)
+                  {{ t('apps.docker.reclaimableSize', { size: formatBytes(totalReclaimable) }) }}
                 </span>
               </p>
             </div>
@@ -199,18 +202,18 @@ function sizePercent(size) {
               @click="pruneDocker"
               :disabled="pruning"
               class="px-4 py-2 text-sm bg-warning-muted text-warning rounded-lg hover:opacity-80 disabled:opacity-50 flex items-center gap-2"
-              aria-label="Prune unused Docker resources"
+              :aria-label="t('apps.docker.pruneAriaLabel')"
             >
               <Icon v-if="pruning" name="Loader2" :size="14" class="animate-spin" />
               <Icon v-else name="Trash2" :size="14" />
-              {{ pruning ? 'Pruning...' : 'System Prune' }}
+              {{ pruning ? t('apps.docker.pruning') : t('apps.docker.systemPrune') }}
             </button>
             <button
               @click="fetchDiskUsage"
               :disabled="loading"
               class="p-2 bg-theme-tertiary rounded-lg hover:bg-theme-secondary/50 disabled:opacity-50"
-              title="Refresh"
-              aria-label="Refresh disk usage"
+              :title="t('common.refresh')"
+              :aria-label="t('apps.docker.refreshDiskUsage')"
             >
               <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': loading }" class="text-theme-secondary" />
             </button>
@@ -251,16 +254,16 @@ function sizePercent(size) {
             </div>
             <div>
               <h4 class="text-sm font-semibold text-theme-primary">{{ section.label }}</h4>
-              <p class="text-xs text-theme-muted">{{ section.count }} item{{ section.count !== 1 ? 's' : '' }}</p>
+              <p class="text-xs text-theme-muted">{{ t('apps.docker.itemCount', { count: section.count }) }}</p>
             </div>
           </div>
           <div class="space-y-2">
             <div class="flex justify-between text-sm">
-              <span class="text-theme-secondary">Size</span>
+              <span class="text-theme-secondary">{{ t('apps.docker.sizeLabel') }}</span>
               <span class="text-theme-primary font-medium">{{ formatBytes(section.size) }}</span>
             </div>
             <div v-if="section.reclaimable > 0" class="flex justify-between text-sm">
-              <span class="text-theme-secondary">Reclaimable</span>
+              <span class="text-theme-secondary">{{ t('apps.docker.reclaimableLabel') }}</span>
               <span class="text-warning font-medium">{{ formatBytes(section.reclaimable) }}</span>
             </div>
           </div>
@@ -271,8 +274,8 @@ function sizePercent(size) {
     <!-- Empty state -->
     <div v-if="!loading && !diskUsage && !error" class="text-center py-12">
       <Icon name="Container" :size="48" class="mx-auto text-theme-muted" />
-      <h3 class="mt-4 text-lg font-medium text-theme-primary">No Docker Data</h3>
-      <p class="mt-1 text-sm text-theme-secondary">Docker disk usage information is not available.</p>
+      <h3 class="mt-4 text-lg font-medium text-theme-primary">{{ t('apps.docker.noDockerData') }}</h3>
+      <p class="mt-1 text-sm text-theme-secondary">{{ t('apps.docker.noDockerDataHint') }}</p>
     </div>
   </div>
 </template>
