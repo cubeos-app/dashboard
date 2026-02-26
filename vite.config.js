@@ -4,6 +4,11 @@ import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [vue()],
+  // Demo builds use top-level await for conditional API client import
+  define: {
+    'import.meta.env.VITE_DEMO_MODE': JSON.stringify(process.env.VITE_DEMO_MODE || '')
+  },
+  build: process.env.VITE_DEMO_MODE === 'true' ? { target: 'esnext' } : {},
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
