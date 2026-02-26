@@ -1,5 +1,4 @@
 <script setup>
-// TODO: i18n — extract strings to en.json
 /**
  * NetworkPage.vue — S06 Component
  *
@@ -21,6 +20,7 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useWallpaper } from '@/composables/useWallpaper'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { usePolling } from '@/composables/usePolling'
+import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import Icon from '@/components/ui/Icon.vue'
 import TabBar from '@/components/ui/TabBar.vue'
@@ -33,6 +33,7 @@ import DNSTab from './DNSTab.vue'
 import ClientsTab from './ClientsTab.vue'
 import TrafficTab from './TrafficTab.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const networkStore = useNetworkStore()
@@ -47,16 +48,16 @@ const { signal, abort } = useAbortOnUnmount()
 // ─── Tab Management ──────────────────────────────────────────
 const TAB_DEFS = computed(() => {
   const tabs = [
-    { key: 'overview', label: 'Overview', icon: 'Globe' },
-    { key: 'wifi', label: 'WiFi', icon: 'Wifi' },
+    { key: 'overview', label: t('network.overview'), icon: 'Globe' },
+    { key: 'wifi', label: t('network.wifiTab'), icon: 'Wifi' },
   ]
   if (isAdvanced.value) {
     tabs.push(
-      { key: 'firewall', label: 'Firewall', icon: 'Shield' },
-      { key: 'vpn', label: 'VPN', icon: 'Lock', badge: vpnStore.isConnected ? null : null },
-      { key: 'dns', label: 'DNS', icon: 'Globe' },
-      { key: 'clients', label: 'Clients', icon: 'Users', badge: clientsStore.count || null },
-      { key: 'traffic', label: 'Traffic', icon: 'BarChart3' }
+      { key: 'firewall', label: t('network.firewall'), icon: 'Shield' },
+      { key: 'vpn', label: t('network.vpn'), icon: 'Lock', badge: vpnStore.isConnected ? null : null },
+      { key: 'dns', label: t('network.dns'), icon: 'Globe' },
+      { key: 'clients', label: t('network.clients'), icon: 'Users', badge: clientsStore.count || null },
+      { key: 'traffic', label: t('network.traffic'), icon: 'BarChart3' }
     )
   }
   return tabs
@@ -102,15 +103,10 @@ const apHardwarePresent = ref(true)
 // Normalized mode for case-insensitive comparison (backend sends lowercase)
 const normalizedMode = computed(() => (networkMode.value?.mode || '').toLowerCase())
 const modeLabelDisplay = computed(() => {
-  switch (normalizedMode.value) {
-    case 'offline_hotspot': return 'Offline Hotspot'
-    case 'wifi_router': return 'WiFi Router'
-    case 'wifi_bridge': return 'WiFi Bridge'
-    case 'eth_client': return 'Ethernet Client'
-    case 'wifi_client': return 'WiFi Client'
-    case 'android_tether': return 'Android Tether'
-    default: return networkMode.value?.mode || 'Unknown'
-  }
+  const modeKey = `network.modes.${normalizedMode.value}`
+  const translated = t(modeKey)
+  // If the key exists, use it; otherwise fall back to raw mode name
+  return translated !== modeKey ? translated : (networkMode.value?.mode || t('common.unknown'))
 })
 
 async function fetchSharedData() {
@@ -180,15 +176,15 @@ usePolling(fetchSharedData, 10000, { immediate: true, pauseWhenHidden: true })
     <!-- Header -->
     <PageHeader
       icon="Globe"
-      title="Network"
-      subtitle="Manage network interfaces, connectivity, and security"
+      :title="t('network.title')"
+      :subtitle="t('network.subtitle')"
     >
       <template #actions>
         <button
           @click="fetchSharedData"
           :disabled="loading"
           class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
-          aria-label="Refresh network status"
+          :aria-label="t('network.refreshStatus')"
         >
           <Icon name="RefreshCw" :size="20" :class="{ 'animate-spin': loading }" />
         </button>
@@ -199,7 +195,7 @@ usePolling(fetchSharedData, 10000, { immediate: true, pauseWhenHidden: true })
     <div v-if="error" class="bg-error-muted border border-error-subtle rounded-lg p-4 flex items-center gap-3">
       <Icon name="AlertCircle" :size="18" class="text-error shrink-0" />
       <p class="text-error text-sm flex-1">{{ error }}</p>
-      <button @click="error = null" class="p-1 text-error hover:opacity-70" aria-label="Dismiss error">
+      <button @click="error = null" class="p-1 text-error hover:opacity-70" :aria-label="t('common.dismissError')">
         <Icon name="X" :size="14" />
       </button>
     </div>
@@ -208,7 +204,7 @@ usePolling(fetchSharedData, 10000, { immediate: true, pauseWhenHidden: true })
     <div v-if="networkMode" class="bg-theme-secondary rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div class="flex items-center gap-4 min-w-0">
         <div>
-          <span class="text-xs font-medium text-theme-muted uppercase tracking-wide">Network Mode</span>
+          <span class="text-xs font-medium text-theme-muted uppercase tracking-wide">{{ t('network.networkMode') }}</span>
           <p class="text-theme-primary font-semibold mt-0.5">
             {{ modeLabelDisplay }}
           </p>
@@ -218,14 +214,14 @@ usePolling(fetchSharedData, 10000, { immediate: true, pauseWhenHidden: true })
           :class="networkStore.isOnline ? 'bg-success-muted text-success' : normalizedMode === 'offline_hotspot' ? 'bg-warning-muted text-warning' : 'bg-error-muted text-error'"
         >
           <span class="w-1.5 h-1.5 rounded-full" :class="networkStore.isOnline ? 'bg-success' : normalizedMode === 'offline_hotspot' ? 'bg-warning' : 'bg-error'"></span>
-          {{ networkStore.isOnline ? 'Online' : normalizedMode === 'offline_hotspot' ? 'Air-gapped' : 'No Internet' }}
+          {{ networkStore.isOnline ? t('network.online') : normalizedMode === 'offline_hotspot' ? t('network.airGapped') : t('network.noInternet') }}
         </span>
       </div>
       <div class="flex items-center gap-3">
         <!-- VPN mode indicator -->
         <div v-if="networkStore.vpnMode" class="flex items-center gap-2">
           <Icon name="Shield" :size="14" class="text-theme-muted" />
-          <span class="text-xs text-theme-muted">VPN: {{ networkStore.vpnMode.mode || 'Off' }}</span>
+          <span class="text-xs text-theme-muted">{{ t('network.vpnMode', { mode: networkStore.vpnMode.mode || t('common.off') }) }}</span>
         </div>
         <!-- VPN status (Standard mode quick indicator) -->
         <span
@@ -233,7 +229,7 @@ usePolling(fetchSharedData, 10000, { immediate: true, pauseWhenHidden: true })
           class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-muted text-success"
         >
           <Icon name="ShieldCheck" :size="12" />
-          VPN Active
+          {{ t('network.vpnActive') }}
         </span>
       </div>
     </div>
@@ -243,7 +239,7 @@ usePolling(fetchSharedData, 10000, { immediate: true, pauseWhenHidden: true })
       :model-value="activeTab"
       @update:model-value="setTab"
       :tabs="TAB_DEFS"
-      aria-label="Network sections"
+      :aria-label="t('network.tabsLabel')"
     />
 
     <!-- Tab Content -->

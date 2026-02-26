@@ -57,7 +57,9 @@
     "upsDetected": "UPS hardware detected",
     "upsDescription": "A {model} was detected on this device. Configure it to enable battery monitoring and safe shutdown.",
     "configure": "Configure",
-    "dismissUpsBanner": "Dismiss UPS banner"
+    "dismissUpsBanner": "Dismiss UPS banner",
+    "undoCount": "Undo ({count})",
+    "redoCount": "Redo ({count})"
   },
   "wizard": {
     "loadingSetup": "Loading setup wizard...",
@@ -191,7 +193,9 @@
     "unknown": "Unknown",
     "notAvailable": "N/A",
     "warning": "Warning",
-    "important": "Important"
+    "important": "Important",
+    "dismissError": "Dismiss error",
+    "refresh": "Refresh"
   },
   "apps": {
     "title": "Apps",
@@ -207,7 +211,25 @@
     "stop": "Stop",
     "restart": "Restart",
     "open": "Open",
-    "noApps": "No apps installed"
+    "noApps": "No apps installed",
+    "manager": "Manager",
+    "docker": "Docker",
+    "registry": "Registry",
+    "ports": "Ports",
+    "profiles": "Profiles",
+    "alreadyInstalled": "Already Installed",
+    "alreadyInstalledMessage": "\"{name}\" is already installed. You can manage it from My Apps.",
+    "gotIt": "Got it",
+    "similarAppInstalled": "Similar App Installed",
+    "similarAppInstalledMessage": "\"{existingName}\" is already installed from {existingSource}. Installing \"{newName}\" from {newSource} will create a separate instance with its own port and address. Continue?",
+    "installAnyway": "Install Anyway",
+    "offlineRegistry": "Offline Registry",
+    "runningCount": "{running} of {total} running",
+    "sync": "Sync",
+    "syncing": "Syncing...",
+    "syncStores": "Sync app stores",
+    "subtitle": "Apps",
+    "tabsLabel": "Apps sections"
   },
   "network": {
     "title": "Network",
@@ -249,7 +271,23 @@
       "connecting": "Connecting...",
       "forget": "Forget",
       "open": "Open"
-    }
+    },
+    "subtitle": "Manage network interfaces, connectivity, and security",
+    "refreshStatus": "Refresh network status",
+    "networkMode": "Network Mode",
+    "modes": {
+      "offline_hotspot": "Offline Hotspot",
+      "wifi_router": "WiFi Router",
+      "wifi_bridge": "WiFi Bridge",
+      "eth_client": "Ethernet Client",
+      "wifi_client": "WiFi Client",
+      "android_tether": "Android Tether"
+    },
+    "airGapped": "Air-gapped",
+    "noInternet": "No Internet",
+    "vpnMode": "VPN: {mode}",
+    "vpnActive": "VPN Active",
+    "tabsLabel": "Network sections"
   },
   "storage": {
     "title": "Storage",
@@ -317,13 +355,20 @@
     "monitoring": "Monitoring",
     "processes": "Processes",
     "logs": "Logs",
-    "hardwareTab": "Hardware"
+    "hardwareTab": "Hardware",
+    "subtitle": "System information, monitoring, and management",
+    "refresh": "Refresh system",
+    "tabsLabel": "System sections"
   },
   "settings": {
     "title": "Settings",
     "account": "Account",
     "appearance": "Appearance",
     "updates": "Updates",
-    "support": "Support"
+    "support": "Support",
+    "subtitle": "Customize your experience",
+    "profiles": "Profiles",
+    "registry": "Registry",
+    "tabsLabel": "Settings sections"
   }
 }

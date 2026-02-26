@@ -239,7 +239,7 @@ onUnmounted(() => {
             : 'text-theme-muted/30 cursor-not-allowed'"
           :disabled="!canUndo"
           :aria-label="t('dashboard.undo') + ' (Ctrl+Z)'"
-          :title="`Undo (${undoCount})`"
+          :title="t('dashboard.undoCount', { count: undoCount })"
           @click="undo"
         >
           <Icon name="Undo2" :size="16" :stroke-width="1.5" />
@@ -257,7 +257,7 @@ onUnmounted(() => {
             : 'text-theme-muted/30 cursor-not-allowed'"
           :disabled="!canRedo"
           :aria-label="t('dashboard.redo') + ' (Ctrl+Shift+Z)'"
-          :title="`Redo (${redoCount})`"
+          :title="t('dashboard.redoCount', { count: redoCount })"
           @click="redo"
         >
           <Icon name="Redo2" :size="16" :stroke-width="1.5" />

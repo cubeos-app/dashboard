@@ -1,5 +1,4 @@
 <script setup>
-// TODO: i18n — extract strings to en.json
 /**
  * AppsPage.vue — S04 Component
  *
@@ -18,6 +17,7 @@ import { useFavoritesStore } from '@/stores/favorites'
 import { useMode } from '@/composables/useMode'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
+import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import Icon from '@/components/ui/Icon.vue'
 import TabBar from '@/components/ui/TabBar.vue'
@@ -34,6 +34,7 @@ import RegistryTab from './RegistryTab.vue'
 import PortsTab from './PortsTab.vue'
 import ProfilesTab from './ProfilesTab.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const appsStore = useAppsStore()
@@ -46,16 +47,16 @@ const { signal } = useAbortOnUnmount()
 // ─── Tab Management ──────────────────────────────────────────
 const TAB_DEFS = computed(() => {
   const tabs = [
-    { key: 'my-apps', label: 'My Apps', icon: 'Grid3X3' },
-    { key: 'store', label: 'App Store', icon: 'Store' },
+    { key: 'my-apps', label: t('apps.myApps'), icon: 'Grid3X3' },
+    { key: 'store', label: t('apps.appStore'), icon: 'Store' },
   ]
   if (isAdvanced.value) {
     tabs.push(
-      { key: 'manager', label: 'Manager', icon: 'Settings' },
-      { key: 'docker', label: 'Docker', icon: 'Container' },
-      { key: 'registry', label: 'Registry', icon: 'Archive' },
-      { key: 'ports', label: 'Ports', icon: 'Plug' },
-      { key: 'profiles', label: 'Profiles', icon: 'Layers' }
+      { key: 'manager', label: t('apps.manager'), icon: 'Settings' },
+      { key: 'docker', label: t('apps.docker'), icon: 'Container' },
+      { key: 'registry', label: t('apps.registry'), icon: 'Archive' },
+      { key: 'ports', label: t('apps.ports'), icon: 'Plug' },
+      { key: 'profiles', label: t('apps.profiles'), icon: 'Layers' }
     )
   }
   return tabs
@@ -149,26 +150,26 @@ async function startInstall(storeId, appName, app, options = {}) {
     // Same source = block (no use case for duplicate from same store)
     if (existingIsRegistry === newIsRegistry) {
       await confirm({
-        title: 'Already Installed',
-        message: `"${duplicate.display_name || duplicate.name}" is already installed. You can manage it from My Apps.`,
-        confirmText: 'Got it',
-        cancelText: 'Cancel',
+        title: t('apps.alreadyInstalled'),
+        message: t('apps.alreadyInstalledMessage', { name: duplicate.display_name || duplicate.name }),
+        confirmText: t('apps.gotIt'),
+        cancelText: t('common.cancel'),
         variant: 'info'
       })
       return
     }
 
     // Different source = warn (e.g. registry ttyd vs store ttyd — different versions)
-    const dupSource = existingIsRegistry ? 'Offline Registry' : 'App Store'
+    const dupSource = existingIsRegistry ? t('apps.offlineRegistry') : t('apps.appStore')
     const dupName = duplicate.display_name || duplicate.name
     const newTitle = app?.title?.en_us || app?.title?.en_US || appName
-    const newSource = newIsRegistry ? 'Offline Registry' : 'App Store'
+    const newSource = newIsRegistry ? t('apps.offlineRegistry') : t('apps.appStore')
 
     const proceed = await confirm({
-      title: 'Similar App Installed',
-      message: `"${dupName}" is already installed from ${dupSource}. Installing "${newTitle}" from ${newSource} will create a separate instance with its own port and address. Continue?`,
-      confirmText: 'Install Anyway',
-      cancelText: 'Cancel',
+      title: t('apps.similarAppInstalled'),
+      message: t('apps.similarAppInstalledMessage', { existingName: dupName, existingSource: dupSource, newName: newTitle, newSource }),
+      confirmText: t('apps.installAnyway'),
+      cancelText: t('common.cancel'),
       variant: 'warning'
     })
     if (!proceed) return
@@ -208,8 +209,8 @@ onUnmounted(() => {
 const headerSubtitle = computed(() => {
   const total = appsStore.appCount
   const running = appsStore.runningCount
-  if (total === 0) return 'No apps installed'
-  return `${running} of ${total} running`
+  if (total === 0) return t('apps.noApps')
+  return t('apps.runningCount', { running, total })
 })
 </script>
 
@@ -218,7 +219,7 @@ const headerSubtitle = computed(() => {
     <!-- Page Header -->
     <PageHeader
       icon="Grid3X3"
-      title="Apps"
+      :title="t('apps.title')"
       :subtitle="headerSubtitle"
     >
       <template #actions>
@@ -226,7 +227,7 @@ const headerSubtitle = computed(() => {
           v-if="activeTab === 'store'"
           @click="appStoreStore.syncStores()"
           :disabled="appStoreStore.syncing"
-          aria-label="Sync app stores"
+          :aria-label="t('apps.syncStores')"
           class="flex items-center gap-2 px-3 py-2 rounded-lg border border-theme-primary text-sm text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
         >
           <Icon
@@ -234,7 +235,7 @@ const headerSubtitle = computed(() => {
             :size="16"
             :class="appStoreStore.syncing ? 'animate-spin' : ''"
           />
-          <span class="hidden sm:inline">{{ appStoreStore.syncing ? 'Syncing...' : 'Sync' }}</span>
+          <span class="hidden sm:inline">{{ appStoreStore.syncing ? t('apps.syncing') : t('apps.sync') }}</span>
         </button>
       </template>
     </PageHeader>
@@ -244,7 +245,7 @@ const headerSubtitle = computed(() => {
       :model-value="activeTab"
       @update:model-value="setTab"
       :tabs="TAB_DEFS"
-      aria-label="Apps sections"
+      :aria-label="t('apps.tabsLabel')"
     />
 
     <!-- Tab Content -->
