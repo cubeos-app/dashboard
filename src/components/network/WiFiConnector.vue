@@ -7,8 +7,10 @@
  * WiFi status indicator showing connected SSID + signal.
  */
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import Icon from '@/components/ui/Icon.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 
 const props = defineProps({
@@ -24,6 +26,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'connected'])
 
+const { t } = useI18n()
 const networkStore = useNetworkStore()
 const { trapFocus } = useFocusTrap()
 const modalRef = ref(null)
@@ -43,6 +46,11 @@ const scanning = computed(() => networkStore.scanning)
 
 // Set of saved SSIDs for quick lookup
 const savedSSIDs = computed(() => new Set(networkStore.savedNetworks.map(n => n.ssid)))
+
+const wifiTabs = computed(() => [
+  { key: 'scan', label: t('network.wifi.scanNetworks') },
+  { key: 'saved', label: t('network.wifi.saved'), badge: networkStore.savedNetworks.length || null }
+])
 
 // Sort networks by signal strength, filtering phantom 0MHz entries
 const validNetworks = computed(() => {
@@ -224,7 +232,7 @@ onUnmounted(() => {
           class="relative w-full max-w-md bg-theme-card rounded-2xl border border-theme-primary shadow-theme-lg overflow-hidden"
           role="dialog"
           aria-modal="true"
-          aria-label="WiFi Manager"
+          :aria-label="$t('network.wifi.manager')"
           tabindex="-1"
           @keydown="trapFocus"
           @keydown.escape="close"
@@ -236,14 +244,14 @@ onUnmounted(() => {
                 <Icon name="Wifi" :size="20" class="text-success" />
               </div>
               <div>
-                <h2 class="text-lg font-semibold text-theme-primary">WiFi Manager</h2>
-                <p class="text-sm text-theme-tertiary">Connect, disconnect, and manage networks</p>
+                <h2 class="text-lg font-semibold text-theme-primary">{{ $t('network.wifi.manager') }}</h2>
+                <p class="text-sm text-theme-tertiary">{{ $t('network.wifi.managerDesc') }}</p>
               </div>
             </div>
             <button
               @click="close"
               class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-              aria-label="Close"
+              :aria-label="$t('common.close')"
             >
               <Icon name="X" :size="20" />
             </button>
@@ -255,7 +263,7 @@ onUnmounted(() => {
               <div class="flex items-center gap-2">
                 <Icon name="Wifi" :size="16" class="text-success" />
                 <span class="text-sm font-medium text-success">
-                  Connected to {{ networkStore.wifiStatus?.ssid || 'Unknown' }}
+                  {{ $t('network.wifi.connectedTo', { ssid: networkStore.wifiStatus?.ssid || $t('common.unknown') }) }}
                 </span>
                 <span v-if="networkStore.wifiStatus?.signal" class="text-xs text-success/70">
                   {{ networkStore.wifiStatus.signal }}%
@@ -267,54 +275,29 @@ onUnmounted(() => {
                 class="px-2.5 py-1 text-xs font-medium rounded-lg bg-error-muted text-error hover:opacity-80 disabled:opacity-50"
                 aria-label="Disconnect WiFi"
               >
-                Disconnect
+                {{ $t('network.wifi.disconnect') }}
               </button>
             </div>
           </div>
 
           <!-- Tab switcher: Scan / Saved -->
-          <div class="flex border-b border-theme-primary" role="tablist" aria-label="WiFi views">
-            <button
-              @click="activeView = 'scan'"
-              class="flex-1 px-4 py-2 text-sm font-medium text-center border-b-2 -mb-px transition-colors"
-              role="tab"
-              :aria-selected="activeView === 'scan'"
-              :class="activeView === 'scan' 
-                ? 'border-[color:var(--accent-primary)] text-accent' 
-                : 'border-transparent text-theme-muted hover:text-theme-primary'"
-            >
-              Scan Networks
-            </button>
-            <button
-              @click="activeView = 'saved'"
-              class="flex-1 px-4 py-2 text-sm font-medium text-center border-b-2 -mb-px transition-colors flex items-center justify-center gap-1.5"
-              role="tab"
-              :aria-selected="activeView === 'saved'"
-              :class="activeView === 'saved' 
-                ? 'border-[color:var(--accent-primary)] text-accent' 
-                : 'border-transparent text-theme-muted hover:text-theme-primary'"
-            >
-              Saved
-              <span 
-                v-if="networkStore.savedNetworks.length"
-                class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-theme-tertiary text-theme-secondary"
-              >
-                {{ networkStore.savedNetworks.length }}
-              </span>
-            </button>
-          </div>
+          <TabBar
+            v-model="activeView"
+            :tabs="wifiTabs"
+            aria-label="WiFi views"
+          />
           
           <!-- Content -->
           <div class="p-4 max-h-96 overflow-y-auto">
             <!-- Single-adapter constraint: block all scanning/connecting -->
             <div v-if="singleAdapterBlocked" class="text-center py-8">
               <Icon name="AlertTriangle" :size="32" class="text-warning mx-auto mb-3" />
-              <p class="font-medium text-theme-primary mb-1">Single WiFi Adapter</p>
+              <p class="font-medium text-theme-primary mb-1">{{ $t('network.wifi.singleAdapter') }}</p>
               <p class="text-sm text-theme-tertiary max-w-xs mx-auto">
-                The built-in WiFi (wlan0) is running the Access Point and cannot simultaneously connect to an upstream network.
+                {{ $t('network.wifi.singleAdapterDesc') }}
               </p>
               <p class="text-xs text-theme-muted mt-3 max-w-xs mx-auto">
-                Plug in a USB WiFi adapter for client mode, or stop the AP first.
+                {{ $t('network.wifi.singleAdapterHelp') }}
               </p>
             </div>
 
@@ -324,7 +307,7 @@ onUnmounted(() => {
               <!-- Loading/Scanning state -->
               <div v-if="scanning" class="flex flex-col items-center justify-center py-8">
                 <Icon name="Loader2" :size="32" class="animate-spin text-accent mb-3" />
-                <p class="text-theme-tertiary text-sm">Scanning for networks...</p>
+                <p class="text-theme-tertiary text-sm">{{ $t('network.wifi.scanning') }}</p>
               </div>
               
               <!-- Network List -->
@@ -332,9 +315,9 @@ onUnmounted(() => {
                 <!-- No client adapter detected -->
                 <div v-if="!hasClientAdapter" class="text-center py-8">
                   <Icon name="WifiOff" :size="32" class="text-theme-muted mx-auto mb-2" />
-                  <p class="font-medium text-theme-primary mb-1">No Client WiFi Adapter Detected</p>
+                  <p class="font-medium text-theme-primary mb-1">{{ $t('network.wifi.noClientAdapter') }}</p>
                   <p class="text-xs text-theme-tertiary max-w-xs mx-auto">
-                    The built-in WiFi is used for the Access Point. Connect a USB WiFi adapter for client (uplink) mode.
+                    {{ $t('network.wifi.noClientAdapterDesc') }}
                   </p>
                 </div>
 
@@ -346,7 +329,7 @@ onUnmounted(() => {
                   aria-label="Scan for WiFi networks"
                 >
                   <Icon name="RefreshCw" :size="16" />
-                  Refresh
+                  {{ $t('network.wifi.refresh') }}
                 </button>
                 
                 <button
@@ -374,7 +357,7 @@ onUnmounted(() => {
                       <span 
                         v-if="savedSSIDs.has(network.ssid)"
                         class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-accent/20 text-accent shrink-0"
-                      >Saved</span>
+                      >{{ $t('network.wifi.saved') }}</span>
                     </div>
                     <p class="text-xs text-theme-tertiary">
                       {{ networkStore.getSignalLabel(network.signal) }} · {{ network.frequency }}MHz
@@ -390,14 +373,14 @@ onUnmounted(() => {
                 
                 <div v-if="sortedNetworks.length === 0" class="text-center py-8">
                   <Icon name="WifiOff" :size="32" class="text-theme-muted mx-auto mb-2" />
-                  <p class="text-theme-tertiary">No networks found</p>
+                  <p class="text-theme-tertiary">{{ $t('network.wifi.noNetworks') }}</p>
                   <button
                     @click="scanNetworks"
                     :disabled="scanning || scanCooldown"
                     class="mt-2 text-sm text-accent hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Scan for WiFi networks again"
                   >
-                    Try again
+                    {{ $t('network.wifi.tryAgain') }}
                   </button>
                 </div>
                 </template>
@@ -411,7 +394,7 @@ onUnmounted(() => {
                   aria-label="Back to network list"
                 >
                   <Icon name="ChevronLeft" :size="16" />
-                  Back to networks
+                  {{ $t('network.wifi.backToNetworks') }}
                 </button>
                 
                 <div class="p-4 rounded-xl bg-theme-tertiary">
@@ -429,33 +412,33 @@ onUnmounted(() => {
                     </div>
                     <div>
                       <p class="font-medium text-theme-primary">{{ selectedNetwork.ssid }}</p>
-                      <p class="text-xs text-theme-tertiary">{{ selectedNetwork.security || 'Open' }}</p>
+                      <p class="text-xs text-theme-tertiary">{{ selectedNetwork.security || $t('network.wifi.open') }}</p>
                     </div>
                   </div>
                 </div>
                 
                 <div v-if="selectedNetwork.security && selectedNetwork.security !== 'open'">
                   <label class="block text-sm font-medium text-theme-secondary mb-2">
-                    Password
+                    {{ $t('network.wifi.password') }}
                   </label>
                   <div class="relative">
                     <input
                       v-model="password"
                       :type="showPassword ? 'text' : 'password'"
-                      :placeholder="savedSSIDs.has(selectedNetwork.ssid) ? 'Leave empty to use saved password' : 'Enter WiFi password'"
+                      :placeholder="savedSSIDs.has(selectedNetwork.ssid) ? $t('network.wifi.savedPasswordPlaceholder') : $t('network.wifi.enterPassword')"
                       class="w-full px-4 py-2.5 pr-10 rounded-xl border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       @keyup.enter="connect"
                     />
                     <button
                       @click="showPassword = !showPassword"
                       class="absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-secondary transition-colors"
-                      :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                      :aria-label="showPassword ? $t('auth.hidePassword') : $t('auth.showPassword')"
                     >
                       <Icon :name="showPassword ? 'EyeOff' : 'Eye'" :size="18" />
                     </button>
                   </div>
                   <p v-if="savedSSIDs.has(selectedNetwork.ssid)" class="text-xs text-theme-muted mt-1.5">
-                    This network is saved. Enter a new password only if it has changed.
+                    {{ $t('network.wifi.savedPasswordHelp') }}
                   </p>
                 </div>
                 
@@ -491,7 +474,7 @@ onUnmounted(() => {
                       class="px-2.5 py-1 text-xs font-medium text-accent hover:bg-accent/10 rounded-lg transition-colors"
                       :aria-label="'Connect to ' + net.ssid"
                     >
-                      {{ connecting && reconnectingSSID === net.ssid ? 'Connecting...' : 'Connect' }}
+                      {{ connecting && reconnectingSSID === net.ssid ? $t('network.wifi.connecting') : $t('network.wifi.connect') }}
                     </button>
                     <button
                       @click="forgetNetwork(net.ssid)"
@@ -499,15 +482,15 @@ onUnmounted(() => {
                       class="px-2.5 py-1 text-xs font-medium text-error hover:bg-error-muted rounded-lg transition-colors"
                       :aria-label="'Forget network ' + net.ssid"
                     >
-                      Forget
+                      {{ $t('network.wifi.forget') }}
                     </button>
                   </div>
                 </div>
               </div>
               <div v-else class="text-center py-8">
                 <Icon name="WifiOff" :size="32" class="text-theme-muted mx-auto mb-2" />
-                <p class="text-theme-tertiary text-sm">No saved networks</p>
-                <p class="text-xs text-theme-muted mt-1">Networks are saved when you connect to them</p>
+                <p class="text-theme-tertiary text-sm">{{ $t('network.wifi.noSavedNetworks') }}</p>
+                <p class="text-xs text-theme-muted mt-1">{{ $t('network.wifi.savedNetworksHelp') }}</p>
               </div>
             </template>
             </template>
@@ -519,7 +502,7 @@ onUnmounted(() => {
               @click="close"
               class="px-4 py-2 rounded-lg text-sm font-medium bg-theme-tertiary text-theme-secondary hover:bg-theme-card transition-colors"
             >
-              Cancel
+              {{ $t('common.cancel') }}
             </button>
             <button
               v-if="selectedNetwork && activeView === 'scan'"
@@ -533,7 +516,7 @@ onUnmounted(() => {
               ]"
             >
               <Icon v-if="connecting" name="Loader2" :size="16" class="animate-spin" />
-              {{ connecting ? 'Connecting...' : 'Connect' }}
+              {{ connecting ? $t('network.wifi.connecting') : $t('network.wifi.connect') }}
             </button>
           </div>
         </div>

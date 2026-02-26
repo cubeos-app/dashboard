@@ -290,9 +290,9 @@ onUnmounted(cleanup)
 
 .log-panel pre {
   font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   line-height: 1.5;
-  color: #64748b;
+  color: #94a3b8;
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -308,7 +308,7 @@ onUnmounted(cleanup)
 
 .elapsed-text {
   font-size: 0.75rem;
-  color: #475569;
+  color: #94a3b8;
 }
 
 .recovery-section {

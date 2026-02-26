@@ -1,5 +1,4 @@
 <script setup>
-// TODO: i18n — extract strings to en.json
 /**
  * InterfaceStep.vue — Batch 6c / T6c-10
  *
@@ -8,9 +7,12 @@
  * Skipped automatically when HAL auto-assigns unambiguously.
  */
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
+import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
 
+const { t } = useI18n()
 const emit = defineEmits(['next', 'skip'])
 
 const interfaces = ref([])
@@ -19,6 +21,13 @@ const error = ref(null)
 const autoAssigned = ref(false)
 const apSelection = ref('')
 const uplinkSelection = ref('')
+
+const interfaceColumns = computed(() => [
+  { key: 'name', label: t('wizard.steps.interface.interface') },
+  { key: 'type', label: t('wizard.steps.interface.type') },
+  { key: 'bus', label: t('wizard.steps.interface.bus') },
+  { key: 'status', label: t('wizard.steps.interface.status') }
+])
 
 const apCandidates = computed(() =>
   interfaces.value.filter(i => i.type === 'wifi' && i.ap_capable)
@@ -80,95 +89,87 @@ function busLabel(bus) {
 <template>
   <div>
     <p class="text-theme-secondary mb-6">
-      CubeOS detected multiple network interfaces. Assign roles to configure networking.
+      {{ $t('wizard.steps.interface.description') }}
     </p>
 
     <!-- Loading state -->
     <div v-if="loading" class="flex items-center justify-center py-8">
       <Icon name="Loader2" :size="24" class="animate-spin text-accent" />
-      <span class="ml-2 text-theme-secondary">Detecting interfaces...</span>
+      <span class="ml-2 text-theme-secondary">{{ $t('wizard.steps.interface.detecting') }}</span>
     </div>
 
     <!-- Interface table -->
     <div v-else class="space-y-6">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-theme-primary text-left">
-              <th class="pb-2 font-medium text-theme-secondary">Interface</th>
-              <th class="pb-2 font-medium text-theme-secondary">Type</th>
-              <th class="pb-2 font-medium text-theme-secondary">Bus</th>
-              <th class="pb-2 font-medium text-theme-secondary">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="iface in interfaces"
-              :key="iface.name"
-              class="border-b border-theme-primary/50"
-            >
-              <td class="py-2.5 font-mono text-theme-primary">{{ iface.name }}</td>
-              <td class="py-2.5 text-theme-secondary capitalize">{{ iface.type }}</td>
-              <td class="py-2.5">
-                <span
-                  :class="[
-                    'inline-flex px-2 py-0.5 text-xs rounded-full',
-                    iface.built_in
-                      ? 'bg-accent/15 text-accent'
-                      : 'bg-theme-tertiary text-theme-secondary'
-                  ]"
-                >
-                  {{ busLabel(iface.bus) }}
-                  <span v-if="iface.built_in" class="ml-1">Built-in</span>
-                </span>
-              </td>
-              <td class="py-2.5">
-                <span
-                  :class="iface.is_up ? 'text-success' : 'text-theme-muted'"
-                  class="text-xs"
-                >
-                  {{ iface.is_up ? 'Up' : 'Down' }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <ResponsiveTable
+        :columns="interfaceColumns"
+        :rows="interfaces"
+        row-key="name"
+        :empty-text="$t('wizard.steps.interface.noInterfaces')"
+        compact
+      >
+        <template #cell-name="{ row }">
+          <span class="font-mono text-theme-primary">{{ row.name }}</span>
+        </template>
+        <template #cell-type="{ row }">
+          <span class="text-theme-secondary capitalize">{{ row.type }}</span>
+        </template>
+        <template #cell-bus="{ row }">
+          <span
+            :class="[
+              'inline-flex px-2 py-0.5 text-xs rounded-full',
+              row.built_in
+                ? 'bg-accent/15 text-accent'
+                : 'bg-theme-tertiary text-theme-secondary'
+            ]"
+          >
+            {{ busLabel(row.bus) }}
+            <span v-if="row.built_in" class="ml-1">{{ $t('wizard.steps.interface.builtIn') }}</span>
+          </span>
+        </template>
+        <template #cell-status="{ row }">
+          <span
+            :class="row.is_up ? 'text-success' : 'text-theme-muted'"
+            class="text-xs"
+          >
+            {{ row.is_up ? $t('wizard.steps.interface.up') : $t('wizard.steps.interface.down') }}
+          </span>
+        </template>
+      </ResponsiveTable>
 
       <!-- Role assignment dropdowns -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label for="ap-iface" class="block text-sm font-medium text-theme-primary mb-1.5">
-            Access Point Interface
+            {{ $t('wizard.steps.interface.apInterface') }}
           </label>
           <select
             id="ap-iface"
             v-model="apSelection"
             class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
           >
-            <option value="">-- None --</option>
+            <option value="">{{ $t('wizard.steps.interface.nonePlaceholder') }}</option>
             <option v-for="c in apCandidates" :key="c.name" :value="c.name">
               {{ c.name }} ({{ busLabel(c.bus) }})
             </option>
           </select>
-          <p class="text-xs text-theme-muted mt-1">WiFi interface for the CubeOS hotspot</p>
+          <p class="text-xs text-theme-muted mt-1">{{ $t('wizard.steps.interface.apHelp') }}</p>
         </div>
 
         <div>
           <label for="uplink-iface" class="block text-sm font-medium text-theme-primary mb-1.5">
-            Uplink Interface
+            {{ $t('wizard.steps.interface.uplinkInterface') }}
           </label>
           <select
             id="uplink-iface"
             v-model="uplinkSelection"
             class="w-full px-4 py-2.5 rounded-lg border border-theme-primary bg-theme-input text-theme-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
           >
-            <option value="">-- None --</option>
+            <option value="">{{ $t('wizard.steps.interface.nonePlaceholder') }}</option>
             <option v-for="c in uplinkCandidates" :key="c.name" :value="c.name">
               {{ c.name }} ({{ c.type }}, {{ busLabel(c.bus) }})
             </option>
           </select>
-          <p class="text-xs text-theme-muted mt-1">Interface for internet connectivity</p>
+          <p class="text-xs text-theme-muted mt-1">{{ $t('wizard.steps.interface.uplinkHelp') }}</p>
         </div>
       </div>
 
@@ -188,7 +189,7 @@ function busLabel(bus) {
           :disabled="!canProceed"
           class="btn-accent px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Continue
+          {{ $t('wizard.continue') }}
         </button>
       </div>
     </div>

@@ -15,12 +15,15 @@
  * Stores:
  *   - useStorageHalStore → USB devices, storage, tree, mount/unmount/eject/reset/rescan
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useStorageHalStore } from '@/stores/storage-hal'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
+import TabBar from '@/components/ui/TabBar.vue'
 
+const { t } = useI18n()
 const storageHalStore = useStorageHalStore()
 
 // ==========================================
@@ -90,12 +93,17 @@ async function loadTree() {
   }
 }
 
-function onViewChange(mode) {
-  viewMode.value = mode
+const viewTabs = computed(() => [
+  { key: 'all', label: t('storage.usbDevices.viewAll') },
+  { key: 'storage', label: t('storage.usbDevices.viewStorage') },
+  { key: 'tree', label: t('storage.usbDevices.viewTree') }
+])
+
+watch(viewMode, (mode) => {
   if (mode === 'tree' && !usbTree.value) {
     loadTree()
   }
-}
+})
 
 onMounted(refresh)
 
@@ -115,9 +123,9 @@ async function mountDevice(device) {
 async function unmountDevice(device) {
   const name = device.device || device.path || 'this device'
   if (!await confirm({
-    title: 'Unmount USB Device',
-    message: `Unmount ${name}? Make sure no files are being accessed.`,
-    confirmText: 'Unmount',
+    title: t('storage.usbDevices.unmountTitle'),
+    message: t('storage.usbDevices.unmountMessage', { name }),
+    confirmText: t('storage.usbDevices.unmount'),
     variant: 'warning'
   })) return
 
@@ -132,9 +140,9 @@ async function unmountDevice(device) {
 async function ejectDevice(device) {
   const name = device.product || device.name || device.device || 'this device'
   if (!await confirm({
-    title: 'Eject USB Device',
-    message: `Safely eject "${name}"? The device will be powered down and can be physically removed.`,
-    confirmText: 'Eject',
+    title: t('storage.usbDevices.ejectTitle'),
+    message: t('storage.usbDevices.ejectMessage', { name }),
+    confirmText: t('storage.usbDevices.eject'),
     variant: 'danger'
   })) return
 
@@ -149,9 +157,9 @@ async function ejectDevice(device) {
 async function resetDevice(device) {
   const name = device.product || device.name || 'this device'
   if (!await confirm({
-    title: 'Reset USB Device',
-    message: `Reset "${name}"? This power-cycles the USB port. The device may momentarily disconnect.`,
-    confirmText: 'Reset',
+    title: t('storage.usbDevices.resetTitle'),
+    message: t('storage.usbDevices.resetMessage', { name }),
+    confirmText: t('storage.usbDevices.reset'),
     variant: 'warning'
   })) return
 
@@ -219,31 +227,23 @@ function formatSize(bytes) {
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <h2 class="text-lg font-semibold text-theme-primary">
-          USB Devices
+          {{ $t('storage.usbDevices.title') }}
           <span class="text-sm font-normal text-theme-muted ml-2">
-            {{ allDevices.length }} device{{ allDevices.length !== 1 ? 's' : '' }}
+            {{ $t('storage.usbDevices.deviceCount', allDevices.length) }}
             <template v-if="storageDevices.length > 0">
-              · {{ storageDevices.length }} storage
+              · {{ $t('storage.usbDevices.storageCount', { count: storageDevices.length }) }}
             </template>
           </span>
         </h2>
       </div>
       <div class="flex items-center gap-2">
         <!-- View mode toggle -->
-        <div class="flex rounded-lg overflow-hidden border border-theme-primary" role="tablist" aria-label="USB device views">
-          <button
-            v-for="mode in [{ id: 'all', label: 'All' }, { id: 'storage', label: 'Storage' }, { id: 'tree', label: 'Tree' }]"
-            :key="mode.id"
-            @click="onViewChange(mode.id)"
-            role="tab"
-            :aria-selected="viewMode === mode.id"
-            :aria-label="'View ' + mode.label + ' devices'"
-            class="px-3 py-1.5 text-xs font-medium transition-colors"
-            :class="viewMode === mode.id
-              ? 'bg-accent text-on-accent'
-              : 'text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary'"
-          >{{ mode.label }}</button>
-        </div>
+        <TabBar
+          v-model="viewMode"
+          :tabs="viewTabs"
+          variant="pill"
+          aria-label="USB device views"
+        />
         <!-- Rescan -->
         <button
           @click="rescan"
@@ -252,7 +252,7 @@ function formatSize(bytes) {
           aria-label="Rescan USB bus"
         >
           <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': storageHalStore.loading }" />
-          Rescan
+          {{ $t('storage.usbDevices.rescan') }}
         </button>
       </div>
     </div>
@@ -262,14 +262,14 @@ function formatSize(bytes) {
       <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-sm text-error">{{ actionError }}</p>
-        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" aria-label="Dismiss error">Dismiss</button>
+        <button @click="actionError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1" :aria-label="$t('storage.usbDevices.dismiss')">{{ $t('storage.usbDevices.dismiss') }}</button>
       </div>
     </div>
 
     <!-- Loading state -->
     <div v-if="storageHalStore.loading && allDevices.length === 0" class="flex items-center justify-center py-12">
       <Icon name="Loader2" :size="24" class="animate-spin text-theme-muted" />
-      <span class="ml-3 text-theme-muted">Loading USB devices...</span>
+      <span class="ml-3 text-theme-muted">{{ $t('storage.usbDevices.loading') }}</span>
     </div>
 
     <!-- Empty state -->
@@ -278,15 +278,15 @@ function formatSize(bytes) {
       class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center"
     >
       <Icon name="Usb" :size="40" class="mx-auto text-theme-muted mb-4" />
-      <h3 class="text-lg font-medium text-theme-primary mb-2">No USB Devices</h3>
-      <p class="text-theme-muted mb-4">Connect a USB device to manage it here.</p>
+      <h3 class="text-lg font-medium text-theme-primary mb-2">{{ $t('storage.usbDevices.noDevices') }}</h3>
+      <p class="text-theme-muted mb-4">{{ $t('storage.usbDevices.noDevicesDesc') }}</p>
       <button
         @click="rescan"
         :disabled="storageHalStore.loading"
         class="px-4 py-2 btn-accent rounded-lg text-sm flex items-center gap-2 mx-auto"
       >
         <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': storageHalStore.loading }" />
-        Rescan USB Bus
+        {{ $t('storage.usbDevices.rescanBus') }}
       </button>
     </div>
 
@@ -299,7 +299,7 @@ function formatSize(bytes) {
           class="px-2.5 py-1 text-xs rounded-lg transition-colors"
           :class="filterClass === null ? 'bg-accent text-on-accent' : 'bg-theme-tertiary text-theme-muted hover:text-theme-primary'"
           aria-label="Show all device classes"
-        >All</button>
+        >{{ $t('storage.usbDevices.viewAll') }}</button>
         <button
           v-for="cls in deviceClasses"
           :key="cls"
@@ -312,11 +312,11 @@ function formatSize(bytes) {
 
       <ResponsiveTable
         :columns="[
-          { key: 'product', label: 'Device' },
-          { key: 'vendor', label: 'Vendor' },
-          { key: 'class', label: 'Class' },
-          { key: 'bus', label: 'Bus' },
-          { key: 'status', label: 'Status' }
+          { key: 'product', label: $t('storage.usbDevices.device') },
+          { key: 'vendor', label: $t('storage.usbDevices.vendor') },
+          { key: 'class', label: $t('storage.usbDevices.class') },
+          { key: 'bus', label: $t('storage.usbDevices.busCol') },
+          { key: 'status', label: $t('storage.usbDevices.status') }
         ]"
         :rows="filteredDevices"
         :row-key="(row) => deviceKey(row)"
@@ -334,7 +334,7 @@ function formatSize(bytes) {
             </div>
             <div class="min-w-0">
               <p class="font-medium text-theme-primary truncate">
-                {{ row.product || row.name || row.description || 'USB Device' }}
+                {{ row.product || row.name || row.description || $t('storage.usbDevices.defaultDevice') }}
               </p>
               <p v-if="row.device || row.path" class="text-xs text-theme-muted font-mono truncate">
                 {{ row.device || row.path }}
@@ -355,8 +355,8 @@ function formatSize(bytes) {
           <span class="text-theme-muted text-xs font-mono">{{ row.bus || '-' }}{{ row.port ? ':' + row.port : '' }}</span>
         </template>
         <template #cell-status="{ row }">
-          <span v-if="isMounted(row)" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-success-muted text-success">Mounted</span>
-          <span v-else-if="isStorageDevice(row)" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-theme-tertiary text-theme-muted">Not Mounted</span>
+          <span v-if="isMounted(row)" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-success-muted text-success">{{ $t('storage.usbDevices.mounted') }}</span>
+          <span v-else-if="isStorageDevice(row)" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-theme-tertiary text-theme-muted">{{ $t('storage.usbDevices.notMounted') }}</span>
         </template>
         <template #row-actions="{ row }">
           <div class="flex items-center justify-end gap-1" @click.stop>
@@ -406,35 +406,35 @@ function formatSize(bytes) {
           <div class="p-4 bg-theme-secondary/30 rounded-lg">
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
               <div v-if="row.vendor_id || row.product_id">
-                <span class="text-xs text-theme-muted block">ID</span>
+                <span class="text-xs text-theme-muted block">{{ $t('storage.usbDevices.id') }}</span>
                 <span class="text-theme-primary font-mono text-xs">{{ row.vendor_id || '----' }}:{{ row.product_id || '----' }}</span>
               </div>
               <div v-if="row.serial">
-                <span class="text-xs text-theme-muted block">Serial</span>
+                <span class="text-xs text-theme-muted block">{{ $t('storage.usbDevices.serial') }}</span>
                 <span class="text-theme-primary font-mono text-xs truncate block">{{ row.serial }}</span>
               </div>
               <div v-if="row.speed">
-                <span class="text-xs text-theme-muted block">Speed</span>
+                <span class="text-xs text-theme-muted block">{{ $t('storage.usbDevices.speed') }}</span>
                 <span class="text-theme-primary text-xs">{{ row.speed }}</span>
               </div>
               <div v-if="row.driver">
-                <span class="text-xs text-theme-muted block">Driver</span>
+                <span class="text-xs text-theme-muted block">{{ $t('storage.usbDevices.driver') }}</span>
                 <span class="text-theme-primary text-xs">{{ row.driver }}</span>
               </div>
               <div v-if="row.mountpoint">
-                <span class="text-xs text-theme-muted block">Mount Point</span>
+                <span class="text-xs text-theme-muted block">{{ $t('storage.usbDevices.mountPoint') }}</span>
                 <span class="text-theme-primary font-mono text-xs">{{ row.mountpoint }}</span>
               </div>
               <div v-if="row.filesystem">
-                <span class="text-xs text-theme-muted block">Filesystem</span>
+                <span class="text-xs text-theme-muted block">{{ $t('storage.usbDevices.filesystem') }}</span>
                 <span class="text-theme-primary text-xs">{{ row.filesystem }}</span>
               </div>
               <div v-if="row.size">
-                <span class="text-xs text-theme-muted block">Size</span>
+                <span class="text-xs text-theme-muted block">{{ $t('storage.usbDevices.size') }}</span>
                 <span class="text-theme-primary text-xs">{{ formatSize(row.size) }}</span>
               </div>
               <div v-if="row.label">
-                <span class="text-xs text-theme-muted block">Label</span>
+                <span class="text-xs text-theme-muted block">{{ $t('storage.usbDevices.label') }}</span>
                 <span class="text-theme-primary text-xs">{{ row.label }}</span>
               </div>
             </div>
@@ -447,8 +447,8 @@ function formatSize(bytes) {
     <template v-else-if="viewMode === 'storage'">
       <div v-if="storageDevices.length === 0" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
         <Icon name="HardDrive" :size="40" class="mx-auto text-theme-muted mb-4" />
-        <h3 class="text-lg font-medium text-theme-primary mb-2">No USB Storage Devices</h3>
-        <p class="text-theme-muted">No USB drives or flash storage detected.</p>
+        <h3 class="text-lg font-medium text-theme-primary mb-2">{{ $t('storage.usbDevices.noStorage') }}</h3>
+        <p class="text-theme-muted">{{ $t('storage.usbDevices.noStorageDesc') }}</p>
       </div>
 
       <div v-else class="space-y-3">
@@ -464,12 +464,12 @@ function formatSize(bytes) {
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
                 <p class="text-sm font-medium text-theme-primary truncate">
-                  {{ device.product || device.name || device.label || 'USB Storage' }}
+                  {{ device.product || device.name || device.label || $t('storage.usbDevices.defaultStorage') }}
                 </p>
                 <span
                   class="px-2 py-0.5 text-[10px] font-semibold rounded-full"
                   :class="isMounted(device) ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'"
-                >{{ isMounted(device) ? 'Mounted' : 'Not Mounted' }}</span>
+                >{{ isMounted(device) ? $t('storage.usbDevices.mounted') : $t('storage.usbDevices.notMounted') }}</span>
               </div>
               <p class="text-xs text-theme-muted truncate">
                 {{ device.device || device.path || '' }}
@@ -522,21 +522,21 @@ function formatSize(bytes) {
     <template v-else-if="viewMode === 'tree'">
       <div v-if="treeLoading" class="flex items-center justify-center py-12">
         <Icon name="Loader2" :size="24" class="animate-spin text-theme-muted" />
-        <span class="ml-3 text-theme-muted">Loading USB tree...</span>
+        <span class="ml-3 text-theme-muted">{{ $t('storage.usbDevices.treeLoading') }}</span>
       </div>
 
       <div v-else-if="!usbTree" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
         <Icon name="GitBranch" :size="40" class="mx-auto text-theme-muted mb-4" />
-        <h3 class="text-lg font-medium text-theme-primary mb-2">USB Tree Unavailable</h3>
-        <p class="text-theme-muted mb-4">Could not retrieve the USB device hierarchy.</p>
-        <button @click="loadTree" class="px-4 py-2 btn-accent rounded-lg text-sm">Retry</button>
+        <h3 class="text-lg font-medium text-theme-primary mb-2">{{ $t('storage.usbDevices.treeUnavailable') }}</h3>
+        <p class="text-theme-muted mb-4">{{ $t('storage.usbDevices.treeUnavailableDesc') }}</p>
+        <button @click="loadTree" class="px-4 py-2 btn-accent rounded-lg text-sm">{{ $t('storage.usbDevices.retry') }}</button>
       </div>
 
       <div v-else class="bg-theme-card rounded-xl border border-theme-primary p-4 sm:p-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-sm font-semibold text-theme-primary flex items-center gap-2">
             <Icon name="GitBranch" :size="16" class="text-accent" />
-            USB Device Hierarchy
+            {{ $t('storage.usbDevices.hierarchy') }}
           </h3>
           <button
             @click="loadTree"
