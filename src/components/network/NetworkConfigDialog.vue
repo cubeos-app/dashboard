@@ -12,9 +12,12 @@
  * OFFLINE mode never opens this dialog (handled in NetworkModeSelector).
  */
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 import IPConfigStep from './IPConfigStep.vue'
 import WiFiClientTransition from './WiFiClientTransition.vue'
 
@@ -43,13 +46,13 @@ const modalRef = ref(null)
 const ipConfigRef = ref(null)
 
 // ── Mode metadata ────────────────────────────────────────────
-const modeLabels = {
-  [NETWORK_MODES.WIFI_ROUTER]:     'WiFi Router',
-  [NETWORK_MODES.WIFI_BRIDGE]:     'WiFi Bridge',
-  [NETWORK_MODES.ANDROID_TETHER]:  'Android Tether',
-  [NETWORK_MODES.ETH_CLIENT]:      'Ethernet Client',
-  [NETWORK_MODES.WIFI_CLIENT]:     'WiFi Client',
-}
+const modeLabels = computed(() => ({
+  [NETWORK_MODES.WIFI_ROUTER]:     t('network.modes.wifi_router'),
+  [NETWORK_MODES.WIFI_BRIDGE]:     t('network.modes.wifi_bridge'),
+  [NETWORK_MODES.ANDROID_TETHER]:  t('network.modes.android_tether'),
+  [NETWORK_MODES.ETH_CLIENT]:      t('network.modes.eth_client'),
+  [NETWORK_MODES.WIFI_CLIENT]:     t('network.modes.wifi_client'),
+}))
 
 const modeIcons = {
   [NETWORK_MODES.WIFI_ROUTER]:     'Cable',
@@ -95,9 +98,9 @@ const isLastStep = computed(() => currentStepIndex.value === STEPS.value.length 
 
 const stepLabel = computed(() => {
   switch (currentStep.value) {
-    case 'wifi': return 'Select WiFi Network'
-    case 'ipconfig': return 'IP Configuration'
-    case 'confirm': return 'Confirm Changes'
+    case 'wifi': return t('network.configDialog.stepWifi')
+    case 'ipconfig': return t('network.configDialog.stepIPConfig')
+    case 'confirm': return t('network.configDialog.stepConfirm')
     default: return ''
   }
 })
@@ -207,20 +210,20 @@ const warningMessage = computed(() => {
   const toMode = props.targetMode
 
   if (fromHasAP && !toHasAP) {
-    lines.push('This will disable the Access Point. All WiFi clients will be disconnected.')
-    lines.push('If you are connected via the CubeOS WiFi, you will lose access to this dashboard.')
+    lines.push(t('network.configDialog.apDisableWarning'))
+    lines.push(t('network.configDialog.loseAccessWarning'))
     if (toMode === NETWORK_MODES.ETH_CLIENT) {
-      lines.push('To reconnect: access the dashboard via the Ethernet IP address.')
+      lines.push(t('network.configDialog.reconnectEthernet'))
     } else {
-      lines.push('To reconnect: join the same WiFi network as the device.')
+      lines.push(t('network.configDialog.reconnectWifi'))
     }
   } else if (!fromHasAP && toHasAP) {
-    lines.push('This will start the Access Point and reconfigure networking.')
-    lines.push('Your connection may be interrupted during reconfiguration.')
+    lines.push(t('network.configDialog.apStartWarning'))
+    lines.push(t('network.configDialog.connectionInterrupt'))
   } else if (fromHasAP && toHasAP && props.currentMode !== toMode) {
-    lines.push('This will reconfigure the internet uplink. WiFi clients may experience a brief interruption.')
+    lines.push(t('network.configDialog.uplinkReconfigure'))
   } else if (!fromHasAP && !toHasAP) {
-    lines.push('This will reconfigure the network interface. You may lose access temporarily.')
+    lines.push(t('network.configDialog.interfaceReconfigure'))
   }
 
   return lines
@@ -229,26 +232,26 @@ const warningMessage = computed(() => {
 // Summary items for the confirm step
 const summaryItems = computed(() => {
   const items = [
-    { label: 'Network Mode', value: modeLabels[props.targetMode] || props.targetMode }
+    { label: t('network.configDialog.networkModeLabel'), value: modeLabels.value[props.targetMode] || props.targetMode }
   ]
 
   if (isWiFiMode.value && effectiveSSID.value) {
-    items.push({ label: 'WiFi Network', value: effectiveSSID.value })
+    items.push({ label: t('network.configDialog.wifiNetwork'), value: effectiveSSID.value })
   }
 
   if (ipConfig.value.useStaticIP) {
-    items.push({ label: 'IP Configuration', value: 'Static IP' })
-    items.push({ label: 'IP Address', value: ipConfig.value.ip })
-    items.push({ label: 'Subnet Mask', value: ipConfig.value.netmask })
-    items.push({ label: 'Gateway', value: ipConfig.value.gateway })
+    items.push({ label: t('network.configDialog.ipConfiguration'), value: t('network.configDialog.staticIP') })
+    items.push({ label: t('network.configDialog.ipAddress'), value: ipConfig.value.ip })
+    items.push({ label: t('network.configDialog.subnetMask'), value: ipConfig.value.netmask })
+    items.push({ label: t('network.configDialog.gateway'), value: ipConfig.value.gateway })
     if (ipConfig.value.dnsPrimary) {
-      items.push({ label: 'Primary DNS', value: ipConfig.value.dnsPrimary })
+      items.push({ label: t('network.configDialog.primaryDNS'), value: ipConfig.value.dnsPrimary })
     }
     if (ipConfig.value.dnsSecondary) {
-      items.push({ label: 'Secondary DNS', value: ipConfig.value.dnsSecondary })
+      items.push({ label: t('network.configDialog.secondaryDNS'), value: ipConfig.value.dnsSecondary })
     }
   } else {
-    items.push({ label: 'IP Configuration', value: 'DHCP (automatic)' })
+    items.push({ label: t('network.configDialog.ipConfiguration'), value: t('network.configDialog.dhcpAutomatic') })
   }
 
   return items
@@ -316,7 +319,7 @@ async function applyChanges() {
         close()
       }
     } else {
-      applyError.value = networkStore.error || 'Failed to apply network configuration'
+      applyError.value = networkStore.error || t('network.configDialog.failedToApply')
     }
   } catch (e) {
     applyError.value = e.message
@@ -427,7 +430,7 @@ onUnmounted(() => {
             <button
               @click="close"
               class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-              aria-label="Close dialog"
+              :aria-label="$t('network.configDialog.closeDialog')"
             >
               <Icon name="X" :size="18" />
             </button>
@@ -450,9 +453,9 @@ onUnmounted(() => {
               <!-- No client adapter warning -->
               <div v-if="!hasClientAdapter" class="text-center py-8">
                 <Icon name="WifiOff" :size="36" class="text-theme-muted mx-auto mb-3" />
-                <p class="text-theme-secondary font-medium mb-1">No WiFi Client Adapter</p>
+                <p class="text-theme-secondary font-medium mb-1">{{ $t('network.configDialog.noWifiAdapter') }}</p>
                 <p class="text-xs text-theme-tertiary max-w-xs mx-auto">
-                  The built-in WiFi is used for the Access Point. Connect a USB WiFi adapter for uplink mode.
+                  {{ $t('network.configDialog.noAdapterDesc') }}
                 </p>
               </div>
 
@@ -463,10 +466,10 @@ onUnmounted(() => {
                     @click="scanNetworks"
                     :disabled="scanning || scanCooldown"
                     class="flex items-center gap-2 text-sm text-accent hover:bg-accent/10 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-label="Scan for WiFi networks"
+                    :aria-label="$t('network.configDialog.scanAriaLabel')"
                   >
                     <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': scanning }" />
-                    {{ scanning ? 'Scanning...' : 'Scan' }}
+                    {{ scanning ? $t('network.configDialog.scanningShort') : $t('network.configDialog.scan') }}
                   </button>
                   <button
                     v-if="!showManualEntry"
@@ -474,7 +477,7 @@ onUnmounted(() => {
                     class="flex items-center gap-1.5 text-xs text-theme-muted hover:text-theme-primary px-2 py-1 rounded-lg transition-colors"
                   >
                     <Icon name="Edit3" :size="12" />
-                    Enter manually
+                    {{ $t('network.configDialog.enterManually') }}
                   </button>
                   <button
                     v-else
@@ -482,34 +485,34 @@ onUnmounted(() => {
                     class="flex items-center gap-1.5 text-xs text-theme-muted hover:text-theme-primary px-2 py-1 rounded-lg transition-colors"
                   >
                     <Icon name="List" :size="12" />
-                    Show scan results
+                    {{ $t('network.configDialog.showScanResults') }}
                   </button>
                 </div>
 
                 <!-- Manual SSID entry -->
                 <div v-if="showManualEntry" class="space-y-3 mb-3">
                   <div>
-                    <label class="block text-xs font-medium text-theme-secondary mb-1.5">Network Name (SSID)</label>
+                    <label class="block text-xs font-medium text-theme-secondary mb-1.5">{{ $t('network.ap.networkName') }}</label>
                     <input
                       v-model="manualSSID"
                       type="text"
-                      placeholder="Enter WiFi network name"
+                      :placeholder="$t('network.configDialog.enterNetworkName')"
                       class="w-full px-3 py-2 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-theme-secondary mb-1.5">Password</label>
+                    <label class="block text-xs font-medium text-theme-secondary mb-1.5">{{ $t('network.wifi.password') }}</label>
                     <div class="relative">
                       <input
                         v-model="wifiPassword"
                         :type="showPassword ? 'text' : 'password'"
-                        placeholder="Enter WiFi password"
+                        :placeholder="$t('network.configDialog.enterWifiPassword')"
                         class="w-full px-3 py-2 pr-10 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       />
                       <button
                         @click="showPassword = !showPassword"
                         class="absolute right-2.5 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-secondary transition-colors"
-                        :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                        :aria-label="showPassword ? $t('auth.hidePassword') : $t('auth.showPassword')"
                       >
                         <Icon :name="showPassword ? 'EyeOff' : 'Eye'" :size="16" />
                       </button>
@@ -556,7 +559,7 @@ onUnmounted(() => {
                         <span
                           v-if="savedSSIDs.has(network.ssid)"
                           class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-accent/20 text-accent shrink-0"
-                        >Saved</span>
+                        >{{ $t('network.wifi.saved') }}</span>
                       </div>
                       <p class="text-xs text-theme-muted">
                         {{ networkStore.getSignalLabel(network.signal) }} · {{ network.frequency || network.freq }}MHz
@@ -573,13 +576,13 @@ onUnmounted(() => {
                   <!-- No results -->
                   <div v-if="!scanning && sortedNetworks.length === 0" class="text-center py-6">
                     <Icon name="WifiOff" :size="28" class="text-theme-muted mx-auto mb-2" />
-                    <p class="text-theme-tertiary text-sm">No networks found</p>
+                    <p class="text-theme-tertiary text-sm">{{ $t('network.wifi.noNetworks') }}</p>
                     <button
                       @click="scanNetworks"
                       :disabled="scanCooldown"
                       class="mt-2 text-xs text-accent hover:underline disabled:opacity-50"
                     >
-                      Try again
+                      {{ $t('network.wifi.tryAgain') }}
                     </button>
                   </div>
                 </div>
@@ -589,29 +592,29 @@ onUnmounted(() => {
                   <div class="flex items-center gap-2">
                     <Icon name="Wifi" :size="14" class="text-accent" />
                     <span class="text-sm font-medium text-theme-primary">{{ selectedNetwork.ssid }}</span>
-                    <span class="text-xs text-theme-muted">{{ selectedNetwork.security || 'Open' }}</span>
+                    <span class="text-xs text-theme-muted">{{ selectedNetwork.security || $t('network.wifi.open') }}</span>
                   </div>
 
                   <div v-if="selectedNetwork.security && selectedNetwork.security !== 'open'">
-                    <label class="block text-xs font-medium text-theme-secondary mb-1.5">Password</label>
+                    <label class="block text-xs font-medium text-theme-secondary mb-1.5">{{ $t('network.wifi.password') }}</label>
                     <div class="relative">
                       <input
                         v-model="wifiPassword"
                         :type="showPassword ? 'text' : 'password'"
-                        :placeholder="savedSSIDs.has(selectedNetwork.ssid) ? 'Leave empty to use saved' : 'Enter WiFi password'"
+                        :placeholder="savedSSIDs.has(selectedNetwork.ssid) ? $t('network.wifi.savedPasswordPlaceholder') : $t('network.configDialog.enterWifiPassword')"
                         class="w-full px-3 py-2 pr-10 rounded-lg border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                         @keyup.enter="canProceed() && nextStep()"
                       />
                       <button
                         @click="showPassword = !showPassword"
                         class="absolute right-2.5 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-secondary transition-colors"
-                        :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                        :aria-label="showPassword ? $t('auth.hidePassword') : $t('auth.showPassword')"
                       >
                         <Icon :name="showPassword ? 'EyeOff' : 'Eye'" :size="16" />
                       </button>
                     </div>
                     <p v-if="savedSSIDs.has(selectedNetwork.ssid)" class="text-[11px] text-theme-muted mt-1">
-                      This network is saved. Enter a new password only if it has changed.
+                      {{ $t('network.wifi.savedPasswordHelp') }}
                     </p>
                   </div>
                 </div>
@@ -633,7 +636,7 @@ onUnmounted(() => {
                 <!-- Summary -->
                 <div class="rounded-xl border border-theme-primary overflow-hidden">
                   <div class="px-3 py-2 bg-theme-tertiary border-b border-theme-primary">
-                    <h4 class="text-xs font-semibold text-theme-secondary uppercase tracking-wide">Configuration Summary</h4>
+                    <h4 class="text-xs font-semibold text-theme-secondary uppercase tracking-wide">{{ $t('network.configDialog.configSummary') }}</h4>
                   </div>
                   <div class="divide-y divide-[color:var(--border-primary)]">
                     <div
@@ -654,7 +657,7 @@ onUnmounted(() => {
                 >
                   <div class="flex items-center gap-2">
                     <Icon name="AlertTriangle" :size="16" class="text-warning shrink-0" />
-                    <span class="text-xs font-semibold text-warning uppercase tracking-wide">Warning</span>
+                    <span class="text-xs font-semibold text-warning uppercase tracking-wide">{{ $t('common.warning') }}</span>
                   </div>
                   <div class="space-y-1.5">
                     <p
@@ -688,7 +691,7 @@ onUnmounted(() => {
               class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-theme-secondary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
             >
               <Icon name="ChevronLeft" :size="16" />
-              Back
+              {{ $t('common.back') }}
             </button>
             <div v-else></div>
 
@@ -698,7 +701,7 @@ onUnmounted(() => {
                 :disabled="applying"
                 class="px-4 py-2 rounded-lg text-sm font-medium bg-theme-tertiary text-theme-secondary hover:bg-theme-card transition-colors disabled:opacity-50"
               >
-                Cancel
+                {{ $t('common.cancel') }}
               </button>
               <button
                 @click="nextStep"
@@ -711,7 +714,7 @@ onUnmounted(() => {
                 ]"
               >
                 <Icon v-if="applying" name="Loader2" :size="16" class="animate-spin" />
-                {{ isLastStep ? (applying ? 'Applying...' : 'Apply') : 'Next' }}
+                {{ isLastStep ? (applying ? $t('network.configDialog.applying') : $t('common.apply')) : $t('common.next') }}
               </button>
             </div>
           </div>

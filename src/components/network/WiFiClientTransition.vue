@@ -10,8 +10,11 @@
  * If the switch fails and reverts to offline_hotspot, shows failure state.
  */
 import { ref, computed, watch, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: {
@@ -35,15 +38,15 @@ const newIP = ref('')
 const canDismiss = ref(false)
 
 // Steps shown during transition
-const steps = [
-  { id: 'stop_ap', label: 'Stopping Access Point' },
-  { id: 'connect', label: 'Connecting to WiFi' },
-  { id: 'verify', label: 'Verifying connectivity' },
-  { id: 'persist', label: 'Saving configuration' }
-]
+const steps = computed(() => [
+  { id: 'stop_ap', label: t('network.wifiTransition.stopAP') },
+  { id: 'connect', label: t('network.wifiTransition.connectWifi') },
+  { id: 'verify', label: t('network.wifiTransition.verifyConnectivity') },
+  { id: 'persist', label: t('network.wifiTransition.saveConfig') }
+])
 
 const activeStepIndex = computed(() => {
-  if (phase.value === 'success') return steps.length
+  if (phase.value === 'success') return steps.value.length
   if (phase.value === 'failed') return -1
   // Estimate step from elapsed time
   if (elapsedSeconds.value < 3) return 0
@@ -142,9 +145,9 @@ onUnmounted(() => {
             </div>
             <div>
               <h2 class="text-lg font-semibold text-theme-primary">
-                <template v-if="phase === 'switching'">Switching to WiFi Client</template>
-                <template v-else-if="phase === 'success'">Connected</template>
-                <template v-else>Connection Failed</template>
+                <template v-if="phase === 'switching'">{{ $t('network.wifiTransition.switchingTitle') }}</template>
+                <template v-else-if="phase === 'success'">{{ $t('network.wifiTransition.connectedTitle') }}</template>
+                <template v-else>{{ $t('network.wifiTransition.failedTitle') }}</template>
               </h2>
               <p v-if="ssid" class="text-sm text-theme-secondary">{{ ssid }}</p>
             </div>
@@ -156,7 +159,7 @@ onUnmounted(() => {
             <div class="flex items-start gap-2 p-3 mb-4 rounded-lg bg-warning/10 border border-warning/20">
               <Icon name="AlertTriangle" :size="16" class="text-warning shrink-0 mt-0.5" />
               <p class="text-sm text-theme-secondary">
-                The CubeOS Access Point will be turned off. After switching, connect to your home WiFi and access the dashboard at <span class="font-mono font-medium text-theme-primary">cubeos.local</span>
+                {{ $t('network.wifiTransition.switchWarning') }}
               </p>
             </div>
 
@@ -190,7 +193,7 @@ onUnmounted(() => {
 
             <!-- Elapsed timer -->
             <p class="text-xs text-theme-muted text-center">
-              {{ elapsedSeconds }}s elapsed
+              {{ $t('network.wifiTransition.elapsedSeconds', { seconds: elapsedSeconds }) }}
             </p>
           </template>
 
@@ -201,7 +204,7 @@ onUnmounted(() => {
                 <Icon name="Check" :size="24" class="text-success" />
               </div>
               <p class="text-sm text-theme-secondary text-center">
-                Dashboard available at
+                {{ $t('network.wifiTransition.successMessage') }}
                 <span class="font-mono font-medium text-theme-primary">cubeos.local</span>
                 <template v-if="newIP">
                   <br />(IP: <span class="font-mono">{{ newIP }}</span>)
@@ -217,8 +220,8 @@ onUnmounted(() => {
                 <Icon name="X" :size="24" class="text-error" />
               </div>
               <p class="text-sm text-theme-secondary text-center">
-                Connection failed. Reverted to Offline Hotspot.
-                <br />Reconnect to the CubeOS WiFi network.
+                {{ $t('network.wifiTransition.failedMessage') }}
+                <br />{{ $t('network.wifiTransition.reconnectMessage') }}
               </p>
             </div>
           </template>
@@ -233,7 +236,7 @@ onUnmounted(() => {
                 : 'bg-theme-secondary text-theme-primary hover:bg-theme-tertiary'"
               @click="dismiss"
             >
-              {{ phase === 'success' ? 'Done' : 'Close' }}
+              {{ phase === 'success' ? $t('common.done') : $t('common.close') }}
             </button>
           </div>
         </div>

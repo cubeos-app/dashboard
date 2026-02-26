@@ -13,7 +13,10 @@
  *   - update:modelValue — reactive two-way binding
  */
 import { computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   mode: {
@@ -95,11 +98,11 @@ defineExpose({ validation })
 // Interface label for context
 const interfaceLabel = computed(() => {
   switch (props.mode) {
-    case 'wifi_router': return 'eth0 (Ethernet uplink)'
-    case 'wifi_bridge': return 'wlan1 (WiFi uplink)'
-    case 'eth_client': return 'eth0 (Ethernet)'
-    case 'wifi_client': return 'wlan0 (WiFi)'
-    default: return 'upstream interface'
+    case 'wifi_router': return t('network.ipConfig.ethUplink')
+    case 'wifi_bridge': return t('network.ipConfig.wifiUplink')
+    case 'eth_client': return t('network.ipConfig.ethInterface')
+    case 'wifi_client': return t('network.ipConfig.wifiInterface')
+    default: return t('network.ipConfig.upstreamInterface')
   }
 })
 </script>
@@ -109,7 +112,7 @@ const interfaceLabel = computed(() => {
     <!-- Interface context -->
     <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-tertiary text-sm">
       <Icon name="Monitor" :size="16" class="text-theme-muted shrink-0" />
-      <span class="text-theme-secondary">Configuring: <span class="font-medium text-theme-primary">{{ interfaceLabel }}</span></span>
+      <span class="text-theme-secondary">{{ $t('network.ipConfig.configuring') }} <span class="font-medium text-theme-primary">{{ interfaceLabel }}</span></span>
     </div>
 
     <!-- DHCP / Static toggle -->
@@ -125,9 +128,9 @@ const interfaceLabel = computed(() => {
       >
         <div class="flex items-center gap-2 mb-1">
           <Icon name="Zap" :size="16" :class="!modelValue.useStaticIP ? 'text-accent' : 'text-theme-muted'" />
-          <span class="font-medium text-sm" :class="!modelValue.useStaticIP ? 'text-accent' : 'text-theme-primary'">DHCP</span>
+          <span class="font-medium text-sm" :class="!modelValue.useStaticIP ? 'text-accent' : 'text-theme-primary'">{{ $t('network.ipConfig.dhcp') }}</span>
         </div>
-        <p class="text-xs text-theme-tertiary">Automatic IP assignment</p>
+        <p class="text-xs text-theme-tertiary">{{ $t('network.ipConfig.dhcpDesc') }}</p>
       </button>
 
       <button
@@ -141,9 +144,9 @@ const interfaceLabel = computed(() => {
       >
         <div class="flex items-center gap-2 mb-1">
           <Icon name="PenTool" :size="16" :class="modelValue.useStaticIP ? 'text-accent' : 'text-theme-muted'" />
-          <span class="font-medium text-sm" :class="modelValue.useStaticIP ? 'text-accent' : 'text-theme-primary'">Static IP</span>
+          <span class="font-medium text-sm" :class="modelValue.useStaticIP ? 'text-accent' : 'text-theme-primary'">{{ $t('network.ipConfig.staticIP') }}</span>
         </div>
-        <p class="text-xs text-theme-tertiary">Manual configuration</p>
+        <p class="text-xs text-theme-tertiary">{{ $t('network.ipConfig.staticDesc') }}</p>
       </button>
     </div>
 
@@ -160,57 +163,57 @@ const interfaceLabel = computed(() => {
         <!-- IP Address -->
         <div>
           <label class="block text-xs font-medium text-theme-secondary mb-1.5">
-            IP Address <span class="text-error">*</span>
+            {{ $t('network.ipConfig.ipAddress') }} <span class="text-error">*</span>
           </label>
           <input
             :value="modelValue.ip"
             @input="update('ip', $event.target.value)"
             type="text"
-            placeholder="e.g. 192.168.1.100"
+            :placeholder="$t('network.ipConfig.ipPlaceholder')"
             inputmode="decimal"
             class="w-full px-3 py-2 rounded-lg border bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:ring-1 focus:ring-accent"
             :class="modelValue.ip && !validation.ip ? 'border-error' : 'border-theme-primary focus:border-accent'"
           />
           <p v-if="modelValue.ip && !validation.ip" class="text-xs text-error mt-1">
-            Enter a valid IPv4 address
+            {{ $t('network.ipConfig.invalidIP') }}
           </p>
         </div>
 
         <!-- Subnet Mask -->
         <div>
           <label class="block text-xs font-medium text-theme-secondary mb-1.5">
-            Subnet Mask <span class="text-error">*</span>
+            {{ $t('network.ipConfig.subnetMask') }} <span class="text-error">*</span>
           </label>
           <input
             :value="modelValue.netmask"
             @input="update('netmask', $event.target.value)"
             type="text"
-            placeholder="255.255.255.0"
+            :placeholder="$t('network.ipConfig.netmaskPlaceholder')"
             inputmode="decimal"
             class="w-full px-3 py-2 rounded-lg border bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:ring-1 focus:ring-accent"
             :class="modelValue.netmask && !validation.netmask ? 'border-error' : 'border-theme-primary focus:border-accent'"
           />
           <p v-if="modelValue.netmask && !validation.netmask" class="text-xs text-error mt-1">
-            Enter a valid subnet mask
+            {{ $t('network.ipConfig.invalidNetmask') }}
           </p>
         </div>
 
         <!-- Gateway -->
         <div>
           <label class="block text-xs font-medium text-theme-secondary mb-1.5">
-            Gateway <span class="text-error">*</span>
+            {{ $t('network.ipConfig.gateway') }} <span class="text-error">*</span>
           </label>
           <input
             :value="modelValue.gateway"
             @input="update('gateway', $event.target.value)"
             type="text"
-            placeholder="e.g. 192.168.1.1"
+            :placeholder="$t('network.ipConfig.gatewayPlaceholder')"
             inputmode="decimal"
             class="w-full px-3 py-2 rounded-lg border bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:ring-1 focus:ring-accent"
             :class="modelValue.gateway && !validation.gateway ? 'border-error' : 'border-theme-primary focus:border-accent'"
           />
           <p v-if="modelValue.gateway && !validation.gateway" class="text-xs text-error mt-1">
-            Enter a valid gateway address
+            {{ $t('network.ipConfig.invalidGateway') }}
           </p>
         </div>
 
@@ -218,7 +221,7 @@ const interfaceLabel = computed(() => {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-medium text-theme-secondary mb-1.5">
-              Primary DNS
+              {{ $t('network.ipConfig.primaryDNS') }}
             </label>
             <input
               :value="modelValue.dnsPrimary"
@@ -230,30 +233,30 @@ const interfaceLabel = computed(() => {
               :class="modelValue.dnsPrimary && !validation.dnsPrimary ? 'border-error' : 'border-theme-primary focus:border-accent'"
             />
             <p v-if="modelValue.dnsPrimary && !validation.dnsPrimary" class="text-xs text-error mt-1">
-              Invalid DNS address
+              {{ $t('network.ipConfig.invalidDNS') }}
             </p>
           </div>
           <div>
             <label class="block text-xs font-medium text-theme-secondary mb-1.5">
-              Secondary DNS
+              {{ $t('network.ipConfig.secondaryDNS') }}
             </label>
             <input
               :value="modelValue.dnsSecondary"
               @input="update('dnsSecondary', $event.target.value)"
               type="text"
-              placeholder="optional"
+              :placeholder="$t('network.ipConfig.optional')"
               inputmode="decimal"
               class="w-full px-3 py-2 rounded-lg border bg-theme-input text-theme-primary placeholder-theme-muted text-sm focus:outline-none focus:ring-1 focus:ring-accent"
               :class="modelValue.dnsSecondary && !validation.dnsSecondary ? 'border-error' : 'border-theme-primary focus:border-accent'"
             />
             <p v-if="modelValue.dnsSecondary && !validation.dnsSecondary" class="text-xs text-error mt-1">
-              Invalid DNS address
+              {{ $t('network.ipConfig.invalidDNS') }}
             </p>
           </div>
         </div>
 
         <p class="text-xs text-theme-muted">
-          DNS defaults to {{ isAPMode ? 'Pi-hole (10.42.24.1)' : '1.1.1.1 / 8.8.8.8' }} if left empty.
+          {{ isAPMode ? $t('network.ipConfig.dnsDefaultAP') : $t('network.ipConfig.dnsDefaultClient') }}
         </p>
       </div>
     </Transition>
@@ -262,7 +265,7 @@ const interfaceLabel = computed(() => {
     <div v-if="!modelValue.useStaticIP" class="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-accent/5 text-sm">
       <Icon name="Info" :size="16" class="text-accent shrink-0 mt-0.5" />
       <p class="text-theme-secondary">
-        The interface will obtain an IP address automatically from your network's DHCP server.
+        {{ $t('network.ipConfig.dhcpInfo') }}
       </p>
     </div>
   </div>
