@@ -24,6 +24,7 @@
  *   close – user cancelled at any step
  */
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import InstallConfirmModal from '@/components/appstore/InstallConfirmModal.vue'
 import InstallProgressModal from '@/components/appstore/InstallProgressModal.vue'
 import { useAppStoreStore } from '@/stores/appstore'
@@ -39,6 +40,7 @@ const props = defineProps({
 
 const emit = defineEmits(['done', 'close'])
 
+const { t } = useI18n()
 const appStoreStore = useAppStoreStore()
 const { isAdvanced } = useMode()
 
@@ -170,11 +172,11 @@ async function doInstall(volumeOverrides, port = 0, subdomain = '') {
       jobId.value = result.job_id
     } else {
       // No job ID means synchronous install or error
-      installError.value = 'No job ID returned from install'
+      installError.value = t('apps.noJobId')
       step.value = 'error'
     }
   } catch (e) {
-    installError.value = e.message || 'Install failed'
+    installError.value = e.message || t('apps.installFailed')
     step.value = 'error'
   }
 }
@@ -209,7 +211,7 @@ function handleCancel() {
     >
       <div class="rounded-xl bg-panel-primary p-8 shadow-xl text-center">
         <div class="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-accent-primary border-t-transparent" />
-        <p class="text-sm text-secondary">Preparing install&hellip;</p>
+        <p class="text-sm text-secondary">{{ t('apps.preparingInstall') }}</p>
       </div>
     </div>
 
@@ -242,20 +244,20 @@ function handleCancel() {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     >
       <div class="mx-4 max-w-md rounded-xl bg-panel-primary p-6 shadow-xl">
-        <h3 class="mb-2 text-lg font-semibold text-primary">Install Failed</h3>
-        <p class="mb-4 text-sm text-secondary">{{ installError || loadError || 'An unexpected error occurred.' }}</p>
+        <h3 class="mb-2 text-lg font-semibold text-primary">{{ t('apps.installFailed') }}</h3>
+        <p class="mb-4 text-sm text-secondary">{{ installError || loadError || t('apps.unexpectedError') }}</p>
         <div class="flex justify-end gap-3">
           <button
             class="rounded-lg px-4 py-2 text-sm text-secondary hover:text-primary"
             @click="handleCancel"
           >
-            Close
+            {{ t('common.close') }}
           </button>
           <button
             class="rounded-lg bg-accent-primary px-4 py-2 text-sm text-white hover:bg-accent-primary/90"
             @click="loadVolumes"
           >
-            Retry
+            {{ t('common.retry') }}
           </button>
         </div>
       </div>

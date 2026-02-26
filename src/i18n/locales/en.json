@@ -195,7 +195,8 @@
     "warning": "Warning",
     "important": "Important",
     "dismissError": "Dismiss error",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "retry": "Retry"
   },
   "apps": {
     "title": "Apps",
@@ -229,7 +230,23 @@
     "syncing": "Syncing...",
     "syncStores": "Sync app stores",
     "subtitle": "Apps",
-    "tabsLabel": "Apps sections"
+    "tabsLabel": "Apps sections",
+    "unhealthy": "Unhealthy",
+    "appInfo": "App Info",
+    "portLabel": "Port",
+    "portsLabel": "Ports",
+    "startApp": "Start {name}",
+    "stopApp": "Stop {name}",
+    "restartApp": "Restart {name}",
+    "confirmStopTitle": "Stop {name}?",
+    "confirmStopMessage": "This will stop the {name} service.",
+    "confirmRestartTitle": "Restart {name}?",
+    "confirmRestartMessage": "This will restart the {name} service.",
+    "actionFailed": "Failed to {action}: {error}",
+    "preparingInstall": "Preparing install...",
+    "installFailed": "Install Failed",
+    "unexpectedError": "An unexpected error occurred.",
+    "noJobId": "No job ID returned from install"
   },
   "network": {
     "title": "Network",
@@ -270,7 +287,14 @@
       "connect": "Connect",
       "connecting": "Connecting...",
       "forget": "Forget",
-      "open": "Open"
+      "open": "Open",
+      "failedToConnect": "Failed to connect",
+      "failedPasswordChanged": "Failed to connect — password may have changed",
+      "disconnectWifi": "Disconnect WiFi",
+      "wifiViews": "WiFi views",
+      "scanForNetworks": "Scan for WiFi networks",
+      "connectTo": "Connect to {ssid}",
+      "forgetNetwork": "Forget network {ssid}"
     },
     "subtitle": "Manage network interfaces, connectivity, and security",
     "refreshStatus": "Refresh network status",
@@ -281,7 +305,25 @@
       "wifi_bridge": "WiFi Bridge",
       "eth_client": "Ethernet Client",
       "wifi_client": "WiFi Client",
-      "android_tether": "Android Tether"
+      "android_tether": "Android Tether",
+      "offline_hotspot_desc": "Air-gapped access point mode",
+      "wifi_router_desc": "AP + internet via Ethernet uplink",
+      "wifi_bridge_desc": "AP + internet via USB WiFi dongle",
+      "android_tether_desc": "AP + internet via Android USB tethering",
+      "eth_client_desc": "No AP, direct Ethernet connection",
+      "wifi_client_desc": "No AP, direct WiFi connection"
+    },
+    "modeSelector": {
+      "active": "Active",
+      "ariaLabel": "Network mode",
+      "switchToOffline": "Switch to Offline Mode",
+      "switchToOfflineBtn": "Switch to Offline",
+      "warningDisableAP": "This will disable the Access Point. All WiFi clients will be disconnected.",
+      "warningLoseAccess": "You are currently connected via {connection} — you WILL lose access to this dashboard.",
+      "warningStartAP": "This will start the Access Point and reconfigure networking.",
+      "warningInterruption": "Your current connection via {connection} may be interrupted during reconfiguration.",
+      "warningReconnect": "Once complete, connect to the CubeOS WiFi network to access the dashboard.",
+      "warningBrief": "This will reconfigure networking. You may experience a brief interruption."
     },
     "airGapped": "Air-gapped",
     "noInternet": "No Internet",

@@ -6,6 +6,7 @@
  * Replaces ServiceCard.vue with new API structure.
  */
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAppsStore } from '@/stores/apps'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
@@ -23,6 +24,7 @@ const props = defineProps({
 
 const emit = defineEmits(['showHealth'])
 
+const { t } = useI18n()
 const appsStore = useAppsStore()
 const actionLoading = ref(false)
 const actionError = ref(null)
@@ -37,12 +39,12 @@ const hasUI = computed(() => appsStore.hasWebUI(props.app))
 
 const statusConfig = computed(() => {
   if (!running.value) {
-    return { dot: 'bg-theme-muted', text: 'Stopped', class: 'text-theme-muted' }
+    return { dot: 'bg-theme-muted', text: t('apps.stopped'), class: 'text-theme-muted' }
   }
   if (!healthy.value) {
-    return { dot: 'bg-warning', text: 'Unhealthy', class: 'text-warning', pulse: true }
+    return { dot: 'bg-warning', text: t('apps.unhealthy'), class: 'text-warning', pulse: true }
   }
-  return { dot: 'bg-success', text: 'Running', class: 'text-success' }
+  return { dot: 'bg-success', text: t('apps.running'), class: 'text-success' }
 })
 
 const appUrl = computed(() => {
@@ -77,12 +79,16 @@ async function handleAction(action, e) {
   e.preventDefault()
   e.stopPropagation()
   
-  if (action !== 'start' && !await confirm({
-    title: `${action.charAt(0).toUpperCase() + action.slice(1)} ${displayName.value}?`,
-    message: `This will ${action} the ${displayName.value} service.`,
-    confirmText: action.charAt(0).toUpperCase() + action.slice(1),
-    variant: action === 'stop' ? 'danger' : 'warning'
-  })) return
+  if (action !== 'start') {
+    const titleKey = action === 'stop' ? 'apps.confirmStopTitle' : 'apps.confirmRestartTitle'
+    const msgKey = action === 'stop' ? 'apps.confirmStopMessage' : 'apps.confirmRestartMessage'
+    if (!await confirm({
+      title: t(titleKey, { name: displayName.value }),
+      message: t(msgKey, { name: displayName.value }),
+      confirmText: t(`apps.${action}`),
+      variant: action === 'stop' ? 'danger' : 'warning'
+    })) return
+  }
   
   actionLoading.value = true
   actionError.value = null
@@ -92,7 +98,7 @@ async function handleAction(action, e) {
     else if (action === 'restart') await appsStore.restartApp(props.app.name)
     await appsStore.fetchApps()
   } catch (err) {
-    actionError.value = `Failed to ${action}: ${err.message || 'Unknown error'}`
+    actionError.value = t('apps.actionFailed', { action, error: err.message || t('common.unknown') })
     setTimeout(() => { actionError.value = null }, 5000)
   } finally {
     actionLoading.value = false
@@ -164,8 +170,8 @@ async function handleAction(action, e) {
               @click="handleAction('start', $event)"
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-success hover:bg-success-muted rounded-lg transition-colors"
-              title="Start"
-              :aria-label="`Start ${app.display_name || app.name}`"
+              :title="t('apps.start')"
+              :aria-label="t('apps.startApp', { name: app.display_name || app.name })"
             >
               <Icon name="Play" :size="16" />
             </button>
@@ -176,8 +182,8 @@ async function handleAction(action, e) {
               @click="handleAction('stop', $event)"
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-error hover:bg-error-muted rounded-lg transition-colors"
-              title="Stop"
-              :aria-label="`Stop ${app.display_name || app.name}`"
+              :title="t('apps.stop')"
+              :aria-label="t('apps.stopApp', { name: app.display_name || app.name })"
             >
               <Icon name="Square" :size="16" />
             </button>
@@ -188,8 +194,8 @@ async function handleAction(action, e) {
               @click="handleAction('restart', $event)"
               :disabled="actionLoading"
               class="p-1.5 text-theme-tertiary hover:text-warning hover:bg-warning-muted rounded-lg transition-colors"
-              title="Restart"
-              :aria-label="`Restart ${app.display_name || app.name}`"
+              :title="t('apps.restart')"
+              :aria-label="t('apps.restartApp', { name: app.display_name || app.name })"
             >
               <Icon name="RotateCw" :size="16" />
             </button>
@@ -200,7 +206,7 @@ async function handleAction(action, e) {
             v-if="running && hasUI"
             @click.stop="appUrl && window.open(appUrl, '_blank', 'noopener,noreferrer')"
             class="p-1.5 text-accent hover:bg-accent-muted rounded-lg transition-colors"
-            title="Open"
+            :title="t('apps.open')"
           >
             <Icon name="ExternalLink" :size="16" />
           </button>
@@ -209,7 +215,7 @@ async function handleAction(action, e) {
           <button
             @click.stop="$emit('showHealth', app)"
             class="p-1.5 text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary rounded-lg transition-colors"
-            title="App Info"
+            :title="t('apps.appInfo')"
           >
             <Icon name="Info" :size="16" />
           </button>
@@ -223,7 +229,7 @@ async function handleAction(action, e) {
       class="px-4 py-2 bg-theme-secondary border-t border-theme-primary"
     >
       <div class="flex items-center gap-2 text-xs">
-        <span class="text-theme-muted">Port{{ displayPorts.length > 1 ? 's' : '' }}</span>
+        <span class="text-theme-muted">{{ displayPorts.length > 1 ? t('apps.portsLabel') : t('apps.portLabel') }}</span>
         <div class="flex items-center gap-1">
           <span 
             v-for="port in displayPorts" 

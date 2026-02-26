@@ -136,7 +136,7 @@ async function connect() {
       emit('connected', selectedNetwork.value.ssid)
       close()
     } else {
-      connectError.value = networkStore.error || 'Failed to connect'
+      connectError.value = networkStore.error || t('network.wifi.failedToConnect')
     }
   } catch (e) {
     connectError.value = e.message
@@ -170,7 +170,7 @@ async function connectSaved(ssid) {
       emit('connected', ssid)
       close()
     } else {
-      connectError.value = networkStore.error || 'Failed to connect — password may have changed'
+      connectError.value = networkStore.error || t('network.wifi.failedPasswordChanged')
     }
   } catch (e) {
     connectError.value = e.message
@@ -273,7 +273,7 @@ onUnmounted(() => {
                 @click="disconnect"
                 :disabled="connecting"
                 class="px-2.5 py-1 text-xs font-medium rounded-lg bg-error-muted text-error hover:opacity-80 disabled:opacity-50"
-                aria-label="Disconnect WiFi"
+                :aria-label="t('network.wifi.disconnectWifi')"
               >
                 {{ $t('network.wifi.disconnect') }}
               </button>
@@ -284,7 +284,7 @@ onUnmounted(() => {
           <TabBar
             v-model="activeView"
             :tabs="wifiTabs"
-            aria-label="WiFi views"
+            :aria-label="t('network.wifi.wifiViews')"
           />
           
           <!-- Content -->
@@ -326,7 +326,7 @@ onUnmounted(() => {
                   @click="scanNetworks"
                   :disabled="scanning || scanCooldown"
                   class="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-sm text-accent hover:bg-accent/10 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Scan for WiFi networks"
+                  :aria-label="t('network.wifi.scanForNetworks')"
                 >
                   <Icon name="RefreshCw" :size="16" />
                   {{ $t('network.wifi.refresh') }}
@@ -378,7 +378,7 @@ onUnmounted(() => {
                     @click="scanNetworks"
                     :disabled="scanning || scanCooldown"
                     class="mt-2 text-sm text-accent hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-label="Scan for WiFi networks again"
+                    :aria-label="t('network.wifi.scanForNetworks')"
                   >
                     {{ $t('network.wifi.tryAgain') }}
                   </button>
@@ -391,7 +391,7 @@ onUnmounted(() => {
                 <button
                   @click="clearSelection"
                   class="flex items-center gap-2 text-sm text-theme-tertiary hover:text-theme-primary transition-colors"
-                  aria-label="Back to network list"
+                  :aria-label="t('network.wifi.backToNetworks')"
                 >
                   <Icon name="ChevronLeft" :size="16" />
                   {{ $t('network.wifi.backToNetworks') }}
@@ -472,7 +472,7 @@ onUnmounted(() => {
                       @click="connectSaved(net.ssid)"
                       :disabled="connecting"
                       class="px-2.5 py-1 text-xs font-medium text-accent hover:bg-accent/10 rounded-lg transition-colors"
-                      :aria-label="'Connect to ' + net.ssid"
+                      :aria-label="t('network.wifi.connectTo', { ssid: net.ssid })"
                     >
                       {{ connecting && reconnectingSSID === net.ssid ? $t('network.wifi.connecting') : $t('network.wifi.connect') }}
                     </button>
@@ -480,7 +480,7 @@ onUnmounted(() => {
                       @click="forgetNetwork(net.ssid)"
                       :disabled="connecting"
                       class="px-2.5 py-1 text-xs font-medium text-error hover:bg-error-muted rounded-lg transition-colors"
-                      :aria-label="'Forget network ' + net.ssid"
+                      :aria-label="t('network.wifi.forgetNetwork', { ssid: net.ssid })"
                     >
                       {{ $t('network.wifi.forget') }}
                     </button>

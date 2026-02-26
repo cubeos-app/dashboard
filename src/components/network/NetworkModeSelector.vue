@@ -12,6 +12,7 @@
  * The old `showWifiConnect` emit is replaced by the integrated dialog.
  */
 import { computed, ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useNetworkStore, NETWORK_MODES } from '@/stores/network'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
@@ -19,17 +20,18 @@ import NetworkConfigDialog from '@/components/network/NetworkConfigDialog.vue'
 
 const emit = defineEmits(['modeChanged'])
 
+const { t } = useI18n()
 const networkStore = useNetworkStore()
 
 // Mode metadata: icons, colors, and connection characteristics
-const modeMetadata = {
-  [NETWORK_MODES.OFFLINE_HOTSPOT]: { icon: 'WifiOff',     color: 'text-warning', bgColor: 'bg-warning-muted', label: 'Offline Hotspot',         desc: 'Air-gapped access point mode',       hasAP: true,  uplink: null },
-  [NETWORK_MODES.WIFI_ROUTER]:     { icon: 'Cable',       color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'WiFi Router',             desc: 'AP + internet via Ethernet uplink',  hasAP: true,  uplink: 'eth0' },
-  [NETWORK_MODES.WIFI_BRIDGE]:     { icon: 'Wifi',        color: 'text-success', bgColor: 'bg-success-muted', label: 'WiFi Bridge',             desc: 'AP + internet via USB WiFi dongle',  hasAP: true,  uplink: 'wifi' },
-  [NETWORK_MODES.ANDROID_TETHER]:  { icon: 'Smartphone',  color: 'text-success', bgColor: 'bg-success-muted', label: 'Android Tether',          desc: 'AP + internet via Android USB tethering', hasAP: true,  uplink: 'usb' },
-  [NETWORK_MODES.ETH_CLIENT]:      { icon: 'Server',      color: 'text-accent',  bgColor: 'bg-accent-muted',  label: 'Ethernet Client',         desc: 'No AP, direct Ethernet connection',  hasAP: false, uplink: 'eth0' },
-  [NETWORK_MODES.WIFI_CLIENT]:     { icon: 'Server',      color: 'text-success', bgColor: 'bg-success-muted', label: 'WiFi Client',             desc: 'No AP, direct WiFi connection',      hasAP: false, uplink: 'wifi' },
-}
+const modeMetadata = computed(() => ({
+  [NETWORK_MODES.OFFLINE_HOTSPOT]: { icon: 'WifiOff',     color: 'text-warning', bgColor: 'bg-warning-muted', label: t('network.modes.offline_hotspot'),  desc: t('network.modes.offline_hotspot_desc'),  hasAP: true,  uplink: null },
+  [NETWORK_MODES.WIFI_ROUTER]:     { icon: 'Cable',       color: 'text-accent',  bgColor: 'bg-accent-muted',  label: t('network.modes.wifi_router'),      desc: t('network.modes.wifi_router_desc'),      hasAP: true,  uplink: 'eth0' },
+  [NETWORK_MODES.WIFI_BRIDGE]:     { icon: 'Wifi',        color: 'text-success', bgColor: 'bg-success-muted', label: t('network.modes.wifi_bridge'),      desc: t('network.modes.wifi_bridge_desc'),      hasAP: true,  uplink: 'wifi' },
+  [NETWORK_MODES.ANDROID_TETHER]:  { icon: 'Smartphone',  color: 'text-success', bgColor: 'bg-success-muted', label: t('network.modes.android_tether'),   desc: t('network.modes.android_tether_desc'),   hasAP: true,  uplink: 'usb' },
+  [NETWORK_MODES.ETH_CLIENT]:      { icon: 'Server',      color: 'text-accent',  bgColor: 'bg-accent-muted',  label: t('network.modes.eth_client'),       desc: t('network.modes.eth_client_desc'),       hasAP: false, uplink: 'eth0' },
+  [NETWORK_MODES.WIFI_CLIENT]:     { icon: 'Server',      color: 'text-success', bgColor: 'bg-success-muted', label: t('network.modes.wifi_client'),      desc: t('network.modes.wifi_client_desc'),      hasAP: false, uplink: 'wifi' },
+}))
 
 // Fallback mode IDs if API unavailable
 const fallbackModeList = [
@@ -54,7 +56,7 @@ const displayModes = computed(() => {
     : fallbackModeList
   
   return source.map(id => {
-    const meta = modeMetadata[id] || { icon: 'Network', color: 'text-theme-secondary', bgColor: 'bg-theme-tertiary', label: id, desc: '', hasAP: false, uplink: null }
+    const meta = modeMetadata.value[id] || { icon: 'Network', color: 'text-theme-secondary', bgColor: 'bg-theme-tertiary', label: id, desc: '', hasAP: false, uplink: null }
     const apiMode = networkStore.modes.find(m => (m.id || m.mode) === id)
     return {
       id,
@@ -83,7 +85,7 @@ onMounted(async () => {
 // Infer how the user is connected based on current mode
 function getUserConnectionInfo() {
   const cur = currentMode.value
-  const curMeta = modeMetadata[cur]
+  const curMeta = modeMetadata.value[cur]
   if (!curMeta) return { via: 'the network', isAP: false }
   
   if (curMeta.hasAP) {
@@ -101,23 +103,23 @@ function getUserConnectionInfo() {
 // Build a context-aware warning for OFFLINE mode switch only
 function buildWarningMessage(toMode) {
   const conn = getUserConnectionInfo()
-  const fromMeta = modeMetadata[currentMode.value]
-  const toMeta = modeMetadata[toMode]
+  const fromMeta = modeMetadata.value[currentMode.value]
+  const toMeta = modeMetadata.value[toMode]
   const lines = []
   
   if (fromMeta?.hasAP && !toMeta?.hasAP) {
-    lines.push('This will disable the Access Point. All WiFi clients will be disconnected.')
+    lines.push(t('network.modeSelector.warningDisableAP'))
     if (conn.isAP) {
-      lines.push(`You are currently connected via ${conn.via} — you WILL lose access to this dashboard.`)
+      lines.push(t('network.modeSelector.warningLoseAccess', { connection: conn.via }))
     }
   } else if (!fromMeta?.hasAP && toMeta?.hasAP) {
-    lines.push('This will start the Access Point and reconfigure networking.')
+    lines.push(t('network.modeSelector.warningStartAP'))
     if (!conn.isAP) {
-      lines.push(`Your current connection via ${conn.via} may be interrupted during reconfiguration.`)
-      lines.push('Once complete, connect to the CubeOS WiFi network to access the dashboard.')
+      lines.push(t('network.modeSelector.warningInterruption', { connection: conn.via }))
+      lines.push(t('network.modeSelector.warningReconnect'))
     }
   } else {
-    lines.push('This will reconfigure networking. You may experience a brief interruption.')
+    lines.push(t('network.modeSelector.warningBrief'))
   }
   
   return lines.join('\n\n')
@@ -137,9 +139,9 @@ async function selectMode(mode) {
   const message = buildWarningMessage(mode.id)
   
   if (!await confirm({
-    title: 'Switch to Offline Mode',
+    title: t('network.modeSelector.switchToOffline'),
     message,
-    confirmText: 'Switch to Offline',
+    confirmText: t('network.modeSelector.switchToOfflineBtn'),
     variant: 'warning'
   })) return
   
@@ -176,11 +178,11 @@ function isCurrentMode(modeId) {
   <div class="space-y-3">
     <h3 class="text-sm font-medium text-theme-secondary flex items-center gap-2">
       <Icon name="Network" :size="16" />
-      Network Mode
+      {{ t('network.networkMode') }}
     </h3>
     
     <!-- AP Modes (top row: 4 columns) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" role="radiogroup" aria-label="Network mode">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" role="radiogroup" :aria-label="t('network.modeSelector.ariaLabel')">
       <button
         v-for="mode in apModes"
         :key="mode.id"
@@ -216,7 +218,7 @@ function isCurrentMode(modeId) {
               <span 
                 v-if="isCurrentMode(mode.id)"
                 class="px-1.5 py-0.5 text-xs rounded-full bg-accent/20 text-accent"
-              >Active</span>
+              >{{ t('network.modeSelector.active') }}</span>
             </div>
             <p class="text-xs text-theme-tertiary mt-1 leading-relaxed">{{ mode.description }}</p>
             <p v-if="!mode.available && mode.reason" class="text-xs text-warning mt-1">{{ mode.reason }}</p>
@@ -262,7 +264,7 @@ function isCurrentMode(modeId) {
               <span 
                 v-if="isCurrentMode(mode.id)"
                 class="px-1.5 py-0.5 text-xs rounded-full bg-accent/20 text-accent"
-              >Active</span>
+              >{{ t('network.modeSelector.active') }}</span>
             </div>
             <p class="text-xs text-theme-tertiary mt-1 leading-relaxed">{{ mode.description }}</p>
             <p v-if="!mode.available && mode.reason" class="text-xs text-warning mt-1">{{ mode.reason }}</p>
