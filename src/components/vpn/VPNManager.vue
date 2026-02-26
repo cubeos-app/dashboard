@@ -19,6 +19,7 @@
  *   getTypeLabel, getTypeIcon, formatDuration
  */
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useVPNStore, VPN_TYPES } from '@/stores/vpn'
 import { confirm } from '@/utils/confirmDialog'
@@ -26,6 +27,8 @@ import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { usePolling } from '@/composables/usePolling'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 const { signal } = useAbortOnUnmount()
 const { trapFocus } = useFocusTrap()
@@ -137,7 +140,7 @@ async function toggleAutoConnect(config) {
   try {
     await vpnStore.setAutoConnect(config.name, newValue)
   } catch (e) {
-    error.value = e.message || 'Failed to toggle auto-connect'
+    error.value = e.message || t('network.vpnManager.autoConnectFailed')
   }
 }
 
@@ -151,7 +154,7 @@ async function handleConnect(config) {
     // Refresh public IP after connect
     await vpnStore.fetchPublicIP()
   } catch (e) {
-    error.value = e.message || 'Failed to connect'
+    error.value = e.message || t('network.vpnManager.connectFailed')
   }
 }
 
@@ -161,7 +164,7 @@ async function handleDisconnect(config) {
     // Refresh public IP after disconnect
     await vpnStore.fetchPublicIP()
   } catch (e) {
-    error.value = e.message || 'Failed to disconnect'
+    error.value = e.message || t('network.vpnManager.disconnectFailed')
   }
 }
 
@@ -171,9 +174,9 @@ async function handleDisconnect(config) {
 
 async function handleDelete(config) {
   if (!await confirm({
-    title: 'Delete VPN Configuration',
-    message: `Delete VPN configuration "${config.name}"? This cannot be undone.`,
-    confirmText: 'Delete',
+    title: t('network.vpnManager.deleteTitle'),
+    message: t('network.vpnManager.deleteMessage', { name: config.name }),
+    confirmText: t('common.delete'),
     variant: 'danger'
   })) return
   
@@ -215,7 +218,7 @@ function handleFileSelect(event) {
 
 async function submitAdd() {
   if (!addForm.value.name || !addForm.value.configFile) {
-    addError.value = 'Name and config file are required'
+    addError.value = t('network.vpnManager.nameAndFileRequired')
     return
   }
   
@@ -231,7 +234,7 @@ async function submitAdd() {
     if (success) {
       closeAddModal()
     } else {
-      addError.value = vpnStore.error || 'Failed to add configuration'
+      addError.value = vpnStore.error || t('network.vpnManager.addFailed')
     }
   } finally {
     addLoading.value = false
@@ -271,13 +274,13 @@ function formatBytes(bytes) {
         <button
           @click="router.push('/network')"
           class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-          aria-label="Back to network"
+          :aria-label="$t('network.vpnManager.backToNetwork')"
         >
           <Icon name="ArrowLeft" :size="18" />
         </button>
         <div>
-          <h1 class="text-xl font-semibold text-theme-primary tracking-tight">VPN</h1>
-          <p class="text-theme-tertiary text-sm">Manage VPN configurations</p>
+          <h1 class="text-xl font-semibold text-theme-primary tracking-tight">{{ $t('network.vpnManager.title') }}</h1>
+          <p class="text-theme-tertiary text-sm">{{ $t('network.vpnManager.subtitle') }}</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -285,17 +288,17 @@ function formatBytes(bytes) {
           @click="refresh"
           :disabled="refreshing"
           class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-          aria-label="Refresh VPN status"
+          :aria-label="$t('network.vpnManager.refreshAriaLabel')"
         >
           <Icon name="RefreshCw" :size="16" :class="{ 'animate-spin': refreshing }" />
         </button>
         <button
           @click="openAddModal"
           class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium btn-accent"
-          aria-label="Add VPN configuration"
+          :aria-label="$t('network.vpnManager.addAriaLabel')"
         >
           <Icon name="Plus" :size="16" />
-          <span class="hidden sm:inline">Add Config</span>
+          <span class="hidden sm:inline">{{ $t('network.vpnManager.addConfig') }}</span>
         </button>
       </div>
     </div>
@@ -307,7 +310,7 @@ function formatBytes(bytes) {
     >
       <Icon name="AlertCircle" :size="16" class="text-error flex-shrink-0" />
       <p class="text-sm text-error flex-1">{{ combinedError }}</p>
-      <button @click="error = null; vpnStore.clearError()" class="text-error hover:opacity-70" aria-label="Dismiss error">
+      <button @click="error = null; vpnStore.clearError()" class="text-error hover:opacity-70" :aria-label="$t('common.dismissError')">
         <Icon name="X" :size="14" />
       </button>
     </div>
@@ -336,26 +339,26 @@ function formatBytes(bytes) {
         </div>
         <div class="flex-1 min-w-0">
           <p :class="['font-medium', isConnected ? 'text-success' : 'text-theme-secondary']">
-            {{ isConnected ? 'VPN Connected' : 'VPN Disconnected' }}
+            {{ isConnected ? $t('network.vpnManager.connected') : $t('network.vpnManager.disconnected') }}
           </p>
           <p v-if="isConnected && (status?.config_name || status?.active_config)" class="text-sm text-theme-secondary truncate">
             {{ status.config_name || status.active_config }}
             <span v-if="status?.connected_since"> · {{ vpnStore.formatDuration(status.connected_since) }}</span>
           </p>
           <p v-if="!isConnected" class="text-xs text-theme-muted">
-            {{ configs.length === 0 ? 'Add a configuration to get started' : 'Select a configuration to connect' }}
+            {{ configs.length === 0 ? $t('network.vpnManager.addToStart') : $t('network.vpnManager.selectToConnect') }}
           </p>
         </div>
         <!-- Public IP -->
         <div v-if="publicIP" class="text-right hidden sm:block">
-          <p class="text-xs text-theme-muted">Public IP</p>
+          <p class="text-xs text-theme-muted">{{ $t('network.vpnManager.publicIP') }}</p>
           <p class="font-mono text-sm text-theme-primary">{{ publicIP }}</p>
         </div>
       </div>
       <!-- Public IP mobile -->
       <div v-if="publicIP" class="mt-3 pt-3 border-t border-theme-primary sm:hidden">
         <div class="flex items-center justify-between">
-          <p class="text-xs text-theme-muted">Public IP</p>
+          <p class="text-xs text-theme-muted">{{ $t('network.vpnManager.publicIP') }}</p>
           <p class="font-mono text-sm text-theme-primary">{{ publicIP }}</p>
         </div>
       </div>
@@ -375,7 +378,7 @@ function formatBytes(bytes) {
           role="button"
           tabindex="0"
           :aria-expanded="isExpanded(config)"
-          :aria-label="'VPN configuration: ' + config.name + (config.is_active ? ' (active)' : '')"
+          :aria-label="config.is_active ? $t('network.vpnManager.configActiveAriaLabel', { name: config.name }) : $t('network.vpnManager.configAriaLabel', { name: config.name })"
           class="flex items-center gap-3 p-4 cursor-pointer hover:bg-theme-tertiary transition-colors"
         >
           <!-- Type icon -->
@@ -400,13 +403,13 @@ function formatBytes(bytes) {
                 v-if="config.is_active"
                 class="px-1.5 py-0.5 text-xs rounded-full bg-success-muted text-success flex-shrink-0"
               >
-                Active
+                {{ $t('common.active') }}
               </span>
               <span
                 v-if="config.auto_connect"
                 class="px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent flex-shrink-0 hidden sm:inline"
               >
-                Auto
+                {{ $t('network.vpnManager.autoConnect') }}
               </span>
             </div>
             <p class="text-xs text-theme-tertiary">
@@ -421,24 +424,24 @@ function formatBytes(bytes) {
               @click="handleDisconnect(config)"
               :disabled="vpnStore.loading"
               class="px-3 py-1.5 rounded-lg text-sm font-medium bg-error-muted text-error hover:opacity-80 transition-colors disabled:opacity-50"
-              :aria-label="'Disconnect ' + config.name"
+              :aria-label="$t('network.vpnManager.disconnectAriaLabel', { name: config.name })"
             >
-              Disconnect
+              {{ $t('network.vpnManager.disconnect') }}
             </button>
             <button
               v-else
               @click="handleConnect(config)"
               :disabled="vpnStore.loading"
               class="px-3 py-1.5 rounded-lg text-sm font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
-              :aria-label="'Connect ' + config.name"
+              :aria-label="$t('network.vpnManager.connectAriaLabel', { name: config.name })"
             >
-              Connect
+              {{ $t('network.vpnManager.connect') }}
             </button>
             <button
               @click="handleDelete(config)"
               :disabled="config.is_active"
-              :title="config.is_active ? 'Disconnect before deleting' : 'Delete configuration'"
-              :aria-label="'Delete ' + config.name + ' configuration'"
+              :title="config.is_active ? $t('network.vpnManager.disconnectBeforeDelete') : $t('network.vpnManager.deleteConfig')"
+              :aria-label="$t('network.vpnManager.deleteAriaLabel', { name: config.name })"
               class="p-1.5 rounded-lg text-theme-tertiary hover:text-error hover:bg-error/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon name="Trash2" :size="16" />
@@ -477,35 +480,35 @@ function formatBytes(bytes) {
                 <!-- Detail grid -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div>
-                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Type</p>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">{{ $t('network.vpnManager.type') }}</p>
                     <p class="text-xs font-medium text-theme-primary">{{ vpnStore.getTypeLabel(config.type) }}</p>
                   </div>
                   <div>
-                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Status</p>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">{{ $t('network.vpnManager.statusLabel') }}</p>
                     <p :class="['text-xs font-medium', config.is_active ? 'text-success' : 'text-theme-secondary']">
-                      {{ config.is_active ? 'Connected' : 'Disconnected' }}
+                      {{ config.is_active ? $t('network.connected') : $t('network.disconnected') }}
                     </p>
                   </div>
                   <div v-if="vpnStore.selectedConfig?.created_at || config.created_at">
-                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Created</p>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">{{ $t('network.vpnManager.created') }}</p>
                     <p class="text-xs font-medium text-theme-primary">
                       {{ formatDate(vpnStore.selectedConfig?.created_at || config.created_at) }}
                     </p>
                   </div>
                   <div v-if="vpnStore.selectedConfig?.config_path || vpnStore.selectedConfig?.filename || config.config_path || config.filename">
-                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">File</p>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">{{ $t('network.vpnManager.file') }}</p>
                     <p class="text-xs font-medium text-theme-primary font-mono truncate">
                       {{ vpnStore.selectedConfig?.config_path || vpnStore.selectedConfig?.filename || config.config_path || config.filename }}
                     </p>
                   </div>
                   <div v-if="config.is_active && status?.connected_since">
-                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Connected For</p>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">{{ $t('network.vpnManager.connectedFor') }}</p>
                     <p class="text-xs font-medium text-success">
                       {{ vpnStore.formatDuration(status.connected_since) }}
                     </p>
                   </div>
                   <div v-if="config.is_active && publicIP">
-                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Public IP</p>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">{{ $t('network.vpnManager.publicIP') }}</p>
                     <p class="text-xs font-medium text-theme-primary font-mono">{{ publicIP }}</p>
                   </div>
                 </div>
@@ -518,13 +521,13 @@ function formatBytes(bytes) {
                   class="grid grid-cols-2 sm:grid-cols-4 gap-3"
                 >
                   <div v-if="vpnStore.selectedConfig.stats.rx_bytes != null">
-                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Downloaded</p>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">{{ $t('network.vpnManager.downloaded') }}</p>
                     <p class="text-xs font-medium text-theme-primary font-mono">
                       {{ formatBytes(vpnStore.selectedConfig.stats.rx_bytes) }}
                     </p>
                   </div>
                   <div v-if="vpnStore.selectedConfig.stats.tx_bytes != null">
-                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">Uploaded</p>
+                    <p class="text-[10px] text-theme-muted uppercase tracking-wider mb-0.5">{{ $t('network.vpnManager.uploaded') }}</p>
                     <p class="text-xs font-medium text-theme-primary font-mono">
                       {{ formatBytes(vpnStore.selectedConfig.stats.tx_bytes) }}
                     </p>
@@ -534,15 +537,15 @@ function formatBytes(bytes) {
                 <!-- Auto-connect toggle -->
                 <div class="flex items-center justify-between py-2 border-t border-theme-primary">
                   <div>
-                    <p class="text-xs font-medium text-theme-primary">Auto-connect</p>
-                    <p class="text-xs text-theme-muted">Connect automatically on boot</p>
+                    <p class="text-xs font-medium text-theme-primary">{{ $t('network.vpnManager.autoConnect') }}</p>
+                    <p class="text-xs text-theme-muted">{{ $t('network.vpnManager.autoConnectDesc') }}</p>
                   </div>
                   <button
                     @click="toggleAutoConnect(config)"
                     :disabled="vpnStore.loading"
                     role="switch"
                     :aria-checked="config.auto_connect ? 'true' : 'false'"
-                    :aria-label="'Auto-connect ' + config.name"
+                    :aria-label="$t('network.vpnManager.autoConnectAriaLabel', { name: config.name })"
                     class="relative inline-flex h-6 w-10 items-center rounded-full transition-colors duration-200 disabled:opacity-50"
                     :class="config.auto_connect ? 'bg-accent' : 'bg-theme-tertiary border border-theme-secondary'"
                   >
@@ -564,21 +567,21 @@ function formatBytes(bytes) {
       <div class="w-12 h-12 rounded-xl bg-theme-tertiary flex items-center justify-center mx-auto mb-3">
         <Icon name="Shield" :size="24" class="text-theme-muted" />
       </div>
-      <p class="text-theme-secondary font-medium mb-1">No VPN Configurations</p>
-      <p class="text-sm text-theme-muted mb-4">Add a WireGuard or OpenVPN configuration to get started</p>
+      <p class="text-theme-secondary font-medium mb-1">{{ $t('network.vpnManager.noConfigs') }}</p>
+      <p class="text-sm text-theme-muted mb-4">{{ $t('network.vpnManager.noConfigsAvailable') }}</p>
       <button
         @click="openAddModal"
         class="px-4 py-2 rounded-lg btn-accent text-sm font-medium"
-        aria-label="Add VPN configuration"
+        :aria-label="$t('network.vpnManager.addAriaLabel')"
       >
-        Add Configuration
+        {{ $t('network.vpnManager.addConfiguration') }}
       </button>
     </div>
 
     <!-- ==================== Loading State ==================== -->
     <div v-if="refreshing && configs.length === 0" class="flex items-center justify-center py-12">
       <Icon name="Loader2" :size="24" class="animate-spin text-theme-muted" />
-      <span class="ml-2 text-sm text-theme-muted">Loading VPN configurations...</span>
+      <span class="ml-2 text-sm text-theme-muted">{{ $t('network.vpnManager.loadingConfigs') }}</span>
     </div>
 
     <!-- ==================== Add Config Modal ==================== -->
@@ -595,7 +598,7 @@ function formatBytes(bytes) {
           class="fixed inset-0 z-50 flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
-          aria-label="Add VPN Configuration"
+          :aria-label="$t('network.vpnManager.addModalTitle')"
           tabindex="-1"
           @click.self="closeAddModal"
           @keydown.escape="closeAddModal"
@@ -606,11 +609,11 @@ function formatBytes(bytes) {
           <div class="relative w-full max-w-md bg-theme-card rounded-2xl border border-theme-primary shadow-theme-lg overflow-hidden">
             <!-- Header -->
             <div class="flex items-center justify-between p-4 border-b border-theme-primary">
-              <h2 class="text-lg font-semibold text-theme-primary">Add VPN Configuration</h2>
+              <h2 class="text-lg font-semibold text-theme-primary">{{ $t('network.vpnManager.addModalTitle') }}</h2>
               <button
                 @click="closeAddModal"
                 class="p-2 rounded-lg text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
-                aria-label="Close"
+                :aria-label="$t('common.close')"
               >
                 <Icon name="X" :size="20" />
               </button>
@@ -621,23 +624,23 @@ function formatBytes(bytes) {
               <!-- Name -->
               <div>
                 <label class="block text-sm font-medium text-theme-secondary mb-2">
-                  Configuration Name
+                  {{ $t('network.vpnManager.configName') }}
                 </label>
                 <input
                   v-model="addForm.name"
                   type="text"
-                  placeholder="e.g., Work VPN"
+                  :placeholder="$t('network.vpnManager.configNamePlaceholder')"
                   class="w-full px-4 py-2.5 rounded-xl border border-theme-primary bg-theme-input text-theme-primary placeholder-theme-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                 />
               </div>
 
               <!-- Type -->
               <div>
-                <label class="block text-sm font-medium text-theme-secondary mb-2">Type</label>
+                <label class="block text-sm font-medium text-theme-secondary mb-2">{{ $t('network.vpnManager.configType') }}</label>
                 <div class="grid grid-cols-2 gap-2">
                   <button
                     @click="addForm.type = VPN_TYPES.WIREGUARD"
-                    aria-label="Select WireGuard type"
+                    :aria-label="$t('network.vpnManager.selectWireGuardType')"
                     :class="[
                       'p-3 rounded-xl border-2 text-left transition-all',
                       addForm.type === VPN_TYPES.WIREGUARD
@@ -647,11 +650,11 @@ function formatBytes(bytes) {
                   >
                     <Icon name="Lock" :size="20" class="text-theme-secondary mb-1" />
                     <p class="font-medium text-sm">WireGuard</p>
-                    <p class="text-xs text-theme-tertiary">.conf file</p>
+                    <p class="text-xs text-theme-tertiary">{{ $t('network.vpnManager.confFileDesc') }}</p>
                   </button>
                   <button
                     @click="addForm.type = VPN_TYPES.OPENVPN"
-                    aria-label="Select OpenVPN type"
+                    :aria-label="$t('network.vpnManager.selectOpenVPNType')"
                     :class="[
                       'p-3 rounded-xl border-2 text-left transition-all',
                       addForm.type === VPN_TYPES.OPENVPN
@@ -661,7 +664,7 @@ function formatBytes(bytes) {
                   >
                     <Icon name="Key" :size="20" class="text-theme-secondary mb-1" />
                     <p class="font-medium text-sm">OpenVPN</p>
-                    <p class="text-xs text-theme-tertiary">.ovpn file</p>
+                    <p class="text-xs text-theme-tertiary">{{ $t('network.vpnManager.ovpnFileDesc') }}</p>
                   </button>
                 </div>
               </div>
@@ -669,7 +672,7 @@ function formatBytes(bytes) {
               <!-- File upload -->
               <div>
                 <label class="block text-sm font-medium text-theme-secondary mb-2">
-                  Configuration File
+                  {{ $t('network.vpnManager.configFile') }}
                 </label>
                 <div
                   @click="fileInputRef?.click()"
@@ -677,7 +680,7 @@ function formatBytes(bytes) {
                   @keydown.space.prevent="fileInputRef?.click()"
                   role="button"
                   tabindex="0"
-                  :aria-label="addForm.configFile ? 'Selected file: ' + addForm.configFile.name + '. Click to change.' : 'Click to upload VPN configuration file'"
+                  :aria-label="addForm.configFile ? $t('network.vpnManager.selectedFileAriaLabel', { name: addForm.configFile.name }) : $t('network.vpnManager.uploadAriaLabel')"
                   class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-theme-primary rounded-xl cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors"
                 >
                   <input
@@ -686,7 +689,7 @@ function formatBytes(bytes) {
                     accept=".conf,.ovpn"
                     class="hidden"
                     @change="handleFileSelect"
-                    aria-label="Upload VPN configuration file"
+                    :aria-label="$t('network.vpnManager.uploadAriaLabel')"
                   />
                   <Icon
                     :name="addForm.configFile ? 'FileCheck' : 'Upload'"
@@ -694,9 +697,9 @@ function formatBytes(bytes) {
                     :class="addForm.configFile ? 'text-success' : 'text-theme-muted'"
                   />
                   <p class="mt-2 text-sm text-theme-secondary">
-                    {{ addForm.configFile?.name || 'Click to upload' }}
+                    {{ addForm.configFile?.name || $t('network.vpnManager.clickToUpload') }}
                   </p>
-                  <p class="text-xs text-theme-tertiary">.conf or .ovpn file</p>
+                  <p class="text-xs text-theme-tertiary">{{ $t('network.vpnManager.fileTypeHint') }}</p>
                 </div>
               </div>
 
@@ -716,7 +719,7 @@ function formatBytes(bytes) {
                 @click="closeAddModal"
                 class="px-4 py-2 rounded-lg text-sm font-medium bg-theme-tertiary text-theme-secondary hover:bg-theme-card transition-colors"
               >
-                Cancel
+                {{ $t('common.cancel') }}
               </button>
               <button
                 @click="submitAdd"
@@ -729,7 +732,7 @@ function formatBytes(bytes) {
                 ]"
               >
                 <Icon v-if="addLoading" name="Loader2" :size="16" class="animate-spin" />
-                {{ addLoading ? 'Adding...' : 'Add Configuration' }}
+                {{ addLoading ? $t('network.vpnManager.adding') : $t('network.vpnManager.addConfiguration') }}
               </button>
             </div>
           </div>
