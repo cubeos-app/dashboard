@@ -9,8 +9,11 @@
  * Emits: refresh
  */
 import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useClientsStore } from '@/stores/clients'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 const emit = defineEmits(['refresh'])
 
@@ -44,19 +47,19 @@ function formatDuration(seconds) {
     <div class="bg-theme-card rounded-xl border border-theme-primary">
       <div class="px-4 py-3 border-b border-theme-primary flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div>
-          <h3 class="font-semibold text-theme-primary">Connected Clients</h3>
+          <h3 class="font-semibold text-theme-primary">{{ $t('network.clientList.title') }}</h3>
           <p class="text-sm text-theme-muted">
-            {{ clientsStore.activeCount }} active{{ clientsStore.blockedCount ? `, ${clientsStore.blockedCount} blocked` : '' }}
+            {{ clientsStore.blockedCount ? $t('network.clientList.activeAndBlockedCount', { active: clientsStore.activeCount, blocked: clientsStore.blockedCount }) : $t('network.clientList.activeCount', { count: clientsStore.activeCount }) }}
           </p>
         </div>
         <button
           @click="clientsStore.fetchClients()"
           :disabled="clientsStore.loading"
           class="px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:bg-theme-card flex items-center gap-1.5"
-          aria-label="Refresh client list"
+          :aria-label="$t('network.clientList.refreshAriaLabel')"
         >
           <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': clientsStore.loading }" />
-          Refresh
+          {{ $t('common.refresh') }}
         </button>
       </div>
 
@@ -69,9 +72,9 @@ function formatDuration(seconds) {
               </div>
               <div class="min-w-0">
                 <p class="font-medium text-theme-primary truncate">
-                  {{ client.hostname || 'Unknown Device' }}
+                  {{ client.hostname || $t('network.clientList.unknownDevice') }}
                 </p>
-                <p class="text-sm text-theme-muted">{{ client.ip || client.ip_address || 'No IP' }}</p>
+                <p class="text-sm text-theme-muted">{{ client.ip || client.ip_address || $t('network.clientList.noIP') }}</p>
                 <p class="text-xs text-theme-muted font-mono hidden sm:block">{{ client.mac || client.mac_address }}</p>
               </div>
             </div>
@@ -94,8 +97,8 @@ function formatDuration(seconds) {
               <button
                 @click="clientsStore.kickClient(client.mac || client.mac_address)"
                 class="p-2 text-theme-muted hover:text-warning rounded-lg hover:bg-theme-tertiary transition-colors"
-                title="Kick client (disconnect)"
-                :aria-label="'Kick ' + (client.hostname || 'device') + ' (' + (client.mac || client.mac_address) + ')'"
+                :title="$t('network.clientList.kickTitle')"
+                :aria-label="$t('network.clientList.kickAriaLabel', { name: client.hostname || $t('network.clientList.unknownDevice'), mac: client.mac || client.mac_address })"
               >
                 <Icon name="LogOut" :size="18" />
               </button>
@@ -104,8 +107,8 @@ function formatDuration(seconds) {
               <button
                 @click="clientsStore.blockClient(client.mac || client.mac_address)"
                 class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-theme-tertiary transition-colors"
-                title="Block client"
-                :aria-label="'Block ' + (client.hostname || 'device') + ' (' + (client.mac || client.mac_address) + ')'"
+                :title="$t('network.clientList.blockTitle')"
+                :aria-label="$t('network.clientList.blockAriaLabel', { name: client.hostname || $t('network.clientList.unknownDevice'), mac: client.mac || client.mac_address })"
               >
                 <Icon name="Ban" :size="18" />
               </button>
@@ -116,7 +119,7 @@ function formatDuration(seconds) {
         <!-- Empty state -->
         <div v-if="clientsStore.activeClients.length === 0 && clientsStore.blockedClients.length === 0" class="px-4 py-12 text-center">
           <Icon name="Wifi" :size="48" class="mx-auto text-theme-muted mb-4" />
-          <p class="text-theme-muted">No clients connected</p>
+          <p class="text-theme-muted">{{ $t('network.clientList.noClients') }}</p>
         </div>
       </div>
     </div>
@@ -124,7 +127,7 @@ function formatDuration(seconds) {
     <!-- Blocked Clients -->
     <div v-if="clientsStore.blockedClients.length > 0" class="bg-theme-card rounded-xl border border-theme-primary">
       <div class="px-4 py-3 border-b border-theme-primary">
-        <h3 class="font-semibold text-theme-primary">Blocked Clients</h3>
+        <h3 class="font-semibold text-theme-primary">{{ $t('network.clientList.blockedTitle') }}</h3>
       </div>
       <div class="divide-y divide-[color:var(--border-primary)]">
         <div v-for="client in clientsStore.blockedClients" :key="client.mac || client.mac_address" class="px-4 py-3 opacity-60">
@@ -134,15 +137,15 @@ function formatDuration(seconds) {
                 <Icon name="Ban" :size="16" class="text-error" />
               </div>
               <div class="min-w-0">
-                <p class="font-medium text-theme-primary truncate">{{ client.hostname || 'Unknown Device' }}</p>
+                <p class="font-medium text-theme-primary truncate">{{ client.hostname || $t('network.clientList.unknownDevice') }}</p>
                 <p class="text-xs text-theme-muted font-mono">{{ client.mac || client.mac_address }}</p>
               </div>
             </div>
             <button
               @click="clientsStore.unblockClient(client.mac || client.mac_address)"
               class="px-3 py-1 text-xs font-medium text-accent hover:bg-accent-muted rounded-lg transition-colors"
-              :aria-label="'Unblock ' + (client.hostname || 'device') + ' (' + (client.mac || client.mac_address) + ')'"
-            >Unblock</button>
+              :aria-label="$t('network.clientList.unblockAriaLabel', { name: client.hostname || $t('network.clientList.unknownDevice'), mac: client.mac || client.mac_address })"
+            >{{ $t('common.unblock') }}</button>
           </div>
         </div>
       </div>

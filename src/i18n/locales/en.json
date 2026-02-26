@@ -202,7 +202,9 @@
     "active": "Active",
     "inactive": "Inactive",
     "status": "Status",
-    "apply": "Apply"
+    "apply": "Apply",
+    "saved": "Saved",
+    "unblock": "Unblock"
   },
   "apps": {
     "title": "Apps",
@@ -471,6 +473,49 @@
       "invalidPortRange": "Enter a valid port (1-65535)",
       "any": "any",
       "done": "Done"
+    },
+    "dnsConfig": {
+      "title": "DNS Configuration",
+      "subtitle": "Upstream DNS servers for name resolution",
+      "primaryServer": "Primary DNS Server",
+      "secondaryServer": "Secondary DNS Server",
+      "primaryPlaceholder": "e.g. 1.1.1.1",
+      "secondaryPlaceholder": "e.g. 8.8.8.8",
+      "piholeInfo": "DNS resolution is managed by Pi-hole. These upstream servers are used when Pi-hole forwards queries.",
+      "offlineWarning": "CubeOS is running in offline mode. Upstream DNS servers are unreachable and will only be used when internet connectivity is available.",
+      "saveSettings": "Save DNS Settings"
+    },
+    "clientList": {
+      "title": "Connected Clients",
+      "activeCount": "{count} active",
+      "activeAndBlockedCount": "{active} active, {blocked} blocked",
+      "refreshAriaLabel": "Refresh client list",
+      "unknownDevice": "Unknown Device",
+      "noIP": "No IP",
+      "kickTitle": "Kick client (disconnect)",
+      "kickAriaLabel": "Kick {name} ({mac})",
+      "blockTitle": "Block client",
+      "blockAriaLabel": "Block {name} ({mac})",
+      "noClients": "No clients connected",
+      "blockedTitle": "Blocked Clients",
+      "unblockAriaLabel": "Unblock {name} ({mac})"
+    },
+    "trafficStats": {
+      "interfaceLabel": "Interface:",
+      "selectInterfaceAria": "Select network interface",
+      "refreshAriaLabel": "Refresh traffic data",
+      "download": "Download",
+      "incomingTraffic": "Incoming traffic",
+      "upload": "Upload",
+      "outgoingTraffic": "Outgoing traffic",
+      "historyTitle": "Traffic History (Last 60 minutes)",
+      "chartAriaLabel": "Traffic history bar chart showing download and upload rates over the last 60 minutes",
+      "maxDownload": "Max Download",
+      "maxUpload": "Max Upload",
+      "avgDownload": "Avg Download",
+      "avgUpload": "Avg Upload",
+      "noHistory": "No traffic history available yet",
+      "noHistoryHint": "Data collection starts when the page loads"
     }
   },
   "storage": {

@@ -10,10 +10,13 @@
  * Emits: refresh
  */
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useNetworkStore } from '@/stores/network'
 import { useAbortOnUnmount } from '@/composables/useAbortOnUnmount'
 import { usePolling } from '@/composables/usePolling'
 import Icon from '@/components/ui/Icon.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   interfaces: { type: Array, default: () => [] }
@@ -213,12 +216,12 @@ usePolling(fetchTraffic, 5000, { immediate: true, pauseWhenHidden: true })
     <!-- Interface Selector -->
     <div class="bg-theme-card rounded-xl border border-theme-primary p-4">
       <div class="flex flex-wrap items-center gap-4">
-        <label class="text-sm font-medium text-theme-secondary">Interface:</label>
+        <label class="text-sm font-medium text-theme-secondary">{{ $t('network.trafficStats.interfaceLabel') }}</label>
         <select
           v-model="selectedInterface"
           @change="fetchTraffic"
           class="px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary"
-          aria-label="Select network interface"
+          :aria-label="$t('network.trafficStats.selectInterfaceAria')"
         >
           <option v-for="iface in physicalInterfaces" :key="iface.name" :value="iface.name">
             {{ iface.name }} ({{ iface.state || (iface.is_up === true ? 'up' : iface.is_up === false ? 'down' : 'unknown') }})
@@ -227,8 +230,8 @@ usePolling(fetchTraffic, 5000, { immediate: true, pauseWhenHidden: true })
         <button
           @click="fetchTraffic"
           class="px-3 py-2 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary text-sm"
-          aria-label="Refresh traffic data"
-        >Refresh</button>
+          :aria-label="$t('network.trafficStats.refreshAriaLabel')"
+        >{{ $t('common.refresh') }}</button>
       </div>
     </div>
 
@@ -240,8 +243,8 @@ usePolling(fetchTraffic, 5000, { immediate: true, pauseWhenHidden: true })
             <Icon name="ArrowDown" :size="20" class="text-success" />
           </div>
           <div>
-            <h3 class="font-semibold text-theme-primary">Download</h3>
-            <p class="text-sm text-theme-muted">Incoming traffic</p>
+            <h3 class="font-semibold text-theme-primary">{{ $t('network.trafficStats.download') }}</h3>
+            <p class="text-sm text-theme-muted">{{ $t('network.trafficStats.incomingTraffic') }}</p>
           </div>
         </div>
         <div class="text-3xl font-bold text-theme-primary">
@@ -258,8 +261,8 @@ usePolling(fetchTraffic, 5000, { immediate: true, pauseWhenHidden: true })
             <Icon name="ArrowUp" :size="20" class="text-accent" />
           </div>
           <div>
-            <h3 class="font-semibold text-theme-primary">Upload</h3>
-            <p class="text-sm text-theme-muted">Outgoing traffic</p>
+            <h3 class="font-semibold text-theme-primary">{{ $t('network.trafficStats.upload') }}</h3>
+            <p class="text-sm text-theme-muted">{{ $t('network.trafficStats.outgoingTraffic') }}</p>
           </div>
         </div>
         <div class="text-3xl font-bold text-theme-primary">
@@ -273,10 +276,10 @@ usePolling(fetchTraffic, 5000, { immediate: true, pauseWhenHidden: true })
 
     <!-- Traffic History Chart -->
     <div class="bg-theme-card rounded-xl border border-theme-primary p-6">
-      <h3 class="font-semibold text-theme-primary mb-4">Traffic History (Last 60 minutes)</h3>
+      <h3 class="font-semibold text-theme-primary mb-4">{{ $t('network.trafficStats.historyTitle') }}</h3>
 
       <div v-if="trafficHistory.length > 0" class="space-y-4">
-        <div class="h-48 flex items-end gap-0.5" role="img" aria-label="Traffic history bar chart showing download and upload rates over the last 60 minutes">
+        <div class="h-48 flex items-end gap-0.5" role="img" :aria-label="$t('network.trafficStats.chartAriaLabel')">
           <div
             v-for="(point, idx) in normalizedHistory"
             :key="idx"
@@ -297,29 +300,29 @@ usePolling(fetchTraffic, 5000, { immediate: true, pauseWhenHidden: true })
         <div class="flex items-center justify-center gap-6 text-sm">
           <div class="flex items-center gap-2">
             <span class="w-3 h-3 bg-success rounded"></span>
-            <span class="text-theme-tertiary">Download</span>
+            <span class="text-theme-tertiary">{{ $t('network.trafficStats.download') }}</span>
           </div>
           <div class="flex items-center gap-2">
             <span class="w-3 h-3 bg-accent rounded"></span>
-            <span class="text-theme-tertiary">Upload</span>
+            <span class="text-theme-tertiary">{{ $t('network.trafficStats.upload') }}</span>
           </div>
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-theme-primary text-sm">
           <div>
-            <p class="text-theme-muted">Max Download</p>
+            <p class="text-theme-muted">{{ $t('network.trafficStats.maxDownload') }}</p>
             <p class="font-medium text-theme-primary">{{ formatRate(maxRxRate) }}/s</p>
           </div>
           <div>
-            <p class="text-theme-muted">Max Upload</p>
+            <p class="text-theme-muted">{{ $t('network.trafficStats.maxUpload') }}</p>
             <p class="font-medium text-theme-primary">{{ formatRate(maxTxRate) }}/s</p>
           </div>
           <div>
-            <p class="text-theme-muted">Avg Download</p>
+            <p class="text-theme-muted">{{ $t('network.trafficStats.avgDownload') }}</p>
             <p class="font-medium text-theme-primary">{{ formatRate(avgRxRate) }}/s</p>
           </div>
           <div>
-            <p class="text-theme-muted">Avg Upload</p>
+            <p class="text-theme-muted">{{ $t('network.trafficStats.avgUpload') }}</p>
             <p class="font-medium text-theme-primary">{{ formatRate(avgTxRate) }}/s</p>
           </div>
         </div>
@@ -327,8 +330,8 @@ usePolling(fetchTraffic, 5000, { immediate: true, pauseWhenHidden: true })
 
       <div v-else class="text-center py-12 text-theme-muted">
         <Icon name="BarChart3" :size="48" class="mx-auto text-theme-muted mb-4" />
-        <p>No traffic history available yet</p>
-        <p class="text-sm mt-1">Data collection starts when the page loads</p>
+        <p>{{ $t('network.trafficStats.noHistory') }}</p>
+        <p class="text-sm mt-1">{{ $t('network.trafficStats.noHistoryHint') }}</p>
       </div>
     </div>
   </div>
