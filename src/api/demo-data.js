@@ -5,6 +5,8 @@
  * Only activated when built with VITE_DEMO_MODE=true.
  */
 
+import { casaosAppsSnapshot, casaosCategories } from './casaos-apps-snapshot.js'
+
 // ── Helpers ─────────────────────────────────────────────────────────
 const now = new Date().toISOString()
 const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString()
@@ -263,144 +265,21 @@ export const appstoreStores = [
     url: 'https://store.cubeos.app',
     enabled: true,
     last_sync: daysAgo(1),
-    app_count: 20
+    app_count: casaosAppsSnapshot.length
   }
 ]
 
-export const appstoreCategories = [
-  { id: 'productivity', name: 'Productivity', count: 3 },
-  { id: 'communication', name: 'Communication', count: 2 },
-  { id: 'media', name: 'Media & Entertainment', count: 3 },
-  { id: 'security', name: 'Security & Privacy', count: 2 },
-  { id: 'developer', name: 'Developer Tools', count: 3 },
-  { id: 'ai', name: 'AI & Machine Learning', count: 3 },
-  { id: 'monitoring', name: 'Monitoring', count: 2 },
-  { id: 'networking', name: 'Networking', count: 1 },
-  { id: 'gaming', name: 'Gaming', count: 1 }
-]
+export const appstoreCategories = casaosCategories
 
-export const appstoreCatalog = [
-  {
-    name: 'ollama', display_name: 'Ollama', store_id: 'default',
-    description: 'Run large language models locally on your device',
-    version: '0.5.4', category: 'ai', tags: ['llm', 'inference', 'gpu'],
-    icon: '', min_ram_mb: 2048, installed: true
-  },
-  {
-    name: 'dozzle', display_name: 'Dozzle', store_id: 'default',
-    description: 'Real-time Docker container log viewer',
-    version: '8.8.2', category: 'monitoring', tags: ['docker', 'logs'],
-    icon: '', min_ram_mb: 64, installed: true
-  },
-  {
-    name: 'kiwix-serve', display_name: 'Kiwix', store_id: 'default',
-    description: 'Offline Wikipedia and educational content server',
-    version: '3.7.0', category: 'productivity', tags: ['wiki', 'offline', 'education'],
-    icon: '', min_ram_mb: 128, installed: true
-  },
-  {
-    name: 'vaultwarden', display_name: 'Vaultwarden', store_id: 'default',
-    description: 'Lightweight Bitwarden-compatible password manager',
-    version: '1.32.5', category: 'security', tags: ['passwords', 'bitwarden'],
-    icon: '', min_ram_mb: 64, installed: true
-  },
-  {
-    name: 'nextcloud', display_name: 'Nextcloud', store_id: 'default',
-    description: 'Self-hosted productivity and collaboration platform',
-    version: '29.0.4', category: 'productivity', tags: ['files', 'calendar', 'collaboration'],
-    icon: '', min_ram_mb: 512, installed: false
-  },
-  {
-    name: 'gitea', display_name: 'Gitea', store_id: 'default',
-    description: 'Lightweight self-hosted Git service',
-    version: '1.22.3', category: 'developer', tags: ['git', 'ci-cd'],
-    icon: '', min_ram_mb: 256, installed: false
-  },
-  {
-    name: 'jellyfin', display_name: 'Jellyfin', store_id: 'default',
-    description: 'Free media server for movies, TV, and music',
-    version: '10.9.11', category: 'media', tags: ['streaming', 'movies', 'music'],
-    icon: '', min_ram_mb: 512, installed: false
-  },
-  {
-    name: 'navidrome', display_name: 'Navidrome', store_id: 'default',
-    description: 'Modern music server and streamer',
-    version: '0.53.3', category: 'media', tags: ['music', 'streaming', 'subsonic'],
-    icon: '', min_ram_mb: 128, installed: false
-  },
-  {
-    name: 'immich', display_name: 'Immich', store_id: 'default',
-    description: 'High-performance self-hosted photo and video management',
-    version: '1.118.2', category: 'media', tags: ['photos', 'backup', 'ai'],
-    icon: '', min_ram_mb: 1024, installed: false
-  },
-  {
-    name: 'uptime-kuma', display_name: 'Uptime Kuma', store_id: 'default',
-    description: 'Self-hosted uptime monitoring tool',
-    version: '1.23.15', category: 'monitoring', tags: ['uptime', 'alerts', 'status'],
-    icon: '', min_ram_mb: 128, installed: false
-  },
-  {
-    name: 'open-webui', display_name: 'Open WebUI', store_id: 'default',
-    description: 'User-friendly web interface for LLMs including Ollama',
-    version: '0.4.8', category: 'ai', tags: ['llm', 'chat', 'ollama'],
-    icon: '', min_ram_mb: 256, installed: false
-  },
-  {
-    name: 'chromadb', display_name: 'ChromaDB', store_id: 'default',
-    description: 'AI-native open-source vector database',
-    version: '0.5.23', category: 'ai', tags: ['vector', 'embeddings', 'rag'],
-    icon: '', min_ram_mb: 256, installed: false
-  },
-  {
-    name: 'syncthing', display_name: 'Syncthing', store_id: 'default',
-    description: 'Continuous file synchronization between devices',
-    version: '1.28.0', category: 'productivity', tags: ['sync', 'files', 'p2p'],
-    icon: '', min_ram_mb: 64, installed: false
-  },
-  {
-    name: 'code-server', display_name: 'Code Server', store_id: 'default',
-    description: 'VS Code in the browser — develop anywhere',
-    version: '4.96.2', category: 'developer', tags: ['ide', 'vscode', 'coding'],
-    icon: '', min_ram_mb: 512, installed: false
-  },
-  {
-    name: 'portainer', display_name: 'Portainer', store_id: 'default',
-    description: 'Docker management UI with visual container management',
-    version: '2.21.4', category: 'developer', tags: ['docker', 'management'],
-    icon: '', min_ram_mb: 128, installed: false
-  },
-  {
-    name: 'home-assistant', display_name: 'Home Assistant', store_id: 'default',
-    description: 'Open-source home automation platform',
-    version: '2024.12.3', category: 'networking', tags: ['iot', 'automation', 'smart-home'],
-    icon: '', min_ram_mb: 512, installed: false
-  },
-  {
-    name: 'matrix-synapse', display_name: 'Matrix Synapse', store_id: 'default',
-    description: 'Decentralized encrypted communication server',
-    version: '1.121.1', category: 'communication', tags: ['chat', 'encrypted', 'federation'],
-    icon: '', min_ram_mb: 512, installed: false
-  },
-  {
-    name: 'mattermost', display_name: 'Mattermost', store_id: 'default',
-    description: 'Self-hosted team messaging and collaboration',
-    version: '10.2.0', category: 'communication', tags: ['chat', 'teams', 'slack-alternative'],
-    icon: '', min_ram_mb: 512, installed: false
-  },
-  {
-    name: 'wireguard', display_name: 'WireGuard', store_id: 'default',
-    description: 'Fast, modern VPN tunnel',
-    version: '1.0.20210914', category: 'security', tags: ['vpn', 'tunnel', 'privacy'],
-    icon: '', min_ram_mb: 32, installed: false
-  },
-  {
-    name: 'minecraft-server', display_name: 'Minecraft Server', store_id: 'default',
-    description: 'Dedicated Minecraft Java Edition server',
-    version: '1.21.4', category: 'gaming', tags: ['minecraft', 'server', 'multiplayer'],
-    icon: '', min_ram_mb: 2048, installed: false
-  }
-]
+// Names of apps that should appear as "installed" in the demo browse tab.
+// Must match entries in appstoreInstalled below that also exist in the snapshot.
+const _installedNames = new Set(['ollama', 'dozzle', 'vaultwarden'])
+
+export const appstoreCatalog = casaosAppsSnapshot.map(app => ({
+  ...app,
+  store_id: 'default',
+  installed: _installedNames.has(app.name),
+}))
 
 export const appstoreInstalled = [
   {

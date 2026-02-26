@@ -155,7 +155,7 @@ export class DemoApiClient {
     if (path === '/apps') {
       let list = this._clone(data.apps)
       if (params.type) list = list.filter(a => a.type === params.type)
-      return list
+      return { apps: list }
     }
     if (path.match(/^\/apps\/([^/]+)\/logs$/)) {
       return { logs: this._clone(data.logJournal.slice(0, 10)) }
@@ -166,10 +166,10 @@ export class DemoApiClient {
     }
 
     // ── App Store ─────────────────────────────────────────────────
-    if (path === '/appstore/stores') return this._clone(data.appstoreStores)
-    if (path === '/appstore/apps') return this._clone(data.appstoreCatalog)
-    if (path === '/appstore/categories') return this._clone(data.appstoreCategories)
-    if (path === '/appstore/installed') return this._clone(data.appstoreInstalled)
+    if (path === '/appstore/stores') return { stores: this._clone(data.appstoreStores) }
+    if (path === '/appstore/apps') return { apps: this._clone(data.appstoreCatalog) }
+    if (path === '/appstore/categories') return { categories: this._clone(data.appstoreCategories) }
+    if (path === '/appstore/installed') return { apps: this._clone(data.appstoreInstalled) }
     if (path === '/appstore/coreapps') return this._clone(data.coreApps)
     if (path === '/appstore/proxy-hosts') return this._clone(data.proxyHosts)
     if (path.match(/^\/appstore\/stores\/[^/]+$/)) return this._clone(data.appstoreStores[0])
