@@ -10,6 +10,7 @@
  * via NetworkConfigDialog. The @showWifiConnect emit is no longer needed.
  */
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useNetworkStore } from '@/stores/network'
 import { useFirewallStore } from '@/stores/firewall'
 import { useClientsStore } from '@/stores/clients'
@@ -37,6 +38,7 @@ const firewallStore = useFirewallStore()
 const clientsStore = useClientsStore()
 const { isAdvanced } = useMode()
 const { isActive: wallpaperActive, panelClass } = useWallpaper()
+const { t } = useI18n()
 
 // AP computed
 const apIsActive = computed(() => {
@@ -95,9 +97,9 @@ async function handleStartAP() {
 
 async function handleStopAP() {
   if (!await confirm({
-    title: 'Stop Access Point',
-    message: 'Stopping the AP will disconnect all wireless clients. Are you sure?',
-    confirmText: 'Stop AP',
+    title: t('network.ap.stopTitle'),
+    message: t('network.ap.stopMessage'),
+    confirmText: t('network.ap.stopAP'),
     variant: 'warning'
   })) return
 
@@ -116,11 +118,11 @@ async function handleStopAP() {
 async function toggleNAT() {
   const enabling = !natEnabled.value
   if (!await confirm({
-    title: enabling ? 'Enable NAT' : 'Disable NAT',
+    title: enabling ? t('network.natControl.enableNAT') : t('network.natControl.disableNAT'),
     message: enabling
-      ? 'Enable NAT to share internet with AP clients?'
-      : 'Disabling NAT will cut internet access for all AP clients. Continue?',
-    confirmText: enabling ? 'Enable' : 'Disable',
+      ? t('network.natControl.enableMessage')
+      : t('network.natControl.disableMessage'),
+    confirmText: enabling ? t('common.enable') : t('common.disable'),
     variant: enabling ? 'info' : 'warning'
   })) return
 
@@ -161,23 +163,23 @@ function formatBytes(bytes) {
               <Icon name="Wifi" :size="20" class="text-accent" />
             </div>
             <div>
-              <p class="text-sm text-theme-tertiary">Access Point</p>
+              <p class="text-sm text-theme-tertiary">{{ $t('network.ap.title') }}</p>
               <p class="font-semibold text-theme-primary">{{ apStatus?.ssid || 'CubeOS' }}</p>
             </div>
           </div>
         </div>
         <div class="flex items-center justify-between text-sm">
-          <span class="text-theme-muted">Status</span>
+          <span class="text-theme-muted">{{ $t('network.ap.status') }}</span>
           <span :class="apIsActive ? 'text-success' : 'text-error'">
-            {{ apIsActive ? 'Active' : 'Inactive' }}
+            {{ apIsActive ? $t('network.ap.active') : $t('network.ap.inactive') }}
           </span>
         </div>
         <div class="flex items-center justify-between text-sm mt-1">
-          <span class="text-theme-muted">Clients</span>
+          <span class="text-theme-muted">{{ $t('network.ap.clients') }}</span>
           <span class="font-medium text-theme-primary">{{ clientsStore.count || 0 }}</span>
         </div>
         <div class="flex items-center justify-between text-sm mt-1">
-          <span class="text-theme-muted">Channel</span>
+          <span class="text-theme-muted">{{ $t('network.ap.channel') }}</span>
           <span class="text-theme-secondary">{{ apStatus?.channel || '-' }}</span>
         </div>
         <!-- AP Start/Stop -->
@@ -187,22 +189,22 @@ function formatBytes(bytes) {
             @click="handleStartAP"
             :disabled="apActionLoading"
             class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-success-muted text-success hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1.5"
-            aria-label="Start access point"
+            :aria-label="$t('network.ap.startAccessPoint')"
           >
             <Icon v-if="apActionLoading" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else name="Play" :size="14" />
-            Start AP
+            {{ $t('network.ap.startAP') }}
           </button>
           <button
             v-if="apIsActive"
             @click="handleStopAP"
             :disabled="apActionLoading"
             class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-error-muted text-error hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1.5"
-            aria-label="Stop access point"
+            :aria-label="$t('network.ap.stopAccessPoint')"
           >
             <Icon v-if="apActionLoading" name="Loader2" :size="14" class="animate-spin" />
             <Icon v-else name="Square" :size="14" />
-            Stop AP
+            {{ $t('network.ap.stopAP') }}
           </button>
         </div>
       </div>
@@ -215,24 +217,24 @@ function formatBytes(bytes) {
             <Icon name="Globe" :size="20" :class="internetStatus?.connected ? 'text-success' : 'text-theme-muted'" />
           </div>
           <div>
-            <p class="text-sm text-theme-tertiary">Internet</p>
+            <p class="text-sm text-theme-tertiary">{{ $t('network.internetStatus.title') }}</p>
             <p class="font-semibold" :class="internetStatus?.connected ? 'text-success' : 'text-theme-muted'">
-              {{ internetStatus?.connected ? 'Connected' : 'Offline' }}
+              {{ internetStatus?.connected ? $t('network.connected') : $t('network.offline') }}
             </p>
           </div>
         </div>
         <div v-if="internetStatus?.connected" class="text-sm">
           <div class="flex items-center justify-between">
-            <span class="text-theme-muted">Latency</span>
+            <span class="text-theme-muted">{{ $t('network.internetStatus.latency') }}</span>
             <span class="text-theme-secondary">{{ internetStatus?.rtt_ms?.toFixed(1) || '-' }} ms</span>
           </div>
           <div class="flex items-center justify-between mt-1">
-            <span class="text-theme-muted">Target</span>
+            <span class="text-theme-muted">{{ $t('network.internetStatus.target') }}</span>
             <span class="text-theme-secondary">{{ internetStatus?.target_name || '-' }}</span>
           </div>
         </div>
         <div v-else class="text-sm text-theme-muted mt-2">
-          Running in offline mode
+          {{ $t('network.internetStatus.offlineMode') }}
         </div>
       </div>
 
@@ -244,9 +246,9 @@ function formatBytes(bytes) {
             <Icon name="ArrowLeftRight" :size="20" :class="isInternetSharing ? 'text-accent' : 'text-theme-muted'" />
           </div>
           <div>
-            <p class="text-sm text-theme-tertiary">Internet Sharing</p>
+            <p class="text-sm text-theme-tertiary">{{ $t('network.natControl.title') }}</p>
             <p class="font-semibold" :class="isInternetSharing ? 'text-accent' : 'text-theme-muted'">
-              {{ isInternetSharing ? 'Enabled' : 'Disabled' }}
+              {{ isInternetSharing ? $t('common.enabled') : $t('common.disabled') }}
             </p>
           </div>
         </div>
@@ -256,9 +258,9 @@ function formatBytes(bytes) {
           :class="natEnabled
             ? 'bg-accent-muted text-accent hover:opacity-80'
             : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-card'"
-          :aria-label="natEnabled ? 'Disable NAT internet sharing' : 'Enable NAT internet sharing'"
+          :aria-label="natEnabled ? $t('network.natControl.disableSharing') : $t('network.natControl.enableSharing')"
         >
-          {{ natEnabled ? 'Disable NAT' : 'Enable NAT' }}
+          {{ natEnabled ? $t('network.natControl.disableNAT') : $t('network.natControl.enableNAT') }}
         </button>
       </div>
 
@@ -269,21 +271,21 @@ function formatBytes(bytes) {
             <Icon name="Shield" :size="20" class="text-warning" />
           </div>
           <div>
-            <p class="text-sm text-theme-tertiary">Firewall</p>
+            <p class="text-sm text-theme-tertiary">{{ $t('network.firewallSummary.title') }}</p>
             <p class="font-semibold text-theme-primary">
-              {{ ipForwardEnabled ? 'IP Fwd On' : 'IP Fwd Off' }}
+              {{ ipForwardEnabled ? $t('network.firewallSummary.ipFwdOn') : $t('network.firewallSummary.ipFwdOff') }}
             </p>
           </div>
         </div>
         <div class="text-sm">
           <div class="flex items-center justify-between">
-            <span class="text-theme-muted">IP Forward</span>
+            <span class="text-theme-muted">{{ $t('network.firewallSummary.ipForward') }}</span>
             <span :class="ipForwardEnabled ? 'text-success' : 'text-theme-muted'">
-              {{ ipForwardEnabled ? 'On' : 'Off' }}
+              {{ ipForwardEnabled ? $t('common.on') : $t('common.off') }}
             </span>
           </div>
           <div class="flex items-center justify-between mt-1">
-            <span class="text-theme-muted">Rules</span>
+            <span class="text-theme-muted">{{ $t('network.firewallSummary.rules') }}</span>
             <span class="text-theme-secondary">{{ firewallStatus?.rules_count || firewallStatus?.filter_rules?.length || 0 }}</span>
           </div>
         </div>
@@ -300,7 +302,7 @@ function formatBytes(bytes) {
     <!-- Interfaces -->
     <div class="rounded-xl border border-theme-primary" :class="wallpaperActive ? panelClass : 'bg-theme-card'">
       <div class="px-4 py-3 border-b border-theme-primary">
-        <h3 class="font-semibold text-theme-primary">Network Interfaces</h3>
+        <h3 class="font-semibold text-theme-primary">{{ $t('network.interfaceList.title') }}</h3>
       </div>
       <div class="divide-y divide-[color:var(--border-primary)]">
         <div v-for="iface in interfaces" :key="iface.name" class="px-4 py-3 flex items-center justify-between">
@@ -311,7 +313,7 @@ function formatBytes(bytes) {
             <div>
               <p class="font-medium text-theme-primary">{{ iface.name }}</p>
               <p class="text-sm" :class="(iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip ? 'text-theme-muted' : 'text-theme-muted/50'">
-                {{ (iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip || ((iface.is_up === true || iface.state === 'up' || iface.state === 'UP') ? 'Up (no IP)' : 'Not connected') }}
+                {{ (iface.ipv4_addresses && iface.ipv4_addresses[0]) || iface.ipv4 || iface.ip || ((iface.is_up === true || iface.state === 'up' || iface.state === 'UP') ? $t('network.interfaceList.upNoIP') : $t('network.interfaceList.notConnected')) }}
               </p>
             </div>
           </div>
@@ -329,7 +331,7 @@ function formatBytes(bytes) {
           </div>
         </div>
         <div v-if="!interfaces?.length" class="px-4 py-8 text-center text-theme-muted">
-          No interfaces found
+          {{ $t('network.interfaceList.noInterfaces') }}
         </div>
       </div>
     </div>
