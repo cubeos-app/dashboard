@@ -1041,7 +1041,7 @@ export const logJournal = logTimestamps.map((ts, i) => {
     { unit: 'cubeos-api', level: 'info', message: 'Registry sync complete: 8 images cached' }
   ]
   const entry = messages[i % messages.length]
-  return { timestamp: ts, ...entry }
+  return { timestamp: ts, priority: entry.level, ...entry }
 })
 
 export const logErrors = []

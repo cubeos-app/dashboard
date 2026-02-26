@@ -106,7 +106,7 @@ watch(() => authStore.isAuthenticated, (isAuth, wasAuth) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-theme-primary transition-colors duration-200" :class="{ 'pt-8 demo-mode': isDemoMode }">
+  <div class="min-h-screen bg-theme-primary transition-colors duration-200" :class="{ 'pt-7 demo-mode': isDemoMode }">
     <!-- Demo banner (only rendered when VITE_DEMO_MODE=true at build time) -->
     <DemoBanner v-if="isDemoMode" />
 

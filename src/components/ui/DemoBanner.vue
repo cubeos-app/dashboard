@@ -23,7 +23,7 @@ onUnmounted(() => {
 
 <template>
   <!-- Fixed demo banner above everything -->
-  <div class="fixed top-0 left-0 right-0 z-[60] flex items-center justify-center gap-2 bg-amber-500 px-4 py-1.5 text-sm font-medium text-amber-950">
+  <div class="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-amber-500 px-4 py-1 text-xs font-medium text-amber-950">
     <span>DEMO</span>
     <span class="hidden sm:inline">&mdash; This is a read-only demo.</span>
     <a
@@ -63,6 +63,6 @@ onUnmounted(() => {
 -->
 <style>
 .demo-mode header.fixed {
-  top: 2rem !important;
+  top: 1.75rem !important;
 }
 </style>

@@ -354,7 +354,7 @@ export class DemoApiClient {
 
     // ── Logs ──────────────────────────────────────────────────────
     if (path === '/logs/units') return this._clone(data.logUnits)
-    if (path === '/logs/journal') return this._clone(data.logJournal)
+    if (path === '/logs/journal') return { entries: this._clone(data.logJournal) }
     if (path.match(/^\/logs\/service\/.+$/)) return this._clone(data.logJournal.slice(0, 10))
     if (path.match(/^\/logs\/container\/.+$/)) return this._clone(data.logJournal.slice(0, 10))
     if (path === '/logs/kernel') return this._clone(data.logKernel)
