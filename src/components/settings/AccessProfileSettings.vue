@@ -10,6 +10,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
+import ProfileSwitchProgressModal from './ProfileSwitchProgressModal.vue'
 
 const { t } = useI18n()
 
@@ -31,6 +32,12 @@ const credentials = ref({
 
 const testing = ref(false)
 const testResult = ref(null)
+
+// Profile switch workflow state
+const showProgressModal = ref(false)
+const activeJobId = ref('')
+const switchFromProfile = ref('')
+const switchToProfile = ref('')
 
 const profiles = [
   { id: 'standard', icon: 'Monitor' },
@@ -77,22 +84,50 @@ async function saveProfile() {
   error.value = null
   successMsg.value = null
   try {
-    await api.put('/system/access-profile', {
+    const result = await api.put('/system/access-profile', {
       profile: editProfile.value,
       ext_npm_url: credentials.value.ext_npm_url,
       ext_npm_token: credentials.value.ext_npm_token,
       ext_pihole_url: credentials.value.ext_pihole_url,
       ext_pihole_password: credentials.value.ext_pihole_password
     })
-    currentProfile.value = editProfile.value
-    editing.value = false
-    successMsg.value = t('settings.accessProfile.saved')
-    setTimeout(() => { successMsg.value = null }, 5000)
+
+    if (result && result.job_id) {
+      // 202 Accepted — profile switch workflow started
+      switchFromProfile.value = currentProfile.value
+      switchToProfile.value = editProfile.value
+      activeJobId.value = result.job_id
+      showProgressModal.value = true
+      editing.value = false
+    } else {
+      // 200 OK — same profile, just saved config
+      currentProfile.value = editProfile.value
+      editing.value = false
+      successMsg.value = t('settings.accessProfile.saved')
+      setTimeout(() => { successMsg.value = null }, 5000)
+    }
   } catch (e) {
     error.value = t('settings.accessProfile.saveFailed') + ': ' + (e.message || '')
   } finally {
     saving.value = false
   }
+}
+
+function onSwitchDone() {
+  showProgressModal.value = false
+  currentProfile.value = switchToProfile.value
+  successMsg.value = t('settings.accessProfile.saved')
+  setTimeout(() => { successMsg.value = null }, 5000)
+}
+
+function onSwitchError(msg) {
+  // Keep modal open — user closes it manually
+}
+
+function onSwitchClose() {
+  showProgressModal.value = false
+  // Reload profile state in case it partially changed
+  loadProfile()
 }
 
 // ─── Test Connection ─────────────────────────────────────────
@@ -176,10 +211,7 @@ onMounted(() => { loadProfile() })
         <!-- Info note -->
         <div class="flex items-start gap-2 mt-4 text-xs text-theme-muted">
           <Icon name="Info" :size="14" class="flex-shrink-0 mt-0.5" />
-          <div>
-            <p>{{ t('settings.accessProfile.migrateNote') }}</p>
-            <p class="mt-1">{{ t('settings.accessProfile.migrateComingSoon') }}</p>
-          </div>
+          <p>{{ t('settings.accessProfile.migrateNote') }}</p>
         </div>
       </div>
 
@@ -314,5 +346,16 @@ onMounted(() => { loadProfile() })
         </div>
       </div>
     </template>
+
+    <!-- Profile Switch Progress Modal -->
+    <ProfileSwitchProgressModal
+      v-if="showProgressModal"
+      :job-id="activeJobId"
+      :from-profile="switchFromProfile"
+      :to-profile="switchToProfile"
+      @done="onSwitchDone"
+      @error="onSwitchError"
+      @close="onSwitchClose"
+    />
   </div>
 </template>
