@@ -204,18 +204,13 @@ const title = computed(() => {
 
 /**
  * Build the app URL for the "Open App" button.
- * Prefer the URL from the server's SSE completion event (accurate, uses
- * the prettified subdomain). Fall back to locally-computed URL if the
- * server didn't provide one.
+ * Prefer the URL from the server's SSE completion event (accurate —
+ * includes the correct IP:port or FQDN based on access profile).
+ * No local fallback: the server always provides the URL on success.
  */
 const appUrl = computed(() => {
   if (props.jobType === 'uninstall') return ''
-  // Server-provided URL is authoritative (matches actual DNS/NPM registration)
-  if (serverAppUrl.value) return serverAppUrl.value
-  // Fallback: build from subdomain prop (may not match prettified subdomain)
-  if (!props.appSubdomain) return ''
-  const sub = props.appSubdomain.toLowerCase().replace(/[^a-z0-9-]/g, '-')
-  return `http://${sub}.cubeos.cube`
+  return serverAppUrl.value || ''
 })
 
 function openApp() {

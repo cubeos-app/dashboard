@@ -101,7 +101,13 @@ async function fetchBootLog() {
   try {
     const resp = await fetch('/cubeos-log', { cache: 'no-store' })
     if (resp.ok) {
-      bootLog.value = await resp.text()
+      const text = await resp.text()
+      // On Tier 2 (container installs), the /cubeos-log path doesn't exist.
+      // Nginx catch-all returns the SPA index.html instead. Detect and ignore.
+      if (text.includes('cubeos-dashboard-marker') || text.trimStart().startsWith('<!DOCTYPE')) {
+        return
+      }
+      bootLog.value = text
     }
   } catch {
     // Log endpoint not available yet — keep trying

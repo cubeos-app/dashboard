@@ -241,7 +241,7 @@
   },
   "apps": {
     "title": "Apps",
-    "myApps": "My Apps",
+    "myAppsTab": "My Apps",
     "appStore": "App Store",
     "appManager": "App Manager",
     "running": "Running",

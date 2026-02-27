@@ -43,7 +43,8 @@ const apIsActive = computed(() => {
   if (s.status === 'up' || s.status === 'active') return true
   if (s.state === 'active' || s.state === 'up') return true
   if (s.active === true) return true
-  if (s.ssid && s.ssid.length > 0) return true
+  // Don't treat a configured SSID alone as "active" — hostapd may not be running
+  // (e.g. Tier 2 / LXC installs have no hostapd but DB stores wifi_ssid from wizard)
   return false
 })
 

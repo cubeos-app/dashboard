@@ -47,7 +47,7 @@ const { signal } = useAbortOnUnmount()
 // ─── Tab Management ──────────────────────────────────────────
 const TAB_DEFS = computed(() => {
   const tabs = [
-    { key: 'my-apps', label: t('apps.myApps'), icon: 'Grid3X3' },
+    { key: 'my-apps', label: t('apps.myAppsTab'), icon: 'Grid3X3' },
     { key: 'store', label: t('apps.appStore'), icon: 'Store' },
   ]
   if (isAdvanced.value) {
