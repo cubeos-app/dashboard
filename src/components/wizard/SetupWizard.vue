@@ -40,6 +40,9 @@ const currentPassword = ref('')
 const adminPassword = ref('')
 const confirmPassword = ref('')
 
+// Access profile / AP step skip
+const skipAPStep = ref(false)
+
 // Estimate display state
 const estimateDebounceTimer = ref(null)
 const estimateLoading = ref(false)
@@ -155,6 +158,15 @@ watch(selectedServices, () => {
 }, { deep: true })
 
 async function nextStep() {
+  // Skip network step entirely when no WiFi / container tier
+  if (currentStep.value === 0 && skipAPStep.value) {
+    currentStep.value = 1 // advance to network step...
+    // ...then immediately fall through to step 2 (profile)
+    await setupStore.fetchProfiles()
+    currentStep.value = 2
+    return
+  }
+
   if (currentStep.value === 1) {
     // After network step, fetch profiles via store
     await setupStore.fetchProfiles()
@@ -194,6 +206,10 @@ async function nextStep() {
 function prevStep() {
   if (currentStep.value > 0) {
     currentStep.value--
+    // Skip back over network step when AP step is hidden
+    if (currentStep.value === 1 && skipAPStep.value) {
+      currentStep.value = 0
+    }
   }
 }
 
@@ -290,6 +306,11 @@ onMounted(async () => {
     if (setupStatus?.is_complete) {
       router.push('/')
       return
+    }
+    // Detect whether AP step should be skipped (container tier or no WiFi)
+    if (setupStatus?.skip_ap_step) {
+      skipAPStep.value = true
+      wifiEnabled.value = false
     }
   } catch (e) {
     // Continue with wizard
