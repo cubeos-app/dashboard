@@ -152,6 +152,37 @@
         "apHelp": "WiFi interface for the CubeOS hotspot",
         "uplinkHelp": "Interface for internet connectivity"
       },
+      "accessProfile": {
+        "title": "Access Profile",
+        "description": "How should apps be accessed on your network?",
+        "recommended": "Recommended",
+        "profiles": {
+          "standard": {
+            "name": "Standard",
+            "line1": "Apps via IP:port",
+            "line2": "Works everywhere"
+          },
+          "advanced": {
+            "name": "Advanced",
+            "line1": "Use your own NPM + Pi-hole",
+            "line2": "API integration"
+          },
+          "all_in_one": {
+            "name": "All-in-One",
+            "line1": "CubeOS runs everything",
+            "line2": "AP + DNS + DHCP"
+          }
+        },
+        "npmUrl": "NPM URL",
+        "npmToken": "NPM Token",
+        "piholeUrl": "Pi-hole URL",
+        "piholePassword": "Pi-hole Password",
+        "testConnection": "Test Connection",
+        "reachable": "Reachable",
+        "unreachable": "Unreachable",
+        "aioWarningTitle": "Network takeover warning",
+        "aioWarningMessage": "All-in-One enables Pi-hole DHCP on your network. Only use this if CubeOS is your primary network device. This may conflict with your existing router."
+      },
       "locale": {
         "title": "Time & Language",
         "description": "Set your timezone and language preferences.",
@@ -965,6 +996,18 @@
     "subtitle": "Customize your experience",
     "profiles": "Profiles",
     "registry": "Registry",
-    "tabsLabel": "Settings sections"
+    "access": "Access",
+    "tabsLabel": "Settings sections",
+    "accessProfile": {
+      "title": "Access Profile",
+      "current": "Current profile",
+      "changeProfile": "Change Profile",
+      "saveProfile": "Save Profile",
+      "saving": "Saving...",
+      "saved": "Access profile updated. Changes apply to new app installs.",
+      "saveFailed": "Failed to save profile",
+      "migrateNote": "Changing your profile affects new app installs only. Existing apps remain accessible at their current URLs.",
+      "migrateComingSoon": "To migrate existing apps, use Settings > Access > Migrate Apps (coming soon)."
+    }
   }
 }

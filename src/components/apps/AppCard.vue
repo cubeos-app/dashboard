@@ -52,6 +52,12 @@ const appUrl = computed(() => {
   return appsStore.getAppUrl(props.app)
 })
 
+const appUrlDisplay = computed(() => {
+  if (!appUrl.value) return ''
+  // Strip http:// or https:// for compact display
+  return appUrl.value.replace(/^https?:\/\//, '')
+})
+
 const imageName = computed(() => {
   const img = props.app.image || ''
   return img.split(':')[0].split('/').pop() || 'Container'
@@ -146,11 +152,20 @@ async function handleAction(action, e) {
             ></span>
           </div>
           
-          <p 
+          <p
             v-if="!compact"
-            class="text-sm text-theme-tertiary truncate mt-0.5"
+            class="text-sm truncate mt-0.5"
+            :class="appUrl ? 'text-accent/70' : 'text-theme-tertiary'"
           >
-            {{ imageName }}
+            <a
+              v-if="appUrl && running"
+              :href="appUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              @click.stop
+              class="hover:underline"
+            >{{ appUrlDisplay }}</a>
+            <span v-else>{{ imageName }}</span>
           </p>
           <p 
             v-else

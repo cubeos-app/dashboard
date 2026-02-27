@@ -363,27 +363,37 @@ export const useAppsStore = defineStore('apps', () => {
 
   /**
    * Get URL for an app's web UI (if available)
-   * ALL URLs go through FQDN via NPM - no direct port access
+   * Respects access profile: FQDN for all_in_one/advanced, IP:port for standard
    */
   function getAppUrl(app) {
     const name = app.name.replace('cubeos-', '')
-    
-    // Check predefined web UI services (FQDN-only)
+
+    // Check predefined web UI services
     if (WEB_UI_SERVICES[name]) {
       const config = WEB_UI_SERVICES[name]
-      // Skip services that are API-only (no web UI)
       if (config.hasUI === false) return null
       const path = config.path || ''
+      // FQDN-based URL for these core services
       return `http://${config.fqdn}${path}`
     }
-    
+
+    // Use access_url from API if present (set by Phase 1+ install logic)
+    if (app.access_url) {
+      return app.access_url
+    }
+
     // Use primary FQDN from app data (set by API)
     if (app.fqdns?.length > 0) {
       return `http://${app.fqdns[0].fqdn}`
     }
-    
-    // No URL available - service must have NPM proxy configured
-    // Do NOT fall back to port-based URLs
+
+    // Fallback: IP:port for standard profile or when no FQDN exists
+    const port = getPrimaryPort(app)
+    if (port) {
+      const host = window.location.hostname
+      return `http://${host}:${port}`
+    }
+
     return null
   }
 
@@ -393,13 +403,13 @@ export const useAppsStore = defineStore('apps', () => {
    */
   function hasWebUI(app) {
     const name = app.name.replace('cubeos-', '')
-    
+
     // Check if explicitly marked as no UI in hardcoded list
     if (WEB_UI_SERVICES[name]?.hasUI === false) return false
-    
-    // Check webui_type from API (auto-detected on install or user-overridden)
+
+    // Check webui_type from API (auto-detected or user-overridden)
     if (app.webui_type === 'api') return false
-    
+
     return getAppUrl(app) !== null
   }
 

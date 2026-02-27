@@ -27,6 +27,7 @@ const { t } = useI18n()
 
 import WelcomeStep from './steps/WelcomeStep.vue'
 import AdminStep from './steps/AdminStep.vue'
+import AccessProfileStep from './steps/AccessProfileStep.vue'
 import DeviceStep from './steps/DeviceStep.vue'
 import WiFiStep from './steps/WiFiStep.vue'
 import LocaleStep from './steps/LocaleStep.vue'
@@ -46,15 +47,21 @@ const requirements = ref({})
 const timezones = ref([])
 const systemStats = ref(null)
 
-// Step definitions — simplified from original 11 to 6 core steps
-const STEPS = [
+// Step definitions — 7 steps, wifi conditional on all_in_one profile
+const ALL_STEPS = [
   { id: 'welcome', titleKey: 'wizard.steps.welcome.title', icon: 'Box', required: true },
   { id: 'admin', titleKey: 'wizard.steps.admin.title', icon: 'UserCog', required: true },
+  { id: 'access_profile', titleKey: 'wizard.steps.accessProfile.title', icon: 'Shield', required: true },
   { id: 'device', titleKey: 'wizard.steps.device.title', icon: 'Server', required: true },
   { id: 'wifi', titleKey: 'wizard.steps.wifi.title', icon: 'Wifi', required: true },
   { id: 'locale', titleKey: 'wizard.steps.locale.title', icon: 'Globe', required: true },
   { id: 'summary', titleKey: 'wizard.steps.summary.title', icon: 'CheckCircle', required: true }
 ]
+
+// WiFi step only shown when access_profile is all_in_one
+const STEPS = computed(() =>
+  ALL_STEPS.filter(s => s.id !== 'wifi' || config.value.access_profile === 'all_in_one')
+)
 
 // Form data
 const config = ref({
@@ -71,14 +78,19 @@ const config = ref({
   timezone: 'UTC',
   language: 'en',
   theme: 'dark',
-  enable_auto_updates: true
+  enable_auto_updates: true,
+  access_profile: 'standard',
+  ext_npm_url: '',
+  ext_npm_token: '',
+  ext_pihole_url: '',
+  ext_pihole_password: ''
 })
 
 const validation = ref({ valid: true, errors: {}, warnings: {} })
 
 // ─── Computed ────────────────────────────────────────────────
-const totalSteps = computed(() => STEPS.length)
-const currentStepData = computed(() => STEPS[currentStep.value] || {})
+const totalSteps = computed(() => STEPS.value.length)
+const currentStepData = computed(() => STEPS.value[currentStep.value] || {})
 const isFirstStep = computed(() => currentStep.value === 0)
 const isLastStep = computed(() => currentStep.value === totalSteps.value - 1)
 const progress = computed(() => Math.round((currentStep.value / (totalSteps.value - 1)) * 100))
@@ -90,6 +102,9 @@ const canProceed = computed(() => {
       return config.value.admin_username.length >= 3 &&
         config.value.admin_password.length >= 8 &&
         config.value.admin_password === config.value.admin_password_confirm
+    case 'access_profile':
+      // Always valid — standard is default, advanced/all_in_one need no mandatory fields in wizard
+      return true
     case 'device':
       return config.value.hostname.length >= 3
     case 'wifi':
@@ -99,6 +114,13 @@ const canProceed = computed(() => {
       return config.value.timezone !== ''
     default:
       return true
+  }
+})
+
+// Clamp currentStep when step count changes (e.g., wifi step removed/added)
+watch(STEPS, (newSteps) => {
+  if (currentStep.value >= newSteps.length) {
+    currentStep.value = newSteps.length - 1
   }
 })
 
@@ -312,6 +334,10 @@ onMounted(() => { loadSetupData() })
             v-else-if="currentStepData.id === 'admin'"
             v-model="config"
             :validation="validation"
+          />
+          <AccessProfileStep
+            v-else-if="currentStepData.id === 'access_profile'"
+            v-model="config"
           />
           <DeviceStep
             v-else-if="currentStepData.id === 'device'"

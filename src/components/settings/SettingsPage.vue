@@ -24,6 +24,7 @@ import TabBar from '@/components/ui/TabBar.vue'
 import AccountTab from './AccountTab.vue'
 import AppearanceTab from './AppearanceTab.vue'
 import UpdatesTab from './UpdatesTab.vue'
+import AccessProfileSettings from './AccessProfileSettings.vue'
 import ProfilesTab from './ProfilesTab.vue'
 import RegistryTab from './RegistryTab.vue'
 import SupportTab from './SupportTab.vue'
@@ -40,7 +41,8 @@ const TAB_DEFS = computed(() => {
   const tabs = [
     { key: 'account', label: t('settings.account'), icon: 'User' },
     { key: 'appearance', label: t('settings.appearance'), icon: 'Palette' },
-    { key: 'updates', label: t('settings.updates'), icon: 'Download' }
+    { key: 'updates', label: t('settings.updates'), icon: 'Download' },
+    { key: 'access', label: t('settings.access'), icon: 'Shield' }
   ]
   if (isAdvanced.value) {
     tabs.push(
@@ -106,6 +108,7 @@ onMounted(async () => {
       <AccountTab v-if="activeTab === 'account'" />
       <AppearanceTab v-else-if="activeTab === 'appearance'" />
       <UpdatesTab v-else-if="activeTab === 'updates'" />
+      <AccessProfileSettings v-else-if="activeTab === 'access'" />
       <ProfilesTab v-else-if="activeTab === 'profiles'" />
       <RegistryTab v-else-if="activeTab === 'registry'" />
       <SupportTab v-else-if="activeTab === 'support'" />
