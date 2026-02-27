@@ -57,7 +57,7 @@ const showUPSBanner = computed(() => {
   const cfg = hardwareStore.upsConfig
   if (!cfg || cfg.configured) return false
   const det = hardwareStore.upsDetection
-  return det?.suggested_model && det.suggested_model !== ''
+  return det?.suggested_model && det.suggested_model !== '' && det.suggested_model !== 'none'
 })
 const { isAdvanced } = useMode()
 const { isLayoutLocked } = useDashboardConfig()

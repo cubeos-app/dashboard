@@ -373,7 +373,12 @@ export const useAppsStore = defineStore('apps', () => {
       const config = WEB_UI_SERVICES[name]
       if (config.hasUI === false) return null
       const path = config.path || ''
-      // FQDN-based URL for these core services
+      // Use IP:port when available (works on all access profiles, even without DNS)
+      const port = getPrimaryPort(app)
+      if (port) {
+        return `http://${window.location.hostname}:${port}${path}`
+      }
+      // Fall back to FQDN (requires DNS + NPM reverse proxy)
       return `http://${config.fqdn}${path}`
     }
 

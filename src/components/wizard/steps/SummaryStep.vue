@@ -12,6 +12,8 @@ const { t } = useI18n()
 defineProps({
   config: { type: Object, required: true }
 })
+
+const dashboardUrl = `http://${window.location.hostname}:${window.location.port || '6011'}`
 </script>
 
 <template>
@@ -34,11 +36,11 @@ defineProps({
         </div>
         <div class="flex justify-between">
           <span class="text-theme-muted">{{ t('wizard.steps.summary.hostname') }}</span>
-          <span class="text-theme-primary">{{ config.hostname }}.cube</span>
+          <span class="text-theme-primary">{{ config.hostname }}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-theme-muted">{{ t('wizard.steps.summary.dashboardUrl') }}</span>
-          <span class="text-theme-primary font-mono text-xs">https://{{ config.hostname }}.cube</span>
+          <span class="text-theme-primary font-mono text-xs">{{ dashboardUrl }}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-theme-muted">{{ t('wizard.steps.summary.wifiSsid') }}</span>
