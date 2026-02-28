@@ -1016,7 +1016,11 @@
       "saved": "Access profile updated. Changes apply to new app installs.",
       "saveFailed": "Failed to save profile",
       "migrateNote": "Changing your profile affects new app installs only. Existing apps remain accessible at their current URLs.",
-      "migrateComingSoon": "To migrate existing apps, use Settings > Access > Migrate Apps (coming soon)."
+      "migrateComingSoon": "To migrate existing apps, use Settings > Access > Migrate Apps (coming soon).",
+      "apTeardownTitle": "Disable Access Point?",
+      "apTeardownMessage": "Switching to Standard profile means CubeOS no longer manages the WiFi access point. Do you want to disable the AP and switch to Ethernet-only mode?",
+      "apTeardownConfirm": "Disable AP",
+      "apTeardownKeep": "Keep AP"
     }
   }
 }

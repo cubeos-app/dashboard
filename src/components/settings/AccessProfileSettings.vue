@@ -9,6 +9,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import api from '@/api/client'
+import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 import ProfileSwitchProgressModal from './ProfileSwitchProgressModal.vue'
 
@@ -84,6 +85,24 @@ async function saveProfile() {
   error.value = null
   successMsg.value = null
   try {
+    // D2: All-in-One → Standard transition — ask about AP teardown
+    if (currentProfile.value === 'all_in_one' && editProfile.value === 'standard') {
+      const disableAP = await confirm({
+        title: t('settings.accessProfile.apTeardownTitle'),
+        message: t('settings.accessProfile.apTeardownMessage'),
+        confirmText: t('settings.accessProfile.apTeardownConfirm'),
+        cancelText: t('settings.accessProfile.apTeardownKeep'),
+        variant: 'warning'
+      })
+      if (disableAP) {
+        try {
+          await api.post('/setup/ap-teardown')
+        } catch {
+          // Non-fatal — continue with profile switch
+        }
+      }
+    }
+
     const result = await api.put('/system/access-profile', {
       profile: editProfile.value,
       ext_npm_url: credentials.value.ext_npm_url,
