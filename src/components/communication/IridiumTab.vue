@@ -752,17 +752,6 @@ onUnmounted(() => {
           <h2 class="text-lg font-semibold text-theme-primary">Send SBD Message</h2>
         </div>
 
-        <!-- SBD routing explanation -->
-        <div class="flex items-start gap-2 p-3 rounded-lg bg-theme-secondary mb-4">
-          <Icon name="Info" :size="14" class="text-theme-muted shrink-0 mt-0.5" />
-          <p class="text-xs text-theme-muted leading-relaxed">
-            SBD messages are delivered to the endpoint configured on your
-            <span class="font-medium text-theme-secondary">Rock7/CloudLoop portal</span>
-            (email or HTTP webhook). There is no recipient field — the delivery
-            destination is set at the account level, not per message.
-          </p>
-        </div>
-
         <div class="space-y-3">
           <textarea
             v-model="sbdMessage"
@@ -899,14 +888,6 @@ onUnmounted(() => {
               </button>
             </div>
           </div>
-        </div>
-
-        <!-- Mailbox explanation -->
-        <div class="px-5 py-2 border-b border-theme-primary bg-theme-secondary">
-          <p class="text-xs text-theme-muted">
-            <span class="font-medium">Read Buffer</span> reads messages already on the modem.
-            <span class="font-medium">Check Mailbox</span> contacts the Iridium gateway to download queued messages (uses satellite time).
-          </p>
         </div>
 
         <!-- No messages -->
