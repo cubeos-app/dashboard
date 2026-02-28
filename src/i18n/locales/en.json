@@ -1021,6 +1021,16 @@
       "apTeardownMessage": "Switching to Standard profile means CubeOS no longer manages the WiFi access point. Do you want to disable the AP and switch to Ethernet-only mode?",
       "apTeardownConfirm": "Disable AP",
       "apTeardownKeep": "Keep AP"
+    },
+    "wifiInterfaces": {
+      "title": "WiFi Interfaces",
+      "subtitle": "Detected WiFi adapters and AP capability status",
+      "noInterfaces": "No WiFi interfaces detected",
+      "builtIn": "Built-in",
+      "apCapable": "AP capable",
+      "apIncapable": "No AP support",
+      "retest": "Re-test",
+      "note": "CubeOS prefers USB WiFi adapters for access point operations. Adapters are tested on first detection and results are cached."
     }
   }
 }

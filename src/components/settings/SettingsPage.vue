@@ -25,6 +25,7 @@ import AccountTab from './AccountTab.vue'
 import AppearanceTab from './AppearanceTab.vue'
 import UpdatesTab from './UpdatesTab.vue'
 import AccessProfileSettings from './AccessProfileSettings.vue'
+import WiFiInterfacesPanel from './WiFiInterfacesPanel.vue'
 import ProfilesTab from './ProfilesTab.vue'
 import RegistryTab from './RegistryTab.vue'
 import SupportTab from './SupportTab.vue'
@@ -108,7 +109,10 @@ onMounted(async () => {
       <AccountTab v-if="activeTab === 'account'" />
       <AppearanceTab v-else-if="activeTab === 'appearance'" />
       <UpdatesTab v-else-if="activeTab === 'updates'" />
-      <AccessProfileSettings v-else-if="activeTab === 'access'" />
+      <div v-else-if="activeTab === 'access'" class="space-y-6">
+        <AccessProfileSettings />
+        <WiFiInterfacesPanel />
+      </div>
       <ProfilesTab v-else-if="activeTab === 'profiles'" />
       <RegistryTab v-else-if="activeTab === 'registry'" />
       <SupportTab v-else-if="activeTab === 'support'" />
