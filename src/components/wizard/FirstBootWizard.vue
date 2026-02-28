@@ -27,6 +27,7 @@ import Icon from '@/components/ui/Icon.vue'
 
 const { t } = useI18n()
 
+import PreconfigurationStep from './steps/PreconfigurationStep.vue'
 import WelcomeStep from './steps/WelcomeStep.vue'
 import AdminStep from './steps/AdminStep.vue'
 import AccessProfileStep from './steps/AccessProfileStep.vue'
@@ -51,21 +52,48 @@ const systemStats = ref(null)
 const skipApStep = ref(true) // true = container/VM, no Ethernet gate needed
 const ethernetIp = ref('')
 
-// Step definitions — 7 steps, wifi conditional on all_in_one profile
-const ALL_STEPS = [
-  { id: 'welcome', titleKey: 'wizard.steps.welcome.title', icon: 'Box', required: true },
-  { id: 'admin', titleKey: 'wizard.steps.admin.title', icon: 'UserCog', required: true },
-  { id: 'access_profile', titleKey: 'wizard.steps.accessProfile.title', icon: 'Shield', required: true },
-  { id: 'device', titleKey: 'wizard.steps.device.title', icon: 'Server', required: true },
-  { id: 'wifi', titleKey: 'wizard.steps.wifi.title', icon: 'Wifi', required: true },
-  { id: 'locale', titleKey: 'wizard.steps.locale.title', icon: 'Globe', required: true },
-  { id: 'summary', titleKey: 'wizard.steps.summary.title', icon: 'CheckCircle', required: true }
-]
+// Pre-configuration state (Pi Imager, Armbian, custom.toml, LXC)
+const preconfigDetected = computed(() => setupStore.preconfigDetected)
+const preconfiguration = computed(() => setupStore.preconfiguration)
 
-// WiFi step only shown when access_profile is all_in_one
-const STEPS = computed(() =>
-  ALL_STEPS.filter(s => s.id !== 'wifi' || config.value.access_profile === 'all_in_one')
-)
+// Step definitions — dynamic based on pre-configuration detection
+const STEPS = computed(() => {
+  const steps = []
+
+  // Pre-configuration confirmation step (only if pre-config detected)
+  if (preconfigDetected.value) {
+    steps.push({ id: 'preconfiguration', titleKey: 'wizard.steps.preconfiguration.title', icon: 'Settings2', required: true })
+  } else {
+    steps.push({ id: 'welcome', titleKey: 'wizard.steps.welcome.title', icon: 'Box', required: true })
+  }
+
+  // Admin password (always required)
+  steps.push({ id: 'admin', titleKey: 'wizard.steps.admin.title', icon: 'UserCog', required: true })
+
+  // Access profile selection (always shown, pre-selected for preconfig)
+  steps.push({ id: 'access_profile', titleKey: 'wizard.steps.accessProfile.title', icon: 'Shield', required: true })
+
+  // Device (hostname) — skip if pre-configured hostname exists
+  if (!(preconfigDetected.value && preconfiguration.value?.hostname)) {
+    steps.push({ id: 'device', titleKey: 'wizard.steps.device.title', icon: 'Server', required: true })
+  }
+
+  // WiFi step — only for all_in_one, and skip if preconfig has WiFi (unless WiFi failed)
+  const wifiConnected = preconfigDetected.value && preconfiguration.value?.wifi?.ssid && !preconfiguration.value?.wifi_connect_failed
+  if (!wifiConnected && config.value.access_profile === 'all_in_one') {
+    steps.push({ id: 'wifi', titleKey: 'wizard.steps.wifi.title', icon: 'Wifi', required: true })
+  }
+
+  // Locale — skip if pre-configured timezone exists
+  if (!(preconfigDetected.value && preconfiguration.value?.timezone)) {
+    steps.push({ id: 'locale', titleKey: 'wizard.steps.locale.title', icon: 'Globe', required: true })
+  }
+
+  // Summary (always)
+  steps.push({ id: 'summary', titleKey: 'wizard.steps.summary.title', icon: 'CheckCircle', required: true })
+
+  return steps
+})
 
 // Form data
 const config = ref({
@@ -141,11 +169,12 @@ async function loadSetupData() {
   loading.value = true
   error.value = null
   try {
-    const [defaultsRes, requirementsRes, timezonesRes, statusRes] = await Promise.all([
+    const [defaultsRes, requirementsRes, timezonesRes, statusRes, preconfigRes] = await Promise.all([
       api.get('/setup/defaults'),
       api.get('/setup/requirements'),
       api.get('/setup/timezones'),
-      api.get('/setup/status')
+      api.get('/setup/status'),
+      setupStore.fetchPreconfiguration()
     ])
     defaults.value = defaultsRes || {}
     requirements.value = requirementsRes || {}
@@ -154,6 +183,20 @@ async function loadSetupData() {
     Object.assign(config.value, defaults.value)
     // FR01: Ensure country_code is never empty (API may omit it)
     if (!config.value.country_code) config.value.country_code = 'NL'
+
+    // Apply pre-configuration hints to form data
+    if (preconfigRes && preconfigRes.source !== 'none') {
+      // Pre-select Standard profile (user can still change)
+      config.value.access_profile = preconfigRes.access_profile_hint || 'standard'
+      // Use pre-configured hostname if available
+      if (preconfigRes.hostname) {
+        config.value.hostname = preconfigRes.hostname
+      }
+      // Use pre-configured timezone if available
+      if (preconfigRes.timezone) {
+        config.value.timezone = preconfigRes.timezone
+      }
+    }
 
     // B39: If device_model missing from requirements, fetch from /system/info
     // B38: Also fetch stats for swap/ZRAM display
@@ -212,7 +255,7 @@ async function nextStep() {
   }
 
   const step = currentStepData.value
-  if (step.required && step.id !== 'welcome') {
+  if (step.required && step.id !== 'welcome' && step.id !== 'preconfiguration') {
     const valid = await validateStep()
     if (!valid) return
   }
@@ -351,8 +394,12 @@ onMounted(() => { loadSetupData() })
 
         <!-- Step Content -->
         <div class="p-6 min-h-[400px]">
+          <PreconfigurationStep
+            v-if="currentStepData.id === 'preconfiguration'"
+            :preconfiguration="preconfiguration"
+          />
           <WelcomeStep
-            v-if="currentStepData.id === 'welcome'"
+            v-else-if="currentStepData.id === 'welcome'"
             :requirements="requirements"
             :system-stats="systemStats"
             @skip="skipWizard"

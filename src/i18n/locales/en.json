@@ -91,6 +91,18 @@
         "wifiAvailable": "Available",
         "wifiNotDetected": "Not detected"
       },
+      "preconfiguration": {
+        "title": "Pre-configured",
+        "heading": "Settings Detected",
+        "description": "CubeOS detected settings from {source}. These will be applied automatically.",
+        "hostname": "Hostname",
+        "wifiNetwork": "WiFi Network",
+        "timezone": "Timezone",
+        "adminUser": "Admin User",
+        "networkMode": "Network Mode",
+        "wifiFailed": "WiFi connection to \"{ssid}\" failed. You can configure WiFi manually in the next steps.",
+        "wifiConnected": "WiFi connected. Dashboard will be available at {hostname}.local after setup."
+      },
       "admin": {
         "title": "Admin Account",
         "description": "Create your administrator account. This will be used to log into the dashboard.",

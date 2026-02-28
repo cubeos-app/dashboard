@@ -40,6 +40,9 @@ export const useSetupStore = defineStore('setup', () => {
   /** Service recommendations from GET /wizard/recommendations */
   const recommendations = ref(null)
 
+  /** Pre-configuration from Pi Imager/Armbian/custom.toml/LXC */
+  const preconfiguration = ref(null)
+
   const loading = ref(false)
   const error = ref(null)
 
@@ -49,6 +52,11 @@ export const useSetupStore = defineStore('setup', () => {
 
   /** Whether setup/first-boot is complete */
   const isComplete = computed(() => status.value?.is_complete === true)
+
+  /** Whether pre-configuration was detected (Pi Imager, Armbian, etc.) */
+  const preconfigDetected = computed(() =>
+    preconfiguration.value && preconfiguration.value.source !== 'none'
+  )
 
   /** Current step index (from status response, if available) */
   const currentStep = computed(() => status.value?.current_step ?? 0)
@@ -287,6 +295,22 @@ export const useSetupStore = defineStore('setup', () => {
   }
 
   /**
+   * Fetch pre-configuration settings detected during first boot
+   * GET /setup/preconfiguration
+   *
+   * Returns settings from Pi Imager, Armbian, custom.toml, or LXC.
+   * WiFi password is redacted by the API.
+   */
+  async function fetchPreconfiguration() {
+    try {
+      preconfiguration.value = await api.get('/setup/preconfiguration')
+    } catch {
+      preconfiguration.value = { source: 'none' }
+    }
+    return preconfiguration.value
+  }
+
+  /**
    * Clear cached status — called after setup completes or resets.
    * Replaces the old invalidateSetupCache() in router/index.js.
    */
@@ -305,6 +329,7 @@ export const useSetupStore = defineStore('setup', () => {
     services,
     estimate,
     recommendations,
+    preconfiguration,
     loading,
     error,
 
@@ -313,12 +338,14 @@ export const useSetupStore = defineStore('setup', () => {
     currentStep,
     totalSteps,
     progress,
+    preconfigDetected,
 
     // Actions — Setup
     fetchStatus,
     resetSetup,
     markComplete,
     clearStatus,
+    fetchPreconfiguration,
 
     // Actions — Wizard
     fetchProfiles,
