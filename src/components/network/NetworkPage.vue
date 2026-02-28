@@ -102,6 +102,12 @@ const apHardwarePresent = ref(true)
 
 // Normalized mode for case-insensitive comparison (backend sends lowercase)
 const normalizedMode = computed(() => (networkMode.value?.mode || '').toLowerCase())
+
+// DHCP is active whenever CubeOS runs an AP (mode-driven)
+const dhcpActive = computed(() => {
+  const m = normalizedMode.value
+  return m === 'offline_hotspot' || m === 'wifi_router' || m === 'wifi_bridge' || m === 'android_tether'
+})
 const modeLabelDisplay = computed(() => {
   const modeKey = `network.modes.${normalizedMode.value}`
   const translated = t(modeKey)
@@ -253,6 +259,7 @@ usePolling(fetchSharedData, 10000, { immediate: true, pauseWhenHidden: true })
       :firewall-status="firewallStatus"
       :network-mode="networkMode"
       :ap-hardware-present="apHardwarePresent"
+      :dhcp-active="dhcpActive"
       @refresh="fetchSharedData"
     />
 

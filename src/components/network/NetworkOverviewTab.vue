@@ -28,7 +28,8 @@ const props = defineProps({
   internetStatus: Object,
   firewallStatus: Object,
   networkMode: Object,
-  apHardwarePresent: Boolean
+  apHardwarePresent: Boolean,
+  dhcpActive: Boolean
 })
 
 const emit = defineEmits(['refresh'])
@@ -181,6 +182,12 @@ function formatBytes(bytes) {
         <div class="flex items-center justify-between text-sm mt-1">
           <span class="text-theme-muted">{{ $t('network.ap.channel') }}</span>
           <span class="text-theme-secondary">{{ apStatus?.channel || '-' }}</span>
+        </div>
+        <div class="flex items-center justify-between text-sm mt-1">
+          <span class="text-theme-muted">{{ $t('network.dhcp.label') }}</span>
+          <span :class="dhcpActive ? 'text-success' : 'text-theme-muted'">
+            {{ dhcpActive ? $t('common.on') : $t('common.off') }}
+          </span>
         </div>
         <!-- AP Start/Stop -->
         <div class="mt-3 flex gap-2">

@@ -651,6 +651,9 @@
       "passwordTooShort": "Password must be at least 8 characters",
       "failedToSaveConfig": "Failed to save AP config: {error}"
     },
+    "dhcp": {
+      "label": "DHCP"
+    },
     "internetStatus": {
       "title": "Internet",
       "latency": "Latency",
