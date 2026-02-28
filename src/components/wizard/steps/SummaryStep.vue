@@ -1,19 +1,32 @@
 <script setup>
 /**
- * SummaryStep.vue — Wizard Step 6
+ * SummaryStep.vue — Wizard final step
  *
  * Displays configuration summary before applying.
+ * For Standard profile on Pi: shows Ethernet IP and AP teardown notice.
  */
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/ui/Icon.vue'
 
 const { t } = useI18n()
 
-defineProps({
-  config: { type: Object, required: true }
+const props = defineProps({
+  config: { type: Object, required: true },
+  ethernetIp: { type: String, default: '' },
+  skipApStep: { type: Boolean, default: true }
 })
 
-const dashboardUrl = `http://${window.location.hostname}:${window.location.port || '6011'}`
+const isStandardOnPi = computed(() =>
+  props.config.access_profile === 'standard' && !props.skipApStep && props.ethernetIp
+)
+
+const dashboardUrl = computed(() => {
+  if (isStandardOnPi.value) {
+    return `http://${props.ethernetIp}:6011`
+  }
+  return `http://${window.location.hostname}:${window.location.port || '6011'}`
+})
 </script>
 
 <template>
@@ -25,6 +38,20 @@ const dashboardUrl = `http://${window.location.hostname}:${window.location.port 
     <p class="text-theme-secondary mb-6 max-w-md mx-auto">
       {{ t('wizard.steps.summary.description') }}
     </p>
+
+    <!-- Standard on Pi: Ethernet transition notice -->
+    <div
+      v-if="isStandardOnPi"
+      class="flex items-start gap-3 p-4 rounded-xl border border-accent/30 bg-accent/5 mb-6 text-left max-w-sm mx-auto"
+    >
+      <Icon name="Cable" :size="20" class="text-accent flex-shrink-0 mt-0.5" />
+      <div class="text-sm">
+        <p class="font-medium text-accent mb-1">{{ t('wizard.steps.summary.ethTransitionTitle') }}</p>
+        <p class="text-theme-secondary">
+          {{ t('wizard.steps.summary.ethTransitionMessage', { url: dashboardUrl }) }}
+        </p>
+      </div>
+    </div>
 
     <!-- Summary -->
     <div class="bg-theme-secondary rounded-xl p-4 text-left max-w-sm mx-auto">
@@ -42,9 +69,13 @@ const dashboardUrl = `http://${window.location.hostname}:${window.location.port 
           <span class="text-theme-muted">{{ t('wizard.steps.summary.dashboardUrl') }}</span>
           <span class="text-theme-primary font-mono text-xs">{{ dashboardUrl }}</span>
         </div>
-        <div class="flex justify-between">
+        <div v-if="config.access_profile === 'all_in_one'" class="flex justify-between">
           <span class="text-theme-muted">{{ t('wizard.steps.summary.wifiSsid') }}</span>
           <span class="text-theme-primary">{{ config.wifi_ssid }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-theme-muted">{{ t('wizard.steps.summary.profile') }}</span>
+          <span class="text-theme-primary capitalize">{{ config.access_profile?.replace('_', '-') }}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-theme-muted">{{ t('wizard.steps.summary.region') }}</span>

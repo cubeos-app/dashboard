@@ -1,12 +1,13 @@
 <script setup>
 /**
- * AccessProfileStep.vue — Wizard Step 3 (between Admin and WiFi)
+ * AccessProfileStep.vue — Wizard Step 3 (between Admin and Device)
  *
  * Three cards: Standard / Advanced / All-in-One
  * Advanced → expands credential fields + Test Connection button
  * All-in-One → shows DHCP warning banner
+ * Standard on Pi → gates on Ethernet readiness (carrier + DHCP lease)
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
@@ -14,10 +15,11 @@ import Icon from '@/components/ui/Icon.vue'
 const { t } = useI18n()
 
 const props = defineProps({
-  modelValue: { type: Object, required: true }
+  modelValue: { type: Object, required: true },
+  skipApStep: { type: Boolean, default: true }
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'update:ethernetIp'])
 
 function update(field, value) {
   emit('update:modelValue', { ...props.modelValue, [field]: value })
@@ -29,7 +31,62 @@ function selectProfile(profile) {
   update('access_profile', profile)
 }
 
-// ─── Test Connection ───────────────────────────────────────
+// ─── Ethernet Status (Standard profile gate on Pi) ────────
+const ethStatus = ref({ available: false, carrier: false, ip: '' })
+const ethChecking = ref(false)
+let ethPollTimer = null
+
+const needsEthernetGate = computed(() =>
+  selectedProfile.value === 'standard' && !props.skipApStep
+)
+
+const ethernetReady = computed(() =>
+  ethStatus.value.available && ethStatus.value.carrier && ethStatus.value.ip
+)
+
+async function checkEthernetStatus() {
+  ethChecking.value = true
+  try {
+    const result = await api.get('/setup/ethernet-status')
+    ethStatus.value = result || { available: false, carrier: false, ip: '' }
+    if (ethStatus.value.ip) {
+      emit('update:ethernetIp', ethStatus.value.ip)
+    } else {
+      emit('update:ethernetIp', '')
+    }
+  } catch {
+    ethStatus.value = { available: false, carrier: false, ip: '' }
+    emit('update:ethernetIp', '')
+  } finally {
+    ethChecking.value = false
+  }
+}
+
+function startEthPolling() {
+  stopEthPolling()
+  checkEthernetStatus()
+  ethPollTimer = setInterval(checkEthernetStatus, 3000)
+}
+
+function stopEthPolling() {
+  if (ethPollTimer) {
+    clearInterval(ethPollTimer)
+    ethPollTimer = null
+  }
+}
+
+watch(needsEthernetGate, (needs) => {
+  if (needs) {
+    startEthPolling()
+  } else {
+    stopEthPolling()
+    emit('update:ethernetIp', '')
+  }
+}, { immediate: true })
+
+onUnmounted(() => stopEthPolling())
+
+// ─── Test Connection (Advanced profile) ───────────────────
 const testing = ref(false)
 const testResult = ref(null)
 
@@ -113,6 +170,46 @@ const profiles = [
           {{ t('wizard.steps.accessProfile.recommended') }}
         </div>
       </button>
+    </div>
+
+    <!-- Standard on Pi: Ethernet readiness gate -->
+    <div
+      v-if="needsEthernetGate"
+      class="flex items-start gap-3 p-4 rounded-xl border"
+      :class="[
+        ethernetReady
+          ? 'border-success/30 bg-success/5'
+          : ethStatus.carrier
+            ? 'border-accent/30 bg-accent/5'
+            : 'border-warning/30 bg-warning-muted'
+      ]"
+    >
+      <!-- No cable -->
+      <template v-if="!ethStatus.available || !ethStatus.carrier">
+        <Icon name="Cable" :size="20" class="text-warning flex-shrink-0 mt-0.5" />
+        <div class="text-sm">
+          <p class="font-medium text-warning mb-1">{{ t('wizard.steps.accessProfile.ethRequired') }}</p>
+          <p class="text-theme-secondary">{{ t('wizard.steps.accessProfile.ethRequiredMessage') }}</p>
+        </div>
+      </template>
+      <!-- Carrier but no IP yet -->
+      <template v-else-if="!ethStatus.ip">
+        <Icon name="Loader2" :size="20" class="text-accent flex-shrink-0 mt-0.5 animate-spin" />
+        <div class="text-sm">
+          <p class="font-medium text-accent mb-1">{{ t('wizard.steps.accessProfile.ethWaiting') }}</p>
+          <p class="text-theme-secondary">{{ t('wizard.steps.accessProfile.ethWaitingMessage') }}</p>
+        </div>
+      </template>
+      <!-- Ready -->
+      <template v-else>
+        <Icon name="CheckCircle" :size="20" class="text-success flex-shrink-0 mt-0.5" />
+        <div class="text-sm">
+          <p class="font-medium text-success mb-1">{{ t('wizard.steps.accessProfile.ethReady') }}</p>
+          <p class="text-theme-secondary">
+            {{ t('wizard.steps.accessProfile.ethReadyMessage', { ip: ethStatus.ip }) }}
+          </p>
+        </div>
+      </template>
     </div>
 
     <!-- Advanced: credential fields -->

@@ -181,7 +181,13 @@
         "reachable": "Reachable",
         "unreachable": "Unreachable",
         "aioWarningTitle": "Network takeover warning",
-        "aioWarningMessage": "All-in-One enables Pi-hole DHCP on your network. Only use this if CubeOS is your primary network device. This may conflict with your existing router."
+        "aioWarningMessage": "All-in-One enables Pi-hole DHCP on your network. Only use this if CubeOS is your primary network device. This may conflict with your existing router.",
+        "ethRequired": "Ethernet required",
+        "ethRequiredMessage": "Plug in an Ethernet cable to use Standard mode. The WiFi access point will be turned off after setup.",
+        "ethWaiting": "Ethernet connected",
+        "ethWaitingMessage": "Waiting for network address...",
+        "ethReady": "Ethernet ready",
+        "ethReadyMessage": "Connected at {ip}. The WiFi access point will be turned off after setup."
       },
       "locale": {
         "title": "Time & Language",
@@ -198,9 +204,12 @@
         "hostname": "Hostname",
         "dashboardUrl": "Dashboard",
         "wifiSsid": "WiFi",
+        "profile": "Profile",
         "region": "Region",
         "timezone": "Timezone",
-        "language": "Language"
+        "language": "Language",
+        "ethTransitionTitle": "Switching to Ethernet",
+        "ethTransitionMessage": "After setup, the WiFi access point will be turned off. Your dashboard will be available at {url}."
       }
     }
   },

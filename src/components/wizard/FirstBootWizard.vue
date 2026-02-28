@@ -3,16 +3,18 @@
  * FirstBootWizard.vue — S10 Rewrite
  *
  * Lean orchestrator shell that delegates UI to step components in wizard/steps/.
- * Reduced from 916 lines to ~220 lines.
  *
- * 6 core steps: Welcome → Admin → Device → WiFi → Locale → Summary
+ * 7 core steps: Welcome → Admin → AccessProfile → Device → WiFi → Locale → Summary
  *
  * API endpoints used:
  * - GET  /setup/steps, /setup/defaults, /setup/requirements, /setup/timezones
+ * - GET  /setup/status (for skip_ap_step flag)
+ * - GET  /setup/ethernet-status (polled by AccessProfileStep)
  * - POST /setup/validate
  * - POST /setup/apply
  * - POST /setup/skip
  * - POST /setup/complete
+ * - POST /setup/ap-teardown (Standard profile on Pi)
  */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -36,7 +38,7 @@ import SummaryStep from './steps/SummaryStep.vue'
 const router = useRouter()
 const setupStore = useSetupStore()
 
-// ─── State ───────────────────────────────────────────────────
+// ─── State ───────────────────────────────────────────────
 const loading = ref(true)
 const saving = ref(false)
 const error = ref(null)
@@ -46,6 +48,8 @@ const defaults = ref({})
 const requirements = ref({})
 const timezones = ref([])
 const systemStats = ref(null)
+const skipApStep = ref(true) // true = container/VM, no Ethernet gate needed
+const ethernetIp = ref('')
 
 // Step definitions — 7 steps, wifi conditional on all_in_one profile
 const ALL_STEPS = [
@@ -95,6 +99,11 @@ const isFirstStep = computed(() => currentStep.value === 0)
 const isLastStep = computed(() => currentStep.value === totalSteps.value - 1)
 const progress = computed(() => Math.round((currentStep.value / (totalSteps.value - 1)) * 100))
 
+// Standard on Pi needs Ethernet before proceeding
+const needsEthernetGate = computed(() =>
+  config.value.access_profile === 'standard' && !skipApStep.value
+)
+
 const canProceed = computed(() => {
   const step = currentStepData.value
   switch (step.id) {
@@ -103,7 +112,10 @@ const canProceed = computed(() => {
         config.value.admin_password.length >= 8 &&
         config.value.admin_password === config.value.admin_password_confirm
     case 'access_profile':
-      // Always valid — standard is default, advanced/all_in_one need no mandatory fields in wizard
+      // Standard on Pi: must have Ethernet ready
+      if (needsEthernetGate.value) {
+        return !!ethernetIp.value
+      }
       return true
     case 'device':
       return config.value.hostname.length >= 3
@@ -129,14 +141,16 @@ async function loadSetupData() {
   loading.value = true
   error.value = null
   try {
-    const [defaultsRes, requirementsRes, timezonesRes] = await Promise.all([
+    const [defaultsRes, requirementsRes, timezonesRes, statusRes] = await Promise.all([
       api.get('/setup/defaults'),
       api.get('/setup/requirements'),
-      api.get('/setup/timezones')
+      api.get('/setup/timezones'),
+      api.get('/setup/status')
     ])
     defaults.value = defaultsRes || {}
     requirements.value = requirementsRes || {}
     timezones.value = timezonesRes.timezones || []
+    skipApStep.value = statusRes?.skip_ap_step ?? true
     Object.assign(config.value, defaults.value)
     // FR01: Ensure country_code is never empty (API may omit it)
     if (!config.value.country_code) config.value.country_code = 'NL'
@@ -261,6 +275,15 @@ async function finishSetup() {
   try {
     const result = await api.post('/setup/apply', config.value)
     if (result !== null) {
+      // Standard on Pi: tear down AP after setup completes
+      if (needsEthernetGate.value && ethernetIp.value) {
+        try {
+          await api.post('/setup/ap-teardown')
+        } catch {
+          // Non-fatal — AP teardown is best effort
+        }
+      }
+
       setupStore.clearStatus()
       router.push('/login')
     }
@@ -269,6 +292,10 @@ async function finishSetup() {
   } finally {
     saving.value = false
   }
+}
+
+function onEthernetIpUpdate(ip) {
+  ethernetIp.value = ip || ''
 }
 
 onMounted(() => { loadSetupData() })
@@ -338,6 +365,8 @@ onMounted(() => { loadSetupData() })
           <AccessProfileStep
             v-else-if="currentStepData.id === 'access_profile'"
             v-model="config"
+            :skip-ap-step="skipApStep"
+            @update:ethernet-ip="onEthernetIpUpdate"
           />
           <DeviceStep
             v-else-if="currentStepData.id === 'device'"
@@ -355,6 +384,8 @@ onMounted(() => { loadSetupData() })
           <SummaryStep
             v-else-if="currentStepData.id === 'summary'"
             :config="config"
+            :ethernet-ip="ethernetIp"
+            :skip-ap-step="skipApStep"
           />
         </div>
 
