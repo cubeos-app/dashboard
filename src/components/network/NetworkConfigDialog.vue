@@ -150,6 +150,11 @@ function selectNetwork(network) {
   manualSSID.value = ''
   showManualEntry.value = false
   wifiPassword.value = ''
+  // Auto-scroll to password field (it renders below the long network list)
+  nextTick(() => {
+    const el = document.getElementById('wifi-password-section')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
 }
 
 function startManualEntry() {
@@ -588,7 +593,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Password for selected network (inline, below the list) -->
-                <div v-if="selectedNetwork && !showManualEntry" class="mt-3 p-3 rounded-xl bg-theme-tertiary space-y-3">
+                <div v-if="selectedNetwork && !showManualEntry" id="wifi-password-section" class="mt-3 p-3 rounded-xl bg-theme-tertiary space-y-3">
                   <div class="flex items-center gap-2">
                     <Icon name="Wifi" :size="14" class="text-accent" />
                     <span class="text-sm font-medium text-theme-primary">{{ selectedNetwork.ssid }}</span>
