@@ -89,6 +89,15 @@ export const useCommunicationStore = defineStore('communication', () => {
   const meshtasticConnecting = ref(false)
   const meshtasticEventSource = ref(null)
 
+  // MeshSat — persistent data from meshsat coreapp (separate from HAL lifecycle)
+  const meshsatMessages = ref(null)
+  const meshsatTelemetry = ref(null)
+  const meshsatPositions = ref(null)
+  const meshsatNodes = ref(null)
+  const meshsatMessageStats = ref(null)
+  const meshsatStatus = ref(null)
+  const meshsatEventSource = ref(null)
+
   // Iridium — single active connection (lifecycle pattern, no port keys)
   const iridiumDevices = ref(null)
   const iridiumStatus = ref(null)
@@ -826,6 +835,216 @@ export const useCommunicationStore = defineStore('communication', () => {
   }
 
   // ==========================================
+  // MeshSat — Persistent Data (meshsat coreapp)
+  // ==========================================
+
+  /**
+   * Fetch messages from MeshSat persistent store
+   * GET /communication/meshsat/messages?node=&since=&until=&limit=&offset=
+   */
+  async function fetchMeshsatMessages(params = {}, options = {}) {
+    try {
+      const data = await api.get('/communication/meshsat/messages', params, options)
+      if (data === null) return null
+      meshsatMessages.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Fetch telemetry from MeshSat persistent store
+   * GET /communication/meshsat/telemetry?node=&since=&until=&limit=
+   */
+  async function fetchMeshsatTelemetry(params = {}, options = {}) {
+    try {
+      const data = await api.get('/communication/meshsat/telemetry', params, options)
+      if (data === null) return null
+      meshsatTelemetry.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Fetch positions from MeshSat persistent store
+   * GET /communication/meshsat/positions?node=&since=&until=&limit=
+   */
+  async function fetchMeshsatPositions(params = {}, options = {}) {
+    try {
+      const data = await api.get('/communication/meshsat/positions', params, options)
+      if (data === null) return null
+      meshsatPositions.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Fetch enriched node list from MeshSat
+   * GET /communication/meshsat/nodes
+   */
+  async function fetchMeshsatNodes(options = {}) {
+    try {
+      const data = await api.get('/communication/meshsat/nodes', {}, options)
+      if (data === null) return null
+      meshsatNodes.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Fetch message statistics from MeshSat
+   * GET /communication/meshsat/messages/stats
+   */
+  async function fetchMeshsatMessageStats(options = {}) {
+    try {
+      const data = await api.get('/communication/meshsat/messages/stats', {}, options)
+      if (data === null) return null
+      meshsatMessageStats.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Fetch MeshSat coreapp status (availability check)
+   * GET /communication/meshsat/status
+   */
+  async function fetchMeshsatStatus(options = {}) {
+    try {
+      const data = await api.get('/communication/meshsat/status', {}, options)
+      if (data === null) return null
+      meshsatStatus.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      meshsatStatus.value = null
+      return null
+    }
+  }
+
+  /**
+   * Reboot a remote Meshtastic node via MeshSat admin
+   * POST /communication/meshsat/admin/reboot
+   */
+  async function meshsatAdminReboot(payload) {
+    error.value = null
+    try {
+      return await api.post('/communication/meshsat/admin/reboot', payload)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Factory reset a remote Meshtastic node via MeshSat admin
+   * POST /communication/meshsat/admin/factory_reset
+   */
+  async function meshsatAdminFactoryReset(payload) {
+    error.value = null
+    try {
+      return await api.post('/communication/meshsat/admin/factory_reset', payload)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Traceroute to a remote Meshtastic node via MeshSat admin
+   * POST /communication/meshsat/admin/traceroute
+   */
+  async function meshsatAdminTraceroute(payload) {
+    error.value = null
+    try {
+      return await api.post('/communication/meshsat/admin/traceroute', payload)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Set radio configuration via MeshSat
+   * POST /communication/meshsat/config/radio
+   */
+  async function meshsatConfigRadio(payload) {
+    error.value = null
+    try {
+      return await api.post('/communication/meshsat/config/radio', payload)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Set module configuration via MeshSat
+   * POST /communication/meshsat/config/module
+   */
+  async function meshsatConfigModule(payload) {
+    error.value = null
+    try {
+      return await api.post('/communication/meshsat/config/module', payload)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Send a waypoint via MeshSat
+   * POST /communication/meshsat/waypoints
+   */
+  async function meshsatSendWaypoint(payload) {
+    error.value = null
+    try {
+      return await api.post('/communication/meshsat/waypoints', payload)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Open MeshSat SSE event stream for real-time updates.
+   * GET /communication/meshsat/events
+   */
+  function connectMeshsatSSE(onEvent, onError) {
+    closeSSE(meshsatEventSource)
+    meshsatEventSource.value = openSSE(
+      '/communication/meshsat/events',
+      onEvent,
+      onError
+    )
+  }
+
+  /**
+   * Close MeshSat SSE stream.
+   */
+  function closeMeshsatSSE() {
+    closeSSE(meshsatEventSource)
+  }
+
+  // ==========================================
   // Iridium — Lifecycle Pattern
   // ==========================================
 
@@ -1074,6 +1293,15 @@ export const useCommunicationStore = defineStore('communication', () => {
     meshtasticConnecting,
     meshtasticEventSource,
 
+    // State — MeshSat
+    meshsatMessages,
+    meshsatTelemetry,
+    meshsatPositions,
+    meshsatNodes,
+    meshsatMessageStats,
+    meshsatStatus,
+    meshsatEventSource,
+
     // State — Iridium
     iridiumDevices,
     iridiumStatus,
@@ -1092,6 +1320,7 @@ export const useCommunicationStore = defineStore('communication', () => {
     // SSE Helpers
     closeSSE,
     closeMeshtasticSSE,
+    closeMeshsatSSE,
     closeIridiumSSE,
 
     // Bluetooth
@@ -1133,6 +1362,21 @@ export const useCommunicationStore = defineStore('communication', () => {
     sendMeshtasticRaw,
     setMeshtasticChannel,
     connectMeshtasticSSE,
+
+    // MeshSat
+    fetchMeshsatMessages,
+    fetchMeshsatTelemetry,
+    fetchMeshsatPositions,
+    fetchMeshsatNodes,
+    fetchMeshsatMessageStats,
+    fetchMeshsatStatus,
+    meshsatAdminReboot,
+    meshsatAdminFactoryReset,
+    meshsatAdminTraceroute,
+    meshsatConfigRadio,
+    meshsatConfigModule,
+    meshsatSendWaypoint,
+    connectMeshsatSSE,
 
     // Iridium
     fetchIridiumDevices,
