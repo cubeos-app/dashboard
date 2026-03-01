@@ -57,7 +57,8 @@ const offlineApps = computed(() => {
     icon: cached.icon || '',
     installed: cached.installed,
     _source: 'offline_cache',
-    _imageName: cached.image,
+    _imageName: cached.image.includes(':') ? cached.image.substring(0, cached.image.lastIndexOf(':')) : cached.image,
+    _tag: cached.image.includes(':') ? cached.image.substring(cached.image.lastIndexOf(':') + 1) : 'latest',
     _registryImage: cached.registry_image,
     _storeId: cached.store_id,
     _cachedAt: cached.cached_at
