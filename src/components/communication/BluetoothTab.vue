@@ -54,15 +54,9 @@ const isDiscoverable = computed(() => {
   return bt.discoverable ?? false
 })
 
-/** Devices list normalised */
-const devices = computed(() => {
-  const raw = communicationStore.bluetoothDevices
-  if (!raw) return []
-  // Swagger returns { available: [...], paired: [...] } — merge both arrays
-  const list = Array.isArray(raw)
-    ? raw
-    : [...(raw.available || []), ...(raw.paired || raw.devices || raw.items || [])]
-  return list.map(d => ({
+/** Normalise a single device object */
+function normaliseDevice(d) {
+  return {
     address: d.address ?? d.mac ?? d.mac_address ?? 'unknown',
     name: d.name ?? d.alias ?? d.label ?? d.address ?? 'Unknown Device',
     type: d.type ?? d.icon ?? d.device_type ?? null,
@@ -70,7 +64,23 @@ const devices = computed(() => {
     connected: d.connected ?? d.active ?? false,
     rssi: d.rssi ?? d.signal ?? d.signal_strength ?? null,
     _raw: d
-  }))
+  }
+}
+
+/** Paired devices */
+const pairedDevices = computed(() => {
+  const raw = communicationStore.bluetoothDevices
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter(d => d.paired || d.bonded).map(normaliseDevice)
+  return (raw.paired || []).map(d => normaliseDevice({ ...d, paired: true }))
+})
+
+/** Available (discovered, not yet paired) devices */
+const availableDevices = computed(() => {
+  const raw = communicationStore.bluetoothDevices
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter(d => !(d.paired || d.bonded)).map(normaliseDevice)
+  return (raw.available || []).map(normaliseDevice)
 })
 
 /** Whether BT data has loaded at least once */
@@ -324,55 +334,51 @@ onMounted(async () => {
         </div>
 
         <!-- ======================================== -->
-        <!-- Devices Table -->
+        <!-- Paired Devices -->
         <!-- ======================================== -->
         <div class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
           <div class="px-5 py-4 border-b border-theme-primary">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <Icon name="List" :size="18" class="text-accent" />
-                <h2 class="text-lg font-semibold text-theme-primary">Devices</h2>
-                <span
-                  v-if="devices.length"
-                  class="text-xs font-medium px-2 py-0.5 rounded-full bg-accent-muted text-accent"
-                >
-                  {{ devices.length }}
-                </span>
-              </div>
+            <div class="flex items-center gap-2">
+              <Icon name="BluetoothConnected" :size="18" class="text-accent" />
+              <h2 class="text-lg font-semibold text-theme-primary">Paired Devices</h2>
+              <span
+                v-if="pairedDevices.length"
+                class="text-xs font-medium px-2 py-0.5 rounded-full bg-accent-muted text-accent"
+              >
+                {{ pairedDevices.length }}
+              </span>
             </div>
           </div>
 
-          <!-- Empty devices -->
-          <div v-if="!devices.length" class="p-8 text-center">
-            <Icon name="BluetoothSearching" :size="32" class="text-theme-muted mx-auto mb-2" />
-            <p class="text-sm text-theme-secondary">No devices found</p>
+          <!-- Empty paired -->
+          <div v-if="!pairedDevices.length" class="p-8 text-center">
+            <Icon name="Bluetooth" :size="32" class="text-theme-muted mx-auto mb-2" />
+            <p class="text-sm text-theme-secondary">No paired devices</p>
             <p class="text-xs text-theme-muted mt-1">
-              {{ isPowered ? 'Click "Scan for Devices" to discover nearby Bluetooth devices' : 'Power on the adapter to discover devices' }}
+              Scan for nearby devices and pair them to see them here
             </p>
           </div>
 
-          <!-- Devices list -->
+          <!-- Paired devices list -->
           <div v-else class="divide-y divide-theme-primary">
             <div
-              v-for="device in devices"
+              v-for="device in pairedDevices"
               :key="device.address"
               class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4"
             >
-              <!-- Device info -->
               <div class="flex items-center gap-3 min-w-0">
                 <div
                   :class="[
                     'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
-                    device.connected ? 'bg-success-muted' : device.paired ? 'bg-accent-muted' : 'bg-neutral-muted'
+                    device.connected ? 'bg-success-muted' : 'bg-accent-muted'
                   ]"
                 >
                   <Icon
                     :name="device.connected ? 'BluetoothConnected' : 'Bluetooth'"
                     :size="16"
-                    :class="device.connected ? 'text-success' : device.paired ? 'text-accent' : 'text-theme-muted'"
+                    :class="device.connected ? 'text-success' : 'text-accent'"
                   />
                 </div>
-
                 <div class="min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm font-medium text-theme-primary truncate">{{ device.name }}</span>
@@ -386,48 +392,18 @@ onMounted(async () => {
                   <div class="flex items-center gap-3 mt-0.5">
                     <span class="text-xs font-mono text-theme-muted">{{ device.address }}</span>
                     <span
-                      v-if="device.paired"
-                      class="text-xs font-medium text-accent"
-                    >
-                      Paired
-                    </span>
-                    <span
                       v-if="device.connected"
                       class="text-xs font-medium text-success"
                     >
                       Connected
                     </span>
-                    <span
-                      v-if="device.rssi !== null && device.rssi !== undefined"
-                      class="text-xs text-theme-muted"
-                    >
-                      {{ device.rssi }} dBm
-                    </span>
                   </div>
                 </div>
               </div>
 
-              <!-- Actions -->
               <div class="flex items-center gap-2 ml-11 sm:ml-0 flex-wrap">
-                <!-- Pair (only if not yet paired) -->
                 <button
-                  v-if="!device.paired"
-                  @click="handlePair(device.address)"
-                  :disabled="actionLoading[`pair-${device.address}`]"
-                  :aria-label="'Pair with ' + device.name"
-                  class="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50"
-                >
-                  <Icon
-                    v-if="actionLoading[`pair-${device.address}`]"
-                    name="Loader2" :size="12"
-                    class="inline-block animate-spin mr-1"
-                  />
-                  Pair
-                </button>
-
-                <!-- Connect (paired but not connected) -->
-                <button
-                  v-if="device.paired && !device.connected"
+                  v-if="!device.connected"
                   @click="handleConnect(device.address)"
                   :disabled="actionLoading[`connect-${device.address}`]"
                   :aria-label="'Connect to ' + device.name"
@@ -441,7 +417,6 @@ onMounted(async () => {
                   Connect
                 </button>
 
-                <!-- Disconnect (currently connected) -->
                 <button
                   v-if="device.connected"
                   @click="handleDisconnect(device.address)"
@@ -457,9 +432,7 @@ onMounted(async () => {
                   Disconnect
                 </button>
 
-                <!-- Remove (paired device) -->
                 <button
-                  v-if="device.paired"
                   @click="handleRemove(device.address)"
                   :disabled="actionLoading[`remove-${device.address}`]"
                   :aria-label="'Remove ' + device.name"
@@ -471,6 +444,87 @@ onMounted(async () => {
                     class="inline-block animate-spin mr-1"
                   />
                   Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======================================== -->
+        <!-- Available Devices (scan results) -->
+        <!-- ======================================== -->
+        <div
+          v-if="isPowered"
+          class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden"
+        >
+          <div class="px-5 py-4 border-b border-theme-primary">
+            <div class="flex items-center gap-2">
+              <Icon name="Radar" :size="18" class="text-accent" />
+              <h2 class="text-lg font-semibold text-theme-primary">Available Devices</h2>
+              <span
+                v-if="availableDevices.length"
+                class="text-xs font-medium px-2 py-0.5 rounded-full bg-accent-muted text-accent"
+              >
+                {{ availableDevices.length }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Empty available -->
+          <div v-if="!availableDevices.length" class="p-8 text-center">
+            <Icon name="BluetoothSearching" :size="32" class="text-theme-muted mx-auto mb-2" />
+            <p class="text-sm text-theme-secondary">No devices found</p>
+            <p class="text-xs text-theme-muted mt-1">
+              Click "Scan for Devices" to discover nearby Bluetooth devices
+            </p>
+          </div>
+
+          <!-- Available devices list -->
+          <div v-else class="divide-y divide-theme-primary">
+            <div
+              v-for="device in availableDevices"
+              :key="device.address"
+              class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-neutral-muted">
+                  <Icon name="Bluetooth" :size="16" class="text-theme-muted" />
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-sm font-medium text-theme-primary truncate">{{ device.name }}</span>
+                    <span
+                      v-if="device.type"
+                      class="text-xs text-theme-muted bg-theme-tertiary px-1.5 py-0.5 rounded"
+                    >
+                      {{ device.type }}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-3 mt-0.5">
+                    <span class="text-xs font-mono text-theme-muted">{{ device.address }}</span>
+                    <span
+                      v-if="device.rssi !== null && device.rssi !== undefined"
+                      class="text-xs text-theme-muted"
+                    >
+                      {{ device.rssi }} dBm
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 ml-11 sm:ml-0">
+                <button
+                  @click="handlePair(device.address)"
+                  :disabled="actionLoading[`pair-${device.address}`]"
+                  :aria-label="'Pair with ' + device.name"
+                  class="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-muted text-accent hover:bg-theme-tertiary transition-colors disabled:opacity-50"
+                >
+                  <Icon
+                    v-if="actionLoading[`pair-${device.address}`]"
+                    name="Loader2" :size="12"
+                    class="inline-block animate-spin mr-1"
+                  />
+                  Pair
                 </button>
               </div>
             </div>
