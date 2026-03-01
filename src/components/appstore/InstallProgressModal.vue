@@ -204,13 +204,17 @@ const title = computed(() => {
 
 /**
  * Build the app URL for the "Open App" button.
- * Prefer the URL from the server's SSE completion event (accurate —
- * includes the correct IP:port or FQDN based on access profile).
- * No local fallback: the server always provides the URL on success.
+ * The server sends either a full URL (http://fqdn or http://ip:port)
+ * or a port-only string (":6100") for standard profile.
+ * Port-only is resolved using the current browser hostname.
  */
 const appUrl = computed(() => {
   if (props.jobType === 'uninstall') return ''
-  return serverAppUrl.value || ''
+  const url = serverAppUrl.value || ''
+  if (url.startsWith(':')) {
+    return `http://${window.location.hostname}${url}`
+  }
+  return url
 })
 
 function openApp() {

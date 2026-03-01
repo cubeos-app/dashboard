@@ -382,8 +382,12 @@ export const useAppsStore = defineStore('apps', () => {
       return `http://${config.fqdn}${path}`
     }
 
-    // Use access_url from API if present (set by Phase 1+ install logic)
+    // Use access_url from API if present (set by Phase 1+ install logic).
+    // Port-only URLs (":6100") are resolved using the current hostname.
     if (app.access_url) {
+      if (app.access_url.startsWith(':')) {
+        return `http://${window.location.hostname}${app.access_url}`
+      }
       return app.access_url
     }
 
