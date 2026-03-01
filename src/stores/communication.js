@@ -97,6 +97,7 @@ export const useCommunicationStore = defineStore('communication', () => {
   const meshsatMessageStats = ref(null)
   const meshsatStatus = ref(null)
   const meshsatEventSource = ref(null)
+  const meshsatGateways = ref([])
 
   // Iridium — single active connection (lifecycle pattern, no port keys)
   const iridiumDevices = ref(null)
@@ -1044,6 +1045,105 @@ export const useCommunicationStore = defineStore('communication', () => {
     closeSSE(meshsatEventSource)
   }
 
+  /**
+   * Fetch MeshSat gateway status list.
+   * GET /communication/meshsat/gateways
+   */
+  async function fetchMeshsatGateways(options = {}) {
+    loading.value = true
+    error.value = null
+    try {
+      const data = await api.get('/communication/meshsat/gateways', {}, options)
+      if (data === null) return null
+      meshsatGateways.value = data.gateways || []
+      return meshsatGateways.value
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Configure a MeshSat gateway.
+   * PUT /communication/meshsat/gateways/{type}
+   */
+  async function configureMeshsatGateway(gwType, payload) {
+    error.value = null
+    try {
+      const data = await api.put(`/communication/meshsat/gateways/${gwType}`, payload)
+      await fetchMeshsatGateways()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Delete a MeshSat gateway configuration.
+   * DELETE /communication/meshsat/gateways/{type}
+   */
+  async function deleteMeshsatGateway(gwType) {
+    error.value = null
+    try {
+      const data = await api.delete(`/communication/meshsat/gateways/${gwType}`)
+      await fetchMeshsatGateways()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Start a MeshSat gateway.
+   * POST /communication/meshsat/gateways/{type}/start
+   */
+  async function startMeshsatGateway(gwType) {
+    error.value = null
+    try {
+      const data = await api.post(`/communication/meshsat/gateways/${gwType}/start`)
+      await fetchMeshsatGateways()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Stop a MeshSat gateway.
+   * POST /communication/meshsat/gateways/{type}/stop
+   */
+  async function stopMeshsatGateway(gwType) {
+    error.value = null
+    try {
+      const data = await api.post(`/communication/meshsat/gateways/${gwType}/stop`)
+      await fetchMeshsatGateways()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Test MeshSat gateway connectivity.
+   * POST /communication/meshsat/gateways/{type}/test
+   */
+  async function testMeshsatGateway(gwType) {
+    error.value = null
+    try {
+      return await api.post(`/communication/meshsat/gateways/${gwType}/test`)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
   // ==========================================
   // Iridium — Lifecycle Pattern
   // ==========================================
@@ -1301,6 +1401,7 @@ export const useCommunicationStore = defineStore('communication', () => {
     meshsatMessageStats,
     meshsatStatus,
     meshsatEventSource,
+    meshsatGateways,
 
     // State — Iridium
     iridiumDevices,
@@ -1377,6 +1478,12 @@ export const useCommunicationStore = defineStore('communication', () => {
     meshsatConfigModule,
     meshsatSendWaypoint,
     connectMeshsatSSE,
+    fetchMeshsatGateways,
+    configureMeshsatGateway,
+    deleteMeshsatGateway,
+    startMeshsatGateway,
+    stopMeshsatGateway,
+    testMeshsatGateway,
 
     // Iridium
     fetchIridiumDevices,

@@ -5,13 +5,41 @@
  * Configuration sub-tab: channel config, radio config, module config,
  * and waypoint management.
  */
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useCommunicationStore } from '@/stores/communication'
 import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps({
   meshsatAvailable: { type: Boolean, default: false }
+})
+
+// Gateway status
+const gwLoading = ref(false)
+
+async function loadGateways() {
+  gwLoading.value = true
+  try {
+    await communicationStore.fetchMeshsatGateways()
+  } finally {
+    gwLoading.value = false
+  }
+}
+
+async function toggleGateway(gw) {
+  try {
+    if (gw.connected) {
+      await communicationStore.stopMeshsatGateway(gw.type)
+    } else {
+      await communicationStore.startMeshsatGateway(gw.type)
+    }
+  } catch {
+    // error handled by store
+  }
+}
+
+onMounted(() => {
+  if (props.meshsatAvailable) loadGateways()
 })
 
 const communicationStore = useCommunicationStore()
@@ -454,6 +482,50 @@ function isValidJSON(str) {
           />
           Send Waypoint
         </button>
+      </div>
+    </div>
+
+    <!-- Gateway Status Section -->
+    <div v-if="meshsatAvailable" class="card">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-medium text-secondary">Gateways</h3>
+        <button
+          @click="loadGateways"
+          :disabled="gwLoading"
+          class="text-xs text-tertiary hover:text-secondary transition-colors"
+        >
+          {{ gwLoading ? 'Loading...' : 'Refresh' }}
+        </button>
+      </div>
+
+      <div v-if="!communicationStore.meshsatGateways?.length" class="text-xs text-tertiary">
+        No gateways configured. Open MeshSat UI at :6050/gateways to configure.
+      </div>
+
+      <div v-else class="space-y-2">
+        <div
+          v-for="gw in communicationStore.meshsatGateways"
+          :key="gw.type"
+          class="flex items-center justify-between p-2.5 rounded-lg bg-surface-alt"
+        >
+          <div class="flex items-center gap-2">
+            <div
+              class="w-2 h-2 rounded-full"
+              :class="gw.connected ? 'bg-green-400' : 'bg-gray-500'"
+            />
+            <span class="text-sm text-secondary capitalize">{{ gw.type }}</span>
+            <span class="text-xs text-tertiary">
+              {{ gw.messages_in ?? 0 }} in / {{ gw.messages_out ?? 0 }} out
+            </span>
+          </div>
+          <button
+            @click="toggleGateway(gw)"
+            class="px-2.5 py-1 text-xs rounded-md transition-colors"
+            :class="gw.connected ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-accent/20 text-accent hover:bg-accent/30'"
+          >
+            {{ gw.connected ? 'Stop' : 'Start' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
