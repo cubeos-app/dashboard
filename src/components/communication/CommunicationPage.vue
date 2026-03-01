@@ -2,14 +2,14 @@
 /**
  * CommunicationPage.vue — S09 Component
  *
- * Shell that renders GPS + Cellular (both modes) and
- * Meshtastic / Iridium / Bluetooth tabs (Advanced only).
+ * Shell that renders Bluetooth + Cellular (both modes) and
+ * GPS / Meshtastic / Iridium tabs (Advanced only).
  * Hidden from nav when HAL reports no communication hardware.
  *
  * Pattern: Shell → tab components (following S08 SystemPage pattern)
  *
- * Standard tabs: GPS, Cellular
- * Advanced tabs: GPS, Cellular, Meshtastic, Iridium, Bluetooth
+ * Standard tabs: Bluetooth, Cellular
+ * Advanced tabs: Bluetooth, Cellular, GPS, Meshtastic, Iridium
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -37,20 +37,20 @@ const { signal } = useAbortOnUnmount()
 // ─── Tab Management ──────────────────────────────────────────
 const TAB_DEFS = computed(() => {
   const tabs = [
-    { key: 'gps', label: 'GPS', icon: 'MapPin' },
+    { key: 'bluetooth', label: 'Bluetooth', icon: 'Bluetooth' },
     { key: 'cellular', label: 'Cellular', icon: 'Signal' }
   ]
   if (isAdvanced.value) {
     tabs.push(
+      { key: 'gps', label: 'GPS', icon: 'MapPin' },
       { key: 'meshtastic', label: 'Meshtastic', icon: 'Radio' },
-      { key: 'iridium', label: 'Iridium', icon: 'Satellite' },
-      { key: 'bluetooth', label: 'Bluetooth', icon: 'Bluetooth' }
+      { key: 'iridium', label: 'Iridium', icon: 'Satellite' }
     )
   }
   return tabs
 })
 
-const activeTab = ref('gps')
+const activeTab = ref('bluetooth')
 
 // Read ?tab= from route for backward-compat
 watch(() => route.query.tab, (tab) => {
@@ -59,10 +59,10 @@ watch(() => route.query.tab, (tab) => {
   }
 }, { immediate: true })
 
-// Reset to 'gps' if current tab becomes invalid (e.g., mode switch)
+// Reset to 'bluetooth' if current tab becomes invalid (e.g., mode switch)
 watch(TAB_DEFS, (tabs) => {
   if (!tabs.some(t => t.key === activeTab.value)) {
-    activeTab.value = 'gps'
+    activeTab.value = 'bluetooth'
   }
 })
 
@@ -140,7 +140,7 @@ const displayError = computed(() => {
     <PageHeader
       icon="Radio"
       title="Communication"
-      subtitle="GPS, cellular, mesh networking, and satellite communication"
+      subtitle="Bluetooth, cellular, mesh networking, and satellite communication"
     >
       <template #actions>
         <button
@@ -172,12 +172,16 @@ const displayError = computed(() => {
     />
 
     <!-- Tab Content -->
-    <GPSTab
-      v-if="activeTab === 'gps'"
+    <BluetoothTab
+      v-if="activeTab === 'bluetooth'"
     />
 
     <CellularTab
       v-if="activeTab === 'cellular'"
+    />
+
+    <GPSTab
+      v-if="activeTab === 'gps'"
     />
 
     <MeshtasticTab
@@ -186,10 +190,6 @@ const displayError = computed(() => {
 
     <IridiumTab
       v-if="activeTab === 'iridium'"
-    />
-
-    <BluetoothTab
-      v-if="activeTab === 'bluetooth'"
     />
   </div>
 </template>
