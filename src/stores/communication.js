@@ -1240,10 +1240,29 @@ export const useCommunicationStore = defineStore('communication', () => {
   }
 
   /**
-   * Fetch Iridium signal strength
-   * GET /communication/iridium/signal
+   * Fetch Iridium signal strength — cached/fast (AT+CSQF, ~100ms, non-blocking).
+   * Safe to call every 10s. Does not block SBD operations.
+   * GET /communication/iridium/signal/fast
    */
   async function fetchIridiumSignal(options = {}) {
+    try {
+      const data = await api.get('/communication/iridium/signal/fast', {}, options)
+      if (data === null) return null
+      iridiumSignal.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      error.value = e.message
+      return null
+    }
+  }
+
+  /**
+   * Fetch Iridium signal strength — fresh blocking measurement (AT+CSQ, up to 60s).
+   * Use for manual refresh button only. Blocks SBD operations during measurement.
+   * GET /communication/iridium/signal
+   */
+  async function fetchIridiumSignalFull(options = {}) {
     try {
       const data = await api.get('/communication/iridium/signal', {}, options)
       if (data === null) return null
@@ -1491,6 +1510,7 @@ export const useCommunicationStore = defineStore('communication', () => {
     disconnectIridium,
     fetchIridiumStatus,
     fetchIridiumSignal,
+    fetchIridiumSignalFull,
     fetchIridiumMessages,
     sendIridiumSBD,
     checkIridiumMailbox,

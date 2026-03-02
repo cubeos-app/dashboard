@@ -41,7 +41,8 @@ let errorTimeout = null
 
 // Signal auto-refresh
 let signalPollInterval = null
-const SIGNAL_POLL_MS = 30000
+const SIGNAL_POLL_MS = 10000   // 10s — uses fast cached AT+CSQF endpoint
+const signalRefreshing = ref(false) // true while blocking AT+CSQ is in progress
 
 // SBD limits — AT+SBDWT allows max 120 chars, AT+SBDWB allows max 340 bytes
 const SBD_TEXT_MAX_CHARS = 120
@@ -336,12 +337,26 @@ function startSignalPolling() {
       stopSignalPolling()
       return
     }
+    if (signalRefreshing.value) return // skip tick while blocking refresh is running
     try {
       await communicationStore.fetchIridiumSignal()
     } catch {
       // Silent — don't show error for background polling
     }
   }, SIGNAL_POLL_MS)
+}
+
+// Manual full refresh — blocking AT+CSQ (up to 60s), triggered by Refresh button
+async function refreshSignalFull() {
+  if (signalRefreshing.value) return
+  signalRefreshing.value = true
+  try {
+    await communicationStore.fetchIridiumSignalFull()
+  } catch {
+    // Silent
+  } finally {
+    signalRefreshing.value = false
+  }
 }
 
 function stopSignalPolling() {
@@ -718,15 +733,15 @@ onUnmounted(() => {
               </div>
               <span class="text-xs text-theme-muted">{{ signalBars }}/5</span>
               <button
-                @click="handleRefreshSignal"
-                :disabled="actionLoading.signal"
+                @click="refreshSignalFull"
+                :disabled="signalRefreshing"
                 class="p-1 rounded text-theme-muted hover:text-theme-primary transition-colors"
-                title="Refresh signal"
-                aria-label="Refresh signal strength"
+                title="Force refresh signal (blocking scan)"
+                aria-label="Force refresh signal strength"
               >
                 <Icon
                   name="RefreshCw" :size="12"
-                  :class="{ 'animate-spin': actionLoading.signal }"
+                  :class="{ 'animate-spin': signalRefreshing }"
                 />
               </button>
             </div>

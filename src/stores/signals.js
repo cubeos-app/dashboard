@@ -98,7 +98,7 @@ export const useSignalsStore = defineStore('signals', () => {
     try {
       const data = await api.get('/communication/iridium/status', {}, options)
       if (data === null) return
-      const sig = await api.get('/communication/iridium/signal', {}, {}).catch(() => null)
+      const sig = await api.get('/communication/iridium/signal/fast', {}, {}).catch(() => null)
       iridium.value = {
         status: data.connected ? 'active' : 'connected',
         signalBars: sig?.bars ?? sig?.signal ?? 0,
