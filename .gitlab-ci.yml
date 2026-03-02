@@ -86,7 +86,24 @@ deploy:
     - eval $(ssh-agent -s)
     - echo "$CI_DEPLOY_SSH_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh && chmod 700 ~/.ssh
-    - ssh-keyscan -H ${PI_DEPLOY_ADDR} >> ~/.ssh/known_hosts 2>/dev/null
+    # Resolve deploy target — try primary, fall back to alt interface
+    - |
+      _RESOLVED=""
+      for ADDR in ${PI_DEPLOY_ADDR} ${PI_DEPLOY_ADDR_ALT}; do
+        [ -z "$ADDR" ] && continue
+        ssh-keyscan -H "$ADDR" >> ~/.ssh/known_hosts 2>/dev/null || true
+        if ssh -o ConnectTimeout=5 -o BatchMode=yes "cubeos@${ADDR}" true 2>/dev/null; then
+          _RESOLVED="$ADDR"
+          break
+        fi
+      done
+      if [ -z "$_RESOLVED" ]; then
+        echo "ERROR: Pi unreachable at ${PI_DEPLOY_ADDR} / ${PI_DEPLOY_ADDR_ALT}"
+        exit 1
+      fi
+      export PI_DEPLOY_ADDR="$_RESOLVED"
+      export PI_DEPLOY_HOST="cubeos@${_RESOLVED}"
+      echo "Deploy target: ${PI_DEPLOY_HOST}"
   script:
     - scp scripts/ci-deploy.sh ${PI_DEPLOY_HOST}:/tmp/ci-deploy-dashboard.sh
     - |
@@ -105,11 +122,23 @@ deploy:
       eval $(ssh-agent -s)
       echo "$CI_DEPLOY_SSH_KEY" | tr -d '\r' | ssh-add -
       mkdir -p ~/.ssh && chmod 700 ~/.ssh
-      ssh-keyscan -H ${PI_DEPLOY_ADDR} >> ~/.ssh/known_hosts 2>/dev/null
-      echo "=== Restarting watchdog ==="
-      ssh -o ConnectTimeout=10 ${PI_DEPLOY_HOST} \
-        "sudo systemctl start cubeos-watchdog.timer 2>/dev/null || true; echo '  Watchdog timer restarted'" \
-        || echo "  WARNING: Could not restart watchdog via SSH"
+      # Resolve deploy target — try both interfaces
+      _RESOLVED=""
+      for ADDR in ${PI_DEPLOY_ADDR} ${PI_DEPLOY_ADDR_ALT}; do
+        [ -z "$ADDR" ] && continue
+        ssh-keyscan -H "$ADDR" >> ~/.ssh/known_hosts 2>/dev/null || true
+        if ssh -o ConnectTimeout=5 -o BatchMode=yes "cubeos@${ADDR}" true 2>/dev/null; then
+          _RESOLVED="$ADDR"
+          break
+        fi
+      done
+      if [ -n "$_RESOLVED" ]; then
+        echo "=== Restarting watchdog ==="
+        ssh -o ConnectTimeout=10 "cubeos@${_RESOLVED}" \
+          "sudo systemctl start cubeos-watchdog.timer 2>/dev/null || true; echo '  Watchdog timer restarted'"
+      else
+        echo "WARNING: Could not reach Pi for watchdog restart"
+      fi
       kill $SSH_AGENT_PID 2>/dev/null || true
   environment:
     name: production
