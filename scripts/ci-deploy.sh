@@ -16,6 +16,18 @@
 # =============================================================================
 set -euo pipefail
 
+# --- Source env files for compose variable substitution ---
+if [ -f /cubeos/config/defaults.env ]; then
+  set -a
+  source /cubeos/config/defaults.env
+  set +a
+fi
+if [ -f /cubeos/config/secrets.env ]; then
+  set -a
+  source /cubeos/config/secrets.env
+  set +a
+fi
+
 LOCAL_REG_IMAGE="localhost:5000/cubeos-app/dashboard:latest"
 SERVICE_NAME="cubeos-dashboard_cubeos-dashboard"
 STACK_NAME="cubeos-dashboard"
