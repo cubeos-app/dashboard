@@ -17,6 +17,7 @@ import { useAppManagerStore } from '@/stores/appmanager'
 import { useNPMStore } from '@/stores/npm'
 import { confirm } from '@/utils/confirmDialog'
 import { makeFqdn, getDomainSuffix, makePlaceholder } from '@/utils/domain'
+import api from '@/api/client'
 import Icon from '@/components/ui/Icon.vue'
 
 const { t } = useI18n()
@@ -28,6 +29,7 @@ const npmStore = useNPMStore()
 const SUB_TABS = computed(() => [
   { key: 'fqdns', label: t('apps.manager.domains'), icon: 'Globe' },
   { key: 'npm', label: t('apps.manager.proxy'), icon: 'Shield' },
+  { key: 'certs', label: t('apps.manager.certificates'), icon: 'ShieldCheck' },
   { key: 'casaos', label: t('apps.manager.import'), icon: 'Download' }
 ])
 const activeSubTab = ref('fqdns')
@@ -36,6 +38,7 @@ const activeSubTab = ref('fqdns')
 onMounted(() => {
   store.fetchFQDNs()
   npmStore.fetchAll()
+  loadTlsMode()
 })
 
 // ═══════════════════════════════════════════════════════════════
@@ -203,6 +206,152 @@ function getDomainDisplay(host) { return Array.isArray(host.domain_names) ? host
 function getForwardDisplay(host) { return `${host.forward_scheme || 'http'}://${host.forward_host || '-'}:${host.forward_port || 80}` }
 function hostStatusClass(host) { return host.enabled === false ? 'bg-theme-tertiary text-theme-muted' : 'bg-success-muted text-success' }
 function hostStatusText(host) { return host.enabled === false ? t('common.disabled') : t('common.active') }
+
+// ─── Edit Proxy Host ────────────────────────────────────────
+const showEditHostModal = ref(false)
+const editHostLoading = ref(false)
+const editHostId = ref(null)
+const editHostForm = ref({
+  domain_names: '', forward_host: '', forward_port: 80, forward_scheme: 'http',
+  ssl_forced: false, certificate_id: 0, block_exploits: true, allow_websocket_upgrade: true
+})
+
+function openEditHost(host) {
+  editHostId.value = host.id
+  editHostForm.value = {
+    domain_names: Array.isArray(host.domain_names) ? host.domain_names.join(', ') : host.domain_names || '',
+    forward_host: host.forward_host || '',
+    forward_port: host.forward_port || 80,
+    forward_scheme: host.forward_scheme || 'http',
+    ssl_forced: host.ssl_forced || false,
+    certificate_id: host.certificate_id || 0,
+    block_exploits: host.block_exploits !== false,
+    allow_websocket_upgrade: host.allow_websocket_upgrade !== false
+  }
+  npmError.value = null
+  showEditHostModal.value = true
+}
+
+async function saveEditHost() {
+  if (!editHostForm.value.domain_names.trim() || !editHostForm.value.forward_host.trim()) return
+  editHostLoading.value = true
+  npmError.value = null
+  try {
+    const domains = editHostForm.value.domain_names.split(',').map(d => d.trim()).filter(Boolean)
+    const domainPattern = /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/
+    const invalid = domains.find(d => !domainPattern.test(d))
+    if (invalid) { npmError.value = t('apps.manager.invalidDomainFormat', { domain: invalid }); editHostLoading.value = false; return }
+    await npmStore.updateHost(editHostId.value, {
+      domain_names: domains, forward_host: editHostForm.value.forward_host.trim(),
+      forward_port: Number(editHostForm.value.forward_port) || 80, forward_scheme: editHostForm.value.forward_scheme,
+      ssl_forced: editHostForm.value.ssl_forced, certificate_id: editHostForm.value.certificate_id || 0,
+      block_exploits: editHostForm.value.block_exploits, allow_websocket_upgrade: editHostForm.value.allow_websocket_upgrade
+    })
+    showEditHostModal.value = false
+  } catch (e) { npmError.value = t('apps.manager.failedUpdateHost', { error: e.message }) }
+  finally { editHostLoading.value = false }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Certificates Management
+// ═══════════════════════════════════════════════════════════════
+
+const tlsMode = ref('http')
+const tlsLoading = ref(false)
+const tlsSaving = ref(false)
+const tlsError = ref(null)
+const showTlsChange = ref(false)
+const newTlsMode = ref('http')
+const downloadingCA = ref(false)
+const deleteCertLoading = ref({})
+
+const tlsModeLabels = {
+  http: 'apps.manager.tlsModeHttp',
+  letsencrypt: 'apps.manager.tlsModeLetsEncrypt',
+  self_signed_ca: 'apps.manager.tlsModeSelfSigned'
+}
+
+async function loadTlsMode() {
+  tlsLoading.value = true
+  try {
+    const data = await api.get('/system/access-profile')
+    tlsMode.value = data.tls_mode || 'http'
+    newTlsMode.value = tlsMode.value
+  } catch (e) {
+    tlsError.value = e.message
+  } finally {
+    tlsLoading.value = false
+  }
+}
+
+async function saveTlsMode() {
+  tlsSaving.value = true
+  tlsError.value = null
+  try {
+    await api.put('/system/access-profile', { tls_mode: newTlsMode.value })
+    tlsMode.value = newTlsMode.value
+    showTlsChange.value = false
+  } catch (e) {
+    tlsError.value = e.message
+  } finally {
+    tlsSaving.value = false
+  }
+}
+
+async function downloadCA() {
+  downloadingCA.value = true
+  try {
+    const response = await api.get('/system/tls/ca.crt', { responseType: 'text' })
+    const blob = new Blob([response], { type: 'application/x-pem-file' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'cubeos-ca.crt'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    tlsError.value = e.message
+  } finally {
+    downloadingCA.value = false
+  }
+}
+
+async function deleteCert(cert) {
+  if (!await confirm({
+    title: t('apps.manager.deleteCert'),
+    message: t('apps.manager.deleteCertMessage', { name: cert.nice_name }),
+    confirmText: t('common.delete'),
+    variant: 'danger'
+  })) return
+  deleteCertLoading.value = { ...deleteCertLoading.value, [cert.id]: true }
+  try {
+    await npmStore.deleteCertificate(cert.id)
+  } catch (e) {
+    tlsError.value = t('apps.manager.failedDeleteCert', { error: e.message })
+  } finally {
+    deleteCertLoading.value = { ...deleteCertLoading.value, [cert.id]: false }
+  }
+}
+
+function certExpiryClass(expiresOn) {
+  if (!expiresOn) return 'text-theme-muted'
+  const exp = new Date(expiresOn)
+  const now = new Date()
+  const daysLeft = (exp - now) / (1000 * 60 * 60 * 24)
+  if (daysLeft < 0) return 'text-error'
+  if (daysLeft <= 30) return 'text-warning'
+  return 'text-success'
+}
+
+function certExpiryText(expiresOn) {
+  if (!expiresOn) return ''
+  const exp = new Date(expiresOn)
+  const now = new Date()
+  const daysLeft = Math.floor((exp - now) / (1000 * 60 * 60 * 24))
+  if (daysLeft < 0) return t('apps.manager.certExpired')
+  if (daysLeft <= 30) return t('apps.manager.certExpiringSoon')
+  return t('apps.manager.certExpires', { date: formatDate(expiresOn) })
+}
 
 // ═══════════════════════════════════════════════════════════════
 // CasaOS Import
@@ -442,6 +591,9 @@ async function importApp() {
               <span class="px-2 py-0.5 text-[10px] font-semibold rounded" :class="host.ssl_forced || host.certificate_id ? 'bg-success-muted text-success' : 'bg-theme-tertiary text-theme-muted'">
                 {{ host.ssl_forced || host.certificate_id ? t('apps.manager.sslOn') : t('apps.manager.sslOff') }}
               </span>
+              <button @click="openEditHost(host)" class="p-2 text-theme-muted hover:text-accent rounded-lg hover:bg-accent-muted" :aria-label="t('apps.manager.editHost')">
+                <Icon name="Pencil" :size="14" />
+              </button>
               <button @click="deleteHost(host)" :disabled="deleteHostLoading[host.id]" class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50" :aria-label="t('apps.manager.deleteProxyHostLabel', { name: getDomainDisplay(host) })">
                 <Icon v-if="deleteHostLoading[host.id]" name="Loader2" :size="14" class="animate-spin" /><Icon v-else name="Trash2" :size="14" />
               </button>
@@ -456,6 +608,142 @@ async function importApp() {
         <h3 class="text-lg font-medium text-theme-primary mb-2">{{ t('apps.manager.noProxyHosts') }}</h3>
         <p class="text-theme-muted text-sm mb-4">{{ t('apps.manager.noProxyHostsHint') }}</p>
         <button @click="openCreateHost" class="px-4 py-2 btn-accent rounded-lg text-sm">{{ t('apps.manager.addFirstHost') }}</button>
+      </div>
+    </template>
+
+    <!-- ═══════════ Certificates Sub-tab ═══════════ -->
+    <template v-if="activeSubTab === 'certs'">
+      <div class="space-y-6">
+
+        <!-- Global TLS Mode Card -->
+        <div class="bg-theme-card rounded-xl border border-theme-primary p-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
+                <Icon name="ShieldCheck" :size="20" class="text-accent" />
+              </div>
+              <div>
+                <h3 class="font-semibold text-theme-primary">{{ t('apps.manager.globalTlsMode') }}</h3>
+                <div v-if="tlsLoading" class="flex items-center gap-2 text-sm text-theme-muted mt-0.5">
+                  <Icon name="Loader2" :size="14" class="animate-spin" />{{ t('common.loading') }}
+                </div>
+                <p v-else class="text-sm text-theme-secondary mt-0.5">
+                  {{ t('apps.manager.currentMode') }}: <span class="font-medium text-theme-primary">{{ t(tlsModeLabels[tlsMode] || 'apps.manager.tlsModeHttp') }}</span>
+                </p>
+              </div>
+            </div>
+            <button @click="showTlsChange = !showTlsChange" class="px-4 py-2 text-sm font-medium text-accent hover:bg-accent-muted rounded-lg transition-colors flex items-center gap-2">
+              <Icon name="Settings" :size="16" />{{ t('apps.manager.changeTlsMode') }}
+            </button>
+          </div>
+
+          <!-- TLS Mode Selector -->
+          <div v-if="showTlsChange" class="mt-6 pt-6 border-t border-theme-primary space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button @click="newTlsMode = 'http'"
+                :class="['p-4 rounded-lg border-2 text-left transition-colors', newTlsMode === 'http' ? 'border-accent bg-accent-muted' : 'border-theme-primary hover:border-accent/50']">
+                <div class="flex items-center gap-2 mb-1">
+                  <Icon name="Unlock" :size="16" :class="newTlsMode === 'http' ? 'text-accent' : 'text-theme-muted'" />
+                  <span class="text-sm font-medium text-theme-primary">{{ t('apps.manager.tlsModeHttp') }}</span>
+                </div>
+                <p class="text-xs text-theme-muted">{{ t('apps.manager.tlsModeHttpDesc') }}</p>
+              </button>
+              <button @click="newTlsMode = 'letsencrypt'"
+                :class="['p-4 rounded-lg border-2 text-left transition-colors', newTlsMode === 'letsencrypt' ? 'border-accent bg-accent-muted' : 'border-theme-primary hover:border-accent/50']">
+                <div class="flex items-center gap-2 mb-1">
+                  <Icon name="ShieldCheck" :size="16" :class="newTlsMode === 'letsencrypt' ? 'text-accent' : 'text-theme-muted'" />
+                  <span class="text-sm font-medium text-theme-primary">{{ t('apps.manager.tlsModeLetsEncrypt') }}</span>
+                </div>
+                <p class="text-xs text-theme-muted">{{ t('apps.manager.tlsModeLeDesc') }}</p>
+              </button>
+              <button @click="newTlsMode = 'self_signed_ca'"
+                :class="['p-4 rounded-lg border-2 text-left transition-colors', newTlsMode === 'self_signed_ca' ? 'border-accent bg-accent-muted' : 'border-theme-primary hover:border-accent/50']">
+                <div class="flex items-center gap-2 mb-1">
+                  <Icon name="Key" :size="16" :class="newTlsMode === 'self_signed_ca' ? 'text-accent' : 'text-theme-muted'" />
+                  <span class="text-sm font-medium text-theme-primary">{{ t('apps.manager.tlsModeSelfSigned') }}</span>
+                </div>
+                <p class="text-xs text-theme-muted">{{ t('apps.manager.tlsModeSelfDesc') }}</p>
+              </button>
+            </div>
+            <div class="flex items-center justify-end gap-3">
+              <button @click="showTlsChange = false; newTlsMode = tlsMode" class="px-4 py-2 text-sm text-theme-secondary hover:text-theme-primary">{{ t('common.cancel') }}</button>
+              <button @click="saveTlsMode" :disabled="tlsSaving || newTlsMode === tlsMode" class="px-4 py-2 btn-accent rounded-lg text-sm disabled:opacity-50 flex items-center gap-2">
+                <Icon v-if="tlsSaving" name="Loader2" :size="14" class="animate-spin" />{{ tlsSaving ? t('apps.manager.savingTlsMode') : t('common.save') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Self-signed CA Card -->
+        <div v-if="tlsMode === 'self_signed_ca'" class="bg-theme-card rounded-xl border border-theme-primary p-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-success-muted flex items-center justify-center">
+                <Icon name="Key" :size="20" class="text-success" />
+              </div>
+              <div>
+                <h3 class="font-semibold text-theme-primary">{{ t('apps.manager.tlsModeSelfSigned') }}</h3>
+                <p class="text-sm text-success mt-0.5">{{ t('apps.manager.caReady') }}</p>
+              </div>
+            </div>
+            <button @click="downloadCA" :disabled="downloadingCA" class="px-4 py-2 text-sm font-medium text-accent hover:bg-accent-muted rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50">
+              <Icon v-if="downloadingCA" name="Loader2" :size="16" class="animate-spin" /><Icon v-else name="Download" :size="16" />
+              {{ t('apps.manager.downloadCa') }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div v-if="tlsError" class="bg-error-muted border border-error rounded-lg p-4 flex items-start gap-2">
+          <Icon name="AlertTriangle" :size="16" class="text-error flex-shrink-0 mt-0.5" />
+          <div class="flex-1">
+            <p class="text-sm text-error">{{ tlsError }}</p>
+            <button @click="tlsError = null" class="text-xs text-theme-muted hover:text-theme-secondary mt-1">{{ t('common.dismiss') }}</button>
+          </div>
+        </div>
+
+        <!-- Certificate List -->
+        <div v-if="npmStore.certificates.length > 0" class="bg-theme-card rounded-xl border border-theme-primary overflow-hidden">
+          <div class="px-5 py-3 border-b border-theme-primary">
+            <h3 class="text-sm font-semibold text-theme-primary">{{ t('apps.manager.certificates') }} ({{ npmStore.certificates.length }})</h3>
+          </div>
+          <div class="divide-y divide-theme-primary/50">
+            <div v-for="cert in npmStore.certificates" :key="cert.id" class="px-5 py-4 flex items-center gap-4 hover:bg-theme-tertiary/30 transition-colors">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                :class="cert.provider === 'letsencrypt' ? 'bg-success-muted' : 'bg-accent-muted'">
+                <Icon :name="cert.provider === 'letsencrypt' ? 'ShieldCheck' : 'Key'" :size="18"
+                  :class="cert.provider === 'letsencrypt' ? 'text-success' : 'text-accent'" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-theme-primary truncate">{{ cert.nice_name }}</p>
+                <p class="text-xs text-theme-muted truncate mt-0.5">{{ cert.domain_names?.join(', ') || '-' }}</p>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <span class="px-2 py-0.5 text-[10px] font-semibold rounded"
+                  :class="cert.provider === 'letsencrypt' ? 'bg-success-muted text-success' : 'bg-accent-muted text-accent'">
+                  {{ cert.provider === 'letsencrypt' ? t('apps.manager.certProviderLE') : t('apps.manager.certProviderCustom') }}
+                </span>
+                <span v-if="cert.expires_on" class="text-xs" :class="certExpiryClass(cert.expires_on)">
+                  {{ certExpiryText(cert.expires_on) }}
+                </span>
+                <button @click="deleteCert(cert)" :disabled="deleteCertLoading[cert.id]"
+                  class="p-2 text-theme-muted hover:text-error rounded-lg hover:bg-error-muted disabled:opacity-50"
+                  :aria-label="t('apps.manager.deleteCert')">
+                  <Icon v-if="deleteCertLoading[cert.id]" name="Loader2" :size="14" class="animate-spin" />
+                  <Icon v-else name="Trash2" :size="14" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-if="npmStore.certificates.length === 0 && !npmStore.loading" class="bg-theme-card rounded-xl border border-theme-primary p-8 text-center">
+          <Icon name="ShieldCheck" :size="40" class="mx-auto text-theme-muted mb-4" />
+          <h3 class="text-lg font-medium text-theme-primary mb-2">{{ t('apps.manager.noCertificates') }}</h3>
+          <p class="text-theme-muted text-sm">{{ t('apps.manager.noCertificatesHint') }}</p>
+        </div>
+
       </div>
     </template>
 
@@ -628,6 +916,13 @@ async function importApp() {
                 <input id="mgr-npm-port" v-model.number="hostForm.forward_port" type="number" min="1" max="65535" placeholder="80" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm">
               </div>
             </div>
+            <div v-if="npmStore.certificates.length > 0">
+              <label for="mgr-npm-cert" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.certificate') }}</label>
+              <select id="mgr-npm-cert" v-model="hostForm.certificate_id" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm">
+                <option :value="0">{{ t('apps.manager.noCertificate') }}</option>
+                <option v-for="cert in npmStore.certificates" :key="cert.id" :value="cert.id">{{ cert.nice_name }} ({{ cert.domain_names?.join(', ') }})</option>
+              </select>
+            </div>
             <div class="space-y-3 pt-2">
               <label class="flex items-center gap-3 cursor-pointer"><input v-model="hostForm.ssl_forced" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">{{ t('apps.manager.forceSSL') }}</span></label>
               <label class="flex items-center gap-3 cursor-pointer"><input v-model="hostForm.block_exploits" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">{{ t('apps.manager.blockExploits') }}</span></label>
@@ -638,6 +933,60 @@ async function importApp() {
             <button @click="showCreateHostModal = false" class="px-4 py-2 text-theme-secondary hover:bg-theme-tertiary rounded-lg text-sm">{{ t('common.cancel') }}</button>
             <button @click="saveHost" :disabled="createHostLoading || !hostForm.domain_names.trim() || !hostForm.forward_host.trim()" class="px-4 py-2 btn-accent rounded-lg text-sm disabled:opacity-50 flex items-center gap-2">
               <Icon v-if="createHostLoading" name="Loader2" :size="14" class="animate-spin" />{{ t('apps.manager.createHost') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Edit NPM Host Modal -->
+    <Teleport to="body">
+      <div v-if="showEditHostModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" :aria-label="t('apps.manager.editHost')">
+        <div class="absolute inset-0 bg-theme-overlay backdrop-blur-sm" @click="showEditHostModal = false"></div>
+        <div class="relative bg-theme-card rounded-2xl shadow-xl w-full max-w-md border border-theme-primary max-h-[90vh] flex flex-col">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-theme-primary flex-shrink-0">
+            <h3 class="text-lg font-semibold text-theme-primary">{{ t('apps.manager.editHost') }}</h3>
+            <button @click="showEditHostModal = false" class="p-1 text-theme-muted hover:text-theme-secondary rounded-lg" :aria-label="t('common.close')"><Icon name="X" :size="18" /></button>
+          </div>
+          <div class="p-6 space-y-4 overflow-y-auto flex-1">
+            <div>
+              <label for="mgr-edit-npm-domains" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.domainNames') }}</label>
+              <input id="mgr-edit-npm-domains" v-model="editHostForm.domain_names" type="text" :placeholder="makePlaceholder('app')" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:border-transparent">
+              <p class="mt-1 text-xs text-theme-muted">{{ t('apps.manager.commaSeparated') }}</p>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label for="mgr-edit-npm-scheme" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.scheme') }}</label>
+                <select id="mgr-edit-npm-scheme" v-model="editHostForm.forward_scheme" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm">
+                  <option value="http">http</option><option value="https">https</option>
+                </select>
+              </div>
+              <div>
+                <label for="mgr-edit-npm-host" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.host') }}</label>
+                <input id="mgr-edit-npm-host" v-model="editHostForm.forward_host" type="text" placeholder="192.168.1.100" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm">
+              </div>
+              <div>
+                <label for="mgr-edit-npm-port" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.port') }}</label>
+                <input id="mgr-edit-npm-port" v-model.number="editHostForm.forward_port" type="number" min="1" max="65535" placeholder="80" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm">
+              </div>
+            </div>
+            <div v-if="npmStore.certificates.length > 0">
+              <label for="mgr-edit-npm-cert" class="block text-sm font-medium text-theme-secondary mb-1">{{ t('apps.manager.certificate') }}</label>
+              <select id="mgr-edit-npm-cert" v-model="editHostForm.certificate_id" class="w-full px-3 py-2 rounded-lg border border-theme-secondary bg-theme-input text-theme-primary text-sm">
+                <option :value="0">{{ t('apps.manager.noCertificate') }}</option>
+                <option v-for="cert in npmStore.certificates" :key="cert.id" :value="cert.id">{{ cert.nice_name }} ({{ cert.domain_names?.join(', ') }})</option>
+              </select>
+            </div>
+            <div class="space-y-3 pt-2">
+              <label class="flex items-center gap-3 cursor-pointer"><input v-model="editHostForm.ssl_forced" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">{{ t('apps.manager.forceSSL') }}</span></label>
+              <label class="flex items-center gap-3 cursor-pointer"><input v-model="editHostForm.block_exploits" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">{{ t('apps.manager.blockExploits') }}</span></label>
+              <label class="flex items-center gap-3 cursor-pointer"><input v-model="editHostForm.allow_websocket_upgrade" type="checkbox" class="w-4 h-4 rounded border-theme-secondary text-accent"><span class="text-sm text-theme-secondary">{{ t('apps.manager.allowWebSocket') }}</span></label>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-theme-primary flex-shrink-0">
+            <button @click="showEditHostModal = false" class="px-4 py-2 text-theme-secondary hover:bg-theme-tertiary rounded-lg text-sm">{{ t('common.cancel') }}</button>
+            <button @click="saveEditHost" :disabled="editHostLoading || !editHostForm.domain_names.trim() || !editHostForm.forward_host.trim()" class="px-4 py-2 btn-accent rounded-lg text-sm disabled:opacity-50 flex items-center gap-2">
+              <Icon v-if="editHostLoading" name="Loader2" :size="14" class="animate-spin" />{{ t('apps.manager.saveHost') }}
             </button>
           </div>
         </div>

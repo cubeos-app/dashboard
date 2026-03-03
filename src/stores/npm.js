@@ -25,6 +25,7 @@ export const useNPMStore = defineStore('npm', () => {
 
   const status = ref(null)
   const hosts = ref([])
+  const certificates = ref([])
 
   // ==========================================
   // Computed
@@ -113,12 +114,61 @@ export const useNPMStore = defineStore('npm', () => {
   }
 
   /**
+   * Update an existing proxy host
+   * PUT /npm/hosts/{id}
+   */
+  async function updateHost(id, config) {
+    error.value = null
+    try {
+      const result = await api.put(`/npm/hosts/${id}`, config)
+      await fetchHosts(true)
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
+   * Fetch all certificates
+   * GET /npm/certificates
+   */
+  async function fetchCertificates(skipLoading = false) {
+    if (!skipLoading) loading.value = true
+    try {
+      const response = await api.get('/npm/certificates')
+      const data = response.certificates ?? response
+      certificates.value = Array.isArray(data) ? data : []
+    } catch (e) {
+      // Certificates may not be available if NPM is not authenticated
+      certificates.value = []
+    } finally {
+      if (!skipLoading) loading.value = false
+    }
+  }
+
+  /**
+   * Delete a certificate
+   * DELETE /npm/certificates/{id}
+   */
+  async function deleteCertificate(id) {
+    error.value = null
+    try {
+      await api.delete(`/npm/certificates/${id}`)
+      certificates.value = certificates.value.filter(c => c.id !== id)
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  /**
    * Fetch all NPM data in parallel
    */
   async function fetchAll() {
     loading.value = true
     try {
-      await Promise.all([fetchStatus(true), fetchHosts(true)])
+      await Promise.all([fetchStatus(true), fetchHosts(true), fetchCertificates(true)])
     } finally {
       loading.value = false
     }
@@ -130,6 +180,7 @@ export const useNPMStore = defineStore('npm', () => {
     error,
     status,
     hosts,
+    certificates,
 
     // Computed
     isOnline,
@@ -140,7 +191,10 @@ export const useNPMStore = defineStore('npm', () => {
     fetchStatus,
     fetchHosts,
     createHost,
+    updateHost,
     deleteHost,
+    fetchCertificates,
+    deleteCertificate,
     fetchAll
   }
 })

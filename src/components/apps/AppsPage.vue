@@ -52,8 +52,8 @@ const TAB_DEFS = computed(() => {
   ]
   if (isAdvanced.value) {
     tabs.push(
-      { key: 'manager', label: t('apps.manager'), icon: 'Settings' },
-      { key: 'docker', label: t('apps.docker'), icon: 'Container' },
+      { key: 'manager', label: t('apps.managerTab'), icon: 'Settings' },
+      { key: 'docker', label: t('apps.dockerTab'), icon: 'Container' },
       { key: 'registry', label: t('apps.registry'), icon: 'Archive' },
       { key: 'ports', label: t('apps.ports'), icon: 'Plug' },
       { key: 'profiles', label: t('apps.profiles'), icon: 'Layers' }
