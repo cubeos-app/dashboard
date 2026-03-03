@@ -108,6 +108,9 @@ export const useCommunicationStore = defineStore('communication', () => {
   const iridiumEventSource = ref(null)
   const iridiumSignalHistory = ref(null)
   const iridiumCredits = ref(null)
+  const iridiumQueue = ref(null)
+  const iridiumPasses = ref(null)
+  const iridiumLocations = ref(null)
 
   // Common
   const loading = ref(false)
@@ -1438,6 +1441,131 @@ export const useCommunicationStore = defineStore('communication', () => {
   }
 
   // ==========================================
+  // Iridium Queue — offline compose and priority management
+  // ==========================================
+
+  async function fetchIridiumQueue(options = {}) {
+    if (options.silent !== true) loading.value = true
+    try {
+      const data = await api.get('/communication/meshsat/iridium/queue')
+      iridiumQueue.value = data
+      return data
+    } catch (e) {
+      if (options.silent !== true) error.value = e.message
+    } finally {
+      if (options.silent !== true) loading.value = false
+    }
+  }
+
+  async function enqueueIridiumMessage(message, priority = 1) {
+    error.value = null
+    try {
+      const data = await api.post('/communication/meshsat/iridium/queue', { message, priority })
+      await fetchIridiumQueue({ silent: true })
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  async function cancelQueueItem(id) {
+    error.value = null
+    try {
+      const data = await api.post(`/communication/meshsat/iridium/queue/${id}/cancel`)
+      await fetchIridiumQueue({ silent: true })
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  async function setQueueItemPriority(id, priority) {
+    error.value = null
+    try {
+      const data = await api.post(`/communication/meshsat/iridium/queue/${id}/priority`, { priority })
+      await fetchIridiumQueue({ silent: true })
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  // ==========================================
+  // Iridium Pass Predictor
+  // ==========================================
+
+  async function fetchIridiumPasses(lat, lon, options = {}) {
+    const { hours = 24, minElevation = 10, altM = 0 } = options
+    if (options.silent !== true) loading.value = true
+    try {
+      const params = new URLSearchParams({
+        lat: lat.toString(),
+        lon: lon.toString(),
+        hours: hours.toString(),
+        min_elevation: minElevation.toString(),
+        alt_m: altM.toString()
+      })
+      const data = await api.get(`/communication/iridium/passes?${params}`)
+      iridiumPasses.value = data
+      return data
+    } catch (e) {
+      if (options.silent !== true) error.value = e.message
+    } finally {
+      if (options.silent !== true) loading.value = false
+    }
+  }
+
+  async function refreshIridiumTLEs() {
+    error.value = null
+    try {
+      return await api.post('/communication/iridium/passes/refresh')
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  async function fetchIridiumLocations(options = {}) {
+    if (options.silent !== true) loading.value = true
+    try {
+      const data = await api.get('/communication/iridium/locations')
+      iridiumLocations.value = data
+      return data
+    } catch (e) {
+      if (options.silent !== true) error.value = e.message
+    } finally {
+      if (options.silent !== true) loading.value = false
+    }
+  }
+
+  async function addIridiumLocation(name, lat, lon, altM = 0) {
+    error.value = null
+    try {
+      const data = await api.post('/communication/iridium/locations', { name, lat, lon, alt_m: altM })
+      await fetchIridiumLocations({ silent: true })
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  async function deleteIridiumLocation(id) {
+    error.value = null
+    try {
+      const data = await api.delete(`/communication/iridium/locations/${id}`)
+      await fetchIridiumLocations({ silent: true })
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  // ==========================================
   // Export
   // ==========================================
 
@@ -1487,6 +1615,9 @@ export const useCommunicationStore = defineStore('communication', () => {
     iridiumEventSource,
     iridiumSignalHistory,
     iridiumCredits,
+    iridiumQueue,
+    iridiumPasses,
+    iridiumLocations,
 
     // State — Common
     loading,
@@ -1577,6 +1708,19 @@ export const useCommunicationStore = defineStore('communication', () => {
     connectIridiumSSE,
     fetchIridiumSignalHistory,
     fetchIridiumCredits,
-    setIridiumBudget
+    setIridiumBudget,
+
+    // Iridium Queue
+    fetchIridiumQueue,
+    enqueueIridiumMessage,
+    cancelQueueItem,
+    setQueueItemPriority,
+
+    // Iridium Pass Predictor
+    fetchIridiumPasses,
+    refreshIridiumTLEs,
+    fetchIridiumLocations,
+    addIridiumLocation,
+    deleteIridiumLocation
   }
 })

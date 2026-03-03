@@ -84,6 +84,29 @@ const readMessageIds = ref(new Set())
 const messageFilter = ref('all') // 'all' | 'inbox' | 'sent'
 
 // ==========================================
+// Offline queue (3d)
+// ==========================================
+const queueLoading = ref(false)
+const showQueueCompose = ref(false)
+const queueMessage = ref('')
+const queuePriority = ref(1) // 0=critical,1=normal,2=low
+const PRIORITY_LABELS = ['Critical', 'Normal', 'Low']
+const PRIORITY_COLORS = ['text-error', 'text-theme-primary', 'text-theme-muted']
+
+// ==========================================
+// Pass predictor (Priority 4)
+// ==========================================
+const passesLoading = ref(false)
+const selectedLocationId = ref(null)
+const passHours = ref(24)
+const smartPolling = ref(false)
+const showAddLocation = ref(false)
+const newLocName = ref('')
+const newLocLat = ref('')
+const newLocLon = ref('')
+const locSaving = ref(false)
+
+// ==========================================
 // Computed — lifecycle state
 // ==========================================
 
@@ -297,6 +320,47 @@ const lastSuccessfulSend = computed(() => {
 })
 
 // ==========================================
+// Computed — queue
+// ==========================================
+
+const queue = computed(() => {
+  const q = communicationStore.iridiumQueue
+  if (!q) return []
+  return Array.isArray(q) ? q : (q.queue || [])
+})
+
+// ==========================================
+// Computed — pass predictor
+// ==========================================
+
+const locations = computed(() => {
+  const l = communicationStore.iridiumLocations
+  if (!l) return []
+  return Array.isArray(l) ? l : (l.locations || [])
+})
+
+const selectedLocation = computed(() => {
+  if (selectedLocationId.value == null) return null
+  return locations.value.find(l => l.id === selectedLocationId.value) || null
+})
+
+const passes = computed(() => {
+  const p = communicationStore.iridiumPasses
+  if (!p) return []
+  return Array.isArray(p) ? p : (p.passes || [])
+})
+
+const nextPass = computed(() => {
+  const now = Date.now()
+  return passes.value.find(p => new Date(p.los).getTime() > now) || null
+})
+
+// inPassWindow: true when a pass is currently active (for smart polling gate)
+const inPassWindow = computed(() => {
+  return passes.value.some(p => p.is_active)
+})
+
+// ==========================================
 // Format helpers
 // ==========================================
 
@@ -385,7 +449,8 @@ async function handleConnect(device = null) {
       communicationStore.fetchIridiumMessages({ signal: s })
     ])
     // Load dashboard extras
-    await Promise.all([loadSignalHistory(), loadCredits()])
+    await Promise.all([loadSignalHistory(), loadCredits(), loadQueue()])
+    loadLocations().then(loadPasses)
   } catch (e) {
     showError(e?.message || 'Failed to connect to modem')
   }
@@ -448,6 +513,8 @@ function startSignalPolling() {
       return
     }
     if (signalRefreshing.value) return // skip tick while blocking refresh is running
+    // Smart polling gate: skip when outside a pass window
+    if (smartPolling.value && !inPassWindow.value) return
     try {
       await communicationStore.fetchIridiumSignal()
     } catch {
@@ -659,6 +726,162 @@ function markAllRead() {
 }
 
 // ==========================================
+// Actions — offline queue (3d)
+// ==========================================
+
+async function loadQueue() {
+  if (!isConnected.value) return
+  queueLoading.value = true
+  try {
+    await communicationStore.fetchIridiumQueue({ silent: true })
+  } catch {
+    // Silent
+  } finally {
+    queueLoading.value = false
+  }
+}
+
+async function handleQueueMessage() {
+  if (!queueMessage.value.trim()) return
+  try {
+    await communicationStore.enqueueIridiumMessage(queueMessage.value.trim(), queuePriority.value)
+    queueMessage.value = ''
+    showQueueCompose.value = false
+    await loadQueue()
+  } catch (e) {
+    showError(e?.message || 'Failed to queue message')
+  }
+}
+
+async function handleCancelQueueItem(id) {
+  try {
+    await communicationStore.cancelQueueItem(id)
+  } catch (e) {
+    showError(e?.message || 'Failed to cancel')
+  }
+}
+
+async function handleSetQueuePriority(id, priority) {
+  try {
+    await communicationStore.setQueueItemPriority(id, priority)
+  } catch (e) {
+    showError(e?.message || 'Failed to update priority')
+  }
+}
+
+// "Send position + status" one-tap quick button
+// Composes a compact payload using GPS position if available, falls back to zeros
+async function handleSendPosition() {
+  let lat = 0, lon = 0
+  try {
+    const pos = await communicationStore.fetchGPSPosition({ silent: true })
+    if (pos?.latitude != null) { lat = pos.latitude; lon = pos.longitude }
+  } catch { /* GPS unavailable */ }
+
+  const bat = status.value?._raw?.battery_level ?? 0
+  const ts = Math.floor(Date.now() / 1000)
+  const payload = `POS:${lat.toFixed(4)},${lon.toFixed(4)},B${bat},T${ts}`
+  const ok = await confirm({
+    title: 'Send Position + Status',
+    message: `Queue the following message for satellite send?\n\n${payload}`,
+    confirmText: 'Queue',
+    variant: 'info'
+  })
+  if (!ok) return
+  try {
+    await communicationStore.enqueueIridiumMessage(payload, 0) // critical priority
+    await loadQueue()
+  } catch (e) {
+    showError(e?.message || 'Failed to queue position')
+  }
+}
+
+// ==========================================
+// Actions — pass predictor (Priority 4)
+// ==========================================
+
+async function loadLocations() {
+  try {
+    await communicationStore.fetchIridiumLocations({ silent: true })
+    // Auto-select first location if none selected
+    if (selectedLocationId.value == null && locations.value.length > 0) {
+      selectedLocationId.value = locations.value[0].id
+    }
+  } catch { /* Silent */ }
+}
+
+async function loadPasses() {
+  const loc = selectedLocation.value
+  if (!loc) return
+  passesLoading.value = true
+  try {
+    await communicationStore.fetchIridiumPasses(loc.lat, loc.lon, {
+      hours: passHours.value,
+      minElevation: 10,
+      altM: loc.alt_m || 0
+    })
+  } catch { /* Silent */ } finally {
+    passesLoading.value = false
+  }
+}
+
+async function handleAddLocation() {
+  const lat = parseFloat(newLocLat.value)
+  const lon = parseFloat(newLocLon.value)
+  if (!newLocName.value.trim() || isNaN(lat) || isNaN(lon)) {
+    showError('Name, latitude, and longitude are required')
+    return
+  }
+  locSaving.value = true
+  try {
+    await communicationStore.addIridiumLocation(newLocName.value.trim(), lat, lon)
+    newLocName.value = ''; newLocLat.value = ''; newLocLon.value = ''
+    showAddLocation.value = false
+    await loadLocations()
+  } catch (e) {
+    showError(e?.message || 'Failed to add location')
+  } finally {
+    locSaving.value = false
+  }
+}
+
+async function handleDeleteLocation(id) {
+  const ok = await confirm({
+    title: 'Delete Location',
+    message: 'Remove this location from the pass predictor?',
+    confirmText: 'Delete',
+    variant: 'warning'
+  })
+  if (!ok) return
+  try {
+    await communicationStore.deleteIridiumLocation(id)
+    if (selectedLocationId.value === id) selectedLocationId.value = null
+    await loadLocations()
+  } catch (e) {
+    showError(e?.message || 'Failed to delete location')
+  }
+}
+
+function formatPassTime(dt) {
+  if (!dt) return '—'
+  try {
+    const d = new Date(dt)
+    if (isNaN(d.getTime())) return '—'
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  } catch { return '—' }
+}
+
+function formatCountdown(dt) {
+  if (!dt) return ''
+  const diff = new Date(dt).getTime() - Date.now()
+  if (diff <= 0) return 'now'
+  const m = Math.floor(diff / 60000)
+  const h = Math.floor(m / 60)
+  if (h > 0) return `in ${h}h ${m % 60}m`
+  return `in ${m}m`
+}
+
+// ==========================================
 // Lifecycle
 // ==========================================
 
@@ -675,6 +898,10 @@ watch(isConnected, (connected) => {
 watch(signalHistoryRange, () => {
   if (isConnected.value) loadSignalHistory()
 })
+
+// Reload passes when location or hours changes
+watch(selectedLocationId, () => { loadPasses() })
+watch(passHours, () => { loadPasses() })
 
 onMounted(async () => {
   loading.value = true
@@ -695,7 +922,11 @@ onMounted(async () => {
         communicationStore.fetchIridiumMessages({ signal: s })
       ])
       // Load dashboard extras
-      await Promise.all([loadSignalHistory(), loadCredits()])
+      await Promise.all([loadSignalHistory(), loadCredits(), loadQueue()])
+      loadLocations().then(loadPasses)
+    } else {
+      // Load locations even when disconnected (pass predictor can be used offline)
+      await loadLocations()
     }
   } finally {
     loading.value = false
@@ -1134,6 +1365,385 @@ onUnmounted(() => {
           </div>
 
           <p v-else class="text-xs text-theme-muted">Credit data unavailable</p>
+        </div>
+      </div>
+
+      <!-- ======================================== -->
+      <!-- Pass Predictor Card (Priority 4) -->
+      <!-- ======================================== -->
+      <div class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-theme-primary">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <Icon name="Radio" :size="18" class="text-accent" />
+              <h2 class="text-lg font-semibold text-theme-primary">Satellite Pass Predictor</h2>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <!-- Location selector -->
+              <select
+                v-model="selectedLocationId"
+                class="text-xs px-2 py-1.5 rounded-lg border border-theme-primary bg-theme-secondary text-theme-primary"
+                aria-label="Select ground location"
+              >
+                <option :value="null" disabled>Select location...</option>
+                <option v-for="loc in locations" :key="loc.id" :value="loc.id">
+                  {{ loc.name }} ({{ loc.lat.toFixed(2) }}°, {{ loc.lon.toFixed(2) }}°)
+                </option>
+              </select>
+              <!-- Hours selector -->
+              <select
+                v-model="passHours"
+                class="text-xs px-2 py-1.5 rounded-lg border border-theme-primary bg-theme-secondary text-theme-primary"
+                aria-label="Pass prediction window"
+              >
+                <option :value="12">12h</option>
+                <option :value="24">24h</option>
+                <option :value="48">48h</option>
+                <option :value="72">72h</option>
+              </select>
+              <!-- Refresh -->
+              <button
+                @click="loadPasses"
+                :disabled="passesLoading || !selectedLocationId"
+                class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors disabled:opacity-50"
+                title="Refresh pass predictions"
+              >
+                <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': passesLoading }" />
+              </button>
+              <!-- Add location -->
+              <button
+                @click="showAddLocation = !showAddLocation"
+                class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+                title="Add custom location"
+              >
+                <Icon name="MapPin" :size="14" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Smart polling toggle -->
+          <div class="mt-3 flex items-center gap-2">
+            <button
+              @click="smartPolling = !smartPolling"
+              :class="[
+                'relative inline-flex h-4 w-7 items-center rounded-full transition-colors',
+                smartPolling ? 'bg-accent' : 'bg-theme-tertiary'
+              ]"
+              role="switch"
+              :aria-checked="smartPolling"
+              title="Smart scheduling: only poll for signal during overhead pass windows"
+            >
+              <span :class="['inline-block h-3 w-3 rounded-full bg-white transition-transform', smartPolling ? 'translate-x-3.5' : 'translate-x-0.5']" />
+            </button>
+            <span class="text-xs text-theme-muted">
+              Smart scheduling — only poll during overhead windows
+              <span v-if="smartPolling && inPassWindow" class="ml-1 text-success font-medium">Active pass</span>
+              <span v-else-if="smartPolling && !inPassWindow && nextPass" class="ml-1 text-theme-muted">
+                Next: {{ formatCountdown(nextPass.aos) }}
+              </span>
+            </span>
+          </div>
+
+          <!-- Add location form -->
+          <div v-if="showAddLocation" class="mt-3 p-3 bg-theme-tertiary rounded-lg">
+            <p class="text-xs font-medium text-theme-secondary mb-2">Add custom location</p>
+            <div class="grid grid-cols-3 gap-2 mb-2">
+              <input
+                v-model="newLocName"
+                placeholder="Name"
+                class="px-2 py-1 text-xs rounded border border-theme-primary bg-theme-secondary text-theme-primary focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <input
+                v-model="newLocLat"
+                placeholder="Lat (e.g. 52.16)"
+                type="number"
+                step="0.001"
+                class="px-2 py-1 text-xs rounded border border-theme-primary bg-theme-secondary text-theme-primary focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <input
+                v-model="newLocLon"
+                placeholder="Lon (e.g. 4.49)"
+                type="number"
+                step="0.001"
+                class="px-2 py-1 text-xs rounded border border-theme-primary bg-theme-secondary text-theme-primary focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+            </div>
+            <div class="flex gap-2">
+              <button
+                @click="handleAddLocation"
+                :disabled="locSaving"
+                class="px-3 py-1 text-xs rounded-lg bg-accent text-on-accent hover:bg-accent-hover transition-colors disabled:opacity-50"
+              >
+                <Icon v-if="locSaving" name="Loader2" :size="10" class="inline-block animate-spin mr-1" />
+                Save
+              </button>
+              <button
+                @click="showAddLocation = false"
+                class="px-3 py-1 text-xs rounded-lg bg-theme-card text-theme-muted hover:text-theme-primary transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Next pass highlight -->
+        <div v-if="nextPass && !passesLoading" class="px-5 py-3 border-b border-theme-primary bg-accent-muted/20">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <p class="text-xs text-theme-muted">Next pass</p>
+              <p class="text-sm font-semibold text-theme-primary">
+                {{ formatPassTime(nextPass.aos) }} — {{ formatCountdown(nextPass.aos) }}
+              </p>
+              <p class="text-xs text-theme-muted">
+                {{ nextPass.duration_min.toFixed(0) }} min &middot; peak {{ nextPass.peak_elev_deg.toFixed(0) }}&deg;
+                &middot; {{ nextPass.satellite }}
+              </p>
+            </div>
+            <!-- Elevation bar -->
+            <div class="flex items-center gap-2">
+              <div class="w-24 h-2 bg-theme-tertiary rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-success rounded-full"
+                  :style="{ width: Math.min(100, (nextPass.peak_elev_deg / 90) * 100) + '%' }"
+                />
+              </div>
+              <span class="text-xs text-theme-muted">{{ nextPass.peak_elev_deg.toFixed(0) }}&deg;</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- No location or no passes -->
+        <div v-else-if="!selectedLocationId" class="px-5 py-8 text-center">
+          <Icon name="MapPin" :size="28" class="text-theme-muted mx-auto mb-2" />
+          <p class="text-sm text-theme-muted">Select a location to predict passes</p>
+        </div>
+        <div v-else-if="passesLoading" class="px-5 py-6">
+          <div class="space-y-2">
+            <div v-for="i in 3" :key="i" class="h-10 bg-theme-tertiary rounded animate-pulse" />
+          </div>
+        </div>
+        <div v-else-if="!passes.length" class="px-5 py-8 text-center">
+          <Icon name="CloudOff" :size="28" class="text-theme-muted mx-auto mb-2" />
+          <p class="text-sm text-theme-muted">No passes found in the next {{ passHours }}h</p>
+          <p class="text-xs text-theme-muted mt-1">Try lowering the minimum elevation or extending the window</p>
+        </div>
+
+        <!-- Pass list -->
+        <div v-else class="divide-y divide-theme-primary max-h-64 overflow-y-auto">
+          <div
+            v-for="(pass, i) in passes.slice(0, 10)"
+            :key="i"
+            :class="[
+              'px-5 py-2.5 flex items-center gap-4',
+              pass.is_active ? 'bg-success-muted/30' : 'hover:bg-theme-secondary'
+            ]"
+          >
+            <!-- Active indicator -->
+            <div class="shrink-0 w-1.5 h-1.5 rounded-full" :class="pass.is_active ? 'bg-success' : 'bg-transparent'" />
+
+            <!-- Time + satellite -->
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-medium text-theme-primary">
+                {{ formatPassTime(pass.aos) }}
+                <span v-if="pass.is_active" class="ml-1 text-success text-xs font-normal">Active</span>
+              </p>
+              <p class="text-xs text-theme-muted truncate">{{ pass.satellite }}</p>
+            </div>
+
+            <!-- Duration + elevation -->
+            <div class="shrink-0 text-right">
+              <p class="text-xs font-medium text-theme-primary">{{ pass.peak_elev_deg.toFixed(0) }}&deg;</p>
+              <p class="text-xs text-theme-muted">{{ pass.duration_min.toFixed(0) }} min</p>
+            </div>
+
+            <!-- Elevation bar -->
+            <div class="shrink-0 w-16 h-1.5 bg-theme-tertiary rounded-full overflow-hidden">
+              <div
+                :class="['h-full rounded-full', pass.peak_elev_deg >= 40 ? 'bg-success' : pass.peak_elev_deg >= 20 ? 'bg-warning' : 'bg-error']"
+                :style="{ width: Math.min(100, (pass.peak_elev_deg / 90) * 100) + '%' }"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Location management footer -->
+        <div v-if="locations.length > 0" class="px-5 py-2 border-t border-theme-primary flex flex-wrap gap-2">
+          <span
+            v-for="loc in locations"
+            :key="loc.id"
+            :class="[
+              'inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-pointer transition-colors',
+              selectedLocationId === loc.id
+                ? 'bg-accent text-on-accent'
+                : 'bg-theme-tertiary text-theme-muted hover:text-theme-primary'
+            ]"
+            @click="selectedLocationId = loc.id"
+          >
+            {{ loc.name }}
+            <button
+              v-if="!loc.builtin"
+              @click.stop="handleDeleteLocation(loc.id)"
+              class="hover:text-error transition-colors"
+              title="Remove location"
+            >
+              <Icon name="X" :size="10" />
+            </button>
+          </span>
+        </div>
+      </div>
+
+      <!-- ======================================== -->
+      <!-- Outbound Queue Card (3d) -->
+      <!-- ======================================== -->
+      <div class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-theme-primary">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Icon name="ListOrdered" :size="18" class="text-accent" />
+              <h2 class="text-lg font-semibold text-theme-primary">Outbound Queue</h2>
+              <span
+                v-if="queue.length > 0"
+                class="text-xs font-bold px-1.5 py-0.5 rounded-full bg-warning-muted text-warning"
+              >
+                {{ queue.length }}
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                @click="handleSendPosition"
+                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors"
+                title="Queue compact position + battery status message (critical priority)"
+              >
+                <Icon name="MapPin" :size="12" class="inline-block mr-1" />
+                Send Position
+              </button>
+              <button
+                @click="showQueueCompose = !showQueueCompose"
+                :class="[
+                  'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                  showQueueCompose
+                    ? 'bg-accent text-on-accent'
+                    : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                ]"
+                title="Compose a message to queue for when signal is available"
+              >
+                <Icon name="Plus" :size="12" class="inline-block mr-1" />
+                Queue Message
+              </button>
+              <button
+                @click="loadQueue"
+                :disabled="queueLoading"
+                class="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-tertiary transition-colors"
+                title="Refresh queue"
+              >
+                <Icon name="RefreshCw" :size="14" :class="{ 'animate-spin': queueLoading }" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Compose form -->
+          <div v-if="showQueueCompose" class="mt-4 space-y-2">
+            <textarea
+              v-model="queueMessage"
+              rows="2"
+              placeholder="Message to send opportunistically (max 340 bytes)..."
+              maxlength="340"
+              class="w-full px-3 py-2 text-sm rounded-lg border border-theme-primary bg-theme-secondary text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none font-mono"
+            />
+            <div class="flex items-center gap-3 flex-wrap">
+              <!-- Priority selector -->
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-theme-muted">Priority:</span>
+                <button
+                  v-for="(label, idx) in PRIORITY_LABELS"
+                  :key="idx"
+                  @click="queuePriority = idx"
+                  :class="[
+                    'px-2 py-0.5 text-xs rounded transition-colors',
+                    queuePriority === idx
+                      ? 'bg-accent text-on-accent font-medium'
+                      : 'text-theme-muted hover:text-theme-primary'
+                  ]"
+                >
+                  {{ label }}
+                </button>
+              </div>
+              <div class="flex items-center gap-2 ml-auto">
+                <button
+                  @click="showQueueCompose = false"
+                  class="px-3 py-1.5 text-xs rounded-lg bg-theme-tertiary text-theme-muted hover:text-theme-primary transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  @click="handleQueueMessage"
+                  :disabled="!queueMessage.trim()"
+                  class="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent text-on-accent hover:bg-accent-hover transition-colors disabled:opacity-50"
+                >
+                  Queue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Queue empty -->
+        <div v-if="!queue.length && !queueLoading" class="px-5 py-6 text-center">
+          <Icon name="CheckCircle" :size="24" class="text-theme-muted mx-auto mb-2" />
+          <p class="text-sm text-theme-muted">No messages queued</p>
+          <p class="text-xs text-theme-muted mt-1">
+            Messages queued here are sent opportunistically when signal becomes available
+          </p>
+        </div>
+
+        <!-- Queue list -->
+        <div v-else-if="queue.length" class="divide-y divide-theme-primary">
+          <div
+            v-for="item in queue"
+            :key="item.id"
+            class="px-5 py-3 flex items-start gap-3 hover:bg-theme-secondary transition-colors"
+          >
+            <!-- Priority badge -->
+            <span
+              :class="[
+                'shrink-0 text-xs font-medium px-1.5 py-0.5 rounded mt-0.5',
+                item.priority === 0 ? 'bg-error-muted text-error' : item.priority === 2 ? 'bg-theme-tertiary text-theme-muted' : 'bg-theme-tertiary text-theme-secondary'
+              ]"
+            >
+              {{ PRIORITY_LABELS[item.priority] ?? 'Normal' }}
+            </span>
+
+            <!-- Message preview -->
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-mono text-theme-primary truncate">{{ truncatePreview(item.payload ? atob(item.payload) : '—', 80) }}</p>
+              <p class="text-xs text-theme-muted mt-0.5">
+                Retries: {{ item.retries }}/{{ item.max_retries }}
+                <span v-if="item.last_error" class="ml-2 text-warning">{{ item.last_error.substring(0, 40) }}</span>
+              </p>
+            </div>
+
+            <!-- Actions -->
+            <div class="shrink-0 flex items-center gap-1">
+              <!-- Priority change -->
+              <select
+                :value="item.priority"
+                @change="handleSetQueuePriority(item.id, parseInt($event.target.value))"
+                class="text-xs px-1.5 py-0.5 rounded border border-theme-primary bg-theme-secondary text-theme-muted"
+                title="Change priority"
+              >
+                <option v-for="(label, idx) in PRIORITY_LABELS" :key="idx" :value="idx">{{ label }}</option>
+              </select>
+              <!-- Cancel -->
+              <button
+                @click="handleCancelQueueItem(item.id)"
+                class="p-1 rounded text-theme-muted hover:text-error transition-colors"
+                title="Cancel this queued message"
+              >
+                <Icon name="X" :size="14" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
