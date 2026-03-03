@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/client'
 import { safeGetRaw } from '@/utils/storage'
+import router from '@/router'
 
 export const useAuthStore = defineStore('auth', () => {
   // State
@@ -14,6 +15,8 @@ export const useAuthStore = defineStore('auth', () => {
   function onAuthExpired() {
     token.value = null
     user.value = null
+    // Navigate to login immediately — don't leave user on a dead page
+    router.push('/login')
   }
   window.addEventListener('cubeos:auth-expired', onAuthExpired)
 

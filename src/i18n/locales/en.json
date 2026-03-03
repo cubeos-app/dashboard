@@ -201,6 +201,14 @@
         "ethReady": "Ethernet ready",
         "ethReadyMessage": "Connected at {ip}. The WiFi access point will be turned off after setup."
       },
+      "managedInterface": {
+        "title": "Managed Interface",
+        "description": "Choose which network interface CubeOS should manage for All-in-One mode."
+      },
+      "tlsSettings": {
+        "title": "TLS Settings",
+        "description": "Choose how HTTPS certificates are handled for your apps."
+      },
       "locale": {
         "title": "Time & Language",
         "description": "Set your timezone and language preferences.",

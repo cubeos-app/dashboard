@@ -31,8 +31,10 @@ import PreconfigurationStep from './steps/PreconfigurationStep.vue'
 import WelcomeStep from './steps/WelcomeStep.vue'
 import AdminStep from './steps/AdminStep.vue'
 import AccessProfileStep from './steps/AccessProfileStep.vue'
+import ManagedInterfaceStep from './steps/ManagedInterfaceStep.vue'
 import DeviceStep from './steps/DeviceStep.vue'
 import WiFiStep from './steps/WiFiStep.vue'
+import TLSSettingsStep from './steps/TLSSettingsStep.vue'
 import LocaleStep from './steps/LocaleStep.vue'
 import SummaryStep from './steps/SummaryStep.vue'
 
@@ -73,15 +75,32 @@ const STEPS = computed(() => {
   // Access profile selection (always shown, pre-selected for preconfig)
   steps.push({ id: 'access_profile', titleKey: 'wizard.steps.accessProfile.title', icon: 'Shield', required: true })
 
+  // Managed interface selector — only for all_in_one when both WiFi and Ethernet detected
+  const isAllInOne = config.value.access_profile === 'all_in_one'
+  const wifiDetected = requirements.value?.wifi_detected !== false
+  const ethDetected = requirements.value?.eth_detected !== false
+  if (isAllInOne && wifiDetected && ethDetected) {
+    steps.push({ id: 'managed_interface', titleKey: 'wizard.steps.managedInterface.title', icon: 'Network', required: true })
+  } else if (isAllInOne) {
+    // Auto-select when only one interface available
+    if (wifiDetected && !ethDetected) config.value.managed_interface = 'wifi'
+    else if (ethDetected && !wifiDetected) config.value.managed_interface = 'ethernet'
+  }
+
   // Device (hostname) — skip if pre-configured hostname exists
   if (!(preconfigDetected.value && preconfiguration.value?.hostname)) {
     steps.push({ id: 'device', titleKey: 'wizard.steps.device.title', icon: 'Server', required: true })
   }
 
-  // WiFi step — only for all_in_one, and skip if preconfig has WiFi (unless WiFi failed)
+  // WiFi step — only for all_in_one with wifi managed interface, and skip if preconfig has WiFi
   const wifiConnected = preconfigDetected.value && preconfiguration.value?.wifi?.ssid && !preconfiguration.value?.wifi_connect_failed
-  if (!wifiConnected && config.value.access_profile === 'all_in_one') {
+  if (!wifiConnected && isAllInOne && config.value.managed_interface === 'wifi') {
     steps.push({ id: 'wifi', titleKey: 'wizard.steps.wifi.title', icon: 'Wifi', required: true })
+  }
+
+  // TLS settings — only for all_in_one
+  if (isAllInOne) {
+    steps.push({ id: 'tls_settings', titleKey: 'wizard.steps.tlsSettings.title', icon: 'Shield', required: true })
   }
 
   // Locale — skip if pre-configured timezone exists
@@ -112,6 +131,11 @@ const config = ref({
   theme: 'dark',
   enable_auto_updates: true,
   access_profile: 'standard',
+  managed_interface: '',
+  tls_mode: 'http',
+  le_domain: '',
+  le_dns_provider: '',
+  le_dns_token: '',
   ext_npm_url: '',
   ext_npm_token: '',
   ext_pihole_url: '',
@@ -147,9 +171,16 @@ const canProceed = computed(() => {
       return true
     case 'device':
       return config.value.hostname.length >= 3
+    case 'managed_interface':
+      return !!config.value.managed_interface
     case 'wifi':
       return config.value.wifi_ssid.length >= 1 &&
         (config.value.wifi_password === '' || config.value.wifi_password.length >= 8)
+    case 'tls_settings':
+      if (config.value.tls_mode === 'letsencrypt') {
+        return !!config.value.le_domain && !!config.value.le_dns_provider && !!config.value.le_dns_token
+      }
+      return true
     case 'locale':
       return config.value.timezone !== ''
     default:
@@ -415,12 +446,21 @@ onMounted(() => { loadSetupData() })
             :skip-ap-step="skipApStep"
             @update:ethernet-ip="onEthernetIpUpdate"
           />
+          <ManagedInterfaceStep
+            v-else-if="currentStepData.id === 'managed_interface'"
+            v-model="config"
+            :capabilities="requirements"
+          />
           <DeviceStep
             v-else-if="currentStepData.id === 'device'"
             v-model="config"
           />
           <WiFiStep
             v-else-if="currentStepData.id === 'wifi'"
+            v-model="config"
+          />
+          <TLSSettingsStep
+            v-else-if="currentStepData.id === 'tls_settings'"
             v-model="config"
           />
           <LocaleStep

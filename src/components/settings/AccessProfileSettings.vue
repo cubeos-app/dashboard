@@ -24,6 +24,10 @@ const successMsg = ref(null)
 
 const currentProfile = ref('standard')
 const editProfile = ref('standard')
+const managedInterface = ref('')
+const tlsMode = ref('http')
+const caGenerated = ref(false)
+const downloadingCA = ref(false)
 const credentials = ref({
   ext_npm_url: '',
   ext_npm_token: '',
@@ -53,6 +57,9 @@ async function loadProfile() {
     const data = await api.get('/system/access-profile')
     currentProfile.value = data.profile || 'standard'
     editProfile.value = data.profile || 'standard'
+    managedInterface.value = data.managed_interface || ''
+    tlsMode.value = data.tls_mode || 'http'
+    caGenerated.value = !!data.ca_generated
     credentials.value = {
       ext_npm_url: data.ext_npm_url || '',
       ext_npm_token: '',
@@ -173,6 +180,34 @@ const profileLabel = computed(() => {
   return map[currentProfile.value] || currentProfile.value
 })
 
+const interfaceLabel = computed(() => {
+  const map = { wifi: 'WiFi Access Point', ethernet: 'Wired LAN (Ethernet)' }
+  return map[managedInterface.value] || ''
+})
+
+const tlsModeLabel = computed(() => {
+  const map = { http: 'Plain HTTP', letsencrypt: "Let's Encrypt", self_signed_ca: 'Self-signed CA' }
+  return map[tlsMode.value] || tlsMode.value
+})
+
+async function downloadCA() {
+  downloadingCA.value = true
+  try {
+    const response = await api.get('/system/tls/ca.crt', { responseType: 'text' })
+    const blob = new Blob([response], { type: 'application/x-pem-file' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'cubeos-ca.crt'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    error.value = 'Failed to download CA certificate: ' + (e.message || '')
+  } finally {
+    downloadingCA.value = false
+  }
+}
+
 onMounted(() => { loadProfile() })
 </script>
 
@@ -231,6 +266,49 @@ onMounted(() => { loadProfile() })
         <div class="flex items-start gap-2 mt-4 text-xs text-theme-muted">
           <Icon name="Info" :size="14" class="flex-shrink-0 mt-0.5" />
           <p>{{ t('settings.accessProfile.migrateNote') }}</p>
+        </div>
+      </div>
+
+      <!-- All-in-One Details (managed interface + TLS) -->
+      <div v-if="!editing && currentProfile === 'all_in_one'" class="bg-theme-card rounded-xl border border-theme-primary p-6 space-y-4">
+        <h3 class="font-medium text-theme-primary">All-in-One Configuration</h3>
+
+        <!-- Managed Interface -->
+        <div v-if="interfaceLabel" class="flex items-center gap-3">
+          <Icon :name="managedInterface === 'wifi' ? 'Wifi' : 'Cable'" :size="18" class="text-theme-secondary" />
+          <div>
+            <p class="text-sm font-medium text-theme-primary">Managed Interface</p>
+            <p class="text-xs text-theme-muted">{{ interfaceLabel }}</p>
+          </div>
+        </div>
+
+        <!-- TLS Mode -->
+        <div class="flex items-center gap-3">
+          <Icon :name="tlsMode === 'http' ? 'Globe' : 'Shield'" :size="18" class="text-theme-secondary" />
+          <div>
+            <p class="text-sm font-medium text-theme-primary">TLS Mode</p>
+            <p class="text-xs text-theme-muted">{{ tlsModeLabel }}</p>
+          </div>
+        </div>
+
+        <!-- CA Download (self-signed only) -->
+        <div v-if="tlsMode === 'self_signed_ca' && caGenerated" class="flex items-start gap-3 p-4 rounded-xl border border-accent/30 bg-accent/5">
+          <Icon name="Download" :size="20" class="text-accent flex-shrink-0 mt-0.5" />
+          <div class="flex-1">
+            <p class="text-sm font-medium text-accent mb-1">CA Certificate</p>
+            <p class="text-xs text-theme-secondary mb-3">
+              Download and install this certificate on your devices to trust CubeOS HTTPS connections.
+            </p>
+            <button
+              @click="downloadCA"
+              :disabled="downloadingCA"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-accent/30 text-accent hover:bg-accent/10 transition-colors text-sm disabled:opacity-50"
+            >
+              <Icon v-if="downloadingCA" name="Loader2" :size="14" class="animate-spin" />
+              <Icon v-else name="Download" :size="14" />
+              Download cubeos-ca.crt
+            </button>
+          </div>
         </div>
       </div>
 
