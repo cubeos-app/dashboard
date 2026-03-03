@@ -22,6 +22,7 @@ import { confirm } from '@/utils/confirmDialog'
 import Icon from '@/components/ui/Icon.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import ResponsiveTable from '@/components/ui/ResponsiveTable.vue'
+import SignalSparkline from '@/components/ui/SignalSparkline.vue'
 
 const communicationStore = useCommunicationStore()
 const { signal } = useAbortOnUnmount()
@@ -47,6 +48,40 @@ const signalRefreshing = ref(false) // true while blocking AT+CSQ is in progress
 // SBD limits — AT+SBDWT allows max 120 chars, AT+SBDWB allows max 340 bytes
 const SBD_TEXT_MAX_CHARS = 120
 const SBD_BINARY_MAX_BYTES = 340
+
+// ==========================================
+// Signal history
+// ==========================================
+const signalHistoryRange = ref('24h')
+const signalHistoryLoading = ref(false)
+
+const HISTORY_RANGES = [
+  { label: '24h', seconds: 86400 },
+  { label: '7d',  seconds: 7 * 86400 },
+  { label: '30d', seconds: 30 * 86400 },
+  { label: '3m',  seconds: 90 * 86400 }
+]
+
+function historyInterval(label) {
+  if (label === '24h') return 'raw'
+  if (label === '7d')  return 'hour'
+  return 'day'
+}
+
+// ==========================================
+// Credits
+// ==========================================
+const creditsLoading = ref(false)
+const showBudgetForm = ref(false)
+const budgetInput = ref('')
+const warnInput = ref('')
+const budgetSaving = ref(false)
+
+// ==========================================
+// MT inbox read/unread tracking + filter
+// ==========================================
+const readMessageIds = ref(new Set())
+const messageFilter = ref('all') // 'all' | 'inbox' | 'sent'
 
 // ==========================================
 // Computed — lifecycle state
@@ -189,6 +224,79 @@ const canSend = computed(() => {
 })
 
 // ==========================================
+// Signal history computeds
+// ==========================================
+
+const signalHistoryPoints = computed(() => {
+  const h = communicationStore.iridiumSignalHistory
+  if (!h) return []
+  const list = Array.isArray(h) ? h : (h.points || h.data || [])
+  return list
+    .filter(p => p && p.timestamp != null && p.value != null)
+    .map(p => ({ timestamp: Number(p.timestamp), value: Number(p.value) }))
+})
+
+const signalHistoryEmpty = computed(() => {
+  return !signalHistoryLoading.value && signalHistoryPoints.value.length < 2
+})
+
+// ==========================================
+// Credits computeds
+// ==========================================
+
+const credits = computed(() => communicationStore.iridiumCredits)
+
+const creditsBudgetPct = computed(() => {
+  const c = credits.value
+  if (!c || !c.budget) return 0
+  return Math.min(100, Math.round((c.this_month / c.budget) * 100))
+})
+
+const creditsBudgetColor = computed(() => {
+  const pct = creditsBudgetPct.value
+  const c = credits.value
+  const warn = c?.warning_threshold || 80
+  if (pct >= 100) return 'bg-error'
+  if (pct >= warn) return 'bg-warning'
+  return 'bg-success'
+})
+
+// ==========================================
+// Inbox filter + read/unread computeds
+// ==========================================
+
+const filteredMessages = computed(() => {
+  const all = messages.value
+  if (messageFilter.value === 'inbox') return all.filter(m => formatDirection(m.direction) === 'MT')
+  if (messageFilter.value === 'sent') return all.filter(m => formatDirection(m.direction) === 'MO')
+  return all
+})
+
+const unreadCount = computed(() => {
+  return messages.value
+    .filter(m => formatDirection(m.direction) === 'MT' && !readMessageIds.value.has(m.id))
+    .length
+})
+
+// ==========================================
+// Diagnostics — derived from fetched data
+// ==========================================
+
+const lastOutboundMsg = computed(() => {
+  const sent = messages.value.filter(m => formatDirection(m.direction) === 'MO')
+  return sent.length ? sent[sent.length - 1] : null
+})
+
+const lastSuccessfulSend = computed(() => {
+  // MO messages with status 0 (success) or no status (unknown = treat as sent)
+  const sent = messages.value.filter(m => {
+    if (formatDirection(m.direction) !== 'MO') return false
+    return m.status == null || String(m.status) === '0' || String(m.status).toLowerCase() === 'sent'
+  })
+  return sent.length ? sent[sent.length - 1] : null
+})
+
+// ==========================================
 // Format helpers
 // ==========================================
 
@@ -276,6 +384,8 @@ async function handleConnect(device = null) {
       communicationStore.fetchIridiumSignal({ signal: s }),
       communicationStore.fetchIridiumMessages({ signal: s })
     ])
+    // Load dashboard extras
+    await Promise.all([loadSignalHistory(), loadCredits()])
   } catch (e) {
     showError(e?.message || 'Failed to connect to modem')
   }
@@ -397,6 +507,8 @@ async function handleSendSBD() {
     messageSent.value = true
     if (messageSentTimeout) clearTimeout(messageSentTimeout)
     messageSentTimeout = setTimeout(() => { messageSent.value = false }, 5000)
+    // Refresh credit count after send
+    loadCredits()
   } catch (e) {
     showError(e?.message || 'Failed to send SBD message')
   } finally {
@@ -476,6 +588,77 @@ async function handleRefreshMessages() {
 }
 
 // ==========================================
+// Actions — signal history
+// ==========================================
+
+async function loadSignalHistory() {
+  if (!isConnected.value) return
+  signalHistoryLoading.value = true
+  try {
+    const now = Math.floor(Date.now() / 1000)
+    const rangeInfo = HISTORY_RANGES.find(r => r.label === signalHistoryRange.value) || HISTORY_RANGES[0]
+    const from = now - rangeInfo.seconds
+    const interval = historyInterval(signalHistoryRange.value)
+    await communicationStore.fetchIridiumSignalHistory({ from, to: now, interval })
+  } catch {
+    // Silent
+  } finally {
+    signalHistoryLoading.value = false
+  }
+}
+
+// ==========================================
+// Actions — credits
+// ==========================================
+
+async function loadCredits() {
+  if (!isConnected.value) return
+  creditsLoading.value = true
+  try {
+    await communicationStore.fetchIridiumCredits()
+    const c = communicationStore.iridiumCredits
+    if (c) {
+      budgetInput.value = c.budget > 0 ? String(c.budget) : ''
+      warnInput.value = c.warning_threshold > 0 ? String(c.warning_threshold) : ''
+    }
+  } catch {
+    // Silent
+  } finally {
+    creditsLoading.value = false
+  }
+}
+
+async function handleSetBudget() {
+  const budget = parseInt(budgetInput.value) || 0
+  const warn = parseInt(warnInput.value) || 0
+  budgetSaving.value = true
+  try {
+    await communicationStore.setIridiumBudget(budget, warn)
+    showBudgetForm.value = false
+  } catch (e) {
+    showError(e?.message || 'Failed to save budget')
+  } finally {
+    budgetSaving.value = false
+  }
+}
+
+// ==========================================
+// Actions — read/unread tracking
+// ==========================================
+
+function markRead(msg) {
+  if (msg.id == null) return
+  readMessageIds.value = new Set([...readMessageIds.value, msg.id])
+}
+
+function markAllRead() {
+  const allIds = messages.value
+    .filter(m => formatDirection(m.direction) === 'MT' && m.id != null)
+    .map(m => m.id)
+  readMessageIds.value = new Set([...readMessageIds.value, ...allIds])
+}
+
+// ==========================================
 // Lifecycle
 // ==========================================
 
@@ -486,6 +669,11 @@ watch(isConnected, (connected) => {
   } else {
     stopSignalPolling()
   }
+})
+
+// Reload signal history when range selector changes
+watch(signalHistoryRange, () => {
+  if (isConnected.value) loadSignalHistory()
 })
 
 onMounted(async () => {
@@ -506,6 +694,8 @@ onMounted(async () => {
         communicationStore.fetchIridiumSignal({ signal: s }),
         communicationStore.fetchIridiumMessages({ signal: s })
       ])
+      // Load dashboard extras
+      await Promise.all([loadSignalHistory(), loadCredits()])
     }
   } finally {
     loading.value = false
@@ -666,14 +856,16 @@ onUnmounted(() => {
     <template v-else-if="lifecycleState === 'connected'">
 
       <!-- ======================================== -->
-      <!-- Status Card + Signal + Disconnect -->
+      <!-- Antenna Diagnostics Card (3a) -->
       <!-- ======================================== -->
       <div class="bg-theme-card border border-theme-primary rounded-xl p-5">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+
+          <!-- Left: identity + status -->
+          <div class="flex items-start gap-3 min-w-0">
             <div
               :class="[
-                'w-10 h-10 rounded-xl flex items-center justify-center',
+                'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
                 status.registrationState === 'registered' ? 'bg-success-muted' : 'bg-neutral-muted'
               ]"
             >
@@ -683,7 +875,7 @@ onUnmounted(() => {
                 :class="status.registrationState === 'registered' ? 'text-success' : 'text-theme-muted'"
               />
             </div>
-            <div>
+            <div class="min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <h2 class="text-lg font-semibold text-theme-primary">Iridium</h2>
                 <span
@@ -705,14 +897,31 @@ onUnmounted(() => {
                   {{ status.networkAvailable ? 'Network Available' : 'No Network' }}
                 </span>
               </div>
-              <div class="flex items-center gap-4 mt-0.5 flex-wrap">
-                <span v-if="status.model" class="text-sm text-theme-secondary">{{ status.model }}</span>
-                <span v-if="status.imei" class="text-xs font-mono text-theme-muted">IMEI: {{ status.imei }}</span>
+
+              <!-- Diagnostics grid -->
+              <div class="mt-2 grid grid-cols-2 gap-x-6 gap-y-1">
+                <div v-if="status.model" class="flex gap-1 items-baseline">
+                  <span class="text-xs text-theme-muted shrink-0">Model</span>
+                  <span class="text-xs text-theme-secondary font-medium truncate">{{ status.model }}</span>
+                </div>
+                <div v-if="status.imei" class="flex gap-1 items-baseline">
+                  <span class="text-xs text-theme-muted shrink-0">IMEI</span>
+                  <span class="text-xs font-mono text-theme-secondary">{{ status.imei }}</span>
+                </div>
+                <div v-if="lastOutboundMsg" class="flex gap-1 items-baseline">
+                  <span class="text-xs text-theme-muted shrink-0">Last SBDIX</span>
+                  <span class="text-xs text-theme-secondary">{{ formatTimestamp(lastOutboundMsg.timestamp) }}</span>
+                </div>
+                <div v-if="lastSuccessfulSend" class="flex gap-1 items-baseline">
+                  <span class="text-xs text-theme-muted shrink-0">Last success</span>
+                  <span class="text-xs text-theme-secondary">{{ formatTimestamp(lastSuccessfulSend.timestamp) }}</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="flex items-center gap-4">
+          <!-- Right: signal + disconnect -->
+          <div class="flex items-center gap-4 shrink-0">
             <!-- Signal bars -->
             <div class="flex items-center gap-2">
               <div
@@ -724,9 +933,7 @@ onUnmounted(() => {
                   :key="bar"
                   :class="[
                     'w-1.5 rounded-sm transition-colors',
-                    bar <= signalBars
-                      ? barColor(signalBars)
-                      : 'bg-theme-tertiary'
+                    bar <= signalBars ? barColor(signalBars) : 'bg-theme-tertiary'
                   ]"
                   :style="{ height: `${bar * 4}px` }"
                 />
@@ -755,6 +962,178 @@ onUnmounted(() => {
               Disconnect
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- ======================================== -->
+      <!-- Signal History + Credits Row -->
+      <!-- ======================================== -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- Signal History sparkline (2/3 width on lg) -->
+        <div class="lg:col-span-2 bg-theme-card border border-theme-primary rounded-xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <Icon name="Activity" :size="16" class="text-accent" />
+              <h3 class="text-sm font-semibold text-theme-primary">Signal History</h3>
+            </div>
+            <!-- Range selector -->
+            <div class="flex items-center gap-1">
+              <button
+                v-for="r in HISTORY_RANGES"
+                :key="r.label"
+                @click="signalHistoryRange = r.label"
+                :class="[
+                  'px-2 py-0.5 text-xs rounded transition-colors',
+                  signalHistoryRange === r.label
+                    ? 'bg-accent text-on-accent font-medium'
+                    : 'text-theme-muted hover:text-theme-primary'
+                ]"
+              >
+                {{ r.label }}
+              </button>
+              <button
+                @click="loadSignalHistory"
+                :disabled="signalHistoryLoading"
+                class="p-1 ml-1 rounded text-theme-muted hover:text-theme-primary transition-colors"
+                title="Refresh signal history"
+              >
+                <Icon name="RefreshCw" :size="12" :class="{ 'animate-spin': signalHistoryLoading }" />
+              </button>
+            </div>
+          </div>
+
+          <SignalSparkline
+            :points="signalHistoryPoints"
+            :y-min="0"
+            :y-max="5"
+            :height="80"
+            :loading="signalHistoryLoading"
+            :empty="signalHistoryEmpty"
+          />
+
+          <!-- Summary below sparkline -->
+          <div v-if="signalHistoryPoints.length >= 2" class="mt-2 flex items-center gap-4 text-xs text-theme-muted">
+            <span>
+              Avg:
+              <span class="text-theme-secondary font-medium">
+                {{ (signalHistoryPoints.reduce((s, p) => s + p.value, 0) / signalHistoryPoints.length).toFixed(1) }}/5
+              </span>
+            </span>
+            <span>
+              Min: <span class="text-theme-secondary font-medium">{{ Math.min(...signalHistoryPoints.map(p => p.value)) }}/5</span>
+            </span>
+            <span>
+              Max: <span class="text-theme-secondary font-medium">{{ Math.max(...signalHistoryPoints.map(p => p.value)) }}/5</span>
+            </span>
+            <span>{{ signalHistoryPoints.length }} samples</span>
+          </div>
+        </div>
+
+        <!-- SBD Credits card (1/3 width on lg) -->
+        <div class="bg-theme-card border border-theme-primary rounded-xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <Icon name="CreditCard" :size="16" class="text-accent" />
+              <h3 class="text-sm font-semibold text-theme-primary">SBD Credits</h3>
+            </div>
+            <button
+              @click="loadCredits"
+              :disabled="creditsLoading"
+              class="p-1 rounded text-theme-muted hover:text-theme-primary transition-colors"
+              title="Refresh credit usage"
+            >
+              <Icon name="RefreshCw" :size="12" :class="{ 'animate-spin': creditsLoading }" />
+            </button>
+          </div>
+
+          <template v-if="credits">
+            <!-- Usage stats -->
+            <div class="space-y-1.5 mb-3">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-theme-muted">Today</span>
+                <span class="font-medium text-theme-primary">{{ credits.today }}</span>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-theme-muted">This month</span>
+                <span class="font-medium text-theme-primary">{{ credits.this_month }}</span>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-theme-muted">All time</span>
+                <span class="font-medium text-theme-secondary">{{ credits.all_time }}</span>
+              </div>
+            </div>
+
+            <!-- Budget progress -->
+            <template v-if="credits.budget > 0">
+              <div class="flex items-center justify-between text-xs mb-1">
+                <span class="text-theme-muted">Monthly budget</span>
+                <span class="font-medium text-theme-primary">{{ credits.this_month }} / {{ credits.budget }}</span>
+              </div>
+              <div class="w-full h-1.5 bg-theme-tertiary rounded-full overflow-hidden">
+                <div
+                  :class="['h-full rounded-full transition-all', creditsBudgetColor]"
+                  :style="{ width: creditsBudgetPct + '%' }"
+                />
+              </div>
+              <p class="text-xs text-theme-muted mt-1">{{ creditsBudgetPct }}% used</p>
+            </template>
+
+            <!-- Budget CTA -->
+            <button
+              @click="showBudgetForm = !showBudgetForm"
+              class="mt-2 text-xs text-accent hover:underline"
+            >
+              {{ credits.budget > 0 ? 'Edit budget' : 'Set budget' }}
+            </button>
+
+            <!-- Budget form -->
+            <div v-if="showBudgetForm" class="mt-3 space-y-2">
+              <div>
+                <label class="block text-xs text-theme-muted mb-1">Monthly limit (sends)</label>
+                <input
+                  v-model="budgetInput"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 100"
+                  class="w-full px-2 py-1 text-xs rounded border border-theme-primary bg-theme-secondary text-theme-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <div>
+                <label class="block text-xs text-theme-muted mb-1">Warn at (%)</label>
+                <input
+                  v-model="warnInput"
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="e.g. 80"
+                  class="w-full px-2 py-1 text-xs rounded border border-theme-primary bg-theme-secondary text-theme-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="handleSetBudget"
+                  :disabled="budgetSaving"
+                  class="flex-1 px-2 py-1 text-xs rounded bg-accent text-on-accent hover:bg-accent-hover transition-colors disabled:opacity-50"
+                >
+                  <Icon v-if="budgetSaving" name="Loader2" :size="10" class="inline-block animate-spin mr-1" />
+                  Save
+                </button>
+                <button
+                  @click="showBudgetForm = false"
+                  class="px-2 py-1 text-xs rounded bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <div v-else-if="creditsLoading" class="space-y-2">
+            <div v-for="i in 3" :key="i" class="h-3 bg-theme-tertiary rounded animate-pulse" />
+          </div>
+
+          <p v-else class="text-xs text-theme-muted">Credit data unavailable</p>
         </div>
       </div>
 
@@ -837,23 +1216,54 @@ onUnmounted(() => {
       </div>
 
       <!-- ======================================== -->
-      <!-- Messages Table -->
+      <!-- Messages Table (3b) -->
       <!-- ======================================== -->
       <div class="bg-theme-card border border-theme-primary rounded-xl overflow-hidden">
         <div class="px-5 py-4 border-b border-theme-primary">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <Icon name="Inbox" :size="18" class="text-accent" />
-              <h2 class="text-lg font-semibold text-theme-primary">Messages</h2>
-              <span
-                v-if="messages.length"
-                class="text-xs font-medium px-2 py-0.5 rounded-full bg-accent-muted text-accent"
-              >
-                {{ messages.length }}
-              </span>
+
+            <!-- Header + unread badge + filter tabs -->
+            <div class="flex items-center gap-3 flex-wrap">
+              <div class="flex items-center gap-2">
+                <Icon name="Inbox" :size="18" class="text-accent" />
+                <h2 class="text-lg font-semibold text-theme-primary">Messages</h2>
+                <span
+                  v-if="unreadCount > 0"
+                  class="text-xs font-bold px-1.5 py-0.5 rounded-full bg-accent text-on-accent"
+                  title="Unread incoming messages"
+                >
+                  {{ unreadCount }}
+                </span>
+              </div>
+              <!-- Filter tabs -->
+              <div class="flex items-center gap-0.5 bg-theme-tertiary rounded-lg p-0.5">
+                <button
+                  v-for="f in [{ key: 'all', label: 'All' }, { key: 'inbox', label: 'Inbox' }, { key: 'sent', label: 'Sent' }]"
+                  :key="f.key"
+                  @click="messageFilter = f.key"
+                  :class="[
+                    'px-2.5 py-1 text-xs rounded-md transition-colors',
+                    messageFilter === f.key
+                      ? 'bg-theme-card text-theme-primary font-medium shadow-sm'
+                      : 'text-theme-muted hover:text-theme-primary'
+                  ]"
+                >
+                  {{ f.label }}
+                </button>
+              </div>
             </div>
 
             <div class="flex items-center gap-2">
+              <!-- Mark all read -->
+              <button
+                v-if="unreadCount > 0"
+                @click="markAllRead"
+                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-theme-tertiary text-theme-secondary hover:text-theme-primary transition-colors"
+                title="Mark all incoming messages as read"
+              >
+                Mark all read
+              </button>
+
               <!-- Receive pending MT — reads from local modem buffer -->
               <button
                 @click="handleReceiveMessage"
@@ -905,58 +1315,65 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- No messages -->
-        <div v-if="!messages.length" class="p-8 text-center">
+        <!-- No messages for current filter -->
+        <div v-if="!filteredMessages.length" class="p-8 text-center">
           <Icon name="Inbox" :size="32" class="text-theme-muted mx-auto mb-2" />
-          <p class="text-sm text-theme-secondary">No SBD Messages</p>
-          <p class="text-xs text-theme-muted mt-1">
+          <p class="text-sm text-theme-secondary">
+            {{ messageFilter === 'inbox' ? 'No Incoming Messages' : messageFilter === 'sent' ? 'No Sent Messages' : 'No SBD Messages' }}
+          </p>
+          <p v-if="messageFilter === 'all'" class="text-xs text-theme-muted mt-1">
             Use "Check Mailbox" to download incoming messages from the Iridium gateway
           </p>
         </div>
 
-        <!-- Messages list -->
-        <ResponsiveTable
-          v-else
-          :columns="[
-            { key: 'direction', label: 'Direction' },
-            { key: 'data', label: 'Message' },
-            { key: 'size', label: 'Size', align: 'right' },
-            { key: 'status', label: 'Status' },
-            { key: 'timestamp', label: 'Time', align: 'right' }
-          ]"
-          :rows="messages"
-          :row-key="(row) => row.id ?? messages.indexOf(row)"
-          compact
-        >
-          <template #cell-direction="{ row }">
-            <span
-              v-if="formatDirection(row.direction)"
-              :class="[
-                'text-xs font-medium px-2 py-0.5 rounded-full',
-                formatDirection(row.direction) === 'MO'
-                  ? 'bg-accent-muted text-accent'
-                  : 'bg-success-muted text-success'
-              ]"
-            >
-              {{ formatDirection(row.direction) === 'MO' ? 'Sent' : 'Received' }}
-            </span>
-            <span v-else class="text-xs text-theme-muted">—</span>
-          </template>
-          <template #cell-data="{ row }">
-            <span class="text-theme-primary font-mono text-xs">{{ truncatePreview(row.data) }}</span>
-          </template>
-          <template #cell-size="{ row }">
-            <span v-if="row.size !== null">{{ row.size }} B</span>
-            <span v-else>—</span>
-          </template>
-          <template #cell-status="{ row }">
-            <span v-if="row.status" class="text-xs text-theme-muted">{{ row.status }}</span>
-            <span v-else class="text-xs text-theme-muted">—</span>
-          </template>
-          <template #cell-timestamp="{ row }">
-            <span class="text-xs text-theme-muted">{{ formatTimestamp(row.timestamp) }}</span>
-          </template>
-        </ResponsiveTable>
+        <!-- Messages list — click MT row to mark read -->
+        <div v-else class="divide-y divide-theme-primary">
+          <div
+            v-for="row in filteredMessages"
+            :key="row.id ?? filteredMessages.indexOf(row)"
+            @click="formatDirection(row.direction) === 'MT' ? markRead(row) : undefined"
+            :class="[
+              'px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4',
+              formatDirection(row.direction) === 'MT' && !readMessageIds.has(row.id)
+                ? 'bg-accent-muted/20 cursor-pointer hover:bg-accent-muted/30'
+                : 'hover:bg-theme-secondary',
+              'transition-colors'
+            ]"
+          >
+            <!-- Direction badge -->
+            <div class="shrink-0 w-20">
+              <span
+                v-if="formatDirection(row.direction)"
+                :class="[
+                  'text-xs font-medium px-2 py-0.5 rounded-full',
+                  formatDirection(row.direction) === 'MO'
+                    ? 'bg-accent-muted text-accent'
+                    : 'bg-success-muted text-success'
+                ]"
+              >
+                {{ formatDirection(row.direction) === 'MO' ? 'Sent' : 'Received' }}
+              </span>
+              <!-- Unread dot for MT -->
+              <span
+                v-if="formatDirection(row.direction) === 'MT' && !readMessageIds.has(row.id)"
+                class="inline-block w-1.5 h-1.5 rounded-full bg-accent ml-1 align-middle"
+                title="Unread"
+              />
+            </div>
+
+            <!-- Message preview -->
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-mono text-theme-primary truncate">{{ truncatePreview(row.data) }}</p>
+            </div>
+
+            <!-- Meta -->
+            <div class="flex items-center gap-3 shrink-0 text-xs text-theme-muted">
+              <span v-if="row.size !== null">{{ row.size }} B</span>
+              <span v-if="row.status">{{ row.status }}</span>
+              <span>{{ formatTimestamp(row.timestamp) }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ======================================== -->

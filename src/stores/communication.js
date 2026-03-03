@@ -106,6 +106,8 @@ export const useCommunicationStore = defineStore('communication', () => {
   const iridiumMessages = ref(null)
   const iridiumConnecting = ref(false)
   const iridiumEventSource = ref(null)
+  const iridiumSignalHistory = ref(null)
+  const iridiumCredits = ref(null)
 
   // Common
   const loading = ref(false)
@@ -1381,6 +1383,60 @@ export const useCommunicationStore = defineStore('communication', () => {
     )
   }
 
+  /**
+   * Fetch Iridium signal quality history.
+   * GET /communication/iridium/signal/history?from=&to=&interval=raw|hour|day
+   * @param {object} params - { from, to, interval }
+   */
+  async function fetchIridiumSignalHistory(params = {}, options = {}) {
+    try {
+      const data = await api.get('/communication/iridium/signal/history', params, options)
+      if (data === null) return null
+      iridiumSignalHistory.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      return null
+    }
+  }
+
+  /**
+   * Fetch Iridium SBD credit usage statistics.
+   * GET /communication/iridium/credits
+   */
+  async function fetchIridiumCredits(options = {}) {
+    try {
+      const data = await api.get('/communication/iridium/credits', {}, options)
+      if (data === null) return null
+      iridiumCredits.value = data
+      return data
+    } catch (e) {
+      if (e.name === 'AbortError') return null
+      return null
+    }
+  }
+
+  /**
+   * Set monthly SBD budget and warning threshold.
+   * POST /communication/iridium/credits/budget
+   * @param {number} budget - Monthly credit budget (0 = unset)
+   * @param {number} warnThreshold - Warning threshold percentage or count
+   */
+  async function setIridiumBudget(budget, warnThreshold) {
+    error.value = null
+    try {
+      const data = await api.post('/communication/iridium/credits/budget', {
+        budget,
+        warn_threshold: warnThreshold
+      })
+      await fetchIridiumCredits()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
   // ==========================================
   // Export
   // ==========================================
@@ -1429,6 +1485,8 @@ export const useCommunicationStore = defineStore('communication', () => {
     iridiumMessages,
     iridiumConnecting,
     iridiumEventSource,
+    iridiumSignalHistory,
+    iridiumCredits,
 
     // State — Common
     loading,
@@ -1516,6 +1574,9 @@ export const useCommunicationStore = defineStore('communication', () => {
     checkIridiumMailbox,
     receiveIridiumMessage,
     clearIridiumBuffers,
-    connectIridiumSSE
+    connectIridiumSSE,
+    fetchIridiumSignalHistory,
+    fetchIridiumCredits,
+    setIridiumBudget
   }
 })
