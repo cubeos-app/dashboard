@@ -142,6 +142,7 @@ package:
   image: docker:24
   before_script:
     - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
     - docker buildx create --name mybuilder --driver docker-container --use 2>/dev/null || docker buildx use mybuilder
     - docker buildx inspect --bootstrap
   script:
