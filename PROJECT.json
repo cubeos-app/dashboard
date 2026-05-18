@@ -1,0 +1,38 @@
+{
+  "slug": "cubeos-dashboard",
+  "title": "CubeOS Dashboard — Vue 3 SPA frontend",
+  "youtrack_prefix": "MESHSAT",
+  "youtrack_disambiguator": "tag:dashboard OR summary contains 'dashboard' / 'ui' / 'frontend'",
+  "matrix_room": "!iXTnQsFJahUquYPDdG:matrix.nuclearlighters.net",
+  "primary_language": "javascript",
+  "test_command": "npm test",
+  "lint_command": "npm run lint",
+  "build_command": "npm run build",
+  "ci_pipeline": ".gitlab-ci.yml",
+  "parent_project": {
+    "slug": "cubeos",
+    "project_id": 16,
+    "spec_home": "/home/claude-runner/gitlab/products/cubeos/docs",
+    "note": "Track C of CubeOS — operator UI (Vue 3 + Vite + Pinia + Tailwind). Talks to cubeos-api over HTTP+JWT."
+  },
+  "bounded_contexts": [
+    "api", "auth", "appmanager", "apps", "appstore", "branding",
+    "chat", "communication", "dashboard", "docs", "favorites", "firewall",
+    "hardware", "layout", "router", "stores", "composables", "i18n",
+    "utils", "assets", "public"
+  ],
+  "_bounded_contexts_note": "1:1 with real top-level dirs under src/ + dashboard's compose unit (router/, stores/, composables/, etc.).",
+  "max_parallel_workers": 2,
+  "owners": [
+    {"name": "Kyriakos Papadopoulos", "email": "ncpjfuzl@mxmx.email", "role": "lead"}
+  ],
+  "risk_profile": "operator-facing-UI",
+  "security_posture": "LAN-only (served by nginx inside the operator's CubeOS box); JWT-authenticated to cubeos-api; XSS-defended via Vue's default escaping; CSP locked down in nginx.conf.template; no third-party CDN scripts",
+  "surfaces": {
+    "http_api": false,
+    "events": false,
+    "persistent_data": false
+  },
+  "_surfaces_note": "Dashboard is a static SPA — no server-side HTTP API of its own (consumes cubeos-api's). No event bus. Persistent state lives in cubeos-api/HAL, not in browser.",
+  "_sdd_tier_adoption": "Tier 0-6 (2026-05-18 onboarding wave)"
+}

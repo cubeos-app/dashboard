@@ -1,0 +1,207 @@
+{
+  "_schema_version": "1.0.0",
+  "_generated_at": "2026-05-18T03:39:17.478796+00:00",
+  "repo": {
+    "slug": "cubeos-dashboard",
+    "youtrack_prefix": "MESHSAT",
+    "matrix_room": "!iXTnQsFJahUquYPDdG:matrix.nuclearlighters.net",
+    "primary_language": "javascript",
+    "test_command": "npm test",
+    "lint_command": "npm run lint",
+    "security_posture": "LAN-only (served by nginx inside the operator's CubeOS box); JWT-authenticated to cubeos-api; XSS-defended via Vue's default escaping; CSP locked down in nginx.conf.template; no third-party CDN scripts",
+    "parent_project": {
+      "slug": "cubeos",
+      "project_id": 16,
+      "spec_home": "/home/claude-runner/gitlab/products/cubeos/docs",
+      "note": "Track C of CubeOS \u2014 operator UI (Vue 3 + Vite + Pinia + Tailwind). Talks to cubeos-api over HTTP+JWT."
+    }
+  },
+  "spec": {
+    "feature_id": "001-api-client-and-auth",
+    "parent_epic": "MESHSAT-XXX",
+    "spec_revision": "1 (2026-05-18 \u2014 initial retrospective CGC-grounded spec)",
+    "cgc_verified_at": "2026-05-18",
+    "spec_slug": "001-api-client-and-auth"
+  },
+  "task": {
+    "id": "T-003",
+    "status": "pending",
+    "title": "WebSocket transport for real-time hardware status streams",
+    "prompt": "Read spec/001-api-client-and-auth/{requirements.md, design.md} + spec/002-realtime-streams/ (when created). Add WebSocket support to api/client.js: ws://<host>/api/v1/stream with the same JWT auth header. Reconnect with backoff. Expose as `api.stream(channel)` returning a Vue ref.",
+    "files_owned": [
+      "src/api/stream.js",
+      "src/composables/useStream.js"
+    ],
+    "acceptance_test": "npm test -- --run src/api/stream.test.js",
+    "dependencies": [
+      "T-001"
+    ],
+    "parallelizable": true,
+    "bounded_context": "api",
+    "requirement_ids": [
+      "REQ-015",
+      "REQ-016"
+    ],
+    "complexity": 4,
+    "risk_score": 0.3,
+    "max_wall_clock_minutes": 120,
+    "max_loc_delta": 400,
+    "observability": {
+      "prometheus_metrics": [
+        "cubeos_dashboard_stream_connections_active",
+        "cubeos_dashboard_stream_reconnects_total"
+      ],
+      "slo_targets": {
+        "p95_reconnect_ms": 2000,
+        "_notes": "first-attempt + retry backoff target"
+      },
+      "_notes": "Worker to fill in concrete metric names"
+    }
+  },
+  "requirements": [
+    {
+      "id": "REQ-015",
+      "body": "The system shall NOT implement OAuth flows in this spec \u2014 local JWT only. Future spec/004-oauth-providers handles SSO."
+    },
+    {
+      "id": "REQ-016",
+      "body": "The system shall NOT cover WebSocket transport in this spec \u2014 covered by future spec/002-realtime-streams."
+    }
+  ],
+  "acceptance": [
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "Components import the single api object from client.js",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "Demo build swaps client.js for demo-client.js",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "JWT keyed by hostname allows multiple CubeOS boxes",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "401 response clears JWT and redirects to /login",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "JWT within 5 min of expiry triggers background refresh",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "GET retries on network error with backoff",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "POST never retries automatically",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "403 maps to ForbiddenError type",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "Demo mode rejects mutations with DemoModeError",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "Spec does NOT cover OAuth",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    },
+    {
+      "feature_file": "spec/001-api-client-and-auth/acceptance/api-client-and-auth.feature",
+      "scenario": "Spec does NOT cover WebSocket transport",
+      "covers_reqs": [
+        "REQ-015",
+        "REQ-016"
+      ],
+      "status": "retrospective_gap",
+      "test_file": null,
+      "test_function": null
+    }
+  ],
+  "stride": null,
+  "family_invariants_relevant_to_this_repo": [],
+  "constitution_articles_relevant_to_files_owned": [],
+  "branch_convention": "merge/T-003",
+  "mr_template": {
+    "title_format": "feat(001-api-client-and-auth): {short_summary} (T-003)",
+    "body_must_cite": [
+      "REQ-015",
+      "REQ-016"
+    ],
+    "commit_identity_required": "Kyriakos Papadopoulos <ncpjfuzl@mxmx.email>",
+    "commit_flag_pattern": "git -c user.name=\"Kyriakos Papadopoulos\" -c user.email=\"ncpjfuzl@mxmx.email\" commit ..."
+  }
+}

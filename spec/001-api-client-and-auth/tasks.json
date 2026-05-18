@@ -1,0 +1,95 @@
+{
+  "feature_id": "001-api-client-and-auth",
+  "_cgc_verified_at": "2026-05-18",
+  "parent_epic": "MESHSAT-XXX",
+  "spec_revision": "1 (2026-05-18 — initial retrospective CGC-grounded spec)",
+  "tasks": [
+    {
+      "id": "T-001",
+      "status": "completed",
+      "title": "axios client + JWT lifecycle + error mapping",
+      "prompt": "(RETROSPECTIVE — shipped.) src/api/client.js wraps axios with request interceptor (JWT attach), response interceptor (401 -> clearJwt + redirect /login), error mapping into {ok, data, error} shape.",
+      "files_owned": [
+        "src/api/client.js",
+        "src/stores/auth.js"
+      ],
+      "acceptance_test": "npm test -- --run src/api/client.test.js",
+      "dependencies": [],
+      "parallelizable": true,
+      "bounded_context": "api",
+      "requirement_ids": ["REQ-001", "REQ-003", "REQ-004", "REQ-005", "REQ-006", "REQ-007", "REQ-008", "REQ-009", "REQ-010", "REQ-011", "REQ-012"],
+      "complexity": 4,
+      "risk_score": 0.3,
+      "max_wall_clock_minutes": 120,
+      "max_loc_delta": 400,
+      "completed_at": "2026-03",
+      "observability": {
+        "prometheus_metrics": [
+          "cubeos_dashboard_api_requests_total",
+          "cubeos_dashboard_api_request_duration_seconds",
+          "cubeos_dashboard_api_errors_total"
+        ],
+        "slo_targets": {
+          "p95_latency_ms": 500,
+          "error_rate_max": 0.01,
+          "_notes": "client-side latency; cubeos-api server-side latency tracked separately"
+        },
+        "_notes": "Retrospective marker; concrete metric names to be wired into prom-client + scraped by host node-exporter"
+      }
+    },
+    {
+      "id": "T-002",
+      "status": "completed",
+      "title": "Demo-mode swap via Vite resolve.alias",
+      "prompt": "(RETROSPECTIVE — shipped.) vite.config.js carries an `npm run build:demo` script (VITE_DEMO_MODE=true vite build) + resolve.alias swap that points imports of '@/api/client' at '@/api/demo-client' instead. Demo client serves fixtures from demo-data.js + rejects mutations with DemoModeError.",
+      "files_owned": [
+        "vite.config.js",
+        "src/api/demo-client.js",
+        "src/api/demo-data.js"
+      ],
+      "acceptance_test": "VITE_DEMO_MODE=true npm run build:demo && grep -q DemoModeError dist/assets/*.js",
+      "dependencies": ["T-001"],
+      "parallelizable": false,
+      "bounded_context": "api",
+      "requirement_ids": ["REQ-002", "REQ-013", "REQ-014"],
+      "complexity": 3,
+      "risk_score": 0.2,
+      "max_wall_clock_minutes": 60,
+      "max_loc_delta": 250,
+      "completed_at": "2026-03",
+      "observability": {
+        "no_observability_required": "build-time concern, no runtime metrics; CI verifies dist contents"
+      }
+    },
+    {
+      "id": "T-003",
+      "status": "pending",
+      "title": "WebSocket transport for real-time hardware status streams",
+      "prompt": "Read spec/001-api-client-and-auth/{requirements.md, design.md} + spec/002-realtime-streams/ (when created). Add WebSocket support to api/client.js: ws://<host>/api/v1/stream with the same JWT auth header. Reconnect with backoff. Expose as `api.stream(channel)` returning a Vue ref.",
+      "files_owned": [
+        "src/api/stream.js",
+        "src/composables/useStream.js"
+      ],
+      "acceptance_test": "npm test -- --run src/api/stream.test.js",
+      "dependencies": ["T-001"],
+      "parallelizable": true,
+      "bounded_context": "api",
+      "requirement_ids": ["REQ-015", "REQ-016"],
+      "complexity": 4,
+      "risk_score": 0.3,
+      "max_wall_clock_minutes": 120,
+      "max_loc_delta": 400,
+      "observability": {
+        "prometheus_metrics": [
+          "cubeos_dashboard_stream_connections_active",
+          "cubeos_dashboard_stream_reconnects_total"
+        ],
+        "slo_targets": {
+          "p95_reconnect_ms": 2000,
+          "_notes": "first-attempt + retry backoff target"
+        },
+        "_notes": "Worker to fill in concrete metric names"
+      }
+    }
+  ]
+}
